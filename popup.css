@@ -1,0 +1,230 @@
+/* Language Learning Extension Popup Styles */
+
+.lang-extension-popup {
+    position: absolute;
+    z-index: 10000;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    max-width: 300px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  
+  .popup-content {
+    padding: 12px 16px;
+  }
+  
+  .lang-extension-popup .word {
+    font-size: 18px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 4px;
+  }
+  
+  .lang-extension-popup .pronunciation {
+    font-size: 12px;
+    color: #666;
+    font-style: italic;
+    margin-bottom: 8px;
+  }
+  
+  .lang-extension-popup .definition {
+    color: #444;
+    margin-bottom: 12px;
+    line-height: 1.5;
+  }
+  
+  .popup-buttons {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+  
+  .lang-extension-popup button {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: background-color 0.2s;
+  }
+  
+  .add-vocab-btn {
+    background-color: #4CAF50;
+    color: white;
+  }
+  
+  .add-vocab-btn:hover:not(:disabled) {
+    background-color: #45a049;
+  }
+  
+  .add-vocab-btn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+  }
+  
+  .close-btn {
+    background-color: #f5f5f5;
+    color: #333;
+  }
+  
+  .close-btn:hover {
+    background-color: #e0e0e0;
+  }
+  
+  /* Subtitle highlighting */
+  .lang-extension-processed {
+    transition: background-color 0.2s;
+  }
+  
+  .lang-extension-processed:hover {
+    background-color: rgba(76, 175, 80, 0.1) !important;
+  }
+  
+  /* Selection highlighting */
+  ::selection {
+    background-color: rgba(76, 175, 80, 0.3);
+  }
+  
+  /* Custom scrollbar for popup if content is long */
+  .lang-extension-popup {
+    max-height: 400px;
+    overflow-y: auto;
+  }
+  
+  .lang-extension-popup::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .lang-extension-popup::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+  }
+  
+  .lang-extension-popup::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 3px;
+  }
+  
+  .lang-extension-popup::-webkit-scrollbar-thumb:hover {
+    background: #999;
+  }
+  
+  /* Shift mode indicator */
+  body[data-shift-active="true"] {
+    cursor: help !important;
+  }
+  
+  body[data-shift-active="true"] * {
+    cursor: help !important;
+  }
+  
+  .chinese-lang-extension-popup {
+    position: absolute;
+    background: white;
+    border: 2px solid #4CAF50;
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 10000;
+    max-width: 300px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #333;
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+  }
+  
+  .chinese-lang-extension-popup .character {
+    font-size: 36px;
+    font-weight: bold;
+    color: #2196F3;
+    margin-bottom: 8px;
+    text-align: center;
+    font-family: 'Microsoft YaHei', 'SimHei', 'Arial Unicode MS', sans-serif;
+  }
+  
+  .chinese-lang-extension-popup .pinyin {
+    font-size: 16px;
+    color: #FF9800;
+    font-weight: bold;
+    margin-bottom: 8px;
+    text-align: center;
+    font-style: italic;
+  }
+  
+  .chinese-lang-extension-popup .variants {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+  
+  .chinese-lang-extension-popup .definition {
+    font-size: 14px;
+    color: #333;
+    margin-bottom: 12px;
+    line-height: 1.4;
+  }
+  
+  .chinese-lang-extension-popup .tone-indicator {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    color: white;
+    text-align: center;
+    line-height: 20px;
+    font-size: 12px;
+    font-weight: bold;
+    margin-left: 8px;
+  }
+  
+  .tone-1 { background-color: #F44336; }
+  .tone-2 { background-color: #FF9800; }
+  .tone-3 { background-color: #4CAF50; }
+  .tone-4 { background-color: #2196F3; }
+  .tone-0 { background-color: #9E9E9E; }
+  
+  .chinese-lang-extension-popup .popup-buttons {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+  }
+  
+  .chinese-lang-extension-popup button {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+  }
+  
+  .chinese-lang-extension-popup .add-vocab-btn {
+    background-color: #4CAF50;
+    color: white;
+  }
+  
+  .chinese-lang-extension-popup .add-vocab-btn:hover:not(:disabled) {
+    background-color: #45a049;
+  }
+  
+  .chinese-lang-extension-popup .add-vocab-btn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+  }
+  
+  .chinese-lang-extension-popup .close-btn {
+    background-color: #f5f5f5;
+    color: #333;
+  }
+  
+  .chinese-lang-extension-popup .close-btn:hover {
+    background-color: #e0e0e0;
+  }
