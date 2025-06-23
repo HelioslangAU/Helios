@@ -18,7 +18,7 @@
     "content_scripts": [
       {
         "matches": ["<all_urls>"],
-        "js": ["content.js"],
+        "js": ["text-scanner.js", "content.js", "dom-text-scanner.js"],
         "css": ["popup.css"],
         "run_at": "document_end"
       }
@@ -38,7 +38,9 @@
         "resources": [
           "dictionary.json",
           "popup.css",
-          "cedict_ts.u8"
+          "cedict_ts.u8",
+          "vnedict1.txt",
+          "vietnamese_dict_converted.txt"
         ],
         "matches": ["<all_urls>"]
       }

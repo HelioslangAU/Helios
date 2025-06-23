@@ -1,393 +1,419 @@
-// Chinese Language Learning Extension - Content Script
 class ChineseLanguageLearningExtension {
   constructor() {
     this.popup = null;
-    this.currentCharacter = '';
-    this.vocabList = [];
+    this.currentHighlight = null;
     this.dictionary = {};
+    this.vocabList = [];
+    this.isShiftPressed = false;
+    this.hoverTimeout = null;
+    this.lastMouseEvent = null;
+    this.lastHighlightInfo = null;
+    this.currentWord = null;
+    
     this.init();
   }
 
   async init() {
-    await this.loadDictionary();
-    await this.loadVocabList();
-    this.setupEventListeners();
-    this.injectSubtitleReader();
+    await Promise.all([this.loadDictionary()]);
+    //this.setupEventListeners();
+    this.initTextScannerEvents();
     console.log('Chinese Language Learning Extension initialized');
   }
 
-  // Load Chinese dictionary data from CC-CEDICT .u8 file
+ //#region Dictionary Loading 
   async loadDictionary() {
     try {
-      this.dictionary = {};
-      
-      // Try to load from extension's dictionary file
       const dictionaryUrl = chrome.runtime.getURL('cedict_ts.u8');
-      
-      try {
-        const response = await fetch(dictionaryUrl);
-        const text = await response.text();
-        this.parseCEDICT(text);
-        console.log('CC-CEDICT loaded with', Object.keys(this.dictionary).length, 'entries');
-      } catch (error) {
-        console.warn('Could not load CC-CEDICT file, using fallback dictionary:', error);
-        this.loadFallbackDictionary();
-      }
+      const response = await fetch(dictionaryUrl);
+      const text = await response.text();
+      this.parseCEDICT(text);
+      console.log('CC-CEDICT loaded with', Object.keys(this.dictionary).length, 'entries');
     } catch (error) {
-      console.error('Failed to load Chinese dictionary:', error);
-      this.loadFallbackDictionary();
+      console.warn('Could not load CC-CEDICT file:', error);
     }
   }
 
-  // Parse CC-CEDICT format
   parseCEDICT(cedictText) {
-  const lines = cedictText.split('\n');
-  let processedEntries = 0;
+    const lines = cedictText.split('\n');
+    let processedEntries = 0;
 
-  for (const line of lines) {
-    if (line.startsWith('#') || line.trim() === '') continue;
+    for (const line of lines) {
+      if (line.startsWith('#') || !line.trim()) continue;
 
-    try {
       const match = line.match(/^(.+?)\s+(.+?)\s+\[([^\]]+)\]\s+\/(.+)\/\s*$/);
-      if (match) {
-        const [, traditional, simplified, pinyin, definitions] = match;
-        const traditionalClean = traditional.trim();
-        const simplifiedClean = simplified.trim();
-        const pinyinClean = pinyin.trim();
-        const definitionList = definitions.split('/').filter(def => def.trim() !== '');
+      if (!match) continue;
 
-        const entryData = {
-          traditional: traditionalClean,
-          simplified: simplifiedClean,
-          pinyin: pinyinClean,
-          definition: definitionList.join('; '),
-          tone: this.extractToneFromPinyin(pinyinClean)
-        };
+      const [, traditional, simplified, pinyin, definitions] = match;
+      const entryData = {
+        traditional: traditional.trim(),
+        simplified: simplified.trim(),
+        pinyin: pinyin.trim(),
+        definition: definitions.split('/').filter(def => def.trim()).join('; '),
+        tone: this.extractToneFromPinyin(pinyin.trim())
+      };
 
-        // Store full traditional and simplified as keys
-        if (!this.dictionary[traditionalClean]) {
-          this.dictionary[traditionalClean] = { ...entryData, character: traditionalClean };
-        }
-        if (!this.dictionary[simplifiedClean]) {
-          this.dictionary[simplifiedClean] = { ...entryData, character: simplifiedClean };
-        }
+      const tradKey = traditional.trim();
+      const simpKey = simplified.trim();
 
-        processedEntries++;
-        if (processedEntries % 10000 === 0) {
-          console.log(`Processed ${processedEntries} entries...`);
-        }
+      if (tradKey === simpKey) {
+        if (!this.dictionary[tradKey]) this.dictionary[tradKey] = [];
+        this.dictionary[tradKey].push({ ...entryData, character: tradKey });
+      } else {
+        [tradKey, simpKey].forEach(key => {
+          if (!this.dictionary[key]) this.dictionary[key] = [];
+          this.dictionary[key].push({ ...entryData, character: key });
+        });
       }
-    } catch (error) {
-      console.error('Error processing line:', line.substring(0, 100), error);
-      continue;
+
+      processedEntries++;
     }
+    console.log(`Successfully processed ${processedEntries} CC-CEDICT entries`);
   }
-  console.log(`Successfully processed ${processedEntries} CC-CEDICT entries`);
+
+  extractToneFromPinyin(pinyin) {
+    const toneMarks = {
+      'ā': 1, 'á': 2, 'ǎ': 3, 'à': 4, 'ē': 1, 'é': 2, 'ě': 3, 'è': 4,
+      'ī': 1, 'í': 2, 'ǐ': 3, 'ì': 4, 'ō': 1, 'ó': 2, 'ǒ': 3, 'ò': 4,
+      'ū': 1, 'ú': 2, 'ǔ': 3, 'ù': 4, 'ǖ': 1, 'ǘ': 2, 'ǚ': 3, 'ǜ': 4
+    };
+    
+    for (const char of pinyin) {
+      if (toneMarks[char] > 0) return toneMarks[char];
+    }
+    
+    const toneMatch = pinyin.match(/[1-4]/);
+    return toneMatch ? parseInt(toneMatch[0]) : 0;
+  }
+  //#endregion
+
+  initTextScannerEvents() {
+    const capture = true;
+    if (this._textScannerListeners) {
+      this._textScannerListeners.forEach(({target, type, listener, options}) => {
+        target.removeEventListener(type, listener, options);
+      });
+    }
+    this._textScannerListeners = [];
+
+    const addEvent = (target, type, listener, options) => {
+      target.addEventListener(type, listener, options);
+      this._textScannerListeners.push({target, type, listener, options});
+    };
+
+    addEvent(document, 'pointermove', this._onPointerMoveTS.bind(this), capture);
+    //addEvent(document, 'pointerdown', this._onPointerDownTS.bind(this), capture);
+    //addEvent(document, 'pointerup', this._onPointerUpTS.bind(this), capture);
+    addEvent(document, 'keydown', this._onKeyDownTS.bind(this), capture);
+    addEvent(document, 'keyup', this._onKeyUpTS.bind(this), capture);
+    addEvent(document, 'selectstart', this._onSelectStartTS.bind(this), capture);
+    addEvent(document, 'contextmenu', this._onContextMenuTS.bind(this), capture);
+    addEvent(document, 'click', this._onClickTS.bind(this), capture);
+  }
+
+_onPointerMoveTS(event) {
+    if (!this.isShiftPressed) return;
+    this.lastPointerEvent = event;
+
+    const characterInfo = this.getCharacterAtPosition(event);
+
+    if (characterInfo && characterInfo.word) {
+        if (
+            this.currentWord === characterInfo.word &&
+            this.currentHighlight &&
+            this.currentHighlight.textContent === characterInfo.word
+        ) return;
+
+        this.removeLookupHighlight();
+
+        // Re-find the text node after removing highlight
+        const newCharacterInfo = this.getCharacterAtPosition(event);
+        if (!newCharacterInfo) {
+            this.hidePopup();
+            return;
+        }
+        clearTimeout(this.hoverTimeout);
+      this.hoverTimeout = setTimeout(() => {
+
+        this.showDictionaryPopup(event.pageX, event.pageY, newCharacterInfo.word);
+        this.highlightLookupText(newCharacterInfo.textNode, newCharacterInfo.start, newCharacterInfo.end);
+      }, 10);
+        this.currentWord = newCharacterInfo.word;
+        console.log('Character info:', newCharacterInfo);
+    } else {
+        this.hidePopup();
+        this.removeLookupHighlight();
+    }
 }
 
-  // Extract tone number from pinyin
-  extractToneFromPinyin(pinyin) {
-    // Remove tone marks and extract first tone number
-    const toneMarks = {
-      'ā': 1, 'á': 2, 'ǎ': 3, 'à': 4, 'a': 0,
-      'ē': 1, 'é': 2, 'ě': 3, 'è': 4, 'e': 0,
-      'ī': 1, 'í': 2, 'ǐ': 3, 'ì': 4, 'i': 0,
-      'ō': 1, 'ó': 2, 'ǒ': 3, 'ò': 4, 'o': 0,
-      'ū': 1, 'ú': 2, 'ǔ': 3, 'ù': 4, 'u': 0,
-      'ǖ': 1, 'ǘ': 2, 'ǚ': 3, 'ǜ': 4, 'ü': 0
-    };
-    
-    // Check for tone marks
-    for (const char of pinyin) {
-      if (toneMarks[char] !== undefined && toneMarks[char] > 0) {
-        return toneMarks[char];
-      }
-    }
-    
-    // Check for tone numbers (like "ni3")
-    const toneMatch = pinyin.match(/[1-4]/);
-    if (toneMatch) {
-      return parseInt(toneMatch[0]);
-    }
-    
-    return 0; // Neutral tone
-  }
-
-  // Fallback dictionary in case CC-CEDICT file is not available
-  loadFallbackDictionary() {
-    this.dictionary = {
-      '你': { 
-        traditional: '你', 
-        simplified: '你', 
-        pinyin: 'nǐ', 
-        definition: 'you (informal)', 
-        tone: 3 
-      },
-      '好': { 
-        traditional: '好', 
-        simplified: '好', 
-        pinyin: 'hǎo', 
-        definition: 'good, well', 
-        tone: 3 
-      },
-      '我': { 
-        traditional: '我', 
-        simplified: '我', 
-        pinyin: 'wǒ', 
-        definition: 'I, me', 
-        tone: 3 
-      },
-      '是': { 
-        traditional: '是', 
-        simplified: '是', 
-        pinyin: 'shì', 
-        definition: 'to be, yes', 
-        tone: 4 
-      },
-      '的': { 
-        traditional: '的', 
-        simplified: '的', 
-        pinyin: 'de', 
-        definition: 'possessive particle', 
-        tone: 0 
-      },
-      '不': { 
-        traditional: '不', 
-        simplified: '不', 
-        pinyin: 'bù', 
-        definition: 'not, no', 
-        tone: 4 
-      },
-      '在': { 
-        traditional: '在', 
-        simplified: '在', 
-        pinyin: 'zài', 
-        definition: 'at, in, on', 
-        tone: 4 
-      },
-      '有': { 
-        traditional: '有', 
-        simplified: '有', 
-        pinyin: 'yǒu', 
-        definition: 'to have, there is', 
-        tone: 3 
-      },
-      '中': { 
-        traditional: '中', 
-        simplified: '中', 
-        pinyin: 'zhōng', 
-        definition: 'middle, center, China', 
-        tone: 1 
-      },
-      '国': { 
-        traditional: '國', 
-        simplified: '国', 
-        pinyin: 'guó', 
-        definition: 'country, nation', 
-        tone: 2 
-      }
-    };
-    
-    console.log('Fallback dictionary loaded with', Object.keys(this.dictionary).length, 'characters');
-  }
-
-  // Load saved vocabulary list
-  async loadVocabList() {
-    try {
-      const result = await chrome.storage.local.get(['chineseVocabList']);
-      this.vocabList = result.chineseVocabList || [];
-    } catch (error) {
-      console.error('Failed to load vocab list:', error);
-    }
-  }
-
-  // Save vocabulary list
-  async saveVocabList() {
-    try {
-      await chrome.storage.local.set({ chineseVocabList: this.vocabList });
-    } catch (error) {
-      console.error('Failed to save vocab list:', error);
-    }
-  }
-
-  // Setup event listeners for shift+hover and clicks
-  setupEventListeners() {
-    this.isShiftPressed = false;
-    this.hoverTimeout = null;
-    
-    document.addEventListener('mousemove', (e) => this.handleMouseMove(e));
-    document.addEventListener('click', (e) => this.hidePopup(e));
-    document.addEventListener('keydown', (e) => this.handleKeyDown(e));
-    document.addEventListener('keyup', (e) => this.handleKeyUp(e));
-    
-    // Prevent text selection during shift mode
-    document.addEventListener('selectstart', (e) => {
-      if (this.isShiftPressed) {
-        e.preventDefault();
-        return false;
-      }
-    });
-    
-    document.addEventListener('dragstart', (e) => {
-      if (this.isShiftPressed) {
-        e.preventDefault();
-        return false;
-      }
-    });
-    
-    // Keep the old text selection method as backup (only when shift is not pressed)
-    document.addEventListener('mouseup', (e) => this.handleTextSelection(e));
-    
-    console.log('Event listeners setup complete');
-  }
-
-  // Handle mouse movement for shift+hover
-  handleMouseMove(event) {
-    if (!this.isShiftPressed) return;
-    
-    // Clear previous timeout
-    if (this.hoverTimeout) {
-      clearTimeout(this.hoverTimeout);
-    }
-    
-    // Add small delay to avoid too many lookups
-    this.hoverTimeout = setTimeout(() => {
-      const character = this.getCharacterAtPosition(event);
-      if (character) {
-        this.currentCharacter = character;
-        this.showDictionaryPopup(event.pageX, event.pageY, character);
-      }
-    }, 100);
-  }
-
-  // Handle key events for shift detection
-  handleKeyDown(event) {
+  _onKeyDownTS(event) {
     if (event.key === 'Shift' && !this.isShiftPressed) {
       this.isShiftPressed = true;
-
-      document.body.style.cursor = 'crosshair';
-      document.body.setAttribute('data-shift-active', 'true');
-
-      // Clear any existing text selection
-      if (window.getSelection) {
-        window.getSelection().removeAllRanges();
+      this.toggleShiftMode(true);
+      if (this.lastPointerEvent) {
+        this._onPointerMoveTS(this.lastPointerEvent);
       }
-
-      console.log('Shift mode activated');
     }
   }
 
-  handleKeyUp(event) {
+  _onKeyUpTS(event) {
     if (event.key === 'Shift') {
       this.isShiftPressed = false;
-
-      document.body.style.cursor = '';
-      document.body.removeAttribute('data-shift-active');
+      this.toggleShiftMode(false);
+      this.removeLookupHighlight();
       this.hidePopup();
-
-      if (this.hoverTimeout) {
-        clearTimeout(this.hoverTimeout);
-      }
-
-      console.log('Shift mode deactivated');
+      clearTimeout(this.hoverTimeout);
     }
   }
 
-  // Get Chinese character at mouse position
-  getCharacterAtPosition(event) {
-    try {
-      const element = document.elementFromPoint(event.clientX, event.clientY);
-      if (!element) return null;
-
-      const range = document.caretRangeFromPoint(event.clientX, event.clientY);
-      if (range) {
-        const textNode = range.startContainer;
-        if (textNode.nodeType === Node.TEXT_NODE) {
-          const text = textNode.textContent;
-          const offset = range.startOffset;
-
-          // Only consider Chinese characters
-          if (!this.isChineseCharacter(text[offset])) return null;
-
-          // Try to find the longest valid word (up to 5 chars) starting at offset
-          let longestWord = '';
-          for (let len = 5; len >= 1; len--) {
-            const candidate = text.substr(offset, len);
-            if (
-              candidate.length === len &&
-              [...candidate].every(c => this.isChineseCharacter(c)) &&
-              this.dictionary[candidate]
-            ) {
-              longestWord = candidate;
-              break; // Prefer the longest match
-            }
-          }
-
-          // Fallback: single character if no compound word found
-          if (!longestWord && this.isChineseCharacter(text[offset])) {
-            longestWord = text[offset];
-          }
-
-          return longestWord || null;
-        }
-      }
-
-      // Fallback: get first contiguous Chinese word from element
-      const textContent = element.textContent || element.innerText;
-      if (textContent) {
-        const match = textContent.match(/[\u4e00-\u9fff]+/);
-        if (match && this.dictionary[match[0]]) {
-          return match[0];
-        }
-      }
-
-      return null;
-    } catch (error) {
-      console.error('Error getting character at position:', error);
-      return null;
+  _onSelectStartTS(event) {
+    if (this.isShiftPressed) {
+      event.preventDefault();
+      return false;
     }
   }
 
-  // Check if character is Chinese
-  isChineseCharacter(char) {
-    const code = char.charCodeAt(0);
-    return (
-      (code >= 0x4E00 && code <= 0x9FFF) ||  // CJK Unified Ideographs
-      (code >= 0x3400 && code <= 0x4DBF) ||  // CJK Extension A
-      (code >= 0x20000 && code <= 0x2A6DF) || // CJK Extension B
-      (code >= 0x2A700 && code <= 0x2B73F) || // CJK Extension C
-      (code >= 0x2B740 && code <= 0x2B81F) || // CJK Extension D
-      (code >= 0x2B820 && code <= 0x2CEAF) || // CJK Extension E
-      (code >= 0x2CEB0 && code <= 0x2EBEF) || // CJK Extension F
-      (code >= 0x3000 && code <= 0x303F) ||  // CJK Symbols and Punctuation
-      (code >= 0xFF00 && code <= 0xFFEF)     // Halfwidth and Fullwidth Forms
+  _onContextMenuTS(event) {
+    if (this.isShiftPressed) {
+      event.preventDefault();
+      return false;
+    }
+  }
+
+  _onClickTS(event) {
+    this.hidePopup(event);
+  }
+
+
+  toggleShiftMode(active) {
+    document.body.style.cursor = active ? 'help' : '';
+    document.body.toggleAttribute('data-shift-active', active);
+    if (active) window.getSelection()?.removeAllRanges();
+  }
+
+  preventSelection(event) {
+    if (this.isShiftPressed) {
+      event.preventDefault();
+      return false;
+    }
+  }
+
+  preventContextMenu(event) {
+    if (this.isShiftPressed) {
+      event.preventDefault();
+      return false;
+    }
+  }
+
+  highlightLookupText(node, start, end) {
+  // Remove previous highlight if it exists
+  this.removeLookupHighlight();
+
+  if (!node || start === end || !node.parentNode) return;
+
+  const text = node.textContent;
+  const before = text.slice(0, start);
+  const target = text.slice(start, end);
+  const after = text.slice(end);
+
+  // Create new nodes
+  const beforeNode = document.createTextNode(before);
+  const highlightSpan = document.createElement('span');
+  highlightSpan.className = 'lookup-highlight';
+  highlightSpan.textContent = target;
+  const afterNode = document.createTextNode(after);
+
+  // Replace the original text node
+  const parent = node.parentNode;
+  parent.insertBefore(beforeNode, node);
+  parent.insertBefore(highlightSpan, node);
+  parent.insertBefore(afterNode, node);
+  parent.removeChild(node);
+
+  // Save reference for later removal
+  this.currentHighlight = highlightSpan;
+}
+
+// Removes the highlight
+removeLookupHighlight() {
+  if (this.currentHighlight && this.currentHighlight.parentNode) {
+    const parent = this.currentHighlight.parentNode;
+    const text = this.currentHighlight.textContent;
+    const textNode = document.createTextNode(text);
+    parent.replaceChild(textNode, this.currentHighlight);
+    parent.normalize();
+    this.currentHighlight = null;
+  }
+}
+
+
+  // Character Detection 
+getCharacterAtPosition(event) {
+  try {
+    // First try the more accurate approach
+    const accurateResult = this.getCharacterAtPositionAccurate(event);
+    if (accurateResult) return accurateResult;
+    
+    // Fallback to original method
+    return this.getCharacterAtPositionFallback(event);
+  } catch (error) {
+    console.error('Error getting character at position:', error);
+    return null;
+  }
+}
+
+getCharacterAtPositionAccurate(event) {
+  const element = document.elementFromPoint(event.clientX, event.clientY);
+  if (!element) return null;
+
+  // Find all text nodes within the element
+  const textNodes = this.getTextNodes(element);
+  
+  for (const textNode of textNodes) {
+    const result = this.checkTextNodeAtPosition(textNode, event.clientX, event.clientY);
+    if (result) return result;
+  }
+  
+  return null;
+}
+
+checkTextNodeAtPosition(textNode, x, y) {
+  const text = textNode.textContent;
+  if (!text) return null;
+
+  // Create a range to measure each character position
+  const range = document.createRange();
+  
+  for (let i = 0; i < text.length; i++) {
+    if (!this.isChineseCharacter(text[i])) continue;
+    
+    range.setStart(textNode, i);
+    range.setEnd(textNode, i + 1);
+    
+    const rect = range.getBoundingClientRect();
+    
+    // Check if the mouse position is within this character's bounds
+    // Use a more generous hit area (not just the center)
+    if (x >= rect.left && x <= rect.right && 
+        y >= rect.top && y <= rect.bottom) {
+      
+      // Try to find the longest word starting from this position
+      const wordResult = this.findLongestWord(textNode, i);
+      if (wordResult) return wordResult;
+      
+      // Fallback to single character
+      return { 
+        word: text[i], 
+        textNode, 
+        start: i, 
+        end: i + 1 
+      };
+    }
+  }
+  
+  return null;
+}
+
+findLongestWord(textNode, startOffset) {
+  const text = textNode.textContent;
+  
+  // Try to extract the longest word (up to 5 chars)
+  for (let len = 5; len >= 1; len--) {
+    if (startOffset + len <= text.length) {
+      const candidate = text.substring(startOffset, startOffset + len);
+      
+      if ([...candidate].every(c => this.isChineseCharacter(c)) &&
+          this.dictionary[candidate]) {
+        return { 
+          word: candidate, 
+          textNode, 
+          start: startOffset, 
+          end: startOffset + len 
+        };
+      }
+    }
+  }
+  
+  return null;
+}
+
+getTextNodes(element) {
+  const textNodes = [];
+  const walker = document.createTreeWalker(
+    element,
+    NodeFilter.SHOW_TEXT,
+    null,
+    false
+  );
+  
+  let node;
+  while (node = walker.nextNode()) {
+    if (node.textContent.trim()) {
+      textNodes.push(node);
+    }
+  }
+  
+  return textNodes;
+}
+
+// Fallback method (your original approach with improvements)
+getCharacterAtPositionFallback(event) {
+  // Try multiple points around the cursor for better accuracy
+  const offsets = [
+    { x: 0, y: 0 },     // Original position
+    { x: -2, y: 0 },    // Slightly left
+    { x: 2, y: 0 },     // Slightly right
+    { x: 0, y: -1 },    // Slightly up
+    { x: 0, y: 1 }      // Slightly down
+  ];
+  
+  for (const offset of offsets) {
+    const result = this.tryGetCharacterAtPoint(
+      event.clientX + offset.x, 
+      event.clientY + offset.y
     );
+    if (result) return result;
   }
+  
+  return null;
+}
 
-  // Handle text selection for dictionary lookup (backup method)
-  handleTextSelection(event) {
-    // Only use this if shift is not pressed (to avoid conflicts)
-    if (this.isShiftPressed) return;
+tryGetCharacterAtPoint(x, y) {
+  const caret = document.caretPositionFromPoint?.(x, y);
+  if (!caret?.offsetNode) return null;
 
-    const selection = window.getSelection();
-    const selectedText = selection.toString().trim();
+  let { offsetNode: textNode, offset } = caret;
+  if (textNode.nodeType !== Node.TEXT_NODE) return null;
 
-    if (selectedText && selectedText.length === 1 && this.isChineseCharacter(selectedText)) {
-      this.currentCharacter = selectedText;
-      this.showDictionaryPopup(event.pageX, event.pageY, selectedText);
-    } else if (selectedText && selectedText.length > 1) {
-      // Handle multi-character selection - show first character
-      for (let char of selectedText) {
-        if (this.isChineseCharacter(char)) {
-          this.currentCharacter = char;
-          this.showDictionaryPopup(event.pageX, event.pageY, char);
-          break;
-        }
+  // Your existing word extraction logic
+  for (let len = 5; len >= 1; len--) {
+    if (offset + len <= textNode.textContent.length) {
+      const candidate = textNode.textContent.substring(offset, offset + len);
+      if ([...candidate].every(c => this.isChineseCharacter(c)) &&
+          this.dictionary[candidate]) {
+        return { word: candidate, textNode, start: offset, end: offset + len };
       }
     }
   }
 
-  // Show dictionary popup
+  // Fallback to single character
+  const text = textNode.textContent;
+  if (this.isChineseCharacter(text[offset])) {
+    return { word: text[offset], textNode, start: offset, end: offset + 1 };
+  }
+
+  return null;
+}
+
+  isChineseCharacter(char) {
+    if (!char) return false;
+    const code = char.charCodeAt(0);
+    return (code >= 0x4E00 && code <= 0x9FFF) ||  // CJK Unified Ideographs
+           (code >= 0x3400 && code <= 0x4DBF) ||  // CJK Extension A
+           (code >= 0x20000 && code <= 0x2A6DF); // CJK Extension B
+  }
+
+  //#region Popup Management
+  // Popup Management
   showDictionaryPopup(x, y, character) {
     this.hidePopup();
 
@@ -395,184 +421,66 @@ class ChineseLanguageLearningExtension {
     popup.className = 'chinese-lang-extension-popup';
     popup.innerHTML = this.createPopupContent(character);
 
-    // Position popup
-    popup.style.left = `${x}px`;
-    popup.style.top = `${y + 20}px`;
+    // Use the highlight range for positioning if available
+    let posX = x, posY = y + 20;
+    if (this.currentHighlightRange) {
+      const rects = this.currentHighlightRange.getClientRects();
+      if (rects.length > 0) {
+        const rect = rects[0];
+        posX = rect.left + window.scrollX;
+        posY = rect.bottom + window.scrollY + 4;
+      }
+    }
+
+    popup.style.left = `${posX}px`;
+    popup.style.top = `${posY}px`;
 
     document.body.appendChild(popup);
     this.popup = popup;
-
-    // Add CSS styles
-    this.addPopupStyles();
-
-    // Add event listeners to popup buttons
-    this.setupPopupEventListeners(popup, character);
+    this.setupPopupEventListeners(character);
   }
 
-  // Add CSS styles for popup
-  addPopupStyles() {
-    if (document.getElementById('chinese-extension-styles')) return;
-
-    const style = document.createElement('style');
-    style.id = 'chinese-extension-styles';
-    style.textContent = `
-      .chinese-lang-extension-popup {
-        position: absolute;
-        background: white;
-        border: 2px solid #4CAF50;
-        border-radius: 8px;
-        padding: 12px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        z-index: 10000;
-        max-width: 300px;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        color: #333;
-      }
-      
-      .chinese-lang-extension-popup .character {
-        font-size: 36px;
-        font-weight: bold;
-        color: #2196F3;
-        margin-bottom: 8px;
-        text-align: center;
-        font-family: 'Microsoft YaHei', 'SimHei', 'Arial Unicode MS', sans-serif;
-      }
-      
-      .chinese-lang-extension-popup .pinyin {
-        font-size: 16px;
-        color: #FF9800;
-        font-weight: bold;
-        margin-bottom: 8px;
-        text-align: center;
-        font-style: italic;
-      }
-      
-      .chinese-lang-extension-popup .variants {
-        font-size: 12px;
-        color: #666;
-        margin-bottom: 8px;
-        text-align: center;
-      }
-      
-      .chinese-lang-extension-popup .definition {
-        font-size: 14px;
-        color: #333;
-        margin-bottom: 12px;
-        line-height: 1.4;
-      }
-      
-      .chinese-lang-extension-popup .tone-indicator {
-        display: inline-block;
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        color: white;
-        text-align: center;
-        line-height: 20px;
-        font-size: 12px;
-        font-weight: bold;
-        margin-left: 8px;
-      }
-      
-      .tone-1 { background-color: #F44336; }
-      .tone-2 { background-color: #FF9800; }
-      .tone-3 { background-color: #4CAF50; }
-      .tone-4 { background-color: #2196F3; }
-      .tone-0 { background-color: #9E9E9E; }
-      
-      .chinese-lang-extension-popup .popup-buttons {
-        display: flex;
-        gap: 8px;
-        justify-content: center;
-      }
-      
-      .chinese-lang-extension-popup button {
-        padding: 6px 12px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 12px;
-        font-weight: bold;
-      }
-      
-      .chinese-lang-extension-popup .add-vocab-btn {
-        background-color: #4CAF50;
-        color: white;
-      }
-      
-      .chinese-lang-extension-popup .add-vocab-btn:hover {
-        background-color: #45a049;
-      }
-      
-      .chinese-lang-extension-popup .add-vocab-btn:disabled {
-        background-color: #ccc;
-        cursor: not-allowed;
-      }
-      
-      .chinese-lang-extension-popup .close-btn {
-        background-color: #f44336;
-        color: white;
-      }
-      
-      .chinese-lang-extension-popup .close-btn:hover {
-        background-color: #da190b;
-      }
-      
-      [data-shift-active="true"], [data-shift-active="true"] * {
-        user-select: none !important;
-        -webkit-user-select: none !important;
-        -moz-user-select: none !important;
-        -ms-user-select: none !important;
-      }
-      [data-shift-active="true"] .chinese-lang-extension-popup,
-      [data-shift-active="true"] .chinese-lang-extension-popup * {
-        user-select: text !important;
-        -webkit-user-select: text !important;
-        -moz-user-select: text !important;
-        -ms-user-select: text !important;
-      }
-      [data-shift-active="true"] *::selection {
-        background: transparent !important;
-      }
-      [data-shift-active="true"] *::-moz-selection {
-        background: transparent !important;
-      }
-    `;
-    
-    document.head.appendChild(style);
-  }
-
-  // Create popup content
   createPopupContent(character) {
-    const definition = this.dictionary[character];
+    const matches = this.dictionary[character] || [];
     const isInVocab = this.vocabList.some(item => item.character === character);
 
-    if (!definition) {
+    if (matches.length === 0) {
       return `
         <div class="popup-content">
-          <div class="character">${character}</div>
+          <div class="character highlight">${character}</div>
           <div class="definition">Character not found in dictionary</div>
-          <button class="add-vocab-btn" disabled>
-            Unknown Character
-          </button>
+          <button class="add-vocab-btn" disabled>Unknown Character</button>
         </div>
       `;
     }
 
-    const toneClass = `tone-${definition.tone}`;
-    const variants = definition.traditional !== definition.simplified 
-      ? `Traditional: ${definition.traditional} | Simplified: ${definition.simplified}` 
-      : '';
+    const definitionsHtml = matches.map((def, idx) => {
+      const toneClass = `tone-${def.tone}`;
+      const variants = def.traditional !== def.simplified
+        ? `<div class="variants">Traditional: ${def.traditional} | Simplified: ${def.simplified}</div>`
+        : '';
+      
+      const defs = def.definition.split(';').map(d => d.trim()).filter(Boolean);
+      const bullets = defs.length > 1
+        ? `<ul class="definition-list">${defs.map(d => `<li>${d}</li>`).join('')}</ul>`
+        : `<div class="definition">${defs[0]}</div>`;
+
+      return `
+        <div class="definition-block">
+          <div class="pinyin">
+            <span class="pinyin-text">${def.pinyin}</span>
+            <span class="tone-indicator ${toneClass}">${def.tone}</span>
+            ${matches.length > 1 ? `<span class="def-index">${idx + 1}</span>` : ''}
+          </div>
+          ${variants}${bullets}
+        </div>
+      `;
+    }).join('');
 
     return `
       <div class="popup-content">
-        <div class="character">${character}</div>
-        <div class="pinyin">
-          ${definition.pinyin}
-          <span class="tone-indicator ${toneClass}">${definition.tone}</span>
-        </div>
-        ${variants ? `<div class="variants">${variants}</div>` : ''}
-        <div class="definition">${definition.definition}</div>
+        <div class="character highlight">${character}</div>
+        <div class="definitions-scroll">${definitionsHtml}</div>
         <div class="popup-buttons">
           <button class="add-vocab-btn" ${isInVocab ? 'disabled' : ''}>
             ${isInVocab ? 'Already in Vocab' : 'Add to Vocab'}
@@ -583,114 +491,31 @@ class ChineseLanguageLearningExtension {
     `;
   }
 
-  // Setup popup event listeners
-  setupPopupEventListeners(popup, character) {
-    const addVocabBtn = popup.querySelector('.add-vocab-btn');
-    const closeBtn = popup.querySelector('.close-btn');
+  setupPopupEventListeners(character) {
+    const addVocabBtn = this.popup.querySelector('.add-vocab-btn:not([disabled])');
+    const closeBtn = this.popup.querySelector('.close-btn');
 
-    if (addVocabBtn && !addVocabBtn.disabled) {
-      addVocabBtn.addEventListener('click', () => this.addToVocab(character));
-    }
+    addVocabBtn?.addEventListener('click', () => this.addToVocab(character));
+    closeBtn?.addEventListener('click', () => this.hidePopup());
+  }
 
-    if (closeBtn) {
-      closeBtn.addEventListener('click', () => this.hidePopup());
+  updatePopupButton(text, disabled) {
+    const addBtn = this.popup?.querySelector('.add-vocab-btn');
+    if (addBtn) {
+      addBtn.textContent = text;
+      addBtn.disabled = disabled;
     }
   }
 
-  // Add character to vocabulary list
-  async addToVocab(character) {
-    const definition = this.dictionary[character];
-    if (definition && !this.vocabList.some(item => item.character === character)) {
-      this.vocabList.push({
-        character: character,
-        traditional: definition.traditional,
-        simplified: definition.simplified,
-        pinyin: definition.pinyin,
-        definition: definition.definition,
-        tone: definition.tone,
-        dateAdded: new Date().toISOString(),
-        reviewCount: 0
-      });
-      
-      await this.saveVocabList();
-      
-      // Update popup to show character was added
-      if (this.popup) {
-        const addBtn = this.popup.querySelector('.add-vocab-btn');
-        if (addBtn) {
-          addBtn.textContent = 'Added to Vocab!';
-          addBtn.disabled = true;
-        }
-      }
-    }
-  }
-
-  // Hide popup
   hidePopup(event) {
     if (this.popup && (!event || !this.popup.contains(event.target))) {
       this.popup.remove();
       this.popup = null;
     }
   }
-
-  // Inject subtitle reader functionality
-  injectSubtitleReader() {
-    // Look for common video players and subtitle elements
-    this.findAndProcessSubtitles();
-    
-    // Monitor for dynamically added subtitles
-    const observer = new MutationObserver(() => {
-      this.findAndProcessSubtitles();
-    });
-    
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true
-    });
-  }
-
-  // Find and process subtitles
-  findAndProcessSubtitles() {
-    // Common subtitle selectors for popular video platforms
-    const subtitleSelectors = [
-      '.caption-window',           // YouTube
-      '.player-timedtext',         // YouTube
-      '.subtitle',                 // Generic
-      '.subtitles',                // Generic
-      '.captions',                 // Generic
-      '[data-purpose="captions-display"]', // Udemy
-      '.vjs-text-track-display',   // Video.js
-      '.plyr__captions'            // Plyr
-    ];
-
-    subtitleSelectors.forEach(selector => {
-      const subtitleElements = document.querySelectorAll(selector);
-      subtitleElements.forEach(element => {
-        if (!element.classList.contains('chinese-lang-extension-processed')) {
-          this.processSubtitleElement(element);
-          element.classList.add('chinese-lang-extension-processed');
-        }
-      });
-    });
-  }
-
-  // Process individual subtitle elements
-  processSubtitleElement(element) {
-    // Make subtitle text selectable and add hover effects
-    element.style.userSelect = 'text';
-    element.style.cursor = 'text';
-    
-    // Add click handler for subtitle text
-    element.addEventListener('click', (e) => {
-      e.stopPropagation();
-    });
-
-    // Highlight subtitle container for Chinese content
-    element.style.border = '1px solid #FF9800';
-    element.style.borderRadius = '3px';
-    element.title = 'Hold Shift and hover over Chinese characters for translation';
-  }
 }
 
-// Initialize the Chinese extension
-const chineseLanguageLearningExtension = new ChineseLanguageLearningExtension();
+//#endregion
+
+// Initialize extension
+new ChineseLanguageLearningExtension();
