@@ -18,7 +18,13 @@
     "content_scripts": [
       {
         "matches": ["<all_urls>"],
-        "js": ["content.js", "dom-text-scanner.js"],
+        "js": [
+            "src/popup.js",
+            "src/text-highlighter.js",
+            "src/page-processor.js",
+            "src/vocab-manager.js",
+            "src/dictionary-manager.js",
+            "src/content.js"],
         "css": ["popup.css"],
         "run_at": "document_end"
       }
