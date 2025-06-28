@@ -1,8 +1,8 @@
 /* Language Learning Extension Popup Styles */
 
 .lang-extension-popup {
-    position: absolute;
-    z-index: 10000;
+    position: fixed !important;
+    z-index: 2147483647 !important;
     background: white;
     border: 1px solid #ddd;
     border-radius: 8px;
@@ -124,7 +124,8 @@
   }
   
   .chinese-lang-extension-popup {
-    position: absolute;
+    position: fixed !important;
+    z-index: 2147483647 !important;
     background: white;
     border: 2px solid #4CAF50;
     border-radius: 8px;
@@ -353,7 +354,8 @@
       }
 
       .chinese-lang-extension-popup {
-        position: absolute;
+        position: fixed !important;
+        z-index: 2147483647 !important;
         background: white;
         border: 2px solid #ddd;
         border-radius: 8px;
@@ -514,4 +516,3 @@
       [data-shift-active] {
         user-select: none;
       }
-    

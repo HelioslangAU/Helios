@@ -1,6 +1,5 @@
 class ChineseLanguageLearningExtension {
   constructor() {
-    
     this.isShiftPressed = false;
     this.hoverTimeout = null;
     this.lastMouseEvent = null;
@@ -24,27 +23,22 @@ class ChineseLanguageLearningExtension {
     await Promise.all([this.dictionaryManager.loadDictionary(), this.vocabManager.loadKnownWords()]);
 
     this.pageProcessor = new PageProcessor(this.dictionaryManager, this.vocabManager);
+    window.pageProcessor = this.pageProcessor; // Make globally accessible for popup updates
     this.popup = new PopupManager({
       highlightManager: this.highlightManager,
       dictionaryManager: this.dictionaryManager,
       vocabManager: this.vocabManager
     });
 
+    // Set up communication between components    
+    // Make highlightManager globally accessible for highlight preservation
+    window.highlightManager = this.highlightManager;
 
     this.initTextScannerEvents();
-    this.injectStyles();
     this.pageProcessor.processPageForUnknownWords();
+    this.initAsbplayerIntegration();
     console.log('Chinese Language Learning Extension initialized');
   }
-
-
-  injectStyles() {
-    if (document.getElementById('chinese-extension-styles')) return;
-    const style = document.createElement('style');
-    style.id = 'chinese-extension-styles';
-    document.head.appendChild(style);
-  }
-
 
   initTextScannerEvents() {
     const capture = true;
@@ -72,7 +66,6 @@ class ChineseLanguageLearningExtension {
     if (!this.isShiftPressed) return;
     this.lastPointerEvent = event;
 
-    // Check if mouse is over popup - if so, don't process character detection
     if (this.popup && this.popup.isMouseOverPopup) {
       return;
     }
@@ -80,7 +73,6 @@ class ChineseLanguageLearningExtension {
     const characterInfo = this.pageProcessor.getCharacterAtPosition(event);
 
     if (characterInfo && characterInfo.word) {
-      // Clear any pending hide timeout when we find a valid character
       clearTimeout(this.hideTimeout);
       
       if (
@@ -105,7 +97,6 @@ class ChineseLanguageLearningExtension {
       
       this.currentWord = newCharacterInfo.word;
     } else {
-      // Schedule hide with grace period instead of immediate hide
       this.popup.scheduleHidePopup();
     }
   }
@@ -154,21 +145,17 @@ class ChineseLanguageLearningExtension {
     if (active) window.getSelection()?.removeAllRanges();
   }
 
-
-  // Method to manually reprocess page (useful for dynamic content)
   reprocessPage() {
-    // Clear existing styling
     document.querySelectorAll('.chinese-unknown-word').forEach(el => {
       el.classList.remove('chinese-unknown-word');
     });
     this.pageProcessor.unknownWordElements.clear();
-    this.processPageForUnknownWords();
+    this.pageProcessor.processPageForUnknownWords();
   }
 
-  // Method to get statistics
   getStats() {
     const totalWords = Object.keys(this.dictionaryManager.dictionary).length;
-    const knownWords = this.knownWords.size;
+    const knownWords = this.vocabManager.knownWords.size;
     const unknownWordsOnPage = document.querySelectorAll('.chinese-unknown-word').length;
     
     return {
@@ -179,11 +166,10 @@ class ChineseLanguageLearningExtension {
     };
   }
 
-  // Export/Import functionality for known words
   exportKnownWords() {
     const data = {
-      knownWords: [...this.knownWords],
-      vocabList: this.vocabList,
+      knownWords: [...this.vocabManager.knownWords],
+      vocabList: this.vocabManager.vocabList,
       exportDate: new Date().toISOString()
     };
     return JSON.stringify(data, null, 2);
@@ -193,15 +179,14 @@ class ChineseLanguageLearningExtension {
     try {
       const data = JSON.parse(jsonData);
       if (data.knownWords && Array.isArray(data.knownWords)) {
-        this.knownWords = new Set([...this.knownWords, ...data.knownWords]);
-        this.saveKnownWords();
+        this.vocabManager.knownWords = new Set([...this.vocabManager.knownWords, ...data.knownWords]);
+        this.vocabManager.saveKnownWords();
       }
       if (data.vocabList && Array.isArray(data.vocabList)) {
-        // Merge vocab lists, avoiding duplicates
-        const existingCharacters = new Set(this.vocabList.map(item => item.character));
+        const existingCharacters = new Set(this.vocabManager.vocabList.map(item => item.character));
         const newVocabItems = data.vocabList.filter(item => !existingCharacters.has(item.character));
-        this.vocabList.push(...newVocabItems);
-        this.saveVocabList();
+        this.vocabManager.vocabList.push(...newVocabItems);
+        this.vocabManager.saveVocabList();
       }
       this.reprocessPage();
       return true;
@@ -209,6 +194,85 @@ class ChineseLanguageLearningExtension {
       console.error('Error importing data:', error);
       return false;
     }
+  }
+
+  // Fixed asbplayer integration
+  initAsbplayerIntegration() {
+    console.log('Initializing asbplayer integration...');
+    
+    // Multiple strategies to detect asbplayer
+    this.detectAsbplayerElements();
+    
+    // Also set up a periodic check for new asbplayer elements
+    this.asbplayerInterval = setInterval(() => {
+      this.detectAsbplayerElements();
+    }, 2000);
+    
+    // Stop checking after 60 seconds
+    setTimeout(() => {
+      if (this.asbplayerInterval) {
+        clearInterval(this.asbplayerInterval);
+        console.log('Stopped periodic asbplayer detection');
+      }
+    }, 60000);
+  }
+  
+  detectAsbplayerElements() {
+    // More comprehensive asbplayer detection
+    const selectors = [
+      '[class*="asbplayer"]',
+      '[id*="asbplayer"]',
+      '[class*="subtitle"]',
+      '[class*="caption"]',
+      'video + div', // Common pattern for subtitle overlays
+      '.ytp-caption-segment', // YouTube captions
+      '.netflix-player .player-timedtext', // Netflix
+      '[data-uia="player-caption-text"]' // Netflix alternative
+    ];
+    
+    const foundElements = new Set();
+    
+    selectors.forEach(selector => {
+      try {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(element => {
+          // Check if element contains Chinese text or is likely a subtitle container
+          if (this.isLikelySubtitleElement(element)) {
+            foundElements.add(element);
+          }
+        });
+      } catch (e) {
+        // Ignore selector errors
+      }
+    });
+    
+    // Process any new elements found
+    foundElements.forEach(element => {
+      if (!element.hasAttribute('data-chinese-processed')) {
+        element.setAttribute('data-chinese-processed', 'true');
+        console.log('Found asbplayer/subtitle element:', element);
+        this.pageProcessor.observeSubtitleContainer(element);
+      }
+    });
+  }
+  
+  isLikelySubtitleElement(element) {
+    // Check if element or its children contain Chinese characters
+    const text = element.textContent || '';
+    const hasChinese = /[\u4e00-\u9fff\u3400-\u4dbf]/.test(text);
+    
+    if (hasChinese) return true;
+    
+    // Check element attributes and classes for subtitle-related keywords
+    const attributeText = [
+      element.className,
+      element.id,
+      element.getAttribute('data-testid') || '',
+      element.getAttribute('aria-label') || ''
+    ].join(' ').toLowerCase();
+    
+    const subtitleKeywords = ['subtitle', 'caption', 'asbplayer', 'timedtext'];
+    return subtitleKeywords.some(keyword => attributeText.includes(keyword));
   }
 }
 

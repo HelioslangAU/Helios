@@ -3,9 +3,14 @@ class PageProcessor {
     this.dictionaryManager = dictionaryManager;
     this.vocabManager = vocabManager;
     this.unknownWordElements = new Map();
+    this.injectedCSS = false;
+    this.asbplayerObservers = new Set();
   }
 
   processPageForUnknownWords() {
+    // Ensure CSS is injected globally
+    this.ensureGlobalCSS();
+    
     const textNodes = this.getAllTextNodes(document.body);
 
     for (const textNode of textNodes) {
@@ -13,6 +18,30 @@ class PageProcessor {
     }
 
     console.log('Page processed for unknown words');
+  }
+
+  // Fix: Inject CSS globally instead of per element
+  ensureGlobalCSS() {
+    if (this.injectedCSS) return;
+    
+    if (document.getElementById('chinese-extension-styles')) return;
+    
+    const style = document.createElement('style');
+    style.id = 'chinese-extension-styles';
+    style.textContent = `
+      .chinese-unknown-word {
+        text-decoration: underline !important;
+        text-decoration-color: #ff4444 !important;
+        text-decoration-thickness: 2px !important;
+        text-underline-offset: 2px !important;
+        cursor: help !important;
+      }
+      .chinese-unknown-word:hover {
+        background-color: rgba(255, 68, 68, 0.1) !important;
+      }
+    `;
+    document.head.appendChild(style);
+    this.injectedCSS = true;
   }
 
   getAllTextNodes(element) {
@@ -28,8 +57,8 @@ class PageProcessor {
           if (['script', 'style', 'noscript'].includes(tagName)) {
             return NodeFilter.FILTER_REJECT;
           }
-          if (parent.classList.contains('chinese-unknown-word') ||
-              parent.classList.contains('chinese-lang-extension-popup')) {
+          // Fix: Don't filter out existing processed elements for reprocessing
+          if (parent.classList.contains('chinese-lang-extension-popup')) {
             return NodeFilter.FILTER_REJECT;
           }
           return node.textContent.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
@@ -168,7 +197,7 @@ class PageProcessor {
            (code >= 0x20000 && code <= 0x2A6DF);
   }
 
-    getCharacterAtPosition(event) {
+  getCharacterAtPosition(event) {
     try {
       const accurateResult = this.getCharacterAtPositionAccurate(event);
       if (accurateResult) return accurateResult;
@@ -311,5 +340,66 @@ class PageProcessor {
 
     return null;
   }
-}
 
+  // Fix: Better asbplayer integration
+  observeSubtitleContainer(element) {
+    console.log('Setting up asbplayer observer for:', element);
+    
+    // Ensure global CSS is available
+    this.ensureGlobalCSS();
+    
+    // Process immediately
+    this.forceReprocessElement(element);
+    
+    // Set up observer for dynamic content
+    const observer = new MutationObserver((mutations) => {
+      let hasChanges = false;
+      mutations.forEach(mutation => {
+        if (mutation.type === 'childList' || 
+            (mutation.type === 'characterData' && mutation.target.textContent.trim())) {
+          hasChanges = true;
+        }
+      });
+      
+      if (hasChanges) {
+        // Debounce rapid changes
+        clearTimeout(this.asbplayerTimeout);
+        this.asbplayerTimeout = setTimeout(() => {
+          console.log('Reprocessing asbplayer content');
+          this.forceReprocessElement(element);
+        }, 50);
+      }
+    });
+    
+    observer.observe(element, { 
+      childList: true, 
+      subtree: true, 
+      characterData: true 
+    });
+    
+    this.asbplayerObservers.add(observer);
+  }
+
+  forceReprocessElement(element) {
+    console.log('Force reprocessing element:', element);
+    
+    // Clear existing processed spans in this element to avoid double-processing
+    const existingSpans = element.querySelectorAll('span[data-word]');
+    existingSpans.forEach(span => {
+      const parent = span.parentNode;
+      parent.replaceChild(document.createTextNode(span.textContent), span);
+      parent.normalize(); // Merge adjacent text nodes
+    });
+    
+    // Process all text nodes in the element
+    const textNodes = this.getAllTextNodes(element);
+    for (const textNode of textNodes) {
+      this.processTextNodeForUnknownWords(textNode);
+    }
+    
+    console.log('Finished reprocessing, unknown words should be underlined');
+  }
+
+  // Remove old method that doesn't work
+  // injectUnderlineCSS() removed - using ensureGlobalCSS() instead
+}

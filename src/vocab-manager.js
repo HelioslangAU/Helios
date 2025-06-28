@@ -5,23 +5,27 @@ class VocabManager {
 
   async loadKnownWords() {
     try {
-      const stored = localStorage.getItem('chineseExtensionKnownWords');
-      if (stored) {
-        this.knownWords = new Set(JSON.parse(stored));
-        console.log('Known words loaded from localStorage');
+      const result = await chrome.storage.local.get(['chineseExtensionKnownWords']);
+      if (result.chineseExtensionKnownWords) {
+        this.knownWords = new Set(result.chineseExtensionKnownWords);
+        console.log('Known words loaded from extension storage');
+        console.log(this.knownWords);
       } else {
         this.knownWords = new Set();
-        console.log('No known words found in localStorage, starting fresh');
+        console.log('No known words found in extension storage, starting fresh');
       }
     } catch (err) {
-      console.warn('Failed to load known words from localStorage.', err);
+      console.warn('Failed to load known words from extension storage.', err);
       this.knownWords = new Set();
     }
   }
 
   async saveKnownWords() {
     try {
-      localStorage.setItem('chineseExtensionKnownWords', JSON.stringify([...this.knownWords]));
+      await chrome.storage.local.set({
+        chineseExtensionKnownWords: [...this.knownWords]
+      });
+      console.log('Known words saved to extension storage');
     } catch (error) {
       console.warn('Could not save known words:', error);
     }
@@ -44,19 +48,65 @@ class VocabManager {
     URL.revokeObjectURL(url);
   }
 
-  markWordAsKnown(word) {
+  async importKnownWordsFromFile(file) {
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      
+      if (data.knownWords && Array.isArray(data.knownWords)) {
+        this.knownWords = new Set(data.knownWords);
+        await this.saveKnownWords();
+        console.log('Known words imported successfully');
+        return true;
+      } else {
+        throw new Error('Invalid file format');
+      }
+    } catch (error) {
+      console.error('Failed to import known words:', error);
+      return false;
+    }
+  }
+
+  async markWordAsKnown(word) {
     this.knownWords.add(word);
-    this.saveKnownWords();
+    await this.saveKnownWords();
     console.log('Marked word as known:', word);
   }
 
-  markWordAsUnknown(word) {
+  async markWordAsUnknown(word) {
     this.knownWords.delete(word);
-    this.saveKnownWords();
+    await this.saveKnownWords();
     console.log('Marked word as unknown:', word);
   }
 
   isWordKnown(word) {
     return this.knownWords.has(word);
+  }
+
+  // Batch operations for better performance
+  async markMultipleWordsAsKnown(words) {
+    words.forEach(word => this.knownWords.add(word));
+    await this.saveKnownWords();
+    console.log('Marked multiple words as known:', words);
+  }
+
+  async markMultipleWordsAsUnknown(words) {
+    words.forEach(word => this.knownWords.delete(word));
+    await this.saveKnownWords();
+    console.log('Marked multiple words as unknown:', words);
+  }
+
+  getKnownWordsCount() {
+    return this.knownWords.size;
+  }
+
+  getAllKnownWords() {
+    return [...this.knownWords];
+  }
+
+  async clearAllKnownWords() {
+    this.knownWords.clear();
+    await this.saveKnownWords();
+    console.log('All known words cleared');
   }
 }

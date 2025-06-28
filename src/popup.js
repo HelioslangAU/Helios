@@ -22,8 +22,8 @@ class PopupManager {
     // If there is a highlight, position popup exactly below it
     if (this.highlightManager.currentHighlight) {
       const rect = this.highlightManager.currentHighlight.getBoundingClientRect();
-      posX = rect.left + window.scrollX;
-      posY = rect.bottom + window.scrollY; // No extra gap
+      posX = rect.left; // No scrollX for fixed
+      posY = rect.bottom; // No scrollY for fixed
     }
 
     popup.style.left = `${posX}px`;
@@ -118,14 +118,29 @@ class PopupManager {
     const closeBtn = this.popup.querySelector('.close-btn');
 
     addVocabBtn?.addEventListener('click', () => this.addToVocab(character));
-    markKnownBtn?.addEventListener('click', () => {
-      this.vocabManager.markWordAsKnown(character);
-      this.hidePopup();
-    });
-    markUnknownBtn?.addEventListener('click', () => {
-      this.vocabManager.markWordAsUnknown(character);
-      this.hidePopup();
-    });
+    if (markKnownBtn) {
+      markKnownBtn.addEventListener('click', async () => {
+        await this.vocabManager.markWordAsKnown(character);
+        if (window.pageProcessor) window.pageProcessor.updateWordStyling(character, true);
+        this.hidePopup();
+      });
+    }
+    if (markUnknownBtn) {
+      markUnknownBtn.addEventListener('click', async () => {
+        await this.vocabManager.markWordAsUnknown(character);
+        if (window.pageProcessor) window.pageProcessor.updateWordStyling(character, false);
+        // Re-highlight the word if possible
+        if (window.highlightManager) {
+          const el = document.querySelector(`span[data-word="${character}"]`);
+          if (el) {
+            window.highlightManager.removeLookupHighlight();
+            el.classList.add('lookup-highlight');
+            window.highlightManager.currentHighlight = el;
+          }
+        }
+        this.hidePopup();
+      });
+    }
     closeBtn?.addEventListener('click', () => this.hidePopup());
   }
 
@@ -171,3 +186,23 @@ class PopupManager {
     }
   }
 }
+
+window.addEventListener('DOMContentLoaded', () => {
+  const updateBtn = document.getElementById('update-known-words-btn');
+  const input = document.getElementById('known-words-input');
+  if (updateBtn && input) {
+    updateBtn.addEventListener('click', () => {
+      const raw = input.value;
+      if (!raw.trim()) return;
+      // Split by any whitespace, comma, or new line
+      const words = raw.split(/[^\u4e00-\u9fff]+/).map(w => w.trim()).filter(Boolean);
+      if (window.vocabManager && words.length) {
+        words.forEach(word => window.vocabManager.markWordAsKnown(word));
+        alert(`Added ${words.length} words to known words.`);
+        input.value = '';
+      } else {
+        alert('No valid words found or vocabManager not available.');
+      }
+    });
+  }
+});
