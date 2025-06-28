@@ -20,6 +20,7 @@
         "matches": ["<all_urls>"],
         "js": [
             "src/popup.js",
+            "src/extensiontab.js",
             "src/text-highlighter.js",
             "src/page-processor.js",
             "src/vocab-manager.js",

@@ -343,14 +343,18 @@ class PageProcessor {
 
   // Fix: Better asbplayer integration
   observeSubtitleContainer(element) {
-    console.log('Setting up asbplayer observer for:', element);
-    
     // Ensure global CSS is available
     this.ensureGlobalCSS();
-    
+
+    // Track last text content to avoid unnecessary reprocessing
+    if (!element._lastChineseText) {
+      element._lastChineseText = element.textContent;
+    }
+
     // Process immediately
     this.forceReprocessElement(element);
-    
+    element._lastChineseText = element.textContent;
+
     // Set up observer for dynamic content
     const observer = new MutationObserver((mutations) => {
       let hasChanges = false;
@@ -360,29 +364,38 @@ class PageProcessor {
           hasChanges = true;
         }
       });
-      
       if (hasChanges) {
-        // Debounce rapid changes
         clearTimeout(this.asbplayerTimeout);
         this.asbplayerTimeout = setTimeout(() => {
-          console.log('Reprocessing asbplayer content');
-          this.forceReprocessElement(element);
+          // Only reprocess if text content actually changed
+          const currentText = element.textContent;
+          if (element._lastChineseText !== currentText) {
+            this.forceReprocessElement(element);
+            element._lastChineseText = currentText;
+          }
         }, 50);
       }
     });
-    
+
     observer.observe(element, { 
       childList: true, 
       subtree: true, 
       characterData: true 
     });
-    
+
     this.asbplayerObservers.add(observer);
   }
 
   forceReprocessElement(element) {
-    console.log('Force reprocessing element:', element);
-    
+    // --- Preserve highlight if present ---
+    let highlightedWord = null;
+    let highlightText = null;
+    const highlightEl = element.querySelector('.lookup-highlight');
+    if (highlightEl) {
+      highlightedWord = highlightEl.getAttribute('data-word') || highlightEl.textContent;
+      highlightText = highlightEl.textContent;
+    }
+
     // Clear existing processed spans in this element to avoid double-processing
     const existingSpans = element.querySelectorAll('span[data-word]');
     existingSpans.forEach(span => {
@@ -390,13 +403,27 @@ class PageProcessor {
       parent.replaceChild(document.createTextNode(span.textContent), span);
       parent.normalize(); // Merge adjacent text nodes
     });
-    
+
     // Process all text nodes in the element
     const textNodes = this.getAllTextNodes(element);
     for (const textNode of textNodes) {
       this.processTextNodeForUnknownWords(textNode);
     }
-    
+
+    // --- Restore highlight if possible ---
+    if (highlightedWord && highlightText) {
+      // Find the new span for the same word/text
+      const newHighlight = Array.from(element.querySelectorAll('span[data-word]')).find(
+        el => el.textContent === highlightText
+      );
+      if (newHighlight) {
+        newHighlight.classList.add('lookup-highlight');
+        if (window.highlightManager) {
+          window.highlightManager.currentHighlight = newHighlight;
+        }
+      }
+    }
+
     console.log('Finished reprocessing, unknown words should be underlined');
   }
 

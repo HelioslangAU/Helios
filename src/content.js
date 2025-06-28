@@ -250,7 +250,6 @@ class ChineseLanguageLearningExtension {
     foundElements.forEach(element => {
       if (!element.hasAttribute('data-chinese-processed')) {
         element.setAttribute('data-chinese-processed', 'true');
-        console.log('Found asbplayer/subtitle element:', element);
         this.pageProcessor.observeSubtitleContainer(element);
       }
     });
