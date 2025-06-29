@@ -1,5 +1,10 @@
 class PopupManager {
-  constructor({ highlightManager, dictionaryManager, vocabManager, frequencyManager }) {
+  constructor({
+    highlightManager,
+    dictionaryManager,
+    vocabManager,
+    frequencyManager,
+  }) {
     this.highlightManager = highlightManager;
     this.dictionaryManager = dictionaryManager;
     this.vocabManager = vocabManager;
@@ -13,24 +18,26 @@ class PopupManager {
   showDictionaryPopup(x, y, character) {
     this.hidePopup();
 
-    const popup = document.createElement('div');
-    popup.className = 'chinese-lang-extension-popup';
+    const popup = document.createElement("div");
+    popup.className = "chinese-lang-extension-popup";
     popup.innerHTML = this.createPopupContent(character);
 
     // Default position (fallback)
-    let posX = x, posY = y;
+    let posX = x,
+      posY = y;
 
     // If there is a highlight, position popup exactly below it
     if (this.highlightManager.currentHighlight) {
-      const rect = this.highlightManager.currentHighlight.getBoundingClientRect();
+      const rect =
+        this.highlightManager.currentHighlight.getBoundingClientRect();
       posX = rect.left; // No scrollX for fixed
       posY = rect.bottom; // No scrollY for fixed
     }
 
     popup.style.left = `${posX}px`;
     popup.style.top = `${posY}px`;
-    popup.style.position = 'fixed';
-    popup.style.zIndex = '2147483647';
+    popup.style.position = "fixed";
+    popup.style.zIndex = "2147483647";
 
     document.body.appendChild(popup);
     // --- Check if popup goes offscreen, and reposition if needed ---
@@ -39,7 +46,8 @@ class PopupManager {
       // Place above the highlight instead
       let newY = posY;
       if (this.highlightManager.currentHighlight) {
-        const rect = this.highlightManager.currentHighlight.getBoundingClientRect();
+        const rect =
+          this.highlightManager.currentHighlight.getBoundingClientRect();
         newY = rect.top - popupRect.height;
       } else {
         newY = posY - popupRect.height;
@@ -57,12 +65,12 @@ class PopupManager {
   setupPopupMouseEvents() {
     if (!this.popup) return;
 
-    this.popup.addEventListener('mouseenter', () => {
+    this.popup.addEventListener("mouseenter", () => {
       this.isMouseOverPopup = true;
       clearTimeout(this.hideTimeout);
     });
 
-    this.popup.addEventListener('mouseleave', () => {
+    this.popup.addEventListener("mouseleave", () => {
       this.isMouseOverPopup = false;
       this.scheduleHidePopup();
     });
@@ -98,34 +106,50 @@ class PopupManager {
       `;
     }
 
-    const definitionsHtml = matches.map((def, idx) => {
-      const toneClass = `tone-${def.tone}`;
-      const variants = def.traditional !== def.simplified
-        ? `<div class="variants">Traditional: ${def.traditional} | Simplified: ${def.simplified}</div>`
-        : '';
-      const defs = def.definition.split(';').map(d => d.trim()).filter(Boolean);
-      const bullets = defs.length > 1
-        ? `<ul class="definition-list">${defs.map(d => `<li>${d}</li>`).join('')}</ul>`
-        : `<div class="definition">${defs[0]}</div>`;
+    const definitionsHtml = matches
+      .map((def, idx) => {
+        const toneClass = `tone-${def.tone || 0}`;
+        const variants =
+          def.traditional !== def.simplified
+            ? `<div class="variants">Traditional: ${def.traditional} | Simplified: ${def.simplified}</div>`
+            : "";
 
-      return `
+        const defs = def.definition
+          .split(";")
+          .map((d) => d.trim())
+          .filter(Boolean);
+        const bullets =
+          defs.length > 1
+            ? `<ul class="definition-list">${defs
+                .map((d) => `<li>${d}</li>`)
+                .join("")}</ul>`
+            : `<div class="definition">${defs[0]}</div>`;
+
+        return `
         <div class="definition-block">
           <div class="pinyin">
             <span class="pinyin-text">${def.pinyin}</span>
+            <span class="tone-indicator ${toneClass}">${def.tone || "?"}</span>
           </div>
-          ${variants}${bullets}
+          ${variants}
+          ${bullets}
         </div>
       `;
-    }).join('');
+      })
+      .join("");
 
     return `
       <div class="popup-content">
         <div class="character highlight">${character}</div>
-        ${frequency ? `<div class="frequency">Frequency: ${frequency}</div>` : ''}
+        ${
+          frequency
+            ? `<div class="frequency">Frequency: ${frequency}</div>`
+            : ""
+        }
         <div class="definitions-scroll">${definitionsHtml}</div>
         <div class="popup-buttons">
-          <button class="${isKnown ? 'mark-unknown-btn' : 'mark-known-btn'}">
-            ${isKnown ? 'Mark Unknown' : 'Mark Known'}
+          <button class="${isKnown ? "mark-unknown-btn" : "mark-known-btn"}">
+            ${isKnown ? "Mark Unknown" : "Mark Known"}
           </button>
           <button class="close-btn">Close</button>
         </div>
@@ -134,62 +158,177 @@ class PopupManager {
   }
 
   setupPopupEventListeners(character) {
-    const addVocabBtn = this.popup.querySelector('.add-vocab-btn:not([disabled])');
-    const markKnownBtn = this.popup.querySelector('.mark-known-btn');
-    const markUnknownBtn = this.popup.querySelector('.mark-unknown-btn');
-    const closeBtn = this.popup.querySelector('.close-btn');
+    const addVocabBtn = this.popup.querySelector(
+      ".add-vocab-btn:not([disabled])"
+    );
+    const markKnownBtn = this.popup.querySelector(".mark-known-btn");
+    const markUnknownBtn = this.popup.querySelector(".mark-unknown-btn");
+    const closeBtn = this.popup.querySelector(".close-btn");
 
-    addVocabBtn?.addEventListener('click', () => this.addToVocab(character));
+    addVocabBtn?.addEventListener("click", () => this.addToVocab(character));
+
     if (markKnownBtn) {
-      
-      markKnownBtn.addEventListener('click', async () => {
-        updateKnownWordsCounter();
+      markKnownBtn.addEventListener("click", async () => {
+        // Update known words counter
+        if (typeof updateKnownWordsCounter === "function") {
+          updateKnownWordsCounter();
+        }
+
+        // Mark word as known
         await this.vocabManager.markWordAsKnown(character);
-        if (window.pageProcessor) window.pageProcessor.updateWordStyling(character, true);
+
+        // Save to vocabulary list and increment session counter
+        this.saveToVocabList(character);
+
+        // Update page styling
+        if (window.pageProcessor) {
+          window.pageProcessor.updateWordStyling(character, true);
+        }
+
         this.hidePopup();
       });
     }
+
     if (markUnknownBtn) {
-      markUnknownBtn.addEventListener('click', async () => {
-        updateKnownWordsCounter();
+      markUnknownBtn.addEventListener("click", async () => {
+        // Update known words counter
+        if (typeof updateKnownWordsCounter === "function") {
+          updateKnownWordsCounter();
+        }
+
+        // Mark word as unknown
         await this.vocabManager.markWordAsUnknown(character);
-        if (window.pageProcessor) window.pageProcessor.updateWordStyling(character, false);
+
+        // Save to vocabulary list and increment session counter
+        this.saveToVocabList(character);
+
+        // Update page styling
+        if (window.pageProcessor) {
+          window.pageProcessor.updateWordStyling(character, false);
+        }
+
         // Re-highlight the word if possible
         if (window.highlightManager) {
           const el = document.querySelector(`span[data-word="${character}"]`);
           if (el) {
             window.highlightManager.removeLookupHighlight();
-            el.classList.add('lookup-highlight');
+            el.classList.add("lookup-highlight");
             window.highlightManager.currentHighlight = el;
           }
         }
+
         this.hidePopup();
       });
     }
-    closeBtn?.addEventListener('click', () => this.hidePopup());
+
+    closeBtn?.addEventListener("click", () => this.hidePopup());
+  }
+
+  // NEW: Save word to vocabulary list when looked up
+  saveToVocabList(character) {
+    try {
+      const matches = this.dictionaryManager.dictionary[character] || [];
+      const definition =
+        matches.length > 0 ? matches[0].definition : "No definition available";
+      const pinyin = matches.length > 0 ? matches[0].pinyin : "";
+
+      // Save to vocabulary list using chrome storage
+      if (window.chrome && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.get(["chineseExtensionVocabList"], (result) => {
+          const vocabItems = result.chineseExtensionVocabList || [];
+
+          // Check if word already exists
+          const exists = vocabItems.some(
+            (item) => (item.character || item.word) === character
+          );
+
+          if (!exists) {
+            const newItem = {
+              character: character,
+              word: character,
+              definition:
+                definition.length > 100
+                  ? definition.substring(0, 97) + "..."
+                  : definition,
+              pinyin: pinyin,
+              dateAdded: new Date().toISOString(),
+              reviewCount: 0,
+            };
+
+            vocabItems.push(newItem);
+
+            chrome.storage.local.set(
+              { chineseExtensionVocabList: vocabItems },
+              () => {
+                console.log(`✅ Added ${character} to vocabulary list`);
+              }
+            );
+          }
+        });
+      }
+
+      // Increment session counter
+      this.incrementSessionCounter();
+    } catch (error) {
+      console.warn("Could not save to vocab list:", error);
+    }
+  }
+
+  // NEW: Increment daily session counter
+  incrementSessionCounter() {
+    if (window.chrome && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.get(
+        ["todayLookupCount", "lastResetDate"],
+        (result) => {
+          const today = new Date().toDateString();
+          const lastReset = result.lastResetDate || "";
+          let lookupCount = result.todayLookupCount || 0;
+
+          // Reset counter if it's a new day
+          if (lastReset !== today) {
+            lookupCount = 0;
+          }
+
+          lookupCount++;
+
+          chrome.storage.local.set(
+            {
+              todayLookupCount: lookupCount,
+              lastResetDate: today,
+            },
+            () => {
+              console.log(`📊 Today's lookup count: ${lookupCount}`);
+            }
+          );
+        }
+      );
+    }
   }
 
   async saveVocabList() {
     try {
-      localStorage.setItem('chineseExtensionVocabList', JSON.stringify(this.vocabList));
+      localStorage.setItem(
+        "chineseExtensionVocabList",
+        JSON.stringify(this.vocabList)
+      );
     } catch (error) {
-      console.warn('Could not save vocab list:', error);
+      console.warn("Could not save vocab list:", error);
     }
   }
 
   async loadVocabList() {
     try {
-      const stored = localStorage.getItem('chineseExtensionVocabList');
+      const stored = localStorage.getItem("chineseExtensionVocabList");
       if (stored) {
         this.vocabList = JSON.parse(stored);
       }
     } catch (error) {
-      console.warn('Could not load vocab list:', error);
+      console.warn("Could not load vocab list:", error);
     }
   }
 
   updatePopupButton(text, disabled) {
-    const addBtn = this.popup?.querySelector('.add-vocab-btn');
+    const addBtn = this.popup?.querySelector(".add-vocab-btn");
     if (addBtn) {
       addBtn.textContent = text;
       addBtn.disabled = disabled;
