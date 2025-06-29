@@ -17,6 +17,7 @@
         --helios-accent-peach: #ff9478;
         --helios-accent-warm: #ff8c42;
         --helios-known-teal: #20b2aa;
+        --helios-anki-blue: #2196f3;
         --helios-text-primary: #ffffff;
         --helios-text-secondary: #f3f4f6;
         --helios-text-muted: #a1a1aa;
@@ -520,22 +521,22 @@
       }
 
       .buttons {
-        display: flex;
-        gap: 16px;
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 12px;
       }
 
       .btn {
-        flex: 1;
-        padding: 16px 24px;
+        padding: 16px 20px;
         border: none;
         border-radius: 16px;
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 700;
         cursor: pointer;
         transition: all 0.3s ease;
         font-family: inherit;
         text-transform: uppercase;
-        letter-spacing: 1.5px;
+        letter-spacing: 1.2px;
         position: relative;
         overflow: hidden;
       }
@@ -592,6 +593,29 @@
         color: var(--helios-text-primary);
         transform: translateY(-3px);
         box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
+      }
+
+      .btn-anki {
+        background: linear-gradient(135deg, var(--helios-anki-blue), #1976d2);
+        color: white;
+        box-shadow: 0 8px 20px rgba(33, 150, 243, 0.3);
+        position: relative;
+      }
+
+      .btn-anki:hover {
+        background: linear-gradient(135deg, #1976d2, var(--helios-anki-blue));
+        transform: translateY(-3px);
+        box-shadow: 0 12px 28px rgba(33, 150, 243, 0.4);
+      }
+
+      .btn-anki::after {
+        content: "⚙️";
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 12px;
+        opacity: 0.8;
       }
 
       /* Entrance animation */
@@ -702,6 +726,9 @@
 
       <div class="buttons">
         <button class="btn btn-secondary" id="export-btn">Export</button>
+        <button class="btn btn-anki" id="anki-settings-btn">
+          Anki Settings
+        </button>
         <button class="btn btn-primary" id="review-btn">Review</button>
       </div>
     </div>

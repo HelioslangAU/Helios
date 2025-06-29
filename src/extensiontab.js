@@ -1,4 +1,4 @@
-// Helios Extension Tab JavaScript - Complete Functionality
+// Helios Extension Tab JavaScript - Complete Functionality with Anki Settings
 
 function updateKnownWordsCounter() {
   const counter = document.getElementById("vocab-count");
@@ -258,6 +258,40 @@ function openReview() {
   console.log("Review functionality triggered");
 }
 
+// NEW: Open Anki Settings
+function openAnkiSettings() {
+  try {
+    if (window.chrome && chrome.tabs) {
+      // Open Anki settings in a new tab
+      chrome.tabs.create({
+        url: chrome.runtime.getURL("anki-settings.html"),
+        active: true,
+      });
+    } else {
+      // Fallback for testing - open in new window
+      const settingsUrl = chrome.runtime.getURL("anki-settings.html");
+      window.open(
+        settingsUrl,
+        "_blank",
+        "width=700,height=800,scrollbars=yes,resizable=yes"
+      );
+    }
+    console.log("Opening Anki Settings page ⚙️");
+  } catch (error) {
+    console.error("Error opening Anki settings:", error);
+
+    // Final fallback - try to navigate in current tab
+    try {
+      window.location.href = chrome.runtime.getURL("anki-settings.html");
+    } catch (navError) {
+      console.error("Navigation fallback failed:", navError);
+      alert(
+        "Could not open Anki settings. Please check if the extension is properly installed."
+      );
+    }
+  }
+}
+
 // Initialize everything when DOM is loaded
 window.addEventListener("DOMContentLoaded", () => {
   console.log("Helios Extension tab loaded ☀️");
@@ -326,6 +360,12 @@ window.addEventListener("DOMContentLoaded", () => {
     reviewBtn.addEventListener("click", openReview);
   }
 
+  // NEW: Anki Settings button functionality
+  const ankiSettingsBtn = document.getElementById("anki-settings-btn");
+  if (ankiSettingsBtn) {
+    ankiSettingsBtn.addEventListener("click", openAnkiSettings);
+  }
+
   // Set up periodic updates (every 30 seconds)
   setInterval(() => {
     updateKnownWordsCounter();
@@ -381,4 +421,5 @@ window.heliosExtension = {
   incrementSessionCounter,
   exportData,
   openReview,
+  openAnkiSettings, // NEW: Added to global scope
 };

@@ -42,7 +42,9 @@
         "dictionary.json",
         "popup.css",
         "cedict_ts.u8",
-        "BLCUcoll/*"
+        "BLCUcoll/*",
+        "anki-settings.html",
+        "src/anki-settings.js"
       ],
       "matches": ["<all_urls>"]
     }

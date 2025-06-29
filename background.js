@@ -72,50 +72,80 @@ class BackgroundService {
   }
 
   async handleMessage(message, sender, sendResponse) {
-    switch (message.type) {
-      case "LOOKUP_WORD":
-        await this.handleWordLookup(message.word, sendResponse);
-        break;
+    console.log("Background received message:", message.type);
 
-      case "ADD_TO_VOCAB":
-        await this.handleAddToVocab(message.wordData, sendResponse);
-        break;
+    try {
+      switch (message.type) {
+        case "LOOKUP_WORD":
+          await this.handleWordLookup(message.word, sendResponse);
+          break;
 
-      case "GET_VOCAB_LIST":
-        await this.handleGetVocabList(sendResponse);
-        break;
+        case "ADD_TO_VOCAB":
+          await this.handleAddToVocab(message.wordData, sendResponse);
+          break;
 
-      case "INCREMENT_SESSION":
-        await this.incrementSessionCount(sendResponse);
-        break;
+        case "GET_VOCAB_LIST":
+          await this.handleGetVocabList(sendResponse);
+          break;
 
-      // NEW: Anki-related message handlers
-      case "CHECK_ANKI_CONNECT":
-        await this.handleCheckAnkiConnect(sendResponse);
-        break;
+        case "INCREMENT_SESSION":
+          await this.incrementSessionCount(sendResponse);
+          break;
 
-      case "CREATE_ANKI_CARD":
-        await this.handleCreateAnkiCard(
-          message.wordData,
-          message.options,
-          sendResponse
-        );
-        break;
+        // Anki-related message handlers
+        case "CHECK_ANKI_CONNECT":
+          await this.handleCheckAnkiConnect(sendResponse);
+          break;
 
-      case "GET_ANKI_SETTINGS":
-        await this.handleGetAnkiSettings(sendResponse);
-        break;
+        case "CREATE_ANKI_CARD":
+          await this.handleCreateAnkiCard(
+            message.wordData,
+            message.options,
+            sendResponse
+          );
+          break;
 
-      case "SAVE_ANKI_SETTINGS":
-        await this.handleSaveAnkiSettings(message.settings, sendResponse);
-        break;
+        case "GET_ANKI_SETTINGS":
+          await this.handleGetAnkiSettings(sendResponse);
+          break;
 
-      case "TEST_ANKI_CONNECTION":
-        await this.handleTestAnkiConnection(sendResponse);
-        break;
+        case "SAVE_ANKI_SETTINGS":
+          await this.handleSaveAnkiSettings(message.settings, sendResponse);
+          break;
 
-      default:
-        sendResponse({ error: "Unknown message type" });
+        case "TEST_ANKI_CONNECTION":
+          await this.handleTestAnkiConnection(sendResponse);
+          break;
+
+        // Settings page handlers
+        case "GET_ANKI_DECKS":
+          console.log("Handling GET_ANKI_DECKS request");
+          await this.handleGetAnkiDecks(sendResponse);
+          break;
+
+        case "GET_ANKI_NOTE_TYPES":
+          console.log("Handling GET_ANKI_NOTE_TYPES request");
+          await this.handleGetAnkiNoteTypes(sendResponse);
+          break;
+
+        case "GET_ANKI_NOTE_TYPE_FIELDS":
+          console.log("Handling GET_ANKI_NOTE_TYPE_FIELDS request");
+          await this.handleGetAnkiNoteTypeFields(
+            message.noteType,
+            sendResponse
+          );
+          break;
+
+        default:
+          console.warn("Unknown message type:", message.type);
+          sendResponse({ error: "Unknown message type" });
+      }
+    } catch (error) {
+      console.error("Error in handleMessage:", error);
+      sendResponse({
+        success: false,
+        error: error.message,
+      });
     }
   }
 
