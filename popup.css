@@ -18,6 +18,10 @@
   --helios-known-green: #4ecdc4;
   --helios-inspire-blue: #6c5ce7;
   --helios-glow-soft: rgba(255, 107, 53, 0.3);
+  --helios-anki-blue: #2196f3;
+  --helios-anki-success: #4caf50;
+  --helios-anki-error: #f44336;
+  --helios-anki-warning: #ff9800;
 }
 
 /* Global Styles */
@@ -39,10 +43,13 @@
   font-size: 14px;
   width: 350px;
   max-width: 95vw;
-  max-height: 500px;
+  max-height: 450px;
+  height: auto;
   overflow: hidden;
   backdrop-filter: blur(20px);
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .chinese-lang-extension-popup::before {
@@ -80,6 +87,8 @@
   flex-direction: column;
   height: 100%;
   box-sizing: border-box;
+  flex: 1;
+  min-height: 0;
 }
 
 /* Character Display */
@@ -159,7 +168,7 @@
   flex: 1 1 auto;
   overflow-y: auto;
   margin-bottom: 16px;
-  max-height: 280px;
+  max-height: 200px;
   min-height: 80px;
   padding-right: 6px;
 }
@@ -341,26 +350,29 @@
 /* Button Container */
 .popup-buttons {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   justify-content: space-between;
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid var(--helios-border);
+  flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 /* Button Styles */
 .popup-buttons button {
   flex: 1;
-  padding: 12px 16px;
+  min-width: 90px;
+  padding: 12px 14px;
   border: none;
   border-radius: 12px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   font-family: inherit;
   cursor: pointer;
   transition: all 0.3s ease;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
   position: relative;
   overflow: hidden;
 }
@@ -383,6 +395,15 @@
 
 .popup-buttons button:hover::before {
   left: 100%;
+}
+
+.popup-buttons button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.popup-buttons button:disabled::before {
+  display: none;
 }
 
 .mark-known-btn {
@@ -421,6 +442,99 @@
   );
 }
 
+/* Anki Button Styles */
+.anki-btn {
+  background: linear-gradient(135deg, var(--helios-anki-blue), #1976d2);
+  color: white;
+  box-shadow: 0 4px 15px rgba(33, 150, 243, 0.4);
+  border: 1px solid rgba(33, 150, 243, 0.3);
+  position: relative;
+}
+
+.anki-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(33, 150, 243, 0.5);
+  background: linear-gradient(135deg, #1976d2, var(--helios-anki-blue));
+}
+
+.anki-btn.anki-checking {
+  background: linear-gradient(135deg, #9e9e9e, #757575);
+  box-shadow: 0 4px 15px rgba(158, 158, 158, 0.3);
+  border: 1px solid rgba(158, 158, 158, 0.3);
+  animation: ankiPulse 1.5s ease-in-out infinite;
+}
+
+.anki-btn.anki-unavailable {
+  background: linear-gradient(135deg, #757575, #616161);
+  box-shadow: 0 4px 15px rgba(117, 117, 117, 0.3);
+  border: 1px solid rgba(117, 117, 117, 0.3);
+  color: #bdbdbd;
+}
+
+.anki-btn.anki-success {
+  background: linear-gradient(135deg, var(--helios-anki-success), #388e3c);
+  box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  animation: ankiSuccess 0.5s ease-out;
+}
+
+.anki-btn.anki-error {
+  background: linear-gradient(135deg, var(--helios-anki-error), #d32f2f);
+  box-shadow: 0 4px 15px rgba(244, 67, 54, 0.4);
+  border: 1px solid rgba(244, 67, 54, 0.3);
+  animation: ankiShake 0.5s ease-out;
+}
+
+.anki-btn.anki-duplicate {
+  background: linear-gradient(135deg, var(--helios-anki-warning), #f57c00);
+  box-shadow: 0 4px 15px rgba(255, 152, 0, 0.4);
+  border: 1px solid rgba(255, 152, 0, 0.3);
+}
+
+@keyframes ankiPulse {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes ankiSuccess {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes ankiShake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-2px);
+  }
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(2px);
+  }
+}
+
 .close-btn {
   background: linear-gradient(135deg, var(--helios-bg-tertiary), #4a4a4a);
   color: var(--helios-text-secondary);
@@ -433,6 +547,13 @@
   color: var(--helios-text-primary);
   transform: translateY(-2px);
   box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+}
+
+/* Three-button layout adjustments */
+.popup-buttons button {
+  flex: 1;
+  min-width: 0;
+  max-width: none;
 }
 
 /* Word Highlighting */
@@ -559,9 +680,11 @@ body[data-shift-active="true"] * {
 
   .popup-buttons {
     flex-direction: column;
+    gap: 8px;
   }
 
   .popup-buttons button {
     flex: none;
+    min-width: auto;
   }
 }

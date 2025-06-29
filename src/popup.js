@@ -13,6 +13,26 @@ class PopupManager {
     this.isMouseOverPopup = false;
     this.isMouseOverHighlight = false;
     this.hideTimeout = null;
+
+    // Initialize Anki Manager
+    this.ankiManager = new AnkiManager();
+    this.isAnkiAvailable = null;
+
+    // Check Anki availability on startup
+    this.checkAnkiStatus();
+  }
+
+  async checkAnkiStatus() {
+    try {
+      this.isAnkiAvailable = await this.ankiManager.checkAnkiConnect();
+      console.log(
+        "Anki status:",
+        this.isAnkiAvailable ? "Available" : "Not available"
+      );
+    } catch (error) {
+      this.isAnkiAvailable = false;
+      console.warn("Could not check Anki status:", error);
+    }
   }
 
   showDictionaryPopup(x, y, character) {
@@ -138,6 +158,9 @@ class PopupManager {
       })
       .join("");
 
+    // Create Anki button with status
+    const ankiButton = this.createAnkiButton();
+
     return `
       <div class="popup-content">
         <div class="character highlight">${character}</div>
@@ -151,10 +174,21 @@ class PopupManager {
           <button class="${isKnown ? "mark-unknown-btn" : "mark-known-btn"}">
             ${isKnown ? "Mark Unknown" : "Mark Known"}
           </button>
+          ${ankiButton}
           <button class="close-btn">Close</button>
         </div>
       </div>
     `;
+  }
+
+  createAnkiButton() {
+    if (this.isAnkiAvailable === null) {
+      return `<button class="anki-btn anki-checking" disabled>Checking Anki...</button>`;
+    } else if (this.isAnkiAvailable === false) {
+      return `<button class="anki-btn anki-unavailable" disabled title="Anki not available. Make sure Anki is running with AnkiConnect add-on.">Anki Offline</button>`;
+    } else {
+      return `<button class="anki-btn anki-available">Add to Anki</button>`;
+    }
   }
 
   setupPopupEventListeners(character) {
@@ -164,6 +198,7 @@ class PopupManager {
     const markKnownBtn = this.popup.querySelector(".mark-known-btn");
     const markUnknownBtn = this.popup.querySelector(".mark-unknown-btn");
     const closeBtn = this.popup.querySelector(".close-btn");
+    const ankiBtn = this.popup.querySelector(".anki-btn");
 
     addVocabBtn?.addEventListener("click", () => this.addToVocab(character));
 
@@ -221,10 +256,86 @@ class PopupManager {
       });
     }
 
+    // NEW: Anki button event listener
+    if (ankiBtn && !ankiBtn.disabled) {
+      ankiBtn.addEventListener("click", async () => {
+        await this.handleAnkiCardCreation(character, ankiBtn);
+      });
+    }
+
     closeBtn?.addEventListener("click", () => this.hidePopup());
   }
 
-  // NEW: Save word to vocabulary list when looked up
+  // NEW: Handle Anki card creation
+  async handleAnkiCardCreation(character, button) {
+    try {
+      // Update button to show loading state
+      const originalText = button.textContent;
+      button.textContent = "Creating...";
+      button.disabled = true;
+
+      // Get frequency data if available
+      let frequency = "";
+      if (this.frequencyManager) {
+        frequency = this.frequencyManager.getFrequency(character) || "";
+      }
+
+      // Create the card
+      const result = await this.ankiManager.createCardFromPopup(
+        character,
+        this.dictionaryManager,
+        { frequency: frequency }
+      );
+
+      if (result.success) {
+        // Success feedback
+        button.textContent = "✓ Added!";
+        button.className = "anki-btn anki-success";
+
+        // Show success message briefly
+        setTimeout(() => {
+          this.hidePopup();
+        }, 1000);
+
+        console.log(`✅ Successfully created Anki card for: ${character}`);
+
+        // Optional: Save to vocabulary list as well
+        this.saveToVocabList(character);
+      } else {
+        // Error feedback
+        if (result.error === "Card already exists") {
+          button.textContent = "Already exists";
+          button.className = "anki-btn anki-duplicate";
+        } else {
+          button.textContent = "Error";
+          button.className = "anki-btn anki-error";
+          console.error("Anki card creation failed:", result.error);
+        }
+
+        // Reset button after 2 seconds
+        setTimeout(() => {
+          button.textContent = originalText;
+          button.className = "anki-btn anki-available";
+          button.disabled = false;
+        }, 2000);
+      }
+    } catch (error) {
+      console.error("Error in Anki card creation:", error);
+
+      // Error feedback
+      button.textContent = "Error";
+      button.className = "anki-btn anki-error";
+
+      // Reset button after 2 seconds
+      setTimeout(() => {
+        button.textContent = "Add to Anki";
+        button.className = "anki-btn anki-available";
+        button.disabled = false;
+      }, 2000);
+    }
+  }
+
+  // Save word to vocabulary list when looked up
   saveToVocabList(character) {
     try {
       const matches = this.dictionaryManager.dictionary[character] || [];
@@ -274,7 +385,7 @@ class PopupManager {
     }
   }
 
-  // NEW: Increment daily session counter
+  // Increment daily session counter
   incrementSessionCounter() {
     if (window.chrome && chrome.storage && chrome.storage.local) {
       chrome.storage.local.get(

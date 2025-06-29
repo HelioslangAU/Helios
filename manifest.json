@@ -1,55 +1,50 @@
 {
-    "manifest_version": 3,
-    "name": "Helios",
-    "version": "1.1",
-    "description": "A browser extension for language learning with subtitle reading, popup dictionary, and vocab tracking",
-    
-    "permissions": [
-      "activeTab",
-      "storage",
-      "scripting"
-    ],
-    
-    "host_permissions": [
-      "https://*/*",
-      "http://*/*"
-    ],
-    
-    "content_scripts": [
-      {
-        "matches": ["<all_urls>"],
-        "js": [
-            "src/frequency-manager.js",
-            "src/popup.js",
-            "src/extensiontab.js",
-            "src/text-highlighter.js",
-            "src/page-processor.js",
-            "src/vocab-manager.js",
-            "src/dictionary-manager.js",
-            "src/content.js"],
-        "css": ["popup.css"],
-        "run_at": "document_end"
-      }
-    ],
-    
-    "background": {
-      "service_worker": "background.js"
-    },
-    
-    "action": {
-      "default_popup": "popup.html",
-      "default_title": "Language Learning Extension"
-    },
-    
-    "web_accessible_resources": [
-      {
-        "resources": [
-          "dictionary.json",
-          "popup.css",
-          "cedict_ts.u8",
-          "BLCUcoll/*"
-        ],
-        "matches": ["<all_urls>"]
-      }
-    ]
-  }
+  "manifest_version": 3,
+  "name": "Helios",
+  "version": "1.1",
+  "description": "A browser extension for language learning with subtitle reading, popup dictionary, vocab tracking, and Anki integration",
+
+  "permissions": ["activeTab", "storage", "scripting"],
+
+  "host_permissions": ["https://*/*", "http://*/*", "http://127.0.0.1:8765/*"],
+
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": [
+        "src/frequency-manager.js",
+        "src/anki-manager.js",
+        "src/popup.js",
+        "src/extensiontab.js",
+        "src/text-highlighter.js",
+        "src/page-processor.js",
+        "src/vocab-manager.js",
+        "src/dictionary-manager.js",
+        "src/content.js"
+      ],
+      "css": ["popup.css"],
+      "run_at": "document_end"
+    }
+  ],
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Language Learning Extension"
+  },
+
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "dictionary.json",
+        "popup.css",
+        "cedict_ts.u8",
+        "BLCUcoll/*"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
