@@ -20,7 +20,6 @@ class PageProcessor {
     console.log('Page processed for unknown words');
   }
 
-  // Fix: Inject CSS globally instead of per element
   ensureGlobalCSS() {
     if (this.injectedCSS) return;
     

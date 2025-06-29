@@ -1,6 +1,6 @@
 {
     "manifest_version": 3,
-    "name": "Language Learning Extension",
+    "name": "Helios",
     "version": "1.1",
     "description": "A browser extension for language learning with subtitle reading, popup dictionary, and vocab tracking",
     
@@ -19,6 +19,7 @@
       {
         "matches": ["<all_urls>"],
         "js": [
+            "src/frequency-manager.js",
             "src/popup.js",
             "src/extensiontab.js",
             "src/text-highlighter.js",
@@ -46,9 +47,7 @@
           "dictionary.json",
           "popup.css",
           "cedict_ts.u8",
-          "vnedict1.txt",
-          "vietnamese_dict_converted.txt",
-          "chinese-known-words.json"
+          "BLCUcoll/*"
         ],
         "matches": ["<all_urls>"]
       }

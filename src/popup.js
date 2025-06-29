@@ -1,8 +1,9 @@
 class PopupManager {
-  constructor({ highlightManager, dictionaryManager, vocabManager}) {
+  constructor({ highlightManager, dictionaryManager, vocabManager, frequencyManager }) {
     this.highlightManager = highlightManager;
     this.dictionaryManager = dictionaryManager;
     this.vocabManager = vocabManager;
+    this.frequencyManager = frequencyManager;
     this.popup = null;
     this.isMouseOverPopup = false;
     this.isMouseOverHighlight = false;
@@ -80,6 +81,10 @@ class PopupManager {
   createPopupContent(character) {
     const matches = this.dictionaryManager.dictionary[character] || [];
     const isKnown = this.vocabManager.isWordKnown(character);
+    let frequency = null;
+    if (this.frequencyManager) {
+      frequency = this.frequencyManager.getFrequency(character);
+    }
 
     if (matches.length === 0) {
       return `
@@ -107,8 +112,6 @@ class PopupManager {
         <div class="definition-block">
           <div class="pinyin">
             <span class="pinyin-text">${def.pinyin}</span>
-            <span class="tone-indicator ${toneClass}">${def.tone}</span>
-            ${matches.length > 1 ? `<span class="def-index">${idx + 1}</span>` : ''}
           </div>
           ${variants}${bullets}
         </div>
@@ -118,6 +121,7 @@ class PopupManager {
     return `
       <div class="popup-content">
         <div class="character highlight">${character}</div>
+        ${frequency ? `<div class="frequency">Frequency: ${frequency}</div>` : ''}
         <div class="definitions-scroll">${definitionsHtml}</div>
         <div class="popup-buttons">
           <button class="${isKnown ? 'mark-unknown-btn' : 'mark-known-btn'}">

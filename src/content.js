@@ -19,15 +19,20 @@ class ChineseLanguageLearningExtension {
     this.dictionaryManager = new DictionaryManager();
     this.vocabManager = new VocabManager();
     this.highlightManager = new HighlightManager();
-
-    await Promise.all([this.dictionaryManager.loadDictionary(), this.vocabManager.loadKnownWords()]);
+    this.frequencyManager = new FrequencyManager();
+    await Promise.all([
+      this.dictionaryManager.loadDictionary(),
+      this.vocabManager.loadKnownWords(),
+      this.frequencyManager.loadFrequencyList()
+    ]);
 
     this.pageProcessor = new PageProcessor(this.dictionaryManager, this.vocabManager);
     window.pageProcessor = this.pageProcessor; // Make globally accessible for popup updates
     this.popup = new PopupManager({
       highlightManager: this.highlightManager,
       dictionaryManager: this.dictionaryManager,
-      vocabManager: this.vocabManager
+      vocabManager: this.vocabManager,
+      frequencyManager: this.frequencyManager
     });
 
     // Set up communication between components    
