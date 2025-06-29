@@ -261,25 +261,42 @@ class AnkiSettingsManager {
   // Load fields for a specific note type
   async loadNoteTypeFields(noteType) {
     try {
+      console.log("Loading fields for note type:", noteType);
       const response = await this.sendMessage("GET_ANKI_NOTE_TYPE_FIELDS", {
         noteType,
       });
-      this.currentNoteTypeFields = response.fields || [];
+      console.log("Fields response:", response);
+
+      if (response.success) {
+        this.currentNoteTypeFields = response.fields || [];
+      } else {
+        console.warn("Failed to get fields, using fallback");
+        this.currentNoteTypeFields = this.getFallbackFields(noteType);
+      }
+
+      console.log("Current note type fields:", this.currentNoteTypeFields);
     } catch (error) {
       console.warn("Could not load note type fields:", error);
-      // Fallback fields based on common note types
-      if (noteType.toLowerCase().includes("basic")) {
-        this.currentNoteTypeFields = ["Front", "Back"];
-      } else if (noteType.toLowerCase().includes("cloze")) {
-        this.currentNoteTypeFields = ["Text", "Back Extra"];
-      } else {
-        this.currentNoteTypeFields = [
-          "Expression",
-          "Reading",
-          "Meaning",
-          "Sentence",
-        ];
-      }
+      this.currentNoteTypeFields = this.getFallbackFields(noteType);
+    }
+  }
+
+  // Get fallback fields based on note type name
+  getFallbackFields(noteType) {
+    if (!noteType) return ["Front", "Back"];
+
+    const lowerNoteType = noteType.toLowerCase();
+    if (lowerNoteType.includes("cloze")) {
+      return ["Text", "Back Extra"];
+    } else if (
+      lowerNoteType.includes("chinese") ||
+      lowerNoteType.includes("migaku")
+    ) {
+      return ["Expression", "Reading", "Meaning", "Sentence", "Audio", "Image"];
+    } else if (lowerNoteType.includes("reversed")) {
+      return ["Front", "Back"];
+    } else {
+      return ["Front", "Back"]; // Basic note type
     }
   }
 
@@ -360,26 +377,80 @@ class AnkiSettingsManager {
 
   // Update field mapping dropdown options
   updateFieldMappingOptions() {
+    console.log(
+      "Updating field mapping options with fields:",
+      this.currentNoteTypeFields
+    );
+
     const mappingSelects = document.querySelectorAll(".mapping-select");
 
     mappingSelects.forEach((select) => {
       const currentValue = select.value;
+      const heliosField = select.getAttribute("data-helios-field");
+
+      // Clear existing options
       select.innerHTML = '<option value="">Not mapped</option>';
 
+      // Add available fields
       this.currentNoteTypeFields.forEach((field) => {
         const option = document.createElement("option");
         option.value = field;
         option.textContent = field;
-        option.selected = field === currentValue;
         select.appendChild(option);
       });
 
-      // Restore saved mapping
-      const heliosField = select.getAttribute("data-helios-field");
+      // Restore saved mapping if it exists
       if (this.settings.fieldMappings[heliosField]) {
-        select.value = this.settings.fieldMappings[heliosField];
+        const savedValue = this.settings.fieldMappings[heliosField];
+        // Check if the saved value exists in the current note type
+        if (this.currentNoteTypeFields.includes(savedValue)) {
+          select.value = savedValue;
+        } else {
+          // Try to auto-map common field names
+          const autoMapping = this.getAutoMapping(heliosField);
+          if (autoMapping && this.currentNoteTypeFields.includes(autoMapping)) {
+            select.value = autoMapping;
+            this.settings.fieldMappings[heliosField] = autoMapping;
+          }
+        }
+      } else {
+        // Try auto-mapping for new configurations
+        const autoMapping = this.getAutoMapping(heliosField);
+        if (autoMapping && this.currentNoteTypeFields.includes(autoMapping)) {
+          select.value = autoMapping;
+          this.settings.fieldMappings[heliosField] = autoMapping;
+        }
       }
     });
+
+    console.log(
+      "Field mapping updated, current mappings:",
+      this.settings.fieldMappings
+    );
+  }
+
+  // Get automatic field mapping suggestions
+  getAutoMapping(heliosField) {
+    const mappings = {
+      expression: ["Expression", "Chinese", "Front", "Word"],
+      reading: ["Reading", "Pinyin", "Pronunciation"],
+      meaning: ["Meaning", "English", "Definition", "Back"],
+      sentence: ["Sentence", "Context", "Example"],
+      traditional: ["Traditional", "Traditional Form"],
+      simplified: ["Simplified", "Simplified Form"],
+      source: ["Source", "URL", "Link"],
+    };
+
+    const candidates = mappings[heliosField] || [];
+
+    // Return the first matching field from the note type
+    for (const candidate of candidates) {
+      if (this.currentNoteTypeFields.includes(candidate)) {
+        return candidate;
+      }
+    }
+
+    return null;
   }
 
   // Test connection manually
