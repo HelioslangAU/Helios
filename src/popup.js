@@ -79,22 +79,22 @@ class PopupManager {
 
     this.popup = popup;
     this.setupPopupEventListeners(character);
-    this.setupPopupMouseEvents();
+    //this.setupPopupMouseEvents();
   }
 
-  setupPopupMouseEvents() {
-    if (!this.popup) return;
+  // setupPopupMouseEvents() {
+  //   if (!this.popup) return;
 
-    this.popup.addEventListener("mouseenter", () => {
-      this.isMouseOverPopup = true;
-      clearTimeout(this.hideTimeout);
-    });
+  //   this.popup.addEventListener("mouseenter", () => {
+  //     this.isMouseOverPopup = true;
+  //     clearTimeout(this.hideTimeout);
+  //   });
 
-    this.popup.addEventListener("mouseleave", () => {
-      this.isMouseOverPopup = false;
-      this.scheduleHidePopup();
-    });
-  }
+  //   this.popup.addEventListener("mouseleave", () => {
+  //     this.isMouseOverPopup = false;
+  //     this.scheduleHidePopup();
+  //   });
+  // }
 
   scheduleHidePopup() {
     clearTimeout(this.hideTimeout);

@@ -150,8 +150,8 @@ class ChineseLanguageLearningExtension {
     if (event.key === "Shift") {
       this.isShiftPressed = false;
       this.toggleShiftMode(false);
-      this.highlightManager.removeLookupHighlight();
-      this.popup.hidePopup();
+      //this.highlightManager.removeLookupHighlight();
+      //this.popup.hidePopup();
       clearTimeout(this.hoverTimeout);
     }
   }
@@ -172,6 +172,7 @@ class ChineseLanguageLearningExtension {
 
   _onClickTS(event) {
     this.popup.hidePopup(event);
+    this.highlightManager.removeLookupHighlight();
   }
 
   toggleShiftMode(active) {
