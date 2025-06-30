@@ -1,0 +1,118 @@
+<!-- Anki Integration Settings Tab Content -->
+<div class="section-card">
+  <h2 class="section-title">
+    <span>🔗</span>
+    Connection Status
+  </h2>
+  <p class="section-description">
+    Monitor and test your AnkiConnect connection.
+  </p>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Current Status</label>
+      <div class="status-indicator status-checking" id="anki-connection-status">
+        <span>●</span>
+        <span>Checking...</span>
+      </div>
+    </div>
+    <div class="form-group">
+      <button class="btn btn-anki" id="test-anki-connection">
+        <span>🔄</span>
+        Test Connection
+      </button>
+    </div>
+  </div>
+
+  <div class="help-text">
+    Make sure Anki is running with the AnkiConnect add-on installed (code:
+    2055492159)
+  </div>
+</div>
+
+<div class="section-card">
+  <h2 class="section-title">
+    <span>📚</span>
+    Deck Configuration
+  </h2>
+  <p class="section-description">
+    Choose your target deck and note type for new cards.
+  </p>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label" for="anki-deck-select">Target Deck</label>
+      <select class="form-control" id="anki-deck-select">
+        <option value="">Select a deck...</option>
+      </select>
+      <div class="help-text">
+        Choose the Anki deck where new cards will be added
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="anki-note-type-select">Note Type</label>
+      <select class="form-control" id="anki-note-type-select">
+        <option value="">Select a note type...</option>
+      </select>
+      <div class="help-text">Choose the note type/model for your cards</div>
+    </div>
+  </div>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Check for Duplicates</label>
+      <label class="toggle-switch">
+        <input type="checkbox" id="anki-check-duplicates" checked />
+        <span class="toggle-slider"></span>
+      </label>
+      <div class="help-text">Prevent creating duplicate cards</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Include Sentence Context</label>
+      <label class="toggle-switch">
+        <input type="checkbox" id="anki-include-sentence" checked />
+        <span class="toggle-slider"></span>
+      </label>
+      <div class="help-text">Add sentence context to new cards</div>
+    </div>
+  </div>
+</div>
+
+<div class="section-card">
+  <h2 class="section-title">
+    <span>🎯</span>
+    Field Mapping
+  </h2>
+  <p class="section-description">Map Helios data to your Anki note fields.</p>
+
+  <div class="field-mapping">
+    <table class="mapping-table">
+      <thead>
+        <tr>
+          <th>Anki Field</th>
+          <th>Helios Data</th>
+          <th>Preview</th>
+        </tr>
+      </thead>
+      <tbody id="anki-field-mapping-body">
+        <tr>
+          <td
+            colspan="3"
+            style="
+              text-align: center;
+              padding: 40px;
+              color: var(--helios-text-muted);
+            "
+          >
+            <div>Select a note type to configure field mappings</div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="help-text">
+    Choose what Helios data should be placed in each of your Anki note fields.
+    Unmapped fields will be left empty.
+  </div>
+</div>

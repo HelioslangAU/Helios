@@ -1,4 +1,4 @@
-// Helios Extension Tab JavaScript - Complete Functionality with Anki Settings
+// Helios Extension Tab JavaScript - Complete Functionality with Helios Settings
 
 function updateKnownWordsCounter() {
   const counter = document.getElementById("vocab-count");
@@ -258,35 +258,44 @@ function openReview() {
   console.log("Review functionality triggered");
 }
 
-// NEW: Open Anki Settings
-function openAnkiSettings() {
+// UPDATED: Open Helios Settings (was openAnkiSettings)
+function openHeliosSettings() {
   try {
     if (window.chrome && chrome.tabs) {
-      // Open Anki settings in a new tab
+      // Open Helios settings in a new tab
       chrome.tabs.create({
-        url: chrome.runtime.getURL("anki-settings.html"),
+        url: chrome.runtime.getURL("helios-settings.html"),
         active: true,
       });
-    } else {
-      // Fallback for testing - open in new window
-      const settingsUrl = chrome.runtime.getURL("anki-settings.html");
+    } else if (window.chrome && chrome.runtime) {
+      // Fallback: try to open using runtime URL
+      const settingsUrl = chrome.runtime.getURL("helios-settings.html");
       window.open(
         settingsUrl,
         "_blank",
-        "width=700,height=800,scrollbars=yes,resizable=yes"
+        "width=1200,height=800,scrollbars=yes,resizable=yes"
       );
+    } else {
+      // Final fallback - try to navigate in current tab
+      window.location.href = chrome.runtime.getURL("helios-settings.html");
     }
-    console.log("Opening Anki Settings page ⚙️");
+    console.log("Opening Helios Settings page ⚙️");
   } catch (error) {
-    console.error("Error opening Anki settings:", error);
+    console.error("Error opening Helios settings:", error);
 
-    // Final fallback - try to navigate in current tab
+    // Ultra fallback - try opening Chrome's options page
     try {
-      window.location.href = chrome.runtime.getURL("anki-settings.html");
-    } catch (navError) {
-      console.error("Navigation fallback failed:", navError);
+      if (chrome.runtime && chrome.runtime.openOptionsPage) {
+        chrome.runtime.openOptionsPage();
+      } else {
+        alert(
+          "Could not open settings. Please right-click the extension icon and select 'Options'."
+        );
+      }
+    } catch (optionsError) {
+      console.error("Options page fallback failed:", optionsError);
       alert(
-        "Could not open Anki settings. Please check if the extension is properly installed."
+        "Could not open settings. Please check if the extension is properly installed."
       );
     }
   }
@@ -360,10 +369,10 @@ window.addEventListener("DOMContentLoaded", () => {
     reviewBtn.addEventListener("click", openReview);
   }
 
-  // NEW: Anki Settings button functionality
-  const ankiSettingsBtn = document.getElementById("anki-settings-btn");
-  if (ankiSettingsBtn) {
-    ankiSettingsBtn.addEventListener("click", openAnkiSettings);
+  // UPDATED: Helios Settings button functionality (was anki-settings-btn)
+  const settingsBtn = document.getElementById("anki-settings-btn");
+  if (settingsBtn) {
+    settingsBtn.addEventListener("click", openHeliosSettings);
   }
 
   // Set up periodic updates (every 30 seconds)
@@ -421,5 +430,5 @@ window.heliosExtension = {
   incrementSessionCounter,
   exportData,
   openReview,
-  openAnkiSettings, // NEW: Added to global scope
+  openHeliosSettings, // UPDATED: renamed from openAnkiSettings
 };

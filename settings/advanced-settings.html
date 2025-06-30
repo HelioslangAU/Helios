@@ -1,0 +1,148 @@
+<!-- Advanced Settings Tab Content -->
+<div class="section-card">
+  <h2 class="section-title">
+    <span>⚡</span>
+    Performance
+  </h2>
+  <p class="section-description">
+    Optimize extension performance for your browsing habits.
+  </p>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Page Processing Mode</label>
+      <select class="form-control" id="processing-mode">
+        <option value="full" selected>Full Page (Default)</option>
+        <option value="viewport">Viewport Only</option>
+        <option value="lazy">Lazy Loading</option>
+        <option value="manual">Manual Only</option>
+      </select>
+      <div class="help-text">How text processing is applied to web pages</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Cache Dictionary</label>
+      <label class="toggle-switch">
+        <input type="checkbox" id="cache-dictionary" checked />
+        <span class="toggle-slider"></span>
+      </label>
+      <div class="help-text">Cache dictionary for faster lookups</div>
+    </div>
+  </div>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Max Processed Elements</label>
+      <input
+        type="number"
+        class="form-control"
+        id="max-elements"
+        value="1000"
+        min="100"
+        max="10000"
+      />
+      <div class="help-text">Limit processing on large pages (100-10000)</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Background Processing</label>
+      <label class="toggle-switch">
+        <input type="checkbox" id="background-processing" checked />
+        <span class="toggle-slider"></span>
+      </label>
+      <div class="help-text">
+        Process pages in background for better performance
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section-card">
+  <h2 class="section-title">
+    <span>🌐</span>
+    Site Management
+  </h2>
+  <p class="section-description">
+    Control which websites the extension works on.
+  </p>
+
+  <div class="form-group">
+    <label class="form-label">Disabled Sites</label>
+    <textarea
+      class="bulk-textarea"
+      id="disabled-sites-textarea"
+      placeholder="Enter domains to disable the extension on:&#10;facebook.com&#10;twitter.com&#10;reddit.com"
+      style="min-height: 80px"
+    ></textarea>
+    <div class="help-text">
+      One domain per line. Extension will be disabled on these sites.
+    </div>
+  </div>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Auto-detect Chinese Content</label>
+      <label class="toggle-switch">
+        <input type="checkbox" id="auto-detect-chinese" checked />
+        <span class="toggle-slider"></span>
+      </label>
+      <div class="help-text">Only activate on pages with Chinese text</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Work in Incognito</label>
+      <label class="toggle-switch">
+        <input type="checkbox" id="work-incognito" />
+        <span class="toggle-slider"></span>
+      </label>
+      <div class="help-text">Enable extension in incognito/private mode</div>
+    </div>
+  </div>
+</div>
+
+<div class="section-card">
+  <h2 class="section-title">
+    <span>🔧</span>
+    Developer Options
+  </h2>
+  <p class="section-description">
+    Advanced options for debugging and development.
+  </p>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Debug Mode</label>
+      <label class="toggle-switch">
+        <input type="checkbox" id="debug-mode" />
+        <span class="toggle-slider"></span>
+      </label>
+      <div class="help-text">Enable detailed console logging</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Show Performance Metrics</label>
+      <label class="toggle-switch">
+        <input type="checkbox" id="show-metrics" />
+        <span class="toggle-slider"></span>
+      </label>
+      <div class="help-text">Display processing time and memory usage</div>
+    </div>
+  </div>
+
+  <div class="form-row">
+    <button class="btn btn-secondary" id="clear-cache">
+      <span>🗑️</span>
+      Clear Cache
+    </button>
+    <button class="btn btn-secondary" id="export-logs">
+      <span>📋</span>
+      Export Debug Logs
+    </button>
+    <button class="btn btn-secondary" id="run-diagnostics">
+      <span>🔍</span>
+      Run Diagnostics
+    </button>
+  </div>
+
+  <div class="help-text">
+    <strong>Extension Version:</strong> 1.1.0<br />
+    <strong>Dictionary Version:</strong> CC-CEDICT 2025<br />
+    <strong>Last Updated:</strong> <span id="last-updated">-</span>
+  </div>
+</div>
