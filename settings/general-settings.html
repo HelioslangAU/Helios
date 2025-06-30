@@ -1,0 +1,89 @@
+<!-- General Settings Tab Content -->
+<div class="section-card">
+  <h2 class="section-title">
+    <span>⚙️</span>
+    Extension Control
+  </h2>
+  <p class="section-description">
+    Configure basic extension behavior and activation settings.
+  </p>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Extension Enabled</label>
+      <label class="toggle-switch">
+        <input type="checkbox" id="extension-enabled" checked />
+        <span class="toggle-slider"></span>
+      </label>
+      <div class="help-text">Enable or disable the entire extension</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Activation Key</label>
+      <select class="form-control" id="activation-key">
+        <option value="Shift">Shift (Default)</option>
+        <option value="Alt">Alt</option>
+        <option value="Control">Ctrl</option>
+        <option value="Meta">Cmd/Meta</option>
+      </select>
+      <div class="help-text">Key to hold for dictionary lookups</div>
+    </div>
+  </div>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Auto-highlight Unknown Words</label>
+      <label class="toggle-switch">
+        <input type="checkbox" id="auto-highlight" checked />
+        <span class="toggle-slider"></span>
+      </label>
+      <div class="help-text">
+        Automatically underline unknown words on page load
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Scan Delay (ms)</label>
+      <input
+        type="number"
+        class="form-control"
+        id="scan-delay"
+        value="100"
+        min="0"
+        max="1000"
+      />
+      <div class="help-text">Delay before showing popup (0-1000ms)</div>
+    </div>
+  </div>
+</div>
+
+<div class="section-card">
+  <h2 class="section-title">
+    <span>🎯</span>
+    Text Processing
+  </h2>
+  <p class="section-description">
+    Configure how Chinese text is processed and segmented.
+  </p>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Max Word Length</label>
+      <select class="form-control" id="max-word-length">
+        <option value="3">3 characters</option>
+        <option value="4">4 characters</option>
+        <option value="5" selected>5 characters</option>
+        <option value="6">6 characters</option>
+      </select>
+      <div class="help-text">Maximum length for word segmentation</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Prefer Traditional</label>
+      <label class="toggle-switch">
+        <input type="checkbox" id="prefer-traditional" />
+        <span class="toggle-slider"></span>
+      </label>
+      <div class="help-text">
+        Prioritize traditional characters when available
+      </div>
+    </div>
+  </div>
+</div>

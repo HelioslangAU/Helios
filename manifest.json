@@ -33,8 +33,10 @@
 
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Language Learning Extension"
+    "default_title": "Helios Language Learning Extension"
   },
+
+  "options_page": "helios-settings.html",
 
   "web_accessible_resources": [
     {
@@ -43,8 +45,9 @@
         "popup.css",
         "cedict_ts.u8",
         "BLCUcoll/*",
-        "anki-settings.html",
-        "src/anki-settings.js"
+        "helios-settings.html",
+        "src/helios-settings.js",
+        "settings/*"
       ],
       "matches": ["<all_urls>"]
     }
