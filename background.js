@@ -3,6 +3,7 @@ class BackgroundService {
   constructor() {
     this.ankiConnectUrl = "http://127.0.0.1:8765";
     this.isAnkiAvailable = null;
+    this.extensionSettings = {}; // Store current settings
     this.init();
   }
 
@@ -12,7 +13,7 @@ class BackgroundService {
       this.setupInitialData();
     });
 
-    // Listen for messages from content script
+    // Listen for messages from content script and settings
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       this.handleMessage(message, sender, sendResponse);
       return true; // Keep message channel open for async response
@@ -23,6 +24,43 @@ class BackgroundService {
 
     // Check Anki availability on startup
     this.checkAnkiConnect();
+
+    // Load extension settings on startup
+    this.loadExtensionSettings();
+  }
+
+  async loadExtensionSettings() {
+    try {
+      const result = await chrome.storage.local.get([
+        "extensionEnabled",
+        "activationKey",
+        "autoHighlight",
+        "popupTheme",
+      ]);
+
+      // Set defaults if not found
+      this.extensionSettings = {
+        extensionEnabled:
+          result.extensionEnabled !== undefined
+            ? result.extensionEnabled
+            : true,
+        activationKey: result.activationKey || "Shift",
+        autoHighlight:
+          result.autoHighlight !== undefined ? result.autoHighlight : true,
+        popupTheme: result.popupTheme || "dark",
+      };
+
+      console.log("🔍 Loaded extension settings:", this.extensionSettings);
+    } catch (error) {
+      console.error("🔍 Error loading extension settings:", error);
+      // Use defaults
+      this.extensionSettings = {
+        extensionEnabled: true,
+        activationKey: "Shift",
+        autoHighlight: true,
+        popupTheme: "dark",
+      };
+    }
   }
 
   async setupInitialData() {
@@ -32,6 +70,10 @@ class BackgroundService {
         "sessionCount",
         "lastResetDate",
         "ankiSettings",
+        "extensionEnabled",
+        "activationKey",
+        "autoHighlight",
+        "popupTheme",
       ]);
 
       // Initialize empty vocabulary list if it doesn't exist
@@ -65,6 +107,23 @@ class BackgroundService {
         await chrome.storage.local.set({ ankiSettings: defaultAnkiSettings });
       }
 
+      // Initialize extension settings if they don't exist
+      if (result.extensionEnabled === undefined) {
+        await chrome.storage.local.set({ extensionEnabled: true });
+      }
+      if (!result.activationKey) {
+        await chrome.storage.local.set({ activationKey: "Shift" });
+      }
+      if (result.autoHighlight === undefined) {
+        await chrome.storage.local.set({ autoHighlight: true });
+      }
+      if (!result.popupTheme) {
+        await chrome.storage.local.set({ popupTheme: "dark" });
+      }
+
+      // Load settings into memory
+      await this.loadExtensionSettings();
+
       console.log("Language Learning Extension with Anki initialized");
     } catch (error) {
       console.error("Failed to setup initial data:", error);
@@ -72,10 +131,24 @@ class BackgroundService {
   }
 
   async handleMessage(message, sender, sendResponse) {
-    console.log("Background received message:", message.type);
+    console.log("Background received message:", message.type || message.action);
 
     try {
-      switch (message.type) {
+      switch (message.type || message.action) {
+        // === NEW SETTINGS HANDLERS ===
+        case "toggleExtension":
+          await this.handleToggleExtension(message.enabled, sendResponse);
+          break;
+
+        case "settingsChanged":
+          await this.handleSettingsChanged(message.settings, sendResponse);
+          break;
+
+        case "getExtensionSettings":
+          await this.handleGetExtensionSettings(sendResponse);
+          break;
+
+        // === EXISTING HANDLERS ===
         case "LOOKUP_WORD":
           await this.handleWordLookup(message.word, sendResponse);
           break;
@@ -137,7 +210,7 @@ class BackgroundService {
           break;
 
         default:
-          console.warn("Unknown message type:", message.type);
+          console.warn("Unknown message type:", message.type || message.action);
           sendResponse({ error: "Unknown message type" });
       }
     } catch (error) {
@@ -145,6 +218,98 @@ class BackgroundService {
       sendResponse({
         success: false,
         error: error.message,
+      });
+    }
+  }
+
+  // ============ NEW SETTINGS HANDLERS ============
+
+  async handleToggleExtension(enabled, sendResponse) {
+    try {
+      console.log("🔍 Extension toggle:", enabled);
+
+      // Update stored settings
+      await chrome.storage.local.set({ extensionEnabled: enabled });
+      this.extensionSettings.extensionEnabled = enabled;
+
+      // Notify all content scripts about the change
+      const tabs = await chrome.tabs.query({});
+      const updatePromises = tabs.map((tab) => {
+        return chrome.tabs
+          .sendMessage(tab.id, {
+            action: "extensionToggled",
+            enabled: enabled,
+          })
+          .catch(() => {
+            // Tab might not have content script loaded, ignore
+          });
+      });
+
+      await Promise.allSettled(updatePromises);
+
+      sendResponse({
+        success: true,
+        message: `Extension ${enabled ? "enabled" : "disabled"}`,
+      });
+    } catch (error) {
+      console.error("🔍 Error toggling extension:", error);
+      sendResponse({
+        success: false,
+        error: error.message,
+      });
+    }
+  }
+
+  async handleSettingsChanged(settings, sendResponse) {
+    try {
+      console.log("🔍 Settings changed:", settings);
+
+      // Update our cached settings
+      this.extensionSettings = { ...this.extensionSettings, ...settings };
+
+      // Notify all content scripts about the changes
+      const tabs = await chrome.tabs.query({});
+      const updatePromises = tabs.map((tab) => {
+        return chrome.tabs
+          .sendMessage(tab.id, {
+            action: "settingsUpdated",
+            settings: settings,
+          })
+          .catch(() => {
+            // Tab might not have content script loaded, ignore
+          });
+      });
+
+      await Promise.allSettled(updatePromises);
+
+      sendResponse({
+        success: true,
+        message: "Settings updated and broadcasted",
+      });
+    } catch (error) {
+      console.error("🔍 Error handling settings change:", error);
+      sendResponse({
+        success: false,
+        error: error.message,
+      });
+    }
+  }
+
+  async handleGetExtensionSettings(sendResponse) {
+    try {
+      // Refresh settings from storage
+      await this.loadExtensionSettings();
+
+      sendResponse({
+        success: true,
+        settings: this.extensionSettings,
+      });
+    } catch (error) {
+      console.error("🔍 Error getting extension settings:", error);
+      sendResponse({
+        success: false,
+        error: error.message,
+        settings: this.extensionSettings, // Return cached version as fallback
       });
     }
   }
@@ -583,6 +748,15 @@ class BackgroundService {
 
   async handleWordLookup(word, sendResponse) {
     try {
+      // Check if extension is enabled
+      if (!this.extensionSettings.extensionEnabled) {
+        sendResponse({
+          success: false,
+          error: "Extension is disabled",
+        });
+        return;
+      }
+
       // This is where you'd integrate with a real dictionary API
       // For now, we'll use a simple lookup
       const definition = await this.lookupWord(word);

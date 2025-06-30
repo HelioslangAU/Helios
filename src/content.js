@@ -1,10 +1,14 @@
 class ChineseLanguageLearningExtension {
   constructor() {
-    this.isShiftPressed = false;
+    this.isActivationKeyPressed = false;
     this.hoverTimeout = null;
     this.lastMouseEvent = null;
     this.lastHighlightInfo = null;
     this.currentWord = null;
+    this.extensionEnabled = true;
+    this.activationKey = "Shift"; // Default activation key
+    this.autoHighlight = true;
+    this.popupTheme = "dark";
 
     this.dictionaryManager = null;
     this.vocabManager = null;
@@ -16,10 +20,22 @@ class ChineseLanguageLearningExtension {
   }
 
   async init() {
+    console.log("🔍 Initializing Chinese Language Learning Extension...");
+
+    // Load extension settings first
+    await this.loadExtensionSettings();
+
+    // Only proceed if extension is enabled
+    if (!this.extensionEnabled) {
+      console.log("🔍 Extension is disabled, not initializing");
+      return;
+    }
+
     this.dictionaryManager = new DictionaryManager();
     this.vocabManager = new VocabManager();
     this.highlightManager = new HighlightManager();
     this.frequencyManager = new FrequencyManager();
+
     await Promise.all([
       this.dictionaryManager.loadDictionary(),
       this.vocabManager.loadKnownWords(),
@@ -31,6 +47,7 @@ class ChineseLanguageLearningExtension {
       this.vocabManager
     );
     window.pageProcessor = this.pageProcessor; // Make globally accessible for popup updates
+
     this.popup = new PopupManager({
       highlightManager: this.highlightManager,
       dictionaryManager: this.dictionaryManager,
@@ -43,20 +60,182 @@ class ChineseLanguageLearningExtension {
     window.highlightManager = this.highlightManager;
 
     this.initTextScannerEvents();
-    this.pageProcessor.processPageForUnknownWords();
+
+    // Apply auto-highlight setting (only affects automatic word marking, not manual lookup)
+    if (this.autoHighlight) {
+      this.pageProcessor.processPageForUnknownWords();
+    }
+
     this.initAsbplayerIntegration();
-    console.log("Chinese Language Learning Extension initialized");
+    this.setupMessageListener();
+
+    console.log(
+      "🔍 Chinese Language Learning Extension initialized successfully"
+    );
   }
 
-  initTextScannerEvents() {
-    const capture = true;
+  async loadExtensionSettings() {
+    try {
+      console.log("🔍 Loading extension settings...");
+
+      // Request settings from background script
+      const response = await chrome.runtime.sendMessage({
+        action: "getExtensionSettings",
+      });
+
+      if (response && response.success) {
+        this.extensionEnabled = response.settings.extensionEnabled;
+        this.activationKey = response.settings.activationKey;
+        this.autoHighlight = response.settings.autoHighlight;
+        this.popupTheme = response.settings.popupTheme;
+
+        console.log("🔍 Loaded settings:", response.settings);
+      } else {
+        console.log("🔍 Could not load settings, using defaults");
+      }
+    } catch (error) {
+      console.log("🔍 Error loading settings, using defaults:", error);
+      // Keep default values
+    }
+  }
+
+  setupMessageListener() {
+    // Listen for messages from background script (settings changes)
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      console.log("🔍 Content script received message:", message.action);
+
+      switch (message.action) {
+        case "extensionToggled":
+          this.handleExtensionToggled(message.enabled);
+          break;
+
+        case "settingsUpdated":
+          this.handleSettingsUpdated(message.settings);
+          break;
+
+        case "updateActivationKey":
+          this.handleActivationKeyUpdate(message.key);
+          break;
+
+        case "updateAutoHighlight":
+          this.handleAutoHighlightUpdate(message.enabled);
+          break;
+      }
+
+      sendResponse({ success: true });
+    });
+  }
+
+  handleExtensionToggled(enabled) {
+    console.log("🔍 Extension toggled:", enabled);
+    this.extensionEnabled = enabled;
+
+    if (enabled) {
+      // Re-initialize if extension was disabled
+      if (!this.dictionaryManager) {
+        this.init();
+      } else {
+        // Re-enable text scanner events
+        this.initTextScannerEvents();
+        if (this.autoHighlight) {
+          this.pageProcessor.processPageForUnknownWords();
+        }
+      }
+    } else {
+      // Disable extension functionality
+      this.removeTextScannerEvents();
+      this.hidePopup();
+      this.clearHighlights();
+    }
+  }
+
+  handleSettingsUpdated(settings) {
+    console.log("🔍 Settings updated:", settings);
+
+    if (settings.extensionEnabled !== undefined) {
+      this.extensionEnabled = settings.extensionEnabled;
+    }
+
+    if (settings.activationKey !== undefined) {
+      this.activationKey = settings.activationKey;
+      console.log("🔍 Activation key updated to:", this.activationKey);
+    }
+
+    if (settings.autoHighlight !== undefined) {
+      this.autoHighlight = settings.autoHighlight;
+      this.handleAutoHighlightUpdate(settings.autoHighlight);
+    }
+
+    if (settings.popupTheme !== undefined) {
+      this.popupTheme = settings.popupTheme;
+      if (this.popup) {
+        this.popup.updateTheme(settings.popupTheme);
+      }
+    }
+  }
+
+  handleActivationKeyUpdate(key) {
+    console.log("🔍 Activation key updated:", key);
+    this.activationKey = key;
+    // Reset pressed state since key changed
+    this.isActivationKeyPressed = false;
+  }
+
+  handleAutoHighlightUpdate(enabled) {
+    console.log("🔍 Auto-highlight updated:", enabled);
+    this.autoHighlight = enabled;
+
+    if (enabled && this.extensionEnabled && this.pageProcessor) {
+      // Enable automatic highlighting of unknown words
+      this.pageProcessor.processPageForUnknownWords();
+    } else {
+      // Disable automatic highlighting - remove existing unknown word highlights
+      // BUT keep manual lookup functionality working
+      this.clearUnknownWordHighlights();
+    }
+
+    // Manual lookup should still work regardless of auto-highlight setting
+    // The text scanner events remain active for manual lookups
+  }
+
+  clearUnknownWordHighlights() {
+    document.querySelectorAll(".chinese-unknown-word").forEach((el) => {
+      el.classList.remove("chinese-unknown-word");
+    });
+    if (this.pageProcessor) {
+      this.pageProcessor.unknownWordElements.clear();
+    }
+  }
+
+  hidePopup() {
+    if (this.popup) {
+      this.popup.hidePopup();
+    }
+  }
+
+  clearHighlights() {
+    if (this.highlightManager) {
+      this.highlightManager.removeLookupHighlight();
+    }
+    this.clearUnknownWordHighlights();
+  }
+
+  removeTextScannerEvents() {
     if (this._textScannerListeners) {
       this._textScannerListeners.forEach(
         ({ target, type, listener, options }) => {
           target.removeEventListener(type, listener, options);
         }
       );
+      this._textScannerListeners = [];
     }
+  }
+
+  initTextScannerEvents() {
+    // Remove existing listeners first
+    this.removeTextScannerEvents();
+
+    const capture = true;
     this._textScannerListeners = [];
 
     const addEvent = (target, type, listener, options) => {
@@ -88,7 +267,8 @@ class ChineseLanguageLearningExtension {
   }
 
   _onPointerMoveTS(event) {
-    if (!this.isShiftPressed) return;
+    if (!this.extensionEnabled || !this.isActivationKeyPressed) return;
+
     this.lastPointerEvent = event;
 
     if (this.popup && this.popup.isMouseOverPopup) {
@@ -137,9 +317,12 @@ class ChineseLanguageLearningExtension {
   }
 
   _onKeyDownTS(event) {
-    if (event.key === "Shift" && !this.isShiftPressed) {
-      this.isShiftPressed = true;
-      this.toggleShiftMode(true);
+    if (!this.extensionEnabled) return;
+
+    // Check if the pressed key matches our activation key
+    if (event.key === this.activationKey && !this.isActivationKeyPressed) {
+      this.isActivationKeyPressed = true;
+      this.toggleActivationMode(true);
       if (this.lastPointerEvent) {
         this._onPointerMoveTS(this.lastPointerEvent);
       }
@@ -147,49 +330,58 @@ class ChineseLanguageLearningExtension {
   }
 
   _onKeyUpTS(event) {
-    if (event.key === "Shift") {
-      this.isShiftPressed = false;
-      this.toggleShiftMode(false);
-      //this.highlightManager.removeLookupHighlight();
-      //this.popup.hidePopup();
+    if (!this.extensionEnabled) return;
+
+    if (event.key === this.activationKey) {
+      this.isActivationKeyPressed = false;
+      this.toggleActivationMode(false);
       clearTimeout(this.hoverTimeout);
     }
   }
 
   _onSelectStartTS(event) {
-    if (this.isShiftPressed) {
+    if (!this.extensionEnabled) return;
+
+    if (this.isActivationKeyPressed) {
       event.preventDefault();
       return false;
     }
   }
 
   _onContextMenuTS(event) {
-    if (this.isShiftPressed) {
+    if (!this.extensionEnabled) return;
+
+    if (this.isActivationKeyPressed) {
       event.preventDefault();
       return false;
     }
   }
 
   _onClickTS(event) {
+    if (!this.extensionEnabled) return;
+
     this.popup.hidePopup(event);
     this.highlightManager.removeLookupHighlight();
   }
 
-  toggleShiftMode(active) {
+  toggleActivationMode(active) {
     document.body.style.cursor = active ? "help" : "";
-    document.body.toggleAttribute("data-shift-active", active);
+    document.body.toggleAttribute("data-activation-active", active);
     if (active) window.getSelection()?.removeAllRanges();
   }
 
   reprocessPage() {
-    document.querySelectorAll(".chinese-unknown-word").forEach((el) => {
-      el.classList.remove("chinese-unknown-word");
-    });
-    this.pageProcessor.unknownWordElements.clear();
-    this.pageProcessor.processPageForUnknownWords();
+    if (!this.extensionEnabled || !this.pageProcessor) return;
+
+    this.clearUnknownWordHighlights();
+    if (this.autoHighlight) {
+      this.pageProcessor.processPageForUnknownWords();
+    }
   }
 
   getStats() {
+    if (!this.dictionaryManager || !this.vocabManager) return null;
+
     const totalWords = Object.keys(this.dictionaryManager.dictionary).length;
     const knownWords = this.vocabManager.knownWords.size;
     const unknownWordsOnPage = document.querySelectorAll(
@@ -206,6 +398,8 @@ class ChineseLanguageLearningExtension {
   }
 
   exportKnownWords() {
+    if (!this.vocabManager) return null;
+
     const data = {
       knownWords: [...this.vocabManager.knownWords],
       vocabList: this.vocabManager.vocabList,
@@ -215,6 +409,8 @@ class ChineseLanguageLearningExtension {
   }
 
   importKnownWords(jsonData) {
+    if (!this.vocabManager) return false;
+
     try {
       const data = JSON.parse(jsonData);
       if (data.knownWords && Array.isArray(data.knownWords)) {
@@ -244,6 +440,8 @@ class ChineseLanguageLearningExtension {
 
   // Fixed asbplayer integration
   initAsbplayerIntegration() {
+    if (!this.extensionEnabled) return;
+
     console.log("Initializing asbplayer integration...");
 
     // Multiple strategies to detect asbplayer
@@ -251,7 +449,9 @@ class ChineseLanguageLearningExtension {
 
     // Also set up a periodic check for new asbplayer elements
     this.asbplayerInterval = setInterval(() => {
-      this.detectAsbplayerElements();
+      if (this.extensionEnabled) {
+        this.detectAsbplayerElements();
+      }
     }, 2000);
 
     // Stop checking after 60 seconds
@@ -264,6 +464,8 @@ class ChineseLanguageLearningExtension {
   }
 
   detectAsbplayerElements() {
+    if (!this.extensionEnabled) return;
+
     // More comprehensive asbplayer detection
     const selectors = [
       '[class*="asbplayer"]',
@@ -296,7 +498,9 @@ class ChineseLanguageLearningExtension {
     foundElements.forEach((element) => {
       if (!element.hasAttribute("data-chinese-processed")) {
         element.setAttribute("data-chinese-processed", "true");
-        this.pageProcessor.observeSubtitleContainer(element);
+        if (this.pageProcessor) {
+          this.pageProcessor.observeSubtitleContainer(element);
+        }
       }
     });
   }

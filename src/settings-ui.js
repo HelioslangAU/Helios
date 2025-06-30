@@ -30,24 +30,91 @@ class HeliosSettingsUI {
     tabElement
       .querySelectorAll("input, select, textarea")
       .forEach((element) => {
-        element.addEventListener("change", () =>
-          this.manager.storage.saveSettings()
-        );
+        element.addEventListener("change", () => {
+          console.log(
+            `🔍 Setting changed: ${element.id} = ${
+              element.type === "checkbox" ? element.checked : element.value
+            }`
+          );
+          this.manager.storage.saveSettings();
+        });
       });
   }
 
   setupGeneralEventListeners() {
-    // General settings specific event listeners
     console.log("Setting up general event listeners");
+
+    // Extension enabled/disabled toggle
+    const extensionEnabled = document.getElementById("extension-enabled");
+    if (extensionEnabled) {
+      extensionEnabled.addEventListener("change", (e) => {
+        console.log("Extension enabled changed:", e.target.checked);
+        // Send message to background script to enable/disable extension
+        if (chrome.runtime && chrome.runtime.sendMessage) {
+          chrome.runtime.sendMessage({
+            action: "toggleExtension",
+            enabled: e.target.checked,
+          });
+        }
+      });
+    }
+
+    // Activation key change
+    const activationKey = document.getElementById("activation-key");
+    if (activationKey) {
+      activationKey.addEventListener("change", (e) => {
+        console.log("Activation key changed:", e.target.value);
+        // Send message to content scripts to update activation key
+        if (chrome.tabs && chrome.tabs.query) {
+          chrome.tabs.query({}, (tabs) => {
+            tabs.forEach((tab) => {
+              if (chrome.tabs.sendMessage) {
+                chrome.tabs
+                  .sendMessage(tab.id, {
+                    action: "updateActivationKey",
+                    key: e.target.value,
+                  })
+                  .catch(() => {
+                    // Tab might not have content script loaded, ignore
+                  });
+              }
+            });
+          });
+        }
+      });
+    }
+
+    // Auto-highlight toggle
+    const autoHighlight = document.getElementById("auto-highlight");
+    if (autoHighlight) {
+      autoHighlight.addEventListener("change", (e) => {
+        console.log("Auto-highlight changed:", e.target.checked);
+        // Send message to content scripts to update highlighting
+        if (chrome.tabs && chrome.tabs.query) {
+          chrome.tabs.query({}, (tabs) => {
+            tabs.forEach((tab) => {
+              if (chrome.tabs.sendMessage) {
+                chrome.tabs
+                  .sendMessage(tab.id, {
+                    action: "updateAutoHighlight",
+                    enabled: e.target.checked,
+                  })
+                  .catch(() => {
+                    // Tab might not have content script loaded, ignore
+                  });
+              }
+            });
+          });
+        }
+      });
+    }
   }
 
   setupPopupEventListeners() {
-    // Popup settings specific event listeners
     console.log("Setting up popup event listeners");
   }
 
   setupAnkiEventListeners() {
-    // Anki settings specific event listeners
     document
       .getElementById("test-anki-connection")
       ?.addEventListener("click", () => this.manager.anki.testAnkiConnection());
@@ -62,7 +129,6 @@ class HeliosSettingsUI {
   }
 
   setupVocabularyEventListeners() {
-    // Vocabulary management specific event listeners
     document
       .getElementById("import-known-words")
       ?.addEventListener("click", () =>
@@ -92,7 +158,6 @@ class HeliosSettingsUI {
   }
 
   setupAdvancedEventListeners() {
-    // Advanced settings specific event listeners
     document
       .getElementById("clear-cache")
       ?.addEventListener("click", () => this.manager.advanced.clearCache());
@@ -108,6 +173,8 @@ class HeliosSettingsUI {
     // Update form elements with current settings for the specific tab
     const tabElement = document.getElementById(tabName);
     if (!tabElement) return;
+
+    console.log(`🔍 Updating UI for tab: ${tabName}`);
 
     // Update based on tab type
     switch (tabName) {
@@ -130,36 +197,40 @@ class HeliosSettingsUI {
   }
 
   updateGeneralUI(tabElement) {
-    // General settings UI updates
+    console.log("🔍 Updating general UI with settings:", this.manager.settings);
+
+    // Extension enabled toggle
     const extensionEnabled = tabElement.querySelector("#extension-enabled");
-    if (extensionEnabled)
+    if (extensionEnabled) {
       extensionEnabled.checked = this.manager.settings.extensionEnabled;
+      console.log(
+        "🔍 Set extension enabled:",
+        this.manager.settings.extensionEnabled
+      );
+    }
 
+    // Activation key dropdown
     const activationKey = tabElement.querySelector("#activation-key");
-    if (activationKey)
+    if (activationKey) {
       activationKey.value = this.manager.settings.activationKey;
+      console.log(
+        "🔍 Set activation key:",
+        this.manager.settings.activationKey
+      );
+    }
 
+    // Auto-highlight toggle
     const autoHighlight = tabElement.querySelector("#auto-highlight");
-    if (autoHighlight)
+    if (autoHighlight) {
       autoHighlight.checked = this.manager.settings.autoHighlight;
-
-    const scanDelay = tabElement.querySelector("#scan-delay");
-    if (scanDelay) scanDelay.value = this.manager.settings.scanDelay;
-
-    const maxWordLength = tabElement.querySelector("#max-word-length");
-    if (maxWordLength)
-      maxWordLength.value = this.manager.settings.maxWordLength;
-
-    const preferTraditional = tabElement.querySelector("#prefer-traditional");
-    if (preferTraditional)
-      preferTraditional.checked = this.manager.settings.preferTraditional;
+      console.log(
+        "🔍 Set auto-highlight:",
+        this.manager.settings.autoHighlight
+      );
+    }
   }
 
   updatePopupUI(tabElement) {
-    // Popup settings UI updates
-    const popupTheme = tabElement.querySelector("#popup-theme");
-    if (popupTheme) popupTheme.value = this.manager.settings.popupTheme;
-
     const popupFontSize = tabElement.querySelector("#popup-font-size");
     if (popupFontSize)
       popupFontSize.value = this.manager.settings.popupFontSize;
@@ -197,7 +268,6 @@ class HeliosSettingsUI {
   }
 
   updateAnkiUI(tabElement) {
-    // Anki settings UI updates
     const ankiDeck = tabElement.querySelector("#anki-deck-select");
     if (ankiDeck) ankiDeck.value = this.manager.settings.ankiDeck;
 
@@ -218,7 +288,6 @@ class HeliosSettingsUI {
   }
 
   updateAdvancedUI(tabElement) {
-    // Advanced settings UI updates
     const processingMode = tabElement.querySelector("#processing-mode");
     if (processingMode)
       processingMode.value = this.manager.settings.processingMode;
