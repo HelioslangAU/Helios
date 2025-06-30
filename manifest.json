@@ -47,7 +47,13 @@
         "BLCUcoll/*",
         "helios-settings.html",
         "src/helios-settings.js",
-        "settings/*"
+        "src/settings-storage.js",
+        "src/settings-ui.js",
+        "src/settings-anki.js",
+        "src/settings-vocabulary.js",
+        "src/settings-advanced.js",
+        "settings/*",
+        "styles/*"
       ],
       "matches": ["<all_urls>"]
     }
