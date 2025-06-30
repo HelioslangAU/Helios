@@ -15,7 +15,7 @@ class PopupManager {
     this.hideTimeout = null;
 
     // Initialize Anki Manager
-    this.ankiManager = new EnhancedAnkiManager();
+    this.ankiManager = new AnkiManager(); // FIXED: Was EnhancedAnkiManager
     this.isAnkiAvailable = null;
 
     // Check Anki availability on startup
@@ -256,7 +256,7 @@ class PopupManager {
       });
     }
 
-    // NEW: Anki button event listener
+    // Anki button event listener
     if (ankiBtn && !ankiBtn.disabled) {
       ankiBtn.addEventListener("click", async () => {
         await this.handleAnkiCardCreation(character, ankiBtn);
@@ -266,7 +266,7 @@ class PopupManager {
     closeBtn?.addEventListener("click", () => this.hidePopup());
   }
 
-  // NEW: Handle Anki card creation with enhanced context
+  // Handle Anki card creation
   async handleAnkiCardCreation(character, button) {
     try {
       // Update button to show loading state
@@ -274,16 +274,18 @@ class PopupManager {
       button.textContent = "Creating...";
       button.disabled = true;
 
-      // Create enhanced card with smart context extraction
-      const result = await this.ankiManager.createEnhancedCard(
+      // Get frequency data if available
+      let frequency = "";
+      if (this.frequencyManager) {
+        frequency = this.frequencyManager.getFrequency(character) || "";
+      }
+
+      // Create card using the correct method name
+      const result = await this.ankiManager.createCardFromPopup(
         character,
         this.dictionaryManager,
-        {
-          frequency: this.frequencyManager
-            ? this.frequencyManager.getFrequency(character)
-            : "",
-        }
-      );
+        { frequency: frequency }
+      ); // FIXED: Was createEnhancedCard
 
       if (result.success) {
         // Success feedback
@@ -295,9 +297,7 @@ class PopupManager {
           this.hidePopup();
         }, 1000);
 
-        console.log(
-          `✅ Successfully created enhanced Anki card for: ${character}`
-        );
+        console.log(`✅ Successfully created Anki card for: ${character}`);
 
         // Optional: Save to vocabulary list as well
         this.saveToVocabList(character);
@@ -309,7 +309,7 @@ class PopupManager {
         } else {
           button.textContent = "Error";
           button.className = "anki-btn anki-error";
-          console.error("Enhanced Anki card creation failed:", result.error);
+          console.error("Anki card creation failed:", result.error);
         }
 
         // Reset button after 2 seconds
@@ -320,7 +320,7 @@ class PopupManager {
         }, 2000);
       }
     } catch (error) {
-      console.error("Error in enhanced Anki card creation:", error);
+      console.error("Error in Anki card creation:", error);
 
       // Error feedback
       button.textContent = "Error";

@@ -13,7 +13,7 @@
       "matches": ["<all_urls>"],
       "js": [
         "src/frequency-manager.js",
-        "src/enhanced-anki-manager.js",
+        "src/anki-manager.js",
         "src/popup.js",
         "src/extensiontab.js",
         "src/text-highlighter.js",
@@ -44,8 +44,7 @@
         "cedict_ts.u8",
         "BLCUcoll/*",
         "anki-settings.html",
-        "src/anki-settings.js",
-        "src/enhanced-anki-manager.js"
+        "src/anki-settings.js"
       ],
       "matches": ["<all_urls>"]
     }
