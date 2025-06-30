@@ -4,22 +4,32 @@ class AnkiSettingsManager {
     this.availableDecks = [];
     this.availableNoteTypes = [];
     this.currentNoteTypeFields = [];
+
+    // CHANGED: Now we map FROM Anki fields TO Helios data
     this.settings = {
       deck: "",
       noteType: "",
-      fieldMappings: {
-        expression: "",
-        reading: "",
-        meaning: "",
-        sentence: "",
-        traditional: "",
-        simplified: "",
-        source: "",
-      },
+      fieldMappings: {}, // Dynamic - will be populated based on note type fields
       checkDuplicates: true,
       allowDuplicates: false,
       tags: ["helios"],
     };
+
+    // Available Helios data that can be mapped to Anki fields
+    this.availableHeliosData = [
+      { value: "", label: "Not mapped" },
+      { value: "expression", label: "Expression (对)" },
+      { value: "reading", label: "Reading (duì)" },
+      { value: "meaning", label: "Meaning (right; correct; towards...)" },
+      { value: "sentence", label: "Sentence (这个答案是对的。)" },
+      { value: "traditional", label: "Traditional (對)" },
+      { value: "simplified", label: "Simplified (对)" },
+      { value: "source", label: "Source URL" },
+      { value: "frequency", label: "Frequency Rank" },
+      { value: "tone", label: "Tone Number" },
+      { value: "audio", label: "Audio URL" },
+      { value: "timestamp", label: "Timestamp" },
+    ];
 
     this.init();
   }
@@ -29,17 +39,9 @@ class AnkiSettingsManager {
 
     try {
       this.setupEventListeners();
-      console.log("Event listeners set up");
-
       await this.loadSettings();
-      console.log("Settings loaded");
-
       await this.checkConnection();
-      console.log("Connection checked");
-
       this.updateUI();
-      console.log("UI updated");
-
       console.log("Anki Settings Manager initialized successfully");
     } catch (error) {
       console.error("Error initializing Anki Settings Manager:", error);
@@ -48,86 +50,61 @@ class AnkiSettingsManager {
   }
 
   setupEventListeners() {
-    console.log("Setting up event listeners...");
-
-    // Connection test button
+    // Test connection button
     const testBtn = document.getElementById("test-connection-btn");
     if (testBtn) {
-      testBtn.addEventListener("click", () => {
-        console.log("Test connection button clicked");
-        this.testConnection();
-      });
-    } else {
-      console.warn("Test connection button not found");
+      testBtn.addEventListener("click", () => this.testConnection());
     }
 
     // Save settings button
     const saveBtn = document.getElementById("save-btn");
     if (saveBtn) {
-      saveBtn.addEventListener("click", () => {
-        console.log("Save button clicked");
-        this.saveSettings();
-      });
-    } else {
-      console.warn("Save button not found");
+      saveBtn.addEventListener("click", () => this.saveSettings());
     }
 
     // Reset settings button
     const resetBtn = document.getElementById("reset-btn");
     if (resetBtn) {
-      resetBtn.addEventListener("click", () => {
-        console.log("Reset button clicked");
-        this.resetSettings();
-      });
-    } else {
-      console.warn("Reset button not found");
+      resetBtn.addEventListener("click", () => this.resetSettings());
     }
 
     // Deck selection
     const deckSelect = document.getElementById("deck-select");
     if (deckSelect) {
       deckSelect.addEventListener("change", (e) => {
-        console.log("Deck selected:", e.target.value);
         this.settings.deck = e.target.value;
-        this.updateConnectionStatus();
       });
-    } else {
-      console.warn("Deck select not found");
     }
 
-    // Note type selection
+    // Note type selection - KEY CHANGE: Now rebuilds entire field mapping table
     const noteTypeSelect = document.getElementById("note-type-select");
     if (noteTypeSelect) {
       noteTypeSelect.addEventListener("change", async (e) => {
         console.log("Note type selected:", e.target.value);
         this.settings.noteType = e.target.value;
+
         if (e.target.value) {
-          await this.loadNoteTypeFields(e.target.value);
-          this.updateFieldMappingOptions();
+          this.showFieldMappingLoading(true);
+
+          try {
+            await this.loadNoteTypeFields(e.target.value);
+            this.rebuildFieldMappingTable();
+            this.setupFieldMappingEventListeners();
+          } catch (error) {
+            console.error("Error loading note type fields:", error);
+          } finally {
+            this.showFieldMappingLoading(false);
+          }
+        } else {
+          this.clearFieldMappingTable();
         }
       });
-    } else {
-      console.warn("Note type select not found");
     }
-
-    // Field mapping changes
-    const mappingSelects = document.querySelectorAll(".mapping-select");
-    console.log("Found mapping selects:", mappingSelects.length);
-
-    mappingSelects.forEach((select) => {
-      select.addEventListener("change", (e) => {
-        const heliosField = e.target.getAttribute("data-helios-field");
-        console.log("Field mapping changed:", heliosField, "→", e.target.value);
-        this.settings.fieldMappings[heliosField] = e.target.value;
-        this.updateConnectionStatus();
-      });
-    });
 
     // Refresh decks button
     const refreshDecksBtn = document.getElementById("refresh-decks-btn");
     if (refreshDecksBtn) {
       refreshDecksBtn.addEventListener("click", async () => {
-        console.log("Refresh decks button clicked");
         refreshDecksBtn.style.transform = "scale(1.1) rotate(360deg)";
         await this.loadDecks();
         this.populateDecksDropdown();
@@ -135,20 +112,42 @@ class AnkiSettingsManager {
           refreshDecksBtn.style.transform = "";
         }, 300);
       });
-    } else {
-      console.warn("Refresh decks button not found");
     }
+  }
+
+  // Setup event listeners for dynamically created field mapping dropdowns
+  setupFieldMappingEventListeners() {
+    const mappingSelects = document.querySelectorAll(".mapping-select");
+
+    // Remove existing listeners to avoid duplicates
+    mappingSelects.forEach((select) => {
+      select.removeEventListener("change", this.handleFieldMappingChange);
+    });
+
+    // Add new listeners
+    mappingSelects.forEach((select) => {
+      select.addEventListener(
+        "change",
+        this.handleFieldMappingChange.bind(this)
+      );
+    });
+  }
+
+  // Handle field mapping changes
+  handleFieldMappingChange(event) {
+    const ankiField = event.target.getAttribute("data-anki-field");
+    const heliosData = event.target.value;
+
+    console.log(`Field mapping changed: ${ankiField} ← ${heliosData}`);
+
+    // Update settings
+    this.settings.fieldMappings[ankiField] = heliosData;
   }
 
   // Send message to background script
   async sendMessage(type, data = {}) {
     return new Promise((resolve, reject) => {
-      // Check if we're in a chrome extension context
-      if (
-        !window.chrome ||
-        !window.chrome.runtime ||
-        !window.chrome.runtime.sendMessage
-      ) {
+      if (!window.chrome?.runtime?.sendMessage) {
         reject(new Error("Chrome extension context not available"));
         return;
       }
@@ -174,16 +173,21 @@ class AnkiSettingsManager {
     try {
       this.updateConnectionStatus("checking");
 
-      // Test connection
-      const connectionResult = await this.sendMessage("TEST_ANKI_CONNECTION");
+      await this.sendMessage("TEST_ANKI_CONNECTION");
       this.connectionStatus = true;
 
-      // Load decks and note types
       await Promise.all([this.loadDecks(), this.loadNoteTypes()]);
 
       this.updateConnectionStatus("connected");
       this.populateDecksDropdown();
       this.populateNoteTypesDropdown();
+
+      // If we have a saved note type, load its fields
+      if (this.settings.noteType) {
+        await this.loadNoteTypeFields(this.settings.noteType);
+        this.rebuildFieldMappingTable();
+        this.setupFieldMappingEventListeners();
+      }
     } catch (error) {
       console.error("Connection failed:", error);
       this.connectionStatus = false;
@@ -191,76 +195,47 @@ class AnkiSettingsManager {
     }
   }
 
-  // Load available decks from Anki
   async loadDecks() {
     try {
-      console.log("Loading decks from Anki...");
-
       const response = await this.sendMessage("GET_ANKI_DECKS");
-
-      if (response.success) {
-        this.availableDecks = response.decks || [];
-        console.log(
-          "Successfully loaded decks from Anki:",
-          this.availableDecks
-        );
-      } else {
-        console.warn("Failed to load decks:", response.error);
-        this.availableDecks = [];
-      }
+      this.availableDecks = response.decks || [];
+      console.log("Loaded decks:", this.availableDecks);
     } catch (error) {
       console.error("Could not load decks:", error);
-      this.availableDecks = []; // Empty array - no hardcoded decks!
+      this.availableDecks = [];
     }
   }
 
-  // Load available note types from Anki
   async loadNoteTypes() {
     try {
-      console.log("Loading note types from Anki...");
-
       const response = await this.sendMessage("GET_ANKI_NOTE_TYPES");
-
-      if (response.success) {
-        this.availableNoteTypes = response.noteTypes || [];
-        console.log(
-          "Successfully loaded note types from Anki:",
-          this.availableNoteTypes
-        );
-      } else {
-        console.warn("Failed to load note types:", response.error);
-        this.availableNoteTypes = [];
-      }
+      this.availableNoteTypes = response.noteTypes || [];
+      console.log("Loaded note types:", this.availableNoteTypes);
     } catch (error) {
       console.error("Could not load note types:", error);
-      this.availableNoteTypes = []; // Empty array - no hardcoded note types!
+      this.availableNoteTypes = [];
     }
   }
 
-  // Load fields for a specific note type
   async loadNoteTypeFields(noteType) {
     try {
       console.log("Loading fields for note type:", noteType);
       const response = await this.sendMessage("GET_ANKI_NOTE_TYPE_FIELDS", {
         noteType,
       });
-      console.log("Fields response:", response);
 
-      if (response.success) {
-        this.currentNoteTypeFields = response.fields || [];
+      if (response.success && response.fields) {
+        this.currentNoteTypeFields = response.fields;
+        console.log("Loaded fields:", this.currentNoteTypeFields);
       } else {
-        console.warn("Failed to get fields, using fallback");
         this.currentNoteTypeFields = this.getFallbackFields(noteType);
       }
-
-      console.log("Current note type fields:", this.currentNoteTypeFields);
     } catch (error) {
       console.warn("Could not load note type fields:", error);
       this.currentNoteTypeFields = this.getFallbackFields(noteType);
     }
   }
 
-  // Get fallback fields based on note type name
   getFallbackFields(noteType) {
     if (!noteType) return ["Front", "Back"];
 
@@ -272,23 +247,198 @@ class AnkiSettingsManager {
       lowerNoteType.includes("migaku")
     ) {
       return ["Expression", "Reading", "Meaning", "Sentence", "Audio", "Image"];
-    } else if (lowerNoteType.includes("reversed")) {
-      return ["Front", "Back"];
     } else {
-      return ["Front", "Back"]; // Basic note type
+      return ["Front", "Back"];
     }
+  }
+
+  // COMPLETELY NEW: Rebuild the entire field mapping table based on Anki fields
+  rebuildFieldMappingTable() {
+    const tableBody = document.getElementById("field-mapping-body");
+    if (!tableBody) {
+      console.error("Field mapping table body not found");
+      return;
+    }
+
+    // Clear existing rows
+    tableBody.innerHTML = "";
+
+    // Create a row for each Anki field
+    this.currentNoteTypeFields.forEach((ankiField) => {
+      const row = document.createElement("tr");
+
+      // Get preview data for this Helios field type
+      const currentMapping = this.settings.fieldMappings[ankiField] || "";
+      const previewData = this.getPreviewData(currentMapping);
+
+      row.innerHTML = `
+        <td class="anki-field">
+          <div class="field-name">
+            <span class="field-icon">📝</span>
+            ${ankiField}
+          </div>
+        </td>
+        <td>
+          <select class="mapping-select" data-anki-field="${ankiField}">
+            ${this.generateHeliosDataOptions(currentMapping)}
+          </select>
+        </td>
+        <td class="preview-data">${previewData}</td>
+      `;
+
+      tableBody.appendChild(row);
+    });
+
+    // Auto-map common fields
+    this.applyAutoMapping();
+
+    console.log(
+      "Field mapping table rebuilt with",
+      this.currentNoteTypeFields.length,
+      "fields"
+    );
+  }
+
+  // Generate options for Helios data dropdown
+  generateHeliosDataOptions(selectedValue = "") {
+    return this.availableHeliosData
+      .map(
+        (item) =>
+          `<option value="${item.value}" ${
+            item.value === selectedValue ? "selected" : ""
+          }>
+        ${item.label}
+      </option>`
+      )
+      .join("");
+  }
+
+  // Get preview data for a specific Helios field type
+  getPreviewData(heliosFieldType) {
+    const previews = {
+      "": "—",
+      expression: "对",
+      reading: "duì",
+      meaning: "right; correct; towards...",
+      sentence: "这个答案是对的。",
+      traditional: "對",
+      simplified: "对",
+      source: "https://example.com",
+      frequency: "129",
+      tone: "4",
+      audio: "[audio]",
+      timestamp: "00:05:23",
+    };
+
+    return previews[heliosFieldType] || "—";
+  }
+
+  // Apply automatic mapping for common field names
+  applyAutoMapping() {
+    const autoMappings = {
+      // Anki field name → Helios data type
+      Expression: "expression",
+      Chinese: "expression",
+      Character: "expression",
+      Hanzi: "expression",
+      "Target Word": "expression",
+      Word: "expression",
+
+      Reading: "reading",
+      Pinyin: "reading",
+      Pronunciation: "reading",
+
+      Meaning: "meaning",
+      Definition: "meaning",
+      English: "meaning",
+      Translation: "meaning",
+      Definitions: "meaning",
+
+      Sentence: "sentence",
+      Context: "sentence",
+      Example: "sentence",
+      "Example Sentence": "sentence",
+
+      Traditional: "traditional",
+      "Traditional Form": "traditional",
+
+      Simplified: "simplified",
+      "Simplified Form": "simplified",
+
+      Source: "source",
+      URL: "source",
+      "Source URL": "source",
+
+      Audio: "audio",
+      "Word Audio": "audio",
+      "Pronunciation Audio": "audio",
+    };
+
+    this.currentNoteTypeFields.forEach((ankiField) => {
+      // Only auto-map if not already mapped
+      if (!this.settings.fieldMappings[ankiField]) {
+        const autoMapping = autoMappings[ankiField];
+        if (autoMapping) {
+          this.settings.fieldMappings[ankiField] = autoMapping;
+
+          // Update the dropdown
+          const select = document.querySelector(
+            `[data-anki-field="${ankiField}"]`
+          );
+          if (select) {
+            select.value = autoMapping;
+          }
+
+          console.log(`Auto-mapped: ${ankiField} ← ${autoMapping}`);
+        }
+      }
+    });
+  }
+
+  // Show/hide loading state for field mapping
+  showFieldMappingLoading(isLoading) {
+    const tableBody = document.getElementById("field-mapping-body");
+    if (!tableBody) return;
+
+    if (isLoading) {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="3" style="text-align: center; padding: 40px; color: var(--helios-text-muted);">
+            <div>Loading fields...</div>
+          </td>
+        </tr>
+      `;
+    }
+  }
+
+  // Clear field mapping table
+  clearFieldMappingTable() {
+    const tableBody = document.getElementById("field-mapping-body");
+    if (!tableBody) return;
+
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="3" style="text-align: center; padding: 40px; color: var(--helios-text-muted);">
+          <div>Select a note type to configure field mappings</div>
+        </td>
+      </tr>
+    `;
+
+    // Clear field mappings in settings
+    this.settings.fieldMappings = {};
   }
 
   // Update connection status UI
   updateConnectionStatus(status = null, message = "") {
     const statusElement = document.getElementById("connection-status");
+    if (!statusElement) return;
+
     const statusText = statusElement.querySelector("span");
 
     if (status === null) {
       status = this.connectionStatus ? "connected" : "disconnected";
     }
 
-    // Remove all status classes
     statusElement.classList.remove(
       "status-connected",
       "status-disconnected",
@@ -310,24 +460,19 @@ class AnkiSettingsManager {
         break;
     }
 
-    // Enable/disable form elements based on connection
+    // Enable/disable form elements
     const formElements = document.querySelectorAll(
-      ".form-select, .mapping-select, .btn-primary"
+      ".form-select, .btn-primary"
     );
     formElements.forEach((element) => {
-      if (status === "connected") {
-        element.disabled = false;
-        element.parentElement?.classList.remove("loading");
-      } else {
-        element.disabled = true;
-        element.parentElement?.classList.add("loading");
-      }
+      element.disabled = status !== "connected";
     });
   }
 
-  // Populate decks dropdown
   populateDecksDropdown() {
     const deckSelect = document.getElementById("deck-select");
+    if (!deckSelect) return;
+
     deckSelect.innerHTML = '<option value="">Select a deck...</option>';
 
     this.availableDecks.forEach((deck) => {
@@ -339,9 +484,10 @@ class AnkiSettingsManager {
     });
   }
 
-  // Populate note types dropdown
   populateNoteTypesDropdown() {
     const noteTypeSelect = document.getElementById("note-type-select");
+    if (!noteTypeSelect) return;
+
     noteTypeSelect.innerHTML =
       '<option value="">Select a note type...</option>';
 
@@ -354,85 +500,7 @@ class AnkiSettingsManager {
     });
   }
 
-  // Update field mapping dropdown options
-  updateFieldMappingOptions() {
-    console.log(
-      "Updating field mapping options with fields:",
-      this.currentNoteTypeFields
-    );
-
-    const mappingSelects = document.querySelectorAll(".mapping-select");
-
-    mappingSelects.forEach((select) => {
-      const currentValue = select.value;
-      const heliosField = select.getAttribute("data-helios-field");
-
-      // Clear existing options
-      select.innerHTML = '<option value="">Not mapped</option>';
-
-      // Add available fields
-      this.currentNoteTypeFields.forEach((field) => {
-        const option = document.createElement("option");
-        option.value = field;
-        option.textContent = field;
-        select.appendChild(option);
-      });
-
-      // Restore saved mapping if it exists
-      if (this.settings.fieldMappings[heliosField]) {
-        const savedValue = this.settings.fieldMappings[heliosField];
-        // Check if the saved value exists in the current note type
-        if (this.currentNoteTypeFields.includes(savedValue)) {
-          select.value = savedValue;
-        } else {
-          // Try to auto-map common field names
-          const autoMapping = this.getAutoMapping(heliosField);
-          if (autoMapping && this.currentNoteTypeFields.includes(autoMapping)) {
-            select.value = autoMapping;
-            this.settings.fieldMappings[heliosField] = autoMapping;
-          }
-        }
-      } else {
-        // Try auto-mapping for new configurations
-        const autoMapping = this.getAutoMapping(heliosField);
-        if (autoMapping && this.currentNoteTypeFields.includes(autoMapping)) {
-          select.value = autoMapping;
-          this.settings.fieldMappings[heliosField] = autoMapping;
-        }
-      }
-    });
-
-    console.log(
-      "Field mapping updated, current mappings:",
-      this.settings.fieldMappings
-    );
-  }
-
-  // Get automatic field mapping suggestions
-  getAutoMapping(heliosField) {
-    const mappings = {
-      expression: ["Expression", "Chinese", "Front", "Word"],
-      reading: ["Reading", "Pinyin", "Pronunciation"],
-      meaning: ["Meaning", "English", "Definition", "Back"],
-      sentence: ["Sentence", "Context", "Example"],
-      traditional: ["Traditional", "Traditional Form"],
-      simplified: ["Simplified", "Simplified Form"],
-      source: ["Source", "URL", "Link"],
-    };
-
-    const candidates = mappings[heliosField] || [];
-
-    // Return the first matching field from the note type
-    for (const candidate of candidates) {
-      if (this.currentNoteTypeFields.includes(candidate)) {
-        return candidate;
-      }
-    }
-
-    return null;
-  }
-
-  // Test connection manually
+  // Test connection
   async testConnection() {
     const testBtn = document.getElementById("test-connection-btn");
     const originalText = testBtn.textContent;
@@ -443,7 +511,6 @@ class AnkiSettingsManager {
 
       await this.checkConnection();
 
-      // Show success feedback
       testBtn.textContent = "✓ Success!";
       testBtn.style.background = "linear-gradient(135deg, #4caf50, #388e3c)";
 
@@ -453,7 +520,6 @@ class AnkiSettingsManager {
         testBtn.disabled = false;
       }, 2000);
     } catch (error) {
-      // Show error feedback
       testBtn.textContent = "✗ Failed";
       testBtn.style.background = "linear-gradient(135deg, #f44336, #d32f2f)";
 
@@ -479,16 +545,12 @@ class AnkiSettingsManager {
       this.settings.noteType =
         document.getElementById("note-type-select").value;
 
-      // Update field mappings
-      document.querySelectorAll(".mapping-select").forEach((select) => {
-        const heliosField = select.getAttribute("data-helios-field");
-        this.settings.fieldMappings[heliosField] = select.value;
-      });
+      // Field mappings are already updated via event listeners
 
-      // Save to storage via background script
+      console.log("Saving settings:", this.settings);
+
       await this.sendMessage("SAVE_ANKI_SETTINGS", { settings: this.settings });
 
-      // Show success feedback
       saveBtn.textContent = "✓ Saved!";
       saveBtn.style.background = "linear-gradient(135deg, #4caf50, #388e3c)";
 
@@ -500,7 +562,6 @@ class AnkiSettingsManager {
     } catch (error) {
       console.error("Error saving settings:", error);
 
-      // Show error feedback
       saveBtn.textContent = "✗ Error";
       saveBtn.style.background = "linear-gradient(135deg, #f44336, #d32f2f)";
 
@@ -516,7 +577,10 @@ class AnkiSettingsManager {
   async loadSettings() {
     try {
       const response = await this.sendMessage("GET_ANKI_SETTINGS");
-      this.settings = { ...this.settings, ...response.settings };
+      if (response.settings) {
+        this.settings = { ...this.settings, ...response.settings };
+        console.log("Loaded settings:", this.settings);
+      }
     } catch (error) {
       console.warn("Could not load settings, using defaults:", error);
     }
@@ -531,28 +595,18 @@ class AnkiSettingsManager {
       resetBtn.textContent = "Resetting...";
       resetBtn.disabled = true;
 
-      // Reset to defaults
       this.settings = {
         deck: "Chinese::Helios",
         noteType: "Basic",
-        fieldMappings: {
-          expression: "Front",
-          reading: "Back",
-          meaning: "Back",
-          sentence: "",
-          traditional: "",
-          simplified: "",
-          source: "",
-        },
+        fieldMappings: {},
         checkDuplicates: true,
         allowDuplicates: false,
         tags: ["helios"],
       };
 
-      // Update UI
       this.updateUI();
+      this.clearFieldMappingTable();
 
-      // Show success feedback
       resetBtn.textContent = "✓ Reset!";
       resetBtn.style.background = "linear-gradient(135deg, #ff9800, #f57c00)";
 
@@ -573,55 +627,12 @@ class AnkiSettingsManager {
 
   // Update UI with current settings
   updateUI() {
-    // Update dropdowns
     document.getElementById("deck-select").value = this.settings.deck;
     document.getElementById("note-type-select").value = this.settings.noteType;
 
-    // Update field mappings
-    document.querySelectorAll(".mapping-select").forEach((select) => {
-      const heliosField = select.getAttribute("data-helios-field");
-      if (this.settings.fieldMappings[heliosField]) {
-        select.value = this.settings.fieldMappings[heliosField];
-      }
-    });
-  }
-
-  // Validate current settings
-  validateSettings() {
-    const errors = [];
-
-    if (!this.settings.deck) {
-      errors.push("Please select a deck");
-    }
-
-    if (!this.settings.noteType) {
-      errors.push("Please select a note type");
-    }
-
-    // Check if at least Expression is mapped
-    if (!this.settings.fieldMappings.expression) {
-      errors.push("Expression field must be mapped");
-    }
-
-    return errors;
-  }
-
-  // Get current settings for export
-  exportSettings() {
-    return JSON.stringify(this.settings, null, 2);
-  }
-
-  // Import settings from JSON
-  async importSettings(jsonString) {
-    try {
-      const importedSettings = JSON.parse(jsonString);
-      this.settings = { ...this.settings, ...importedSettings };
-      this.updateUI();
-      await this.saveSettings();
-      return true;
-    } catch (error) {
-      console.error("Error importing settings:", error);
-      return false;
+    if (this.currentNoteTypeFields.length > 0) {
+      this.rebuildFieldMappingTable();
+      this.setupFieldMappingEventListeners();
     }
   }
 }
@@ -631,5 +642,4 @@ document.addEventListener("DOMContentLoaded", () => {
   window.ankiSettingsManager = new AnkiSettingsManager();
 });
 
-// Make it globally accessible for debugging
 window.AnkiSettingsManager = AnkiSettingsManager;
