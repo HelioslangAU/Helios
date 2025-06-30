@@ -254,6 +254,59 @@ class BackgroundService {
     };
   }
 
+  // Prepare card fields using field mappings
+  prepareCardFieldsWithMapping(wordData, fieldMappings) {
+    const {
+      character,
+      traditional,
+      simplified,
+      pinyin,
+      definition,
+      sentence,
+      url,
+      frequency,
+    } = wordData;
+
+    const fields = {};
+
+    // Map Helios fields to Anki fields based on user configuration
+    if (fieldMappings.expression && fieldMappings.expression !== "") {
+      fields[fieldMappings.expression] = character || simplified || traditional;
+    }
+
+    if (fieldMappings.reading && fieldMappings.reading !== "") {
+      fields[fieldMappings.reading] = pinyin || "";
+    }
+
+    if (fieldMappings.meaning && fieldMappings.meaning !== "") {
+      fields[fieldMappings.meaning] = definition || "";
+    }
+
+    if (fieldMappings.sentence && fieldMappings.sentence !== "") {
+      fields[fieldMappings.sentence] = sentence || "";
+    }
+
+    if (fieldMappings.traditional && fieldMappings.traditional !== "") {
+      fields[fieldMappings.traditional] = traditional || character;
+    }
+
+    if (fieldMappings.simplified && fieldMappings.simplified !== "") {
+      fields[fieldMappings.simplified] = simplified || character;
+    }
+
+    if (fieldMappings.source && fieldMappings.source !== "") {
+      fields[fieldMappings.source] = url || "";
+    }
+
+    // Fallback: if no fields are mapped, use basic mapping
+    if (Object.keys(fields).length === 0) {
+      fields["Front"] = character || simplified || traditional;
+      fields["Back"] = `${pinyin || ""}<br>${definition || ""}`;
+    }
+
+    return fields;
+  }
+
   // Message Handlers for Anki
   async handleCheckAnkiConnect(sendResponse) {
     try {
@@ -273,6 +326,13 @@ class BackgroundService {
 
   async handleCreateAnkiCard(wordData, options = {}, sendResponse) {
     try {
+      console.log(
+        "Creating Anki card with data:",
+        wordData,
+        "options:",
+        options
+      );
+
       // Check AnkiConnect availability
       if (this.isAnkiAvailable === null) {
         await this.checkAnkiConnect();
@@ -289,10 +349,17 @@ class BackgroundService {
       const settings = result.ankiSettings || {
         deck: "Chinese::Helios",
         noteType: "Basic",
+        fieldMappings: {
+          expression: "Front",
+          reading: "Back",
+          meaning: "Back",
+        },
         checkDuplicates: true,
         allowDuplicates: false,
         tags: ["helios"],
       };
+
+      console.log("Using Anki settings:", settings);
 
       // Merge options with settings
       const finalOptions = { ...settings, ...options };
@@ -300,13 +367,20 @@ class BackgroundService {
       // Ensure deck exists
       await this.ensureDeckExists(finalOptions.deck);
 
-      // Prepare card fields
-      const fields = this.prepareCardFields(wordData);
+      // Prepare card fields based on field mappings
+      const fields = this.prepareCardFieldsWithMapping(
+        wordData,
+        finalOptions.fieldMappings
+      );
+      console.log("Prepared card fields:", fields);
 
       // Check for duplicates if enabled
       if (finalOptions.checkDuplicates && !finalOptions.allowDuplicates) {
-        const duplicates = await this.findDuplicates(fields.Expression);
+        const duplicates = await this.findDuplicates(
+          fields.Front || fields.Expression || wordData.character
+        );
         if (duplicates.length > 0) {
+          console.log("Duplicate card found");
           sendResponse({
             success: false,
             error: "Card already exists",
@@ -328,6 +402,8 @@ class BackgroundService {
           },
         },
       });
+
+      console.log("Anki card created successfully with note ID:", noteId);
 
       sendResponse({
         success: true,
@@ -403,6 +479,102 @@ class BackgroundService {
       sendResponse({
         success: false,
         message: error.message,
+      });
+    }
+  }
+
+  // Settings page handlers
+  async handleGetAnkiDecks(sendResponse) {
+    try {
+      if (this.isAnkiAvailable === null) {
+        await this.checkAnkiConnect();
+      }
+
+      if (!this.isAnkiAvailable) {
+        throw new Error("AnkiConnect is not available");
+      }
+
+      // Get deck names directly from Anki
+      const decks = await this.invokeAnki("deckNames");
+      console.log("Raw deck names from Anki:", decks);
+
+      // Filter out any empty or invalid deck names and sort them
+      const validDecks = decks
+        .filter((deck) => deck && deck.trim() !== "")
+        .sort((a, b) => a.localeCompare(b));
+
+      console.log("Valid deck names:", validDecks);
+
+      sendResponse({
+        success: true,
+        decks: validDecks,
+      });
+    } catch (error) {
+      console.error("Error getting Anki decks:", error);
+      sendResponse({
+        success: false,
+        error: error.message,
+        decks: [],
+      });
+    }
+  }
+
+  async handleGetAnkiNoteTypes(sendResponse) {
+    try {
+      if (this.isAnkiAvailable === null) {
+        await this.checkAnkiConnect();
+      }
+
+      if (!this.isAnkiAvailable) {
+        throw new Error("AnkiConnect is not available");
+      }
+
+      const noteTypes = await this.invokeAnki("modelNames");
+      console.log("Note types from Anki:", noteTypes);
+
+      sendResponse({
+        success: true,
+        noteTypes: noteTypes,
+      });
+    } catch (error) {
+      console.error("Error getting Anki note types:", error);
+      sendResponse({
+        success: false,
+        error: error.message,
+        noteTypes: [],
+      });
+    }
+  }
+
+  async handleGetAnkiNoteTypeFields(noteType, sendResponse) {
+    try {
+      if (this.isAnkiAvailable === null) {
+        await this.checkAnkiConnect();
+      }
+
+      if (!this.isAnkiAvailable) {
+        throw new Error("AnkiConnect is not available");
+      }
+
+      if (!noteType) {
+        throw new Error("Note type is required");
+      }
+
+      const modelInfo = await this.invokeAnki("modelFieldNames", {
+        modelName: noteType,
+      });
+      console.log("Fields for note type", noteType, ":", modelInfo);
+
+      sendResponse({
+        success: true,
+        fields: modelInfo,
+      });
+    } catch (error) {
+      console.error("Error getting note type fields:", error);
+      sendResponse({
+        success: false,
+        error: error.message,
+        fields: [],
       });
     }
   }

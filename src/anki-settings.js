@@ -196,65 +196,44 @@ class AnkiSettingsManager {
     try {
       console.log("Loading decks from Anki...");
 
-      // Try multiple methods to get all decks
-      let decks = [];
+      const response = await this.sendMessage("GET_ANKI_DECKS");
 
-      // Method 1: Standard deckNames
-      try {
-        const response = await this.sendMessage("GET_ANKI_DECKS");
-        decks = response.decks || [];
-        console.log("Decks from GET_ANKI_DECKS:", decks);
-      } catch (error) {
-        console.warn("Method 1 failed:", error);
+      if (response.success) {
+        this.availableDecks = response.decks || [];
+        console.log(
+          "Successfully loaded decks from Anki:",
+          this.availableDecks
+        );
+      } else {
+        console.warn("Failed to load decks:", response.error);
+        this.availableDecks = [];
       }
-
-      // If we got very few decks, try alternative methods
-      if (decks.length <= 2) {
-        console.log("Few decks found, trying alternative methods...");
-
-        // Method 2: Try to get deck stats which might reveal more decks
-        try {
-          // This is a fallback - we'll add more comprehensive deck discovery
-          const alternativeDecks = [
-            "Default",
-            "Chinese",
-            "Chinese::Helios",
-            "Chinese Learning Extension",
-            "Chinese Learning Extension TEST",
-          ];
-
-          // Merge with existing decks
-          const allDecks = [...new Set([...decks, ...alternativeDecks])];
-          console.log("Combined deck list:", allDecks);
-          decks = allDecks;
-        } catch (altError) {
-          console.warn("Alternative method failed:", altError);
-        }
-      }
-
-      this.availableDecks = decks;
-      console.log("Final available decks:", this.availableDecks);
     } catch (error) {
-      console.warn("Could not load decks:", error);
-      this.availableDecks = [
-        "Default",
-        "Chinese",
-        "Chinese::Helios",
-        "Chinese Learning Extension",
-        "Chinese Learning Extension TEST",
-      ]; // Enhanced fallback
+      console.error("Could not load decks:", error);
+      this.availableDecks = []; // Empty array - no hardcoded decks!
     }
   }
 
   // Load available note types from Anki
   async loadNoteTypes() {
     try {
-      // We need to add this to background script
+      console.log("Loading note types from Anki...");
+
       const response = await this.sendMessage("GET_ANKI_NOTE_TYPES");
-      this.availableNoteTypes = response.noteTypes || [];
+
+      if (response.success) {
+        this.availableNoteTypes = response.noteTypes || [];
+        console.log(
+          "Successfully loaded note types from Anki:",
+          this.availableNoteTypes
+        );
+      } else {
+        console.warn("Failed to load note types:", response.error);
+        this.availableNoteTypes = [];
+      }
     } catch (error) {
-      console.warn("Could not load note types:", error);
-      this.availableNoteTypes = ["Basic", "Basic (and reversed card)", "Cloze"]; // Fallback
+      console.error("Could not load note types:", error);
+      this.availableNoteTypes = []; // Empty array - no hardcoded note types!
     }
   }
 

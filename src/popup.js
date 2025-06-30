@@ -15,7 +15,7 @@ class PopupManager {
     this.hideTimeout = null;
 
     // Initialize Anki Manager
-    this.ankiManager = new AnkiManager();
+    this.ankiManager = new EnhancedAnkiManager();
     this.isAnkiAvailable = null;
 
     // Check Anki availability on startup
@@ -266,7 +266,7 @@ class PopupManager {
     closeBtn?.addEventListener("click", () => this.hidePopup());
   }
 
-  // NEW: Handle Anki card creation
+  // NEW: Handle Anki card creation with enhanced context
   async handleAnkiCardCreation(character, button) {
     try {
       // Update button to show loading state
@@ -274,17 +274,15 @@ class PopupManager {
       button.textContent = "Creating...";
       button.disabled = true;
 
-      // Get frequency data if available
-      let frequency = "";
-      if (this.frequencyManager) {
-        frequency = this.frequencyManager.getFrequency(character) || "";
-      }
-
-      // Create the card
-      const result = await this.ankiManager.createCardFromPopup(
+      // Create enhanced card with smart context extraction
+      const result = await this.ankiManager.createEnhancedCard(
         character,
         this.dictionaryManager,
-        { frequency: frequency }
+        {
+          frequency: this.frequencyManager
+            ? this.frequencyManager.getFrequency(character)
+            : "",
+        }
       );
 
       if (result.success) {
@@ -297,7 +295,9 @@ class PopupManager {
           this.hidePopup();
         }, 1000);
 
-        console.log(`✅ Successfully created Anki card for: ${character}`);
+        console.log(
+          `✅ Successfully created enhanced Anki card for: ${character}`
+        );
 
         // Optional: Save to vocabulary list as well
         this.saveToVocabList(character);
@@ -309,7 +309,7 @@ class PopupManager {
         } else {
           button.textContent = "Error";
           button.className = "anki-btn anki-error";
-          console.error("Anki card creation failed:", result.error);
+          console.error("Enhanced Anki card creation failed:", result.error);
         }
 
         // Reset button after 2 seconds
@@ -320,7 +320,7 @@ class PopupManager {
         }, 2000);
       }
     } catch (error) {
-      console.error("Error in Anki card creation:", error);
+      console.error("Error in enhanced Anki card creation:", error);
 
       // Error feedback
       button.textContent = "Error";
