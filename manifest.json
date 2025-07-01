@@ -33,7 +33,7 @@
   },
 
   "action": {
-    "default_popup": "popup.html",
+    "default_popup": "extensiontab.html",
     "default_title": "Helios Language Learning Extension"
   },
 

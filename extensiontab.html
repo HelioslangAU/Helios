@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --helios-bg-primary: #0f0f0f;
+        --helios-bg-secondary: #1a1a1a;
+        --helios-bg-tertiary: #242424;
+        --helios-accent-orange: #ff7b54;
+        --helios-accent-amber: #ffb347;
+        --helios-accent-yellow: #ffd700;
+        --helios-text-primary: #ffffff;
+        --helios-text-secondary: #e5e5e5;
+        --helios-text-muted: #888888;
+        --helios-border: #333333;
+        --helios-glass: rgba(255, 255, 255, 0.05);
+        --helios-glow: rgba(255, 123, 84, 0.2);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        width: 350px;
+        margin: 0;
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        background: linear-gradient(
+          135deg,
+          var(--helios-bg-primary) 0%,
+          var(--helios-bg-secondary) 100%
+        );
+        color: var(--helios-text-primary);
+        overflow: hidden;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+      }
+
+      .header {
+        background: linear-gradient(
+          135deg,
+          #ff6b35 0%,
+          #ff8c42 25%,
+          #ffb347 50%,
+          #ffd700 100%
+        );
+        padding: 20px;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .header::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(
+          circle at 30% 30%,
+          rgba(255, 255, 255, 0.2) 0%,
+          transparent 60%
+        );
+        animation: headerPulse 3s ease-in-out infinite alternate;
+      }
+
+      @keyframes headerPulse {
+        0% {
+          opacity: 0.8;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+
+      .header-content {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .brand {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .header h1 {
+        margin: 0;
+        font-size: 28px;
+        font-weight: 800;
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        letter-spacing: 2px;
+      }
+
+      .controls {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .toggle-switch {
+        position: relative;
+        width: 50px;
+        height: 26px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 13px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+      }
+
+      .toggle-switch.active {
+        background: rgba(255, 255, 255, 0.2);
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+      }
+
+      .toggle-slider {
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 18px;
+        height: 18px;
+        background: white;
+        border-radius: 50%;
+        transition: transform 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      }
+
+      .toggle-switch.active .toggle-slider {
+        transform: translateX(24px);
+      }
+
+      .settings-btn {
+        width: 32px;
+        height: 32px;
+        background: rgba(255, 255, 255, 0.15);
+        border: none;
+        border-radius: 8px;
+        color: white;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+      }
+
+      .settings-btn:hover {
+        background: rgba(255, 255, 255, 0.25);
+        transform: rotate(90deg) scale(1.1);
+      }
+
+      .content {
+        padding: 24px 20px;
+      }
+
+      .words-learned {
+        background: linear-gradient(
+          135deg,
+          var(--helios-bg-secondary),
+          var(--helios-bg-tertiary)
+        );
+        border-radius: 16px;
+        padding: 20px;
+        text-align: center;
+        border: 1px solid var(--helios-border);
+        margin-bottom: 20px;
+        position: relative;
+        overflow: hidden;
+        backdrop-filter: blur(20px);
+      }
+
+      .words-learned::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, #ff6b35, #ff8c42, #ffb347);
+      }
+
+      .words-count {
+        font-size: 36px;
+        font-weight: 800;
+        background: linear-gradient(135deg, #ff6b35, #ff8c42, #ffb347);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 6px;
+        filter: drop-shadow(0 2px 4px rgba(255, 140, 66, 0.3));
+      }
+
+      .words-label {
+        font-size: 11px;
+        color: var(--helios-text-muted);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1.2px;
+      }
+
+      .vocab-section {
+        background: linear-gradient(
+          135deg,
+          var(--helios-bg-secondary),
+          var(--helios-bg-tertiary)
+        );
+        border-radius: 16px;
+        border: 1px solid var(--helios-border);
+        overflow: hidden;
+        backdrop-filter: blur(20px);
+      }
+
+      .vocab-header {
+        padding: 16px 20px;
+        background: rgba(255, 255, 255, 0.02);
+        border-bottom: 1px solid var(--helios-border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .vocab-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--helios-text-primary);
+      }
+
+      .vocab-count {
+        background: linear-gradient(135deg, #ff8c42, #ffb347);
+        color: white;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+      }
+
+      .vocab-list {
+        max-height: 200px;
+        overflow-y: auto;
+      }
+
+      .vocab-list::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .vocab-list::-webkit-scrollbar-track {
+        background: var(--helios-bg-primary);
+      }
+
+      .vocab-list::-webkit-scrollbar-thumb {
+        background: linear-gradient(
+          180deg,
+          var(--helios-accent-orange),
+          var(--helios-accent-amber)
+        );
+        border-radius: 6px;
+      }
+
+      .vocab-item {
+        padding: 16px 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        transition: all 0.3s ease;
+        position: relative;
+      }
+
+      .vocab-item:hover {
+        background: rgba(255, 255, 255, 0.03);
+        transform: translateX(4px);
+      }
+
+      .vocab-item:hover::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: linear-gradient(
+          180deg,
+          var(--helios-accent-orange),
+          var(--helios-accent-amber)
+        );
+      }
+
+      .vocab-item:last-child {
+        border-bottom: none;
+      }
+
+      .vocab-content {
+        flex: 1;
+      }
+
+      .vocab-word {
+        font-weight: 700;
+        color: var(--helios-text-primary);
+        font-size: 18px;
+        margin-bottom: 4px;
+        background: linear-gradient(
+          135deg,
+          var(--helios-accent-orange),
+          var(--helios-accent-amber)
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .vocab-definition {
+        font-size: 12px;
+        color: var(--helios-text-muted);
+        line-height: 1.4;
+      }
+
+      .delete-btn {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 14px;
+        font-weight: bold;
+        opacity: 0.7;
+      }
+
+      .delete-btn:hover {
+        opacity: 1;
+        transform: scale(1.1) rotate(90deg);
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--helios-text-muted);
+        font-size: 14px;
+      }
+
+      .empty-icon {
+        font-size: 32px;
+        margin-bottom: 12px;
+        opacity: 0.6;
+      }
+
+      /* Entrance animations */
+      @keyframes slideUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .words-learned {
+        animation: slideUp 0.6s ease-out;
+      }
+
+      .vocab-section {
+        animation: slideUp 0.8s ease-out;
+      }
+
+      /* Floating animation for words count */
+      @keyframes float {
+        0%,
+        100% {
+          transform: translateY(0px);
+        }
+        50% {
+          transform: translateY(-3px);
+        }
+      }
+
+      .words-count {
+        animation: float 3s ease-in-out infinite;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <div class="header-content">
+        <div class="brand">
+          <h1>Helios</h1>
+        </div>
+        <div class="controls">
+          <div class="toggle-switch active" id="extension-toggle">
+            <div class="toggle-slider"></div>
+          </div>
+          <button class="settings-btn" id="settings-btn" title="Settings">
+            ⚙️
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="words-learned">
+        <div class="words-count" id="vocab-count">4</div>
+        <div class="words-label">Words Learned</div>
+      </div>
+
+      <div class="vocab-section">
+        <div class="vocab-header">
+          <div class="vocab-title">Recent Vocabulary</div>
+          <div class="vocab-count" id="vocab-count-badge">2 total</div>
+        </div>
+        <div class="vocab-list" id="vocab-list">
+          <div class="vocab-item">
+            <div class="vocab-content">
+              <div class="vocab-word">模式</div>
+              <div class="vocab-definition">mode; pattern; model</div>
+            </div>
+            <button class="delete-btn" data-word="模式">×</button>
+          </div>
+          <div class="vocab-item">
+            <div class="vocab-content">
+              <div class="vocab-word">有</div>
+              <div class="vocab-definition">
+                to have; there is; (bound form) having; with; -ful; -ed; -al (as
+                in 有意 [you3yi4] intentional)
+              </div>
+            </div>
+            <button class="delete-btn" data-word="有">×</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="src/extensiontab.js"></script>
+  </body>
+</html>
