@@ -4,9 +4,14 @@
   "version": "1.1",
   "description": "A browser extension for language learning with subtitle reading, popup dictionary, vocab tracking, and Anki integration",
 
-  "permissions": ["activeTab", "storage", "scripting"],
+  "permissions": ["activeTab", "storage", "scripting", "alarms"],
 
-  "host_permissions": ["https://*/*", "http://*/*", "http://127.0.0.1:8765/*"],
+  "host_permissions": [
+    "https://*/*",
+    "http://*/*",
+    "http://127.0.0.1:8765/*",
+    "http://localhost:8765/*"
+  ],
 
   "content_scripts": [
     {
@@ -29,7 +34,8 @@
   ],
 
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
 
   "action": {

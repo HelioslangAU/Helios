@@ -33,10 +33,22 @@ class HeliosSettingsAnki {
         await Promise.all([this.loadAnkiDecks(), this.loadAnkiNoteTypes()]);
         this.populateAnkiDropdowns();
 
-        if (this.manager.settings.ankiNoteType) {
-          await this.loadNoteTypeFields(this.manager.settings.ankiNoteType);
+        // Load existing note type and setup field mappings
+        const noteType =
+          this.manager.settings.ankiNoteType || this.manager.settings.noteType;
+        if (noteType) {
+          await this.loadNoteTypeFields(noteType);
           this.updateFieldMappingTable();
         }
+
+        // Setup toggle event listeners
+        this.setupToggleEventListeners();
+
+        // Load existing toggle states
+        this.loadToggleStates();
+
+        // Setup dropdown event listeners
+        this.setupDropdownEventListeners();
       }
     } catch (error) {
       console.error("Error initializing Anki:", error);
@@ -155,7 +167,10 @@ class HeliosSettingsAnki {
         const option = document.createElement("option");
         option.value = deck;
         option.textContent = deck;
-        option.selected = deck === this.manager.settings.ankiDeck;
+        // Check both possible setting keys for selection
+        const selectedDeck =
+          this.manager.settings.ankiDeck || this.manager.settings.deck;
+        option.selected = deck === selectedDeck;
         deckSelect.appendChild(option);
       });
     }
@@ -169,19 +184,55 @@ class HeliosSettingsAnki {
         const option = document.createElement("option");
         option.value = noteType;
         option.textContent = noteType;
-        option.selected = noteType === this.manager.settings.ankiNoteType;
+        // Check both possible setting keys for selection
+        const selectedNoteType =
+          this.manager.settings.ankiNoteType || this.manager.settings.noteType;
+        option.selected = noteType === selectedNoteType;
         noteTypeSelect.appendChild(option);
       });
     }
   }
 
-  async onDeckChange(event) {
-    this.manager.settings.ankiDeck = event.target.value;
-    await this.manager.storage.saveSettings();
+  // FIXED: Setup dropdown event listeners
+  setupDropdownEventListeners() {
+    const deckSelect = document.getElementById("anki-deck-select");
+    const noteTypeSelect = document.getElementById("anki-note-type-select");
+
+    if (deckSelect) {
+      deckSelect.addEventListener("change", (e) => this.onDeckChange(e));
+    }
+
+    if (noteTypeSelect) {
+      noteTypeSelect.addEventListener("change", (e) =>
+        this.onNoteTypeChange(e)
+      );
+    }
   }
 
+  // FIXED: Deck change handler
+  async onDeckChange(event) {
+    console.log("🎯 Deck changed to:", event.target.value);
+
+    // Update settings with both possible key names for compatibility
+    this.manager.settings.ankiDeck = event.target.value;
+    this.manager.settings.deck = event.target.value; // fallback
+
+    await this.manager.storage.saveSettings();
+
+    // Also save to background storage
+    await this.saveAnkiSettings();
+
+    console.log("🎯 Deck setting saved");
+  }
+
+  // FIXED: Note type change handler
   async onNoteTypeChange(event) {
+    console.log("🎯 Note type changed to:", event.target.value);
+
+    // Update settings with both possible key names for compatibility
     this.manager.settings.ankiNoteType = event.target.value;
+    this.manager.settings.noteType = event.target.value; // fallback
+
     await this.manager.storage.saveSettings();
 
     if (event.target.value) {
@@ -194,6 +245,11 @@ class HeliosSettingsAnki {
     } else {
       this.clearFieldMappingTable();
     }
+
+    // Also save to background storage
+    await this.saveAnkiSettings();
+
+    console.log("🎯 Note type setting saved");
   }
 
   async loadNoteTypeFields(noteType) {
@@ -237,8 +293,11 @@ class HeliosSettingsAnki {
 
     this.currentNoteTypeFields.forEach((ankiField) => {
       const row = document.createElement("tr");
+      // Check both possible mapping keys
       const currentMapping =
-        this.manager.settings.ankiFieldMappings?.[ankiField] || "";
+        this.manager.settings.ankiFieldMappings?.[ankiField] ||
+        this.manager.settings.fieldMappings?.[ankiField] ||
+        "";
       const previewData = this.getPreviewData(currentMapping);
 
       row.innerHTML = `
@@ -295,19 +354,32 @@ class HeliosSettingsAnki {
     return previews[heliosFieldType] || "—";
   }
 
+  // FIXED: Field mapping event listeners
   setupFieldMappingEventListeners() {
     const mappingSelects = document.querySelectorAll(".mapping-select");
 
     mappingSelects.forEach((select) => {
-      select.addEventListener("change", (e) => {
+      select.addEventListener("change", async (e) => {
         const ankiField = e.target.getAttribute("data-anki-field");
         const heliosData = e.target.value;
 
+        console.log(`🎯 Field mapping changed: ${ankiField} -> ${heliosData}`);
+
+        // Initialize field mappings object if it doesn't exist
         if (!this.manager.settings.ankiFieldMappings) {
           this.manager.settings.ankiFieldMappings = {};
         }
-        this.manager.settings.ankiFieldMappings[ankiField] = heliosData;
 
+        // Also store in alternative key name for compatibility
+        if (!this.manager.settings.fieldMappings) {
+          this.manager.settings.fieldMappings = {};
+        }
+
+        // Update both possible key names
+        this.manager.settings.ankiFieldMappings[ankiField] = heliosData;
+        this.manager.settings.fieldMappings[ankiField] = heliosData;
+
+        // Update preview
         const previewCell = e.target
           .closest("tr")
           .querySelector(".preview-data");
@@ -315,7 +387,16 @@ class HeliosSettingsAnki {
           previewCell.textContent = this.getPreviewData(heliosData);
         }
 
-        this.manager.storage.saveSettings();
+        // Save settings
+        await this.manager.storage.saveSettings();
+
+        // Also save to background storage
+        await this.saveAnkiSettings();
+
+        console.log(
+          "🎯 Field mapping saved:",
+          this.manager.settings.ankiFieldMappings
+        );
       });
     });
   }
@@ -325,11 +406,13 @@ class HeliosSettingsAnki {
       Expression: "expression",
       Chinese: "expression",
       Character: "expression",
+      Front: "expression",
       Reading: "reading",
       Pinyin: "reading",
       Meaning: "meaning",
       Definition: "meaning",
       English: "meaning",
+      Back: "meaning",
       Sentence: "sentence",
       Context: "sentence",
       Traditional: "traditional",
@@ -339,26 +422,53 @@ class HeliosSettingsAnki {
       Audio: "audio",
     };
 
+    let hasExistingMappings = false;
+
+    // Check if any field already has a mapping
     this.currentNoteTypeFields.forEach((ankiField) => {
-      if (!this.manager.settings.ankiFieldMappings?.[ankiField]) {
+      const existingMapping =
+        this.manager.settings.ankiFieldMappings?.[ankiField] ||
+        this.manager.settings.fieldMappings?.[ankiField];
+      if (existingMapping) {
+        hasExistingMappings = true;
+      }
+    });
+
+    // Only apply auto-mapping if no existing mappings
+    if (!hasExistingMappings) {
+      this.currentNoteTypeFields.forEach((ankiField) => {
         const autoMapping = autoMappings[ankiField];
         if (autoMapping) {
           if (!this.manager.settings.ankiFieldMappings) {
             this.manager.settings.ankiFieldMappings = {};
           }
+          if (!this.manager.settings.fieldMappings) {
+            this.manager.settings.fieldMappings = {};
+          }
+
           this.manager.settings.ankiFieldMappings[ankiField] = autoMapping;
+          this.manager.settings.fieldMappings[ankiField] = autoMapping;
 
           const select = document.querySelector(
             `[data-anki-field="${ankiField}"]`
           );
           if (select) {
             select.value = autoMapping;
+
+            // Update preview
+            const previewCell = select
+              .closest("tr")
+              .querySelector(".preview-data");
+            if (previewCell) {
+              previewCell.textContent = this.getPreviewData(autoMapping);
+            }
           }
         }
-      }
-    });
+      });
 
-    this.manager.storage.saveSettings();
+      this.manager.storage.saveSettings();
+      this.saveAnkiSettings();
+    }
   }
 
   clearFieldMappingTable() {
@@ -373,8 +483,121 @@ class HeliosSettingsAnki {
       </tr>
     `;
 
+    // Clear mappings
     this.manager.settings.ankiFieldMappings = {};
+    this.manager.settings.fieldMappings = {};
     this.manager.storage.saveSettings();
+    this.saveAnkiSettings();
+  }
+
+  // FIXED: Setup toggle event listeners
+  setupToggleEventListeners() {
+    const checkDuplicatesToggle = document.getElementById(
+      "anki-check-duplicates"
+    );
+    const includeSentenceToggle = document.getElementById(
+      "anki-include-sentence"
+    );
+
+    if (checkDuplicatesToggle) {
+      checkDuplicatesToggle.addEventListener("change", async (e) => {
+        console.log("🎯 Check duplicates changed to:", e.target.checked);
+
+        this.manager.settings.checkDuplicates = e.target.checked;
+        this.manager.settings.allowDuplicates = !e.target.checked; // inverse logic
+
+        await this.manager.storage.saveSettings();
+        await this.saveAnkiSettings();
+
+        console.log("🎯 Duplicate checking setting saved");
+      });
+    }
+
+    if (includeSentenceToggle) {
+      includeSentenceToggle.addEventListener("change", async (e) => {
+        console.log("🎯 Include sentence changed to:", e.target.checked);
+
+        this.manager.settings.includeSentence = e.target.checked;
+
+        await this.manager.storage.saveSettings();
+        await this.saveAnkiSettings();
+
+        console.log("🎯 Include sentence setting saved");
+      });
+    }
+  }
+
+  // FIXED: Load existing toggle states from settings
+  loadToggleStates() {
+    const checkDuplicatesToggle = document.getElementById(
+      "anki-check-duplicates"
+    );
+    const includeSentenceToggle = document.getElementById(
+      "anki-include-sentence"
+    );
+
+    if (checkDuplicatesToggle) {
+      // Default to true if not set
+      const checkDuplicates =
+        this.manager.settings.checkDuplicates !== undefined
+          ? this.manager.settings.checkDuplicates
+          : true;
+      checkDuplicatesToggle.checked = checkDuplicates;
+    }
+
+    if (includeSentenceToggle) {
+      // Default to true if not set
+      const includeSentence =
+        this.manager.settings.includeSentence !== undefined
+          ? this.manager.settings.includeSentence
+          : true;
+      includeSentenceToggle.checked = includeSentence;
+    }
+  }
+
+  // FIXED: Save settings to background storage
+  async saveAnkiSettings() {
+    try {
+      const ankiSettings = {
+        ankiDeck: this.manager.settings.ankiDeck || this.manager.settings.deck,
+        deck: this.manager.settings.ankiDeck || this.manager.settings.deck, // compatibility
+        ankiNoteType:
+          this.manager.settings.ankiNoteType || this.manager.settings.noteType,
+        noteType:
+          this.manager.settings.ankiNoteType || this.manager.settings.noteType, // compatibility
+        ankiFieldMappings: this.manager.settings.ankiFieldMappings || {},
+        fieldMappings: this.manager.settings.ankiFieldMappings || {}, // compatibility
+        checkDuplicates:
+          this.manager.settings.checkDuplicates !== undefined
+            ? this.manager.settings.checkDuplicates
+            : true,
+        allowDuplicates:
+          this.manager.settings.allowDuplicates !== undefined
+            ? this.manager.settings.allowDuplicates
+            : false,
+        includeSentence:
+          this.manager.settings.includeSentence !== undefined
+            ? this.manager.settings.includeSentence
+            : true,
+        includeUrl:
+          this.manager.settings.includeUrl !== undefined
+            ? this.manager.settings.includeUrl
+            : true,
+        tags: this.manager.settings.tags || ["helios"],
+      };
+
+      console.log("🎯 Saving Anki settings to background:", ankiSettings);
+
+      const response = await this.sendAnkiMessage("SAVE_ANKI_SETTINGS", {
+        settings: ankiSettings,
+      });
+
+      console.log("🎯 Anki settings saved to background:", response);
+      return response.success;
+    } catch (error) {
+      console.error("🎯 Error saving Anki settings:", error);
+      return false;
+    }
   }
 }
 
