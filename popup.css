@@ -688,3 +688,222 @@ body[data-shift-active="true"] * {
     min-width: auto;
   }
 }
+
+/* Pronunciation Button Styles - Add to popup.css */
+
+/* Pronunciation button container */
+.pronunciation-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+/* Pronunciation button */
+.pronunciation-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    var(--helios-accent-orange),
+    var(--helios-accent-amber)
+  );
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 14px;
+  box-shadow: 0 3px 12px rgba(255, 107, 53, 0.3);
+  position: relative;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.pronunciation-btn:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 5px 20px rgba(255, 107, 53, 0.4);
+  background: linear-gradient(
+    135deg,
+    var(--helios-accent-amber),
+    var(--helios-accent-gold)
+  );
+}
+
+.pronunciation-btn:active:not(:disabled) {
+  transform: translateY(0px) scale(0.98);
+  box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);
+}
+
+.pronunciation-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 2px 6px rgba(255, 107, 53, 0.2);
+}
+
+/* Speaker icon */
+.pronunciation-btn .icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* Playing state animation */
+.pronunciation-btn.playing {
+  animation: pronunciationPulse 1.5s ease-in-out infinite;
+  background: linear-gradient(135deg, var(--helios-known-green), #26d0ce);
+  box-shadow: 0 3px 15px rgba(78, 205, 196, 0.4);
+}
+
+.pronunciation-btn.playing:hover {
+  background: linear-gradient(135deg, var(--helios-known-green), #26d0ce);
+}
+
+@keyframes pronunciationPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.9;
+  }
+}
+
+/* Error state */
+.pronunciation-btn.error {
+  background: linear-gradient(135deg, #ff6b6b, #ff5252);
+  box-shadow: 0 3px 12px rgba(255, 107, 107, 0.3);
+  animation: pronunciationShake 0.5s ease-out;
+}
+
+@keyframes pronunciationShake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-2px);
+  }
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+/* Loading state */
+.pronunciation-btn.loading {
+  background: linear-gradient(135deg, #9e9e9e, #757575);
+  box-shadow: 0 3px 12px rgba(158, 158, 158, 0.3);
+}
+
+.pronunciation-btn.loading .icon {
+  animation: pronunciationSpin 1s linear infinite;
+}
+
+@keyframes pronunciationSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Success state */
+.pronunciation-btn.success {
+  background: linear-gradient(135deg, var(--helios-anki-success), #388e3c);
+  box-shadow: 0 3px 12px rgba(76, 175, 80, 0.4);
+  animation: pronunciationSuccess 0.6s ease-out;
+}
+
+@keyframes pronunciationSuccess {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Shimmer effect for the button */
+.pronunciation-btn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  transition: left 0.6s ease;
+}
+
+.pronunciation-btn:hover::before {
+  left: 100%;
+}
+
+.pronunciation-btn:disabled::before {
+  display: none;
+}
+
+/* Tooltip for pronunciation button */
+.pronunciation-btn[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: -35px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--helios-bg-tertiary);
+  color: var(--helios-text-primary);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  pointer-events: none;
+  opacity: 0;
+  animation: fadeInTooltip 0.3s ease-out 0.5s forwards;
+}
+
+@keyframes fadeInTooltip {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .pronunciation-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+
+  .pronunciation-btn .icon {
+    font-size: 14px;
+  }
+}

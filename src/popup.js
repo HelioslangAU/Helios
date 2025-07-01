@@ -18,6 +18,9 @@ class PopupManager {
     this.ankiManager = new AnkiManager(); // FIXED: Was EnhancedAnkiManager
     this.isAnkiAvailable = null;
 
+    // Initialize Pronunciation Manager
+    this.pronunciationManager = new PronunciationManager();
+
     // Check Anki availability on startup
     this.checkAnkiStatus();
   }
@@ -145,11 +148,24 @@ class PopupManager {
                 .join("")}</ul>`
             : `<div class="definition">${defs[0]}</div>`;
 
+        // Add pronunciation button to pinyin section
+        const pronunciationBtn = `
+          <button 
+            class="pronunciation-btn" 
+            title="Play pronunciation"
+            data-word="${character}"
+            data-pinyin="${def.pinyin}"
+          >
+            <span class="icon">🔊</span>
+          </button>
+        `;
+
         return `
         <div class="definition-block">
           <div class="pinyin">
             <span class="pinyin-text">${def.pinyin}</span>
             <span class="tone-indicator ${toneClass}">${def.tone || "?"}</span>
+            ${pronunciationBtn}
           </div>
           ${variants}
           ${bullets}
@@ -199,6 +215,9 @@ class PopupManager {
     const markUnknownBtn = this.popup.querySelector(".mark-unknown-btn");
     const closeBtn = this.popup.querySelector(".close-btn");
     const ankiBtn = this.popup.querySelector(".anki-btn");
+
+    // Add pronunciation button listeners
+    const pronunciationBtns = this.popup.querySelectorAll(".pronunciation-btn");
 
     addVocabBtn?.addEventListener("click", () => this.addToVocab(character));
 
@@ -263,7 +282,75 @@ class PopupManager {
       });
     }
 
+    // Pronunciation button event listeners
+    pronunciationBtns.forEach((btn) => {
+      btn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const word = btn.getAttribute("data-word");
+        const pinyin = btn.getAttribute("data-pinyin");
+
+        await this.handlePronunciation(btn, word, pinyin);
+      });
+    });
+
     closeBtn?.addEventListener("click", () => this.hidePopup());
+  }
+
+  // Add new method to handle pronunciation
+  async handlePronunciation(button, word, pinyin) {
+    try {
+      // Update button state to loading
+      button.classList.add("loading");
+      button.disabled = true;
+      button.title = "Loading audio...";
+
+      console.log(`🔊 Playing pronunciation for: ${word} (${pinyin})`);
+
+      // Try to play pronunciation
+      const success = await this.pronunciationManager.playPronunciation(word);
+
+      if (success) {
+        // Success state
+        button.classList.remove("loading");
+        button.classList.add("playing");
+        button.title = "Playing...";
+
+        // Reset button state after audio finishes
+        setTimeout(() => {
+          button.classList.remove("playing");
+          button.disabled = false;
+          button.title = "Play pronunciation";
+        }, 2000); // Assume audio finishes within 2 seconds
+      } else {
+        // Error state
+        button.classList.remove("loading");
+        button.classList.add("error");
+        button.title = "Audio not available";
+
+        // Reset button state after showing error
+        setTimeout(() => {
+          button.classList.remove("error");
+          button.disabled = false;
+          button.title = "Play pronunciation";
+        }, 1500);
+      }
+    } catch (error) {
+      console.error("🔊 Error in pronunciation handler:", error);
+
+      // Error state
+      button.classList.remove("loading");
+      button.classList.add("error");
+      button.title = "Error playing audio";
+
+      // Reset button state
+      setTimeout(() => {
+        button.classList.remove("error");
+        button.disabled = false;
+        button.title = "Play pronunciation";
+      }, 1500);
+    }
   }
 
   // Handle Anki card creation
