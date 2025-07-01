@@ -26,16 +26,27 @@ class DictionaryManager {
       if (!match) continue;
 
       const [, traditional, simplified, pinyin, definitions] = match;
+
+      // Split the pinyin by spaces to get individual syllables
+      const syllables = pinyin.split(' ')
+    
+      // Convert each syllable to accented pinyin
+      const accentedSyllables = syllables.map(syllable => decode_pinyin_syllable(syllable))
+    
+      // Join them back together
+      const newpinyin = accentedSyllables.join('')
+
       const entryData = {
         traditional: traditional.trim(),
         simplified: simplified.trim(),
-        pinyin: pinyin.trim(),
+        pinyin: newpinyin.trim(),
         definition: definitions.split('/').filter(def => def.trim()).join('; '),
-        tone: this.extractToneFromPinyin(pinyin.trim())
       };
 
       const tradKey = traditional.trim();
       const simpKey = simplified.trim();
+
+
 
       if (tradKey === simpKey) {
         if (!this.dictionary[tradKey]) this.dictionary[tradKey] = [];
@@ -52,16 +63,47 @@ class DictionaryManager {
     console.log(`Successfully processed ${processedEntries} CC-CEDICT entries`);
   }
 
-  extractToneFromPinyin(pinyin) {
-    const toneMarks = {
-      'ā': 1, 'á': 2, 'ǎ': 3, 'à': 4, 'ē': 1, 'é': 2, 'ě': 3, 'è': 4,
-      'ī': 1, 'í': 2, 'ǐ': 3, 'ì': 4, 'ō': 1, 'ó': 2, 'ǒ': 3, 'ò': 4,
-      'ū': 1, 'ú': 2, 'ǔ': 3, 'ù': 4, 'ǖ': 1, 'ǘ': 2, 'ǚ': 3, 'ǜ': 4
-    };
-    for (const char of pinyin) {
-      if (toneMarks[char] > 0) return toneMarks[char];
-    }
-    const toneMatch = pinyin.match(/[1-4]/);
-    return toneMatch ? parseInt(toneMatch[0]) : 0;
-  }
 }
+
+function decode_pinyin_syllable(syllable) {
+      const replacements = {
+          'a': ['ā', 'á', 'ǎ', 'à'],
+          'e': ['ē', 'é', 'ě', 'è'],
+          'u': ['ū', 'ú', 'ǔ', 'ù'],
+          'i': ['ī', 'í', 'ǐ', 'ì'],
+          'o': ['ō', 'ó', 'ǒ', 'ò'],
+          'ü': ['ǖ', 'ǘ', 'ǚ', 'ǜ'],
+      }
+
+      const medials = ['i', 'u', 'ü']
+
+      if (syllable.length < 1) {
+          return syllable
+      }
+
+      const tone_idx = parseInt(syllable[syllable.length - 1])
+
+      if (isNaN(tone_idx) || tone_idx < 1 || tone_idx > 5) {
+          return syllable
+      }
+
+      const ret = syllable.replace(/v/g, 'ü')
+
+      if (tone_idx == 5) {
+          return ret.slice(0, -1)
+      }
+
+      for (let i = 0; i < ret.length; i++) {
+          const c1 = ret[i]
+          const c2 = ret[i + 1]
+
+          if (medials.includes(c1) && replacements[c2]) {
+              return ret.slice(0, i + 1) + replacements[c2][tone_idx - 1] + ret.slice(i + 2, -1)
+          }
+          if (replacements[c1]) {
+              return ret.slice(0, i) + replacements[c1][tone_idx - 1] + ret.slice(i + 1, -1)
+          }
+      }
+
+      return syllable
+  }

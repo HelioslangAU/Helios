@@ -1,3 +1,4 @@
+var pinyin = "";
 class PopupManager {
   constructor({
     highlightManager,
@@ -68,16 +69,20 @@ class PopupManager {
     if (popupRect.bottom > window.innerHeight) {
       // Place above the highlight instead
       let newY = posY;
+      let newX = posX;
       if (this.highlightManager.currentHighlight) {
         const rect =
           this.highlightManager.currentHighlight.getBoundingClientRect();
-        newY = rect.top - popupRect.height;
+        newY = rect.top - (popupRect.height +30);
+        newX = rect.left; // Align left edge with highlight
       } else {
         newY = posY - popupRect.height;
+        // newX remains as posX
       }
       // Prevent going off the top
       if (newY < 0) newY = 0;
       popup.style.top = `${newY}px`;
+      popup.style.left = `${newX}px`; // Ensure left is set
     }
 
     this.popup = popup;
@@ -123,7 +128,6 @@ class PopupManager {
           <div class="character highlight">${character}</div>
           <div class="definition">Character not found in dictionary</div>
           <div class="popup-buttons">
-            <button class="close-btn">Close</button>
           </div>
         </div>
       `;
@@ -131,7 +135,7 @@ class PopupManager {
 
     const definitionsHtml = matches
       .map((def, idx) => {
-        const toneClass = `tone-${def.tone || 0}`;
+        pinyin = def.pinyin;
         const variants =
           def.traditional !== def.simplified
             ? `<div class="variants">Traditional: ${def.traditional} | Simplified: ${def.simplified}</div>`
@@ -162,24 +166,19 @@ class PopupManager {
 
         return `
         <div class="definition-block">
-          <div class="pinyin">
-            <span class="pinyin-text">${def.pinyin}</span>
-            <span class="tone-indicator ${toneClass}">${def.tone || "?"}</span>
-            ${pronunciationBtn}
-          </div>
           ${variants}
           ${bullets}
         </div>
       `;
       })
       .join("");
-
-    // Create Anki button with status
+    
+    // Create Anki button with status 
     const ankiButton = this.createAnkiButton();
 
     return `
       <div class="popup-content">
-        <div class="character highlight">${character}</div>
+        <ruby class="character highlight">${character}<rt>${pinyin}</rt></ruby>
         ${
           frequency
             ? `<div class="frequency">Frequency: ${frequency}</div>`
@@ -191,7 +190,6 @@ class PopupManager {
             ${isKnown ? "Mark Unknown" : "Mark Known"}
           </button>
           ${ankiButton}
-          <button class="close-btn">Close</button>
         </div>
       </div>
     `;
@@ -203,7 +201,7 @@ class PopupManager {
     } else if (this.isAnkiAvailable === false) {
       return `<button class="anki-btn anki-unavailable" disabled title="Anki not available. Make sure Anki is running with AnkiConnect add-on.">Anki Offline</button>`;
     } else {
-      return `<button class="anki-btn anki-available">Add to Anki</button>`;
+      return `<button class="anki-btn anki-available">Anki</button>`;
     }
   }
 
