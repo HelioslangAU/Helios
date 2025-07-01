@@ -95,15 +95,20 @@ class BackgroundService {
         });
       }
 
-      // Initialize Anki settings
+      // Initialize Anki settings with field mappings structure
       if (!result.ankiSettings) {
         const defaultAnkiSettings = {
+          // Main settings
           ankiDeck: "Chinese::Helios",
           deck: "Chinese::Helios", // compatibility
           ankiNoteType: "Basic",
           noteType: "Basic", // compatibility
+
+          // Field mappings - this is the key structure
           ankiFieldMappings: {},
           fieldMappings: {}, // compatibility
+
+          // Options
           checkDuplicates: true,
           allowDuplicates: false,
           includeSentence: true,
@@ -235,12 +240,9 @@ class BackgroundService {
   async handleToggleExtension(enabled, sendResponse) {
     try {
       console.log("🔍 Extension toggle:", enabled);
-
-      // Update stored settings
       await chrome.storage.local.set({ extensionEnabled: enabled });
       this.extensionSettings.extensionEnabled = enabled;
 
-      // Notify all content scripts about the change
       const tabs = await chrome.tabs.query({});
       const updatePromises = tabs.map((tab) => {
         return chrome.tabs
@@ -248,9 +250,7 @@ class BackgroundService {
             action: "extensionToggled",
             enabled: enabled,
           })
-          .catch(() => {
-            // Tab might not have content script loaded, ignore
-          });
+          .catch(() => {});
       });
 
       await Promise.allSettled(updatePromises);
@@ -271,11 +271,8 @@ class BackgroundService {
   async handleSettingsChanged(settings, sendResponse) {
     try {
       console.log("🔍 Settings changed:", settings);
-
-      // Update our cached settings
       this.extensionSettings = { ...this.extensionSettings, ...settings };
 
-      // Notify all content scripts about the changes
       const tabs = await chrome.tabs.query({});
       const updatePromises = tabs.map((tab) => {
         return chrome.tabs
@@ -283,9 +280,7 @@ class BackgroundService {
             action: "settingsUpdated",
             settings: settings,
           })
-          .catch(() => {
-            // Tab might not have content script loaded, ignore
-          });
+          .catch(() => {});
       });
 
       await Promise.allSettled(updatePromises);
@@ -305,9 +300,7 @@ class BackgroundService {
 
   async handleGetExtensionSettings(sendResponse) {
     try {
-      // Refresh settings from storage
       await this.loadExtensionSettings();
-
       sendResponse({
         success: true,
         settings: this.extensionSettings,
@@ -391,7 +384,7 @@ class BackgroundService {
 
   async findDuplicates(expression) {
     try {
-      const query = `"Expression:${expression}" OR "Front:${expression}" OR "Chinese:${expression}"`;
+      const query = `"Expression:${expression}" OR "Front:${expression}" OR "Chinese:${expression}" OR "Target Word:${expression}"`;
       return await this.invokeAnki("findNotes", { query: query });
     } catch (error) {
       console.error("🃏 Error finding duplicates:", error);
@@ -399,13 +392,9 @@ class BackgroundService {
     }
   }
 
-  // Smart field preparation method
-  async prepareCardFieldsSmart(wordData, options, availableFields) {
-    console.log("🃏 Smart field preparation:", {
-      wordData,
-      options,
-      availableFields,
-    });
+  // WORKING: Basic card field preparation (fallback)
+  prepareCardFields(wordData) {
+    console.log("🃏 Preparing basic card fields for:", wordData);
 
     const {
       character,
@@ -420,6 +409,7 @@ class BackgroundService {
 
     // Ensure we have at least a character
     if (!character && !simplified && !traditional) {
+      console.error("🃏 No character data provided:", wordData);
       throw new Error("No character data provided for card creation");
     }
 
@@ -427,108 +417,116 @@ class BackgroundService {
     const reading = pinyin || "";
     const meaning = definition || "";
 
-    // Create the data mapping
-    const heliosData = {
-      expression: mainCharacter,
-      reading: reading,
-      meaning: meaning,
-      sentence: sentence || "",
-      traditional: traditional || mainCharacter,
-      simplified: simplified || mainCharacter,
-      source: url || "",
-      frequency: frequency ? frequency.toString() : "",
-      tone: "", // Add if you have tone data
-      audio: "", // Add if you have audio data
-      timestamp: new Date().toISOString(),
-    };
+    return {
+      // Primary fields
+      Expression: mainCharacter,
+      Reading: reading,
+      Meaning: meaning,
 
-    console.log("🃏 Helios data prepared:", heliosData);
+      // Additional fields
+      Sentence: sentence || "",
+      Traditional: traditional || mainCharacter,
+      Simplified: simplified || mainCharacter,
+      Source: url || "",
+      Frequency: frequency ? frequency.toString() : "",
+
+      // Alternative field names for compatibility
+      Front: mainCharacter,
+      Back: reading ? `${reading}<br>${meaning}` : meaning,
+      Chinese: mainCharacter,
+      Pinyin: reading,
+      English: meaning,
+      Context: sentence || "",
+      URL: url || "",
+
+      // Migaku-style fields
+      "Target Word": mainCharacter,
+      Definitions: meaning,
+    };
+  }
+
+  // WORKING: Field mapping with user configuration (from old working code)
+  prepareCardFieldsWithMapping(wordData, fieldMappings) {
+    console.log(
+      "🃏 Preparing mapped card fields for:",
+      wordData,
+      "mappings:",
+      fieldMappings
+    );
+
+    const {
+      character,
+      traditional,
+      simplified,
+      pinyin,
+      definition,
+      sentence,
+      url,
+      frequency,
+    } = wordData || {};
+
+    // Ensure we have at least a character
+    if (!character && !simplified && !traditional) {
+      console.error("🃏 No character data provided:", wordData);
+      throw new Error("No character data provided for card creation");
+    }
 
     const fields = {};
+    const mainCharacter = character || simplified || traditional;
 
-    // If we have field mappings, use them
-    if (
-      options.fieldMappings &&
-      Object.keys(options.fieldMappings).length > 0
-    ) {
-      console.log("🃏 Using custom field mappings:", options.fieldMappings);
+    console.log("🃏 Available field mappings:", Object.keys(fieldMappings));
 
-      for (const [ankiField, heliosField] of Object.entries(
-        options.fieldMappings
-      )) {
-        if (
-          heliosField &&
-          heliosField !== "" &&
-          availableFields.includes(ankiField)
-        ) {
-          fields[ankiField] = heliosData[heliosField] || "";
+    // Map Helios fields to Anki fields based on user configuration
+    // This maps the Helios data type to the actual Anki field name
+    for (const [ankiFieldName, heliosDataType] of Object.entries(
+      fieldMappings
+    )) {
+      if (heliosDataType && heliosDataType !== "") {
+        console.log(`🃏 Mapping ${ankiFieldName} <- ${heliosDataType}`);
+
+        switch (heliosDataType) {
+          case "expression":
+            fields[ankiFieldName] = mainCharacter;
+            break;
+          case "reading":
+            fields[ankiFieldName] = pinyin || "";
+            break;
+          case "meaning":
+            fields[ankiFieldName] = definition || "";
+            break;
+          case "sentence":
+            fields[ankiFieldName] = sentence || "";
+            break;
+          case "traditional":
+            fields[ankiFieldName] = traditional || mainCharacter;
+            break;
+          case "simplified":
+            fields[ankiFieldName] = simplified || mainCharacter;
+            break;
+          case "source":
+            fields[ankiFieldName] = url || "";
+            break;
+          case "frequency":
+            fields[ankiFieldName] = frequency ? frequency.toString() : "";
+            break;
+          default:
+            console.warn(`🃏 Unknown Helios data type: ${heliosDataType}`);
         }
       }
-    } else {
-      // Use smart auto-mapping based on available fields
-      console.log(
-        "🃏 Using auto-mapping for available fields:",
-        availableFields
-      );
+    }
 
-      const autoMappings = {
-        // Common Chinese learning fields
-        Expression: "expression",
-        Chinese: "expression",
-        Character: "expression",
-        Front: "expression",
+    console.log("🃏 Mapped fields before fallback:", fields);
 
-        Reading: "reading",
-        Pinyin: "reading",
-        Pronunciation: "reading",
-
-        Meaning: "meaning",
-        Definition: "meaning",
-        English: "meaning",
-        Back: "meaning",
-
-        Sentence: "sentence",
-        Context: "sentence",
-        Example: "sentence",
-
-        Traditional: "traditional",
-        Simplified: "simplified",
-        Source: "source",
-        URL: "source",
-      };
-
-      // Map available fields to Helios data
-      for (const ankiField of availableFields) {
-        const heliosField = autoMappings[ankiField];
-        if (heliosField && heliosData[heliosField]) {
-          fields[ankiField] = heliosData[heliosField];
-        }
-      }
-
-      // Ensure we have at least one field mapped
-      if (Object.keys(fields).length === 0) {
-        // Fallback: use first available field for expression and second for meaning
-        if (availableFields.length >= 1) {
-          fields[availableFields[0]] = mainCharacter;
-        }
-        if (availableFields.length >= 2) {
-          fields[availableFields[1]] = reading
-            ? `${reading}<br>${meaning}`
-            : meaning;
-        }
-      }
+    // Fallback: if no fields are mapped, use basic mapping
+    if (Object.keys(fields).length === 0) {
+      console.warn("🃏 No field mappings found, using fallback");
+      fields["Front"] = mainCharacter;
+      fields["Back"] = pinyin
+        ? `${pinyin}<br>${definition || ""}`
+        : definition || "";
     }
 
     console.log("🃏 Final mapped fields:", fields);
-
-    // Validate that we have at least one non-empty field
-    const nonEmptyFields = Object.entries(fields).filter(
-      ([key, value]) => value && value.trim()
-    );
-    if (nonEmptyFields.length === 0) {
-      throw new Error("No valid field mappings resulted in non-empty fields");
-    }
-
     return fields;
   }
 
@@ -550,6 +548,7 @@ class BackgroundService {
     }
   }
 
+  // WORKING: Main card creation handler (from old working code, with logging)
   async handleCreateAnkiCard(wordData, options = {}, sendResponse) {
     try {
       console.log(
@@ -570,113 +569,120 @@ class BackgroundService {
         );
       }
 
-      // Get settings with proper error handling
+      // Get settings with better error handling
       let settings;
       try {
         const result = await chrome.storage.local.get(["ankiSettings"]);
-        settings = result.ankiSettings || {};
-
-        // Apply defaults for missing settings
-        settings = {
-          deck: settings.ankiDeck || settings.deck || "Chinese::Helios",
-          noteType: settings.ankiNoteType || settings.noteType || "Basic",
-          fieldMappings:
-            settings.ankiFieldMappings || settings.fieldMappings || {},
-          checkDuplicates:
-            settings.checkDuplicates !== undefined
-              ? settings.checkDuplicates
-              : true,
-          allowDuplicates:
-            settings.allowDuplicates !== undefined
-              ? settings.allowDuplicates
-              : false,
-          tags: settings.tags || ["helios"],
+        settings = result.ankiSettings || {
+          ankiDeck: "Chinese::Helios",
+          deck: "Chinese::Helios",
+          ankiNoteType: "Basic",
+          noteType: "Basic",
+          ankiFieldMappings: {},
+          fieldMappings: {},
+          checkDuplicates: true,
+          allowDuplicates: false,
+          tags: ["helios"],
         };
 
         console.log("🃏 Loaded settings:", settings);
       } catch (error) {
         console.error("🃏 Error getting Anki settings:", error);
-        throw new Error("Could not load Anki settings");
+        // Use defaults if settings can't be loaded
+        settings = {
+          ankiDeck: "Chinese::Helios",
+          deck: "Chinese::Helios",
+          ankiNoteType: "Basic",
+          noteType: "Basic",
+          ankiFieldMappings: {},
+          fieldMappings: {},
+          checkDuplicates: true,
+          allowDuplicates: false,
+          tags: ["helios"],
+        };
       }
 
-      // Merge options with settings (options take priority)
+      // Merge options with settings
       const finalOptions = { ...settings, ...options };
-      console.log("🃏 Final options:", finalOptions);
 
-      // Validate required settings
-      if (!finalOptions.deck) {
-        throw new Error("No deck specified in settings");
-      }
-      if (!finalOptions.noteType) {
-        throw new Error("No note type specified in settings");
-      }
+      // Normalize deck and noteType names
+      finalOptions.deck =
+        finalOptions.ankiDeck || finalOptions.deck || "Chinese::Helios";
+      finalOptions.noteType =
+        finalOptions.ankiNoteType || finalOptions.noteType || "Basic";
+      finalOptions.fieldMappings =
+        finalOptions.ankiFieldMappings || finalOptions.fieldMappings || {};
+
+      console.log("🃏 Final options:", finalOptions);
 
       // Ensure deck exists
       try {
         await this.ensureDeckExists(finalOptions.deck);
       } catch (error) {
         console.error("🃏 Error ensuring deck exists:", error);
-        // Continue anyway
+        // Continue anyway, Anki might create it automatically
       }
 
-      // Get available fields and prepare card fields
+      // Prepare card fields with better error handling
       let fields;
       try {
-        const availableFields = await this.invokeAnki("modelFieldNames", {
-          modelName: finalOptions.noteType,
-        });
-
-        console.log("🃏 Available fields for note type:", availableFields);
-
-        fields = await this.prepareCardFieldsSmart(
-          wordData,
-          finalOptions,
-          availableFields
+        console.log(
+          "🃏 Field mappings available:",
+          Object.keys(finalOptions.fieldMappings).length > 0
         );
 
-        console.log("🃏 Prepared card fields:", fields);
+        if (
+          finalOptions.fieldMappings &&
+          Object.keys(finalOptions.fieldMappings).length > 0
+        ) {
+          fields = this.prepareCardFieldsWithMapping(
+            wordData,
+            finalOptions.fieldMappings
+          );
+        } else {
+          console.log(
+            "🃏 No field mappings found, using basic field preparation"
+          );
+          fields = this.prepareCardFields(wordData);
+        }
       } catch (error) {
         console.error("🃏 Error preparing card fields:", error);
-        throw new Error(`Could not prepare card fields: ${error.message}`);
+        // Fall back to basic fields
+        fields = this.prepareCardFields(wordData);
       }
 
-      // Validate that we have at least one non-empty field
-      const nonEmptyFields = Object.entries(fields).filter(
-        ([key, value]) => value && value.trim()
-      );
-      if (nonEmptyFields.length === 0) {
-        throw new Error("All card fields are empty - cannot create card");
+      console.log("🃏 Prepared card fields:", fields);
+
+      // Validate fields
+      if (!fields || Object.keys(fields).length === 0) {
+        throw new Error("No valid fields prepared for card creation");
       }
 
       // Check for duplicates if enabled
       if (finalOptions.checkDuplicates && !finalOptions.allowDuplicates) {
         try {
-          const mainExpression =
+          const duplicates = await this.findDuplicates(
             fields.Front ||
-            fields.Expression ||
-            fields.Chinese ||
-            wordData.character ||
-            wordData.simplified ||
-            wordData.traditional;
-
-          if (mainExpression) {
-            const duplicates = await this.findDuplicates(mainExpression);
-            if (duplicates.length > 0) {
-              console.log("🃏 Duplicate card found");
-              sendResponse({
-                success: false,
-                error: "Card already exists",
-                duplicateIds: duplicates,
-              });
-              return;
-            }
+              fields.Expression ||
+              fields["Target Word"] ||
+              wordData.character
+          );
+          if (duplicates.length > 0) {
+            console.log("🃏 Duplicate card found");
+            sendResponse({
+              success: false,
+              error: "Card already exists",
+              duplicateIds: duplicates,
+            });
+            return;
           }
         } catch (error) {
           console.warn("🃏 Error checking duplicates:", error);
+          // Continue with card creation if duplicate check fails
         }
       }
 
-      // Create the note
+      // Create the note with better error handling
       let noteId;
       try {
         const noteData = {
@@ -695,15 +701,19 @@ class BackgroundService {
       } catch (error) {
         console.error("🃏 AnkiConnect addNote error:", error);
 
-        // Provide specific error messages
+        // Provide more specific error messages
         if (error.message.includes("model was not found")) {
           throw new Error(
-            `Note type "${finalOptions.noteType}" not found in Anki`
+            `Note type "${finalOptions.noteType}" not found in Anki. Please check your note type settings.`
           );
         } else if (error.message.includes("deck was not found")) {
-          throw new Error(`Deck "${finalOptions.deck}" not found in Anki`);
-        } else if (error.message.includes("empty")) {
-          throw new Error("Card fields are empty or invalid");
+          throw new Error(
+            `Deck "${finalOptions.deck}" not found in Anki. Please check your deck settings.`
+          );
+        } else if (error.message.includes("field")) {
+          throw new Error(
+            `Field mapping error: ${error.message}. Please check your field mappings in settings.`
+          );
         } else {
           throw new Error(`Anki error: ${error.message}`);
         }
@@ -711,7 +721,7 @@ class BackgroundService {
 
       console.log("🃏 Anki card created successfully with note ID:", noteId);
 
-      // Update counter
+      // Update Anki cards created counter
       try {
         const result = await chrome.storage.local.get(["ankiCardsCreated"]);
         const newCount = (result.ankiCardsCreated || 0) + 1;
@@ -999,7 +1009,6 @@ class BackgroundService {
   }
 
   async setupDailyReset() {
-    // Check if we need to reset daily counters
     const checkAndReset = async () => {
       try {
         const result = await chrome.storage.local.get([
