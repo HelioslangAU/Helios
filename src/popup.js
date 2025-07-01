@@ -1,4 +1,5 @@
 var pinyin = "";
+
 class PopupManager {
   constructor({
     highlightManager,
@@ -16,7 +17,7 @@ class PopupManager {
     this.hideTimeout = null;
 
     // Initialize Anki Manager
-    this.ankiManager = new AnkiManager(); // FIXED: Was EnhancedAnkiManager
+    this.ankiManager = new AnkiManager();
     this.isAnkiAvailable = null;
 
     // Initialize Pronunciation Manager
@@ -54,8 +55,8 @@ class PopupManager {
     if (this.highlightManager.currentHighlight) {
       const rect =
         this.highlightManager.currentHighlight.getBoundingClientRect();
-      posX = rect.left; // No scrollX for fixed
-      posY = rect.bottom; // No scrollY for fixed
+      posX = rect.left;
+      posY = rect.bottom + 5; // Small gap below highlight
     }
 
     popup.style.left = `${posX}px`;
@@ -64,45 +65,34 @@ class PopupManager {
     popup.style.zIndex = "2147483647";
 
     document.body.appendChild(popup);
-    // --- Check if popup goes offscreen, and reposition if needed ---
+
+    // Check if popup goes offscreen and reposition if needed
     const popupRect = popup.getBoundingClientRect();
+
+    // Adjust horizontal position if going off right edge
+    if (popupRect.right > window.innerWidth) {
+      const newX = window.innerWidth - popupRect.width - 10;
+      popup.style.left = `${Math.max(10, newX)}px`;
+    }
+
+    // Adjust vertical position if going off bottom edge
     if (popupRect.bottom > window.innerHeight) {
-      // Place above the highlight instead
       let newY = posY;
-      let newX = posX;
       if (this.highlightManager.currentHighlight) {
         const rect =
           this.highlightManager.currentHighlight.getBoundingClientRect();
-        newY = rect.top - (popupRect.height +30);
-        newX = rect.left; // Align left edge with highlight
+        newY = rect.top - popupRect.height - 5; // Above highlight
       } else {
-        newY = posY - popupRect.height;
-        // newX remains as posX
+        newY = posY - popupRect.height - 10;
       }
       // Prevent going off the top
-      if (newY < 0) newY = 0;
+      newY = Math.max(10, newY);
       popup.style.top = `${newY}px`;
-      popup.style.left = `${newX}px`; // Ensure left is set
     }
 
     this.popup = popup;
     this.setupPopupEventListeners(character);
-    //this.setupPopupMouseEvents();
   }
-
-  // setupPopupMouseEvents() {
-  //   if (!this.popup) return;
-
-  //   this.popup.addEventListener("mouseenter", () => {
-  //     this.isMouseOverPopup = true;
-  //     clearTimeout(this.hideTimeout);
-  //   });
-
-  //   this.popup.addEventListener("mouseleave", () => {
-  //     this.isMouseOverPopup = false;
-  //     this.scheduleHidePopup();
-  //   });
-  // }
 
   scheduleHidePopup() {
     clearTimeout(this.hideTimeout);
@@ -111,7 +101,7 @@ class PopupManager {
         this.hidePopup();
         this.highlightManager.removeLookupHighlight();
       }
-    }, 50); // 50ms grace period
+    }, 50);
   }
 
   createPopupContent(character) {
@@ -125,26 +115,42 @@ class PopupManager {
     if (matches.length === 0) {
       return `
         <div class="popup-content">
-          <div class="character highlight">${character}</div>
-          <div class="definition">Character not found in dictionary</div>
-          <div class="popup-buttons">
+          <div class="character-container">
+            <div class="character highlight">${character}</div>
           </div>
+          <div class="definition">Character not found in dictionary</div>
+          ${this.createAnkiButton()}
         </div>
       `;
     }
 
+    // Get pinyin from first match for ruby text and pronunciation
+    pinyin = matches[0].pinyin;
+
+    // Split pinyin and character for proper spacing
+    const pinyinSyllables = pinyin.split(" ");
+    const characters = character.split("");
+
+    // Create ruby text with proper spacing
+    let rubyText = "";
+    if (characters.length === pinyinSyllables.length) {
+      rubyText = characters
+        .map(
+          (char, i) =>
+            `<ruby>${char}<rt>${pinyinSyllables[i] || ""}</rt></ruby>`
+        )
+        .join("");
+    } else {
+      rubyText = `<ruby>${character}<rt>${pinyin}</rt></ruby>`;
+    }
+
     const definitionsHtml = matches
       .map((def, idx) => {
-        pinyin = def.pinyin;
-        const variants =
-          def.traditional !== def.simplified
-            ? `<div class="variants">Traditional: ${def.traditional} | Simplified: ${def.simplified}</div>`
-            : "";
-
         const defs = def.definition
           .split(";")
           .map((d) => d.trim())
           .filter(Boolean);
+
         const bullets =
           defs.length > 1
             ? `<ul class="definition-list">${defs
@@ -152,72 +158,63 @@ class PopupManager {
                 .join("")}</ul>`
             : `<div class="definition">${defs[0]}</div>`;
 
-        // Add pronunciation button to pinyin section
-        const pronunciationBtn = `
-          <button 
-            class="pronunciation-btn" 
-            title="Play pronunciation"
-            data-word="${character}"
-            data-pinyin="${def.pinyin}"
-          >
-            <span class="icon">🔊</span>
-          </button>
-        `;
-
         return `
-        <div class="definition-block">
-          ${variants}
-          ${bullets}
-        </div>
-      `;
+          <div class="definition-block">
+            ${bullets}
+          </div>
+        `;
       })
       .join("");
-    
-    // Create Anki button with status 
-    const ankiButton = this.createAnkiButton();
+
+    // Create pronunciation button
+    const pronunciationBtn = `
+      <button 
+        class="pronunciation-btn" 
+        title="Play pronunciation"
+        data-word="${character}"
+        data-pinyin="${pinyin}"
+      >
+        <span class="icon">🔊</span>
+      </button>
+    `;
 
     return `
       <div class="popup-content">
-        <ruby class="character highlight">${character}<rt>${pinyin}</rt></ruby>
-        ${
-          frequency
-            ? `<div class="frequency">Frequency: ${frequency}</div>`
-            : ""
-        }
+        <div class="character-container">
+          <div class="character highlight">${rubyText}</div>
+          ${pronunciationBtn}
+          ${
+            frequency
+              ? `<div class="frequency">Frequency: ${frequency}</div>`
+              : ""
+          }
+        </div>
         <div class="definitions-scroll">${definitionsHtml}</div>
         <div class="popup-buttons">
           <button class="${isKnown ? "mark-unknown-btn" : "mark-known-btn"}">
             ${isKnown ? "Mark Unknown" : "Mark Known"}
           </button>
-          ${ankiButton}
         </div>
+        ${this.createAnkiButton()}
       </div>
     `;
   }
 
   createAnkiButton() {
     if (this.isAnkiAvailable === null) {
-      return `<button class="anki-btn anki-checking" disabled>Checking Anki...</button>`;
+      return `<button class="anki-btn anki-checking" disabled title="Checking Anki connection...">A</button>`;
     } else if (this.isAnkiAvailable === false) {
-      return `<button class="anki-btn anki-unavailable" disabled title="Anki not available. Make sure Anki is running with AnkiConnect add-on.">Anki Offline</button>`;
+      return `<button class="anki-btn anki-unavailable" disabled title="Anki not available. Make sure Anki is running with AnkiConnect add-on.">A</button>`;
     } else {
-      return `<button class="anki-btn anki-available">Anki</button>`;
+      return `<button class="anki-btn anki-available" title="Add to Anki">A</button>`;
     }
   }
 
   setupPopupEventListeners(character) {
-    const addVocabBtn = this.popup.querySelector(
-      ".add-vocab-btn:not([disabled])"
-    );
     const markKnownBtn = this.popup.querySelector(".mark-known-btn");
     const markUnknownBtn = this.popup.querySelector(".mark-unknown-btn");
-    const closeBtn = this.popup.querySelector(".close-btn");
     const ankiBtn = this.popup.querySelector(".anki-btn");
-
-    // Add pronunciation button listeners
     const pronunciationBtns = this.popup.querySelectorAll(".pronunciation-btn");
-
-    addVocabBtn?.addEventListener("click", () => this.addToVocab(character));
 
     if (markKnownBtn) {
       markKnownBtn.addEventListener("click", async () => {
@@ -292,11 +289,8 @@ class PopupManager {
         await this.handlePronunciation(btn, word, pinyin);
       });
     });
-
-    closeBtn?.addEventListener("click", () => this.hidePopup());
   }
 
-  // Add new method to handle pronunciation
   async handlePronunciation(button, word, pinyin) {
     try {
       // Update button state to loading
@@ -320,7 +314,7 @@ class PopupManager {
           button.classList.remove("playing");
           button.disabled = false;
           button.title = "Play pronunciation";
-        }, 2000); // Assume audio finishes within 2 seconds
+        }, 2000);
       } else {
         // Error state
         button.classList.remove("loading");
@@ -351,13 +345,12 @@ class PopupManager {
     }
   }
 
-  // Handle Anki card creation
   async handleAnkiCardCreation(character, button) {
     try {
       // Update button to show loading state
-      const originalText = button.textContent;
-      button.textContent = "Creating...";
+      button.textContent = "⏳";
       button.disabled = true;
+      button.title = "Creating Anki card...";
 
       // Get frequency data if available
       let frequency = "";
@@ -365,17 +358,18 @@ class PopupManager {
         frequency = this.frequencyManager.getFrequency(character) || "";
       }
 
-      // Create card using the correct method name
+      // Create card using AnkiManager
       const result = await this.ankiManager.createCardFromPopup(
         character,
         this.dictionaryManager,
         { frequency: frequency }
-      ); // FIXED: Was createEnhancedCard
+      );
 
       if (result.success) {
         // Success feedback
-        button.textContent = "✓ Added!";
+        button.textContent = "✓";
         button.className = "anki-btn anki-success";
+        button.title = "Successfully added to Anki!";
 
         // Show success message briefly
         setTimeout(() => {
@@ -389,38 +383,42 @@ class PopupManager {
       } else {
         // Error feedback
         if (result.error === "Card already exists") {
-          button.textContent = "Already exists";
+          button.textContent = "!";
           button.className = "anki-btn anki-duplicate";
+          button.title = "Card already exists in Anki";
         } else {
-          button.textContent = "Error";
+          button.textContent = "✗";
           button.className = "anki-btn anki-error";
+          button.title = "Failed to create Anki card";
           console.error("Anki card creation failed:", result.error);
         }
 
         // Reset button after 2 seconds
         setTimeout(() => {
-          button.textContent = originalText;
+          button.textContent = "A";
           button.className = "anki-btn anki-available";
           button.disabled = false;
+          button.title = "Add to Anki";
         }, 2000);
       }
     } catch (error) {
       console.error("Error in Anki card creation:", error);
 
       // Error feedback
-      button.textContent = "Error";
+      button.textContent = "✗";
       button.className = "anki-btn anki-error";
+      button.title = "Error creating Anki card";
 
       // Reset button after 2 seconds
       setTimeout(() => {
-        button.textContent = "Add to Anki";
+        button.textContent = "A";
         button.className = "anki-btn anki-available";
         button.disabled = false;
+        button.title = "Add to Anki";
       }, 2000);
     }
   }
 
-  // Save word to vocabulary list when looked up
   saveToVocabList(character) {
     try {
       const matches = this.dictionaryManager.dictionary[character] || [];
@@ -470,7 +468,6 @@ class PopupManager {
     }
   }
 
-  // Increment daily session counter
   incrementSessionCounter() {
     if (window.chrome && chrome.storage && chrome.storage.local) {
       chrome.storage.local.get(
