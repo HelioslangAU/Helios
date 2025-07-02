@@ -31,6 +31,16 @@ class VocabManager {
     }
   }
 
+  async clearKnownWords() {
+    this.knownWords.clear();
+    try {
+      await chrome.storage.local.set({ chineseExtensionKnownWords: [] });
+      console.log('Known words cleared in extension storage');
+    } catch (error) {
+      console.warn('Could not clear known words:', error);
+    }
+  }
+
   exportKnownWordsToFile() {
     const data = {
       knownWords: [...this.knownWords],

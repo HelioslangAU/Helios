@@ -4,6 +4,15 @@
 class HeliosSettingsVocabulary {
   constructor(manager) {
     this.manager = manager;
+    this.vocabManager= null
+
+    this.init();
+  }
+
+  async init() {
+    this.vocabManager = new VocabManager();
+    await this.vocabManager.loadKnownWords();
+    await this.loadStatistics();
   }
 
   async loadStatistics() {
@@ -12,7 +21,6 @@ class HeliosSettingsVocabulary {
 
       if (chrome.storage && chrome.storage.local) {
         const result = await chrome.storage.local.get([
-          "chineseExtensionKnownWords",
           "chineseExtensionVocabList",
           "todayLookupCount",
           "totalLookups",
@@ -20,10 +28,10 @@ class HeliosSettingsVocabulary {
           "lastResetDate",
         ]);
 
+
         console.log("🔍 Raw storage data:", result);
 
         // Calculate known words count
-        const knownWordsCount = result.chineseExtensionKnownWords?.length || 0;
 
         // Calculate vocab list count (for total lookups approximation)
         const vocabListCount = result.chineseExtensionVocabList?.length || 0;
@@ -49,8 +57,9 @@ class HeliosSettingsVocabulary {
         const ankiCards = result.ankiCardsCreated || 0;
 
         // Update UI elements
+        await this.vocabManager.loadKnownWords();
         const elements = {
-          "stat-known-words": knownWordsCount,
+          "stat-known-words": this.vocabManager.knownWords.size,
           "stat-total-lookups": totalLookups,
           "stat-today-lookups": todayLookups,
           "stat-anki-cards": ankiCards,
@@ -96,87 +105,31 @@ class HeliosSettingsVocabulary {
     const textarea = document.getElementById("bulk-import-textarea");
     const text = textarea.value.trim();
 
-    if (!text) {
-      alert("Please enter some words to import.");
+
+    // Parse input text - split by various delimiters and filter Chinese characters
+    const words = text.split(/[\s,\n\r]+/).filter((word) => word.trim());
+    const chineseWords = words.filter((word) =>
+      /[\u4e00-\u9fff\u3400-\u4dbf]/.test(word)
+    );
+
+    if (chineseWords.length === 0) {
+      alert("No valid Chinese words found. Please check your input.");
       return;
     }
 
     try {
-      console.log("🔍 Starting word import...");
+      // Use VocabManager for consistency
+      //await this.vocabManager.loadKnownWords();
+      await this.vocabManager.markMultipleWordsAsKnown(chineseWords);
 
-      // Parse input text - split by various delimiters and filter Chinese characters
-      const words = text.split(/[\s,\n\r]+/).filter((word) => word.trim());
-      const chineseWords = words.filter((word) =>
-        /[\u4e00-\u9fff\u3400-\u4dbf]/.test(word)
+      textarea.value = "";
+      await this.loadStatistics();
+
+      alert(
+        `Successfully imported ${chineseWords.length} Chinese words!\n\n` +
+          `Total words processed: ${words.length}\n` +
+          `Valid Chinese words: ${chineseWords.length}`
       );
-
-      if (chineseWords.length === 0) {
-        alert("No valid Chinese words found. Please check your input.");
-        return;
-      }
-
-      console.log(`🔍 Found ${chineseWords.length} Chinese words to import`);
-
-      if (chrome.storage && chrome.storage.local) {
-        const result = await chrome.storage.local.get([
-          "chineseExtensionKnownWords",
-          "chineseExtensionVocabList",
-        ]);
-
-        // Update known words list
-        const existingKnown = new Set(result.chineseExtensionKnownWords || []);
-        const newKnownWords = [];
-
-        chineseWords.forEach((word) => {
-          if (!existingKnown.has(word)) {
-            newKnownWords.push(word);
-          }
-          existingKnown.add(word);
-        });
-
-        // Update vocabulary list with detailed entries
-        const existingVocab = result.chineseExtensionVocabList || [];
-        const existingVocabWords = new Set(
-          existingVocab.map((item) => item.character || item.word)
-        );
-
-        const newVocabItems = chineseWords
-          .filter((word) => !existingVocabWords.has(word))
-          .map((word) => ({
-            character: word,
-            word: word,
-            definition: "Imported word",
-            pinyin: "",
-            dateAdded: new Date().toISOString(),
-            reviewCount: 0,
-          }));
-
-        const updatedVocab = [...existingVocab, ...newVocabItems];
-
-        // Save everything back to storage
-        await chrome.storage.local.set({
-          chineseExtensionKnownWords: Array.from(existingKnown),
-          chineseExtensionVocabList: updatedVocab,
-        });
-
-        // Clear the textarea
-        textarea.value = "";
-
-        // Refresh statistics
-        await this.loadStatistics();
-
-        // Show success message
-        alert(
-          `Successfully imported ${chineseWords.length} Chinese words!\n\n` +
-            `Total words processed: ${words.length}\n` +
-            `Valid Chinese words: ${chineseWords.length}\n` +
-            `New words added: ${newKnownWords.length}`
-        );
-
-        console.log(
-          `🔍 Import completed: ${newKnownWords.length} new words added`
-        );
-      }
     } catch (error) {
       console.error("🔍 Error importing words:", error);
       alert("Error importing words. Please try again.");
@@ -185,62 +138,7 @@ class HeliosSettingsVocabulary {
 
   async exportKnownWords() {
     try {
-      console.log("🔍 Starting export...");
-
-      let knownWords = [];
-
-      if (chrome.storage && chrome.storage.local) {
-        const result = await chrome.storage.local.get([
-          "chineseExtensionKnownWords",
-          "chineseExtensionVocabList",
-        ]);
-
-        // Prefer the known words list, fall back to vocab list
-        if (
-          result.chineseExtensionKnownWords &&
-          result.chineseExtensionKnownWords.length > 0
-        ) {
-          knownWords = result.chineseExtensionKnownWords;
-        } else if (result.chineseExtensionVocabList) {
-          knownWords = result.chineseExtensionVocabList.map(
-            (item) => item.character || item.word
-          );
-        }
-      }
-
-      if (knownWords.length === 0) {
-        alert("No known words to export.");
-        return;
-      }
-
-      // Create export data
-      const exportData = {
-        words: knownWords,
-        exportDate: new Date().toISOString(),
-        totalWords: knownWords.length,
-        source: "Helios Extension",
-        version: "1.1.0",
-      };
-
-      // Create and download file
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-        type: "application/json",
-      });
-      const url = URL.createObjectURL(blob);
-
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `helios-known-words-${
-        new Date().toISOString().split("T")[0]
-      }.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-
-      URL.revokeObjectURL(url);
-
-      alert(`Successfully exported ${knownWords.length} known words!`);
-      console.log(`🔍 Export completed: ${knownWords.length} words`);
+      this.vocabManager.exportKnownWordsToFile();
     } catch (error) {
       console.error("🔍 Error exporting words:", error);
       alert("Error exporting words. Please try again.");
@@ -265,15 +163,7 @@ class HeliosSettingsVocabulary {
     }
 
     try {
-      console.log("🔍 Clearing all known words...");
-
-      if (chrome.storage && chrome.storage.local) {
-        await chrome.storage.local.set({
-          chineseExtensionKnownWords: [],
-          chineseExtensionVocabList: [],
-        });
-      }
-
+      await this.vocabManager.clearKnownWords();
       await this.loadStatistics();
       alert("All known words have been cleared successfully.");
       console.log("🔍 All known words cleared");
