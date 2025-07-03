@@ -46,6 +46,8 @@
   flex-direction: column;
   animation: heliosEntranceFloat 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
+  ruby-position: over !important;
+
 }
 
 /* Ambient background glow */
@@ -89,7 +91,7 @@
   animation: heliosShimmer 4s ease-in-out infinite alternate;
   z-index: 1;
 }
-
+/*
 @keyframes heliosShimmer {
   0% {
     opacity: 0.8;
@@ -132,7 +134,7 @@
 }
 
 .character.highlight {
-  font-size: 48px;
+  font-size: 42px;
   font-weight: 900;
   color: var(--helios-text-primary);
   letter-spacing: 2px;
@@ -142,6 +144,7 @@
 }
 
 .character.highlight ruby {
+
   display: inline-block;
   margin-right: 4px;
 }
@@ -327,7 +330,7 @@
 
 .definition-list li {
   position: relative;
-  margin-bottom: 8px;
+  margin-bottom: 2px;
   padding-left: 20px;
   line-height: 1.5;
   color: var(--helios-text-primary);
@@ -605,7 +608,7 @@
 .chinese-unknown-word {
   text-decoration: underline !important;
   text-decoration-color: var(--helios-accent-primary) !important;
-  text-decoration-thickness: 2px !important;
+  text-decoration-thickness: 0px !important;
   text-underline-offset: 3px !important;
   cursor: help !important;
   transition: all 0.3s ease;
@@ -623,8 +626,8 @@
     var(--helios-accent-secondary)
   ) !important;
   color: white !important;
-  border-radius: 6px !important;
-  padding: 3px 6px !important;
+  border-radius: 3px !important;
+  padding: 0px 0px !important;
   box-shadow: 0 4px 20px var(--helios-accent-glow) !important;
   transition: all 0.4s ease !important;
   animation: lookupGlow 2s ease-in-out infinite alternate;
