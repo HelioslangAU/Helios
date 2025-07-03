@@ -1,266 +1,136 @@
+// Updated Content Script AnkiManager - Simplified and Clean
 class AnkiManager {
   constructor() {
-    this.ankiConnectUrl = "http://127.0.0.1:8765";
-    this.defaultDeck = "Chinese::Helios";
-    this.defaultNoteType = "Basic";
-    this.isAnkiAvailable = null;
+    this.isInitialized = false;
+    this.dictionaryManager = null;
+    this.status = {
+      connected: false,
+      ready: false,
+      error: null,
+    };
   }
 
-  // Check if AnkiConnect is available (via background script)
-  async checkAnkiConnect() {
-    try {
-      const response = await this.sendMessage("CHECK_ANKI_CONNECT");
-      this.isAnkiAvailable = response.isAvailable;
-      return this.isAnkiAvailable;
-    } catch (error) {
-      console.warn("AnkiConnect not available:", error);
-      this.isAnkiAvailable = false;
-      return false;
-    }
+  // Initialize with dictionary manager
+  initialize(dictionaryManager) {
+    this.dictionaryManager = dictionaryManager;
+    this.isInitialized = true;
+    console.log("🃏 AnkiManager initialized with dictionary");
   }
 
-  // FIXED: Send message to background script with better error handling
-  async sendMessage(type, data = {}) {
+  // Send message to background script
+  async sendMessage(action, data = {}) {
     return new Promise((resolve, reject) => {
-      // Check if we're in a chrome extension context
-      if (
-        !window.chrome ||
-        !window.chrome.runtime ||
-        !window.chrome.runtime.sendMessage
-      ) {
+      if (!chrome.runtime?.sendMessage) {
         reject(new Error("Chrome extension context not available"));
         return;
       }
 
-      try {
-        const messageData = { type, ...data };
-        console.log("🃏 Sending message to background:", messageData);
+      const message = { action, ...data };
+      const timeout = setTimeout(() => {
+        reject(new Error("Message timeout"));
+      }, 10000);
 
-        chrome.runtime.sendMessage(messageData, (response) => {
-          if (chrome.runtime.lastError) {
-            console.error("🃏 Chrome runtime error:", chrome.runtime.lastError);
-            reject(new Error(chrome.runtime.lastError.message));
-          } else if (response && response.success) {
-            console.log("🃏 Background response success:", response);
-            resolve(response);
-          } else {
-            console.error("🃏 Background response error:", response);
-            reject(new Error(response?.error || "Unknown error"));
-          }
-        });
-      } catch (error) {
-        console.error("🃏 Error sending message:", error);
-        reject(error);
-      }
+      chrome.runtime.sendMessage(message, (response) => {
+        clearTimeout(timeout);
+
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+        } else if (response?.success) {
+          resolve(response);
+        } else {
+          reject(new Error(response?.error || "Unknown error"));
+        }
+      });
     });
   }
 
-  // Create deck if it doesn't exist (via background script)
-  async ensureDeckExists(deckName = this.defaultDeck) {
-    // This is now handled by the background script
-    return true;
-  }
-
-  // Get available note types (via background script)
-  async getNoteTypes() {
+  // Test connection to Anki
+  async checkAnkiConnect() {
     try {
-      const response = await this.sendMessage("GET_ANKI_NOTE_TYPES");
-      return response.noteTypes || [];
+      const response = await this.sendMessage("ANKI_TEST_CONNECTION");
+      this.status.connected = response.success;
+      this.status.error = response.error;
+      return response.success;
     } catch (error) {
-      console.error("Error getting note types:", error);
-      return ["Basic", "Basic (and reversed card)", "Cloze"];
-    }
-  }
-
-  // FIXED: Create basic Chinese learning card (via background script)
-  async createCard(wordData, options = {}) {
-    try {
-      console.log(
-        "🃏 Creating card with word data:",
-        wordData,
-        "options:",
-        options
-      );
-
-      // Validate input data
-      if (!wordData) {
-        throw new Error("No word data provided");
-      }
-
-      // Ensure we have at least some character data
-      if (
-        !wordData.character &&
-        !wordData.simplified &&
-        !wordData.traditional
-      ) {
-        throw new Error("No character data provided in word data");
-      }
-
-      const response = await this.sendMessage("CREATE_ANKI_CARD", {
-        wordData,
-        options,
-      });
-
-      console.log("🃏 Card creation response:", response);
-
-      return {
-        success: true,
-        noteId: response.noteId,
-        message: response.message,
-      };
-    } catch (error) {
-      console.error("🃏 Error creating Anki card:", error);
-      return {
-        success: false,
-        error: error.message,
-      };
-    }
-  }
-
-  // REMOVED: prepareCardFields - This is now handled in the background script
-
-  // Find duplicate cards (via background script)
-  async findDuplicates(expression) {
-    try {
-      // This is now handled by the background script during card creation
-      return [];
-    } catch (error) {
-      console.error("Error finding duplicates:", error);
-      return [];
-    }
-  }
-
-  // FIXED: Get card creation settings from storage (via background script)
-  async getSettings() {
-    try {
-      const response = await this.sendMessage("GET_ANKI_SETTINGS");
-      console.log("🃏 Retrieved Anki settings:", response.settings);
-      return response.settings;
-    } catch (error) {
-      console.error("Error getting Anki settings:", error);
-      // Return sensible defaults
-      return {
-        ankiDeck: this.defaultDeck,
-        deck: this.defaultDeck, // compatibility
-        ankiNoteType: this.defaultNoteType,
-        noteType: this.defaultNoteType, // compatibility
-        ankiFieldMappings: {},
-        fieldMappings: {}, // compatibility
-        checkDuplicates: true,
-        allowDuplicates: false,
-        includeSentence: true,
-        includeUrl: true,
-        tags: ["helios"],
-      };
-    }
-  }
-
-  // Save card creation settings (via background script)
-  async saveSettings(settings) {
-    try {
-      await this.sendMessage("SAVE_ANKI_SETTINGS", { settings });
-      return true;
-    } catch (error) {
-      console.error("Error saving Anki settings:", error);
+      this.status.connected = false;
+      this.status.error = error.message;
       return false;
     }
   }
 
-  // FIXED: Create card from popup context with better data preparation
-  async createCardFromPopup(character, dictionaryManager, options = {}) {
+  // Get current status
+  async getStatus() {
+    await this.checkAnkiConnect();
+    return this.status;
+  }
+
+  // Get available decks
+  async getDecks() {
     try {
-      console.log("🃏 Creating card from popup for character:", character);
-
-      // Validate inputs
-      if (!character) {
-        throw new Error("No character provided");
-      }
-
-      if (!dictionaryManager || !dictionaryManager.dictionary) {
-        throw new Error("Dictionary manager not available");
-      }
-
-      // Get word data from dictionary
-      const matches = dictionaryManager.dictionary[character] || [];
-      if (matches.length === 0) {
-        throw new Error(`Word "${character}" not found in dictionary`);
-      }
-
-      // Use first match (most common)
-      const wordMatch = matches[0];
-      console.log("🃏 Dictionary match found:", wordMatch);
-
-      // Get sentence context (try to find the highlighted text in context)
-      let sentence = "";
-      try {
-        sentence = this.extractSentenceContext(character);
-        console.log("🃏 Extracted sentence context:", sentence);
-      } catch (error) {
-        console.warn("Could not extract sentence context:", error);
-      }
-
-      // FIXED: Prepare word data with consistent field names
-      const wordData = {
-        character: character,
-        traditional: wordMatch.traditional || character,
-        simplified: wordMatch.simplified || character,
-        pinyin: wordMatch.pinyin || wordMatch.reading || "",
-        definition: wordMatch.definition || wordMatch.meaning || "",
-        sentence: sentence,
-        url: window.location.href,
-        frequency: options.frequency || wordMatch.frequency || "",
-      };
-
-      console.log("🃏 Prepared word data:", wordData);
-
-      // Get user settings
-      const settings = await this.getSettings();
-      console.log("🃏 Retrieved settings:", settings);
-
-      // FIXED: Prepare final options with proper key names
-      const finalOptions = {
-        deck:
-          options.deck ||
-          settings.ankiDeck ||
-          settings.deck ||
-          this.defaultDeck,
-        noteType:
-          options.noteType ||
-          settings.ankiNoteType ||
-          settings.noteType ||
-          this.defaultNoteType,
-        fieldMappings:
-          options.fieldMappings ||
-          settings.ankiFieldMappings ||
-          settings.fieldMappings ||
-          {},
-        checkDuplicates:
-          options.checkDuplicates !== undefined
-            ? options.checkDuplicates
-            : settings.checkDuplicates !== undefined
-            ? settings.checkDuplicates
-            : true,
-        allowDuplicates:
-          options.allowDuplicates !== undefined
-            ? options.allowDuplicates
-            : settings.allowDuplicates !== undefined
-            ? settings.allowDuplicates
-            : false,
-        tags: options.tags || settings.tags || ["helios"],
-        includeSentence:
-          options.includeSentence !== undefined
-            ? options.includeSentence
-            : settings.includeSentence !== undefined
-            ? settings.includeSentence
-            : true,
-      };
-
-      console.log("🃏 Final options for card creation:", finalOptions);
-
-      // Create the card
-      return await this.createCard(wordData, finalOptions);
+      const response = await this.sendMessage("ANKI_GET_DECKS");
+      return response.decks || [];
     } catch (error) {
-      console.error("🃏 Error creating card from popup:", error);
+      console.error("Error getting decks:", error);
+      return [];
+    }
+  }
+
+  // Get available note types
+  async getNoteTypes() {
+    try {
+      const response = await this.sendMessage("ANKI_GET_NOTE_TYPES");
+      return response.noteTypes || [];
+    } catch (error) {
+      console.error("Error getting note types:", error);
+      return ["Basic"];
+    }
+  }
+
+  // Get fields for a note type
+  async getNoteTypeFields(noteType) {
+    try {
+      const response = await this.sendMessage("ANKI_GET_NOTE_TYPE_FIELDS", {
+        noteType,
+      });
+      return response.fields || [];
+    } catch (error) {
+      console.error("Error getting note type fields:", error);
+      return ["Front", "Back"];
+    }
+  }
+
+  // Create card from character
+  async createCard(character, options = {}) {
+    try {
+      if (!this.isInitialized) {
+        throw new Error("AnkiManager not initialized");
+      }
+
+      if (!character) {
+        throw new Error("Character is required");
+      }
+
+      // Extract word data
+      const wordData = this.extractWordData(character);
+
+      // Create card via background script
+      const response = await this.sendMessage("ANKI_CREATE_CARD", {
+        wordData,
+        options,
+      });
+
+      if (response.success) {
+        console.log("🃏 Card created successfully:", response.noteId);
+        return {
+          success: true,
+          noteId: response.noteId,
+          message: response.message,
+        };
+      } else {
+        throw new Error(response.error);
+      }
+    } catch (error) {
+      console.error("🃏 Card creation failed:", error);
       return {
         success: false,
         error: error.message,
@@ -268,117 +138,149 @@ class AnkiManager {
     }
   }
 
-  // IMPROVED: Extract sentence context around the character
+  // Extract word data from character and context
+  extractWordData(character) {
+    const wordData = {
+      character: character,
+      timestamp: new Date().toISOString(),
+      url: window.location.href,
+    };
+
+    // Get dictionary data
+    if (this.dictionaryManager?.dictionary) {
+      const matches = this.dictionaryManager.dictionary[character];
+      if (matches && matches.length > 0) {
+        const match = matches[0];
+        wordData.traditional = match.traditional || character;
+        wordData.simplified = match.simplified || character;
+        wordData.pinyin = match.pinyin || match.reading || "";
+        wordData.definition = match.definition || match.meaning || "";
+        wordData.frequency = match.frequency;
+      }
+    }
+
+    // Extract sentence context
+    wordData.sentence = this.extractSentenceContext(character);
+
+    return wordData;
+  }
+
+  // Extract sentence context from the page
   extractSentenceContext(character) {
     try {
-      console.log("🃏 Extracting sentence context for:", character);
-
-      // Try to get the sentence containing the highlighted character
+      // Method 1: Find highlighted element
       const highlight = document.querySelector(
-        ".lookup-highlight, .helios-highlight, [data-helios-highlight]"
+        ".lookup-highlight, .helios-highlight"
       );
-      if (!highlight) {
-        console.log("🃏 No highlight element found, trying selection");
-
-        // Try to get selected text context
-        const selection = window.getSelection();
-        if (selection.rangeCount > 0) {
-          const range = selection.getRangeAt(0);
-          const container = range.commonAncestorContainer;
-          if (container.nodeType === Node.TEXT_NODE) {
-            return this.extractContextFromTextNode(container, character);
-          }
-        }
-
-        return "";
+      if (highlight) {
+        const context = this.getContextFromElement(highlight, character);
+        if (context) return context;
       }
 
-      let contextNode = highlight.parentNode;
-      let attempts = 0;
+      // Method 2: Search in visible text elements
+      const textElements = document.querySelectorAll("p, div, span, td, li");
+      for (const element of textElements) {
+        const text = element.textContent || "";
+        if (
+          text.includes(character) &&
+          text.length > character.length &&
+          text.length <= 200
+        ) {
+          return text.trim();
+        }
+      }
 
-      // Walk up the DOM to find a good context container
-      while (contextNode && attempts < 5) {
-        const text = contextNode.textContent || "";
+      return "";
+    } catch (error) {
+      console.warn("Could not extract sentence context:", error);
+      return "";
+    }
+  }
 
-        // Look for sentence boundaries
-        const sentences = text.split(/[.!?。！？\n]/).filter((s) => s.trim());
+  // Get context from specific element
+  getContextFromElement(element, character) {
+    let current = element;
+
+    // Walk up DOM tree to find good context
+    for (let i = 0; i < 5; i++) {
+      if (!current) break;
+
+      const text = current.textContent || "";
+      if (text.includes(character)) {
+        // Try to find sentence boundaries
+        const sentences = text.split(/[.!?。！？\n]+/);
         for (const sentence of sentences) {
-          if (
-            sentence.includes(character) &&
-            sentence.trim().length > character.length &&
-            sentence.trim().length < 200 // Reasonable sentence length
-          ) {
-            console.log("🃏 Found sentence context:", sentence.trim());
+          if (sentence.includes(character) && sentence.trim().length <= 200) {
             return sentence.trim();
           }
         }
 
-        contextNode = contextNode.parentNode;
-        attempts++;
-      }
-
-      // Fallback: try to get some surrounding text
-      if (highlight.parentNode) {
-        const parentText = highlight.parentNode.textContent || "";
-        const charIndex = parentText.indexOf(character);
+        // Fallback: get surrounding text
+        const charIndex = text.indexOf(character);
         if (charIndex !== -1) {
-          const start = Math.max(0, charIndex - 30);
-          const end = Math.min(parentText.length, charIndex + 30);
-          const context = parentText.substring(start, end).trim();
-          console.log("🃏 Fallback context:", context);
-          return context;
+          const start = Math.max(0, charIndex - 50);
+          const end = Math.min(text.length, charIndex + 50);
+          return text.substring(start, end).trim();
         }
       }
 
-      return "";
-    } catch (error) {
-      console.warn("🃏 Error extracting sentence context:", error);
-      return "";
+      current = current.parentNode;
     }
+
+    return "";
   }
 
-  // Helper method to extract context from text node
-  extractContextFromTextNode(textNode, character) {
+  // Quick create card (for popup usage)
+  async quickCreateCard(character, dictionaryManager) {
+    if (!this.isInitialized) {
+      this.initialize(dictionaryManager);
+    }
+
+    return await this.createCard(character);
+  }
+
+  // Create card from popup context
+  async createCardFromPopup(character, dictionaryManager, options = {}) {
+    if (!this.isInitialized) {
+      this.initialize(dictionaryManager);
+    }
+
+    return await this.createCard(character, options);
+  }
+
+  // Get current settings
+  async getSettings() {
     try {
-      const text = textNode.textContent || "";
-      const charIndex = text.indexOf(character);
-      if (charIndex === -1) return "";
-
-      // Try to find sentence boundaries around the character
-      let start = charIndex;
-      let end = charIndex;
-
-      // Look backwards for sentence start
-      while (
-        start > 0 &&
-        ![".", "!", "?", "。", "！", "？", "\n"].includes(text[start - 1])
-      ) {
-        start--;
-      }
-
-      // Look forwards for sentence end
-      while (
-        end < text.length - 1 &&
-        ![".", "!", "?", "。", "！", "？", "\n"].includes(text[end + 1])
-      ) {
-        end++;
-      }
-
-      const sentence = text.substring(start, end + 1).trim();
-      return sentence.length > character.length ? sentence : "";
+      const response = await this.sendMessage("ANKI_LOAD_SETTINGS");
+      return response.settings || {};
     } catch (error) {
-      console.warn("Error extracting context from text node:", error);
-      return "";
+      console.error("Error getting settings:", error);
+      return {};
     }
   }
 
-  // Test connection and show status (via background script)
+  // Save settings
+  async saveSettings(settings) {
+    try {
+      const response = await this.sendMessage("ANKI_SAVE_SETTINGS", {
+        settings,
+      });
+      return response.success;
+    } catch (error) {
+      console.error("Error saving settings:", error);
+      return false;
+    }
+  }
+
+  // Test connection
   async testConnection() {
     try {
-      const response = await this.sendMessage("TEST_ANKI_CONNECTION");
+      const response = await this.sendMessage("ANKI_TEST_CONNECTION");
       return {
-        success: true,
-        message: response.message,
+        success: response.success,
+        message: response.success
+          ? `Connected to AnkiConnect (version ${response.version})`
+          : response.error,
         version: response.version,
       };
     } catch (error) {
@@ -389,206 +291,7 @@ class AnkiManager {
     }
   }
 
-  // Get available decks from Anki (via background script)
-  async getDecks() {
-    try {
-      const response = await this.sendMessage("GET_ANKI_DECKS");
-      return response.decks || [];
-    } catch (error) {
-      console.error("Error getting decks:", error);
-      return [];
-    }
-  }
-
-  // Get fields for a specific note type (via background script)
-  async getNoteTypeFields(noteType) {
-    try {
-      const response = await this.sendMessage("GET_ANKI_NOTE_TYPE_FIELDS", {
-        noteType,
-      });
-      return response.fields || [];
-    } catch (error) {
-      console.error("Error getting note type fields:", error);
-      return [];
-    }
-  }
-
-  // IMPROVED: Validate current settings
-  validateSettings(settings) {
-    const errors = [];
-
-    if (!settings.ankiDeck && !settings.deck) {
-      errors.push("Please select a deck");
-    }
-
-    if (!settings.ankiNoteType && !settings.noteType) {
-      errors.push("Please select a note type");
-    }
-
-    // Check if at least one field is mapped (either key structure)
-    const fieldMappings =
-      settings.ankiFieldMappings || settings.fieldMappings || {};
-    const hasMappings = Object.values(fieldMappings).some(
-      (value) => value && value.trim()
-    );
-
-    if (!hasMappings) {
-      // This is just a warning, not an error - auto-mapping will handle it
-      console.warn("No field mappings found - will use auto-mapping");
-    }
-
-    return errors;
-  }
-
-  // Get current settings for export
-  exportSettings(settings) {
-    return JSON.stringify(settings, null, 2);
-  }
-
-  // Import settings from JSON
-  async importSettings(jsonString) {
-    try {
-      const importedSettings = JSON.parse(jsonString);
-
-      // Validate imported settings
-      const errors = this.validateSettings(importedSettings);
-      if (errors.length > 0) {
-        throw new Error(`Invalid settings: ${errors.join(", ")}`);
-      }
-
-      // Save imported settings
-      const success = await this.saveSettings(importedSettings);
-      return success;
-    } catch (error) {
-      console.error("Error importing settings:", error);
-      return false;
-    }
-  }
-
-  // Check if Anki is available and ready
-  async isReady() {
-    try {
-      return await this.checkAnkiConnect();
-    } catch (error) {
-      return false;
-    }
-  }
-
-  // IMPROVED: Get comprehensive status information
-  async getStatus() {
-    try {
-      const isConnected = await this.checkAnkiConnect();
-
-      if (!isConnected) {
-        return {
-          connected: false,
-          message: "AnkiConnect not available",
-          ready: false,
-        };
-      }
-
-      const settings = await this.getSettings();
-      const errors = this.validateSettings(settings);
-
-      return {
-        connected: true,
-        message: "Connected to AnkiConnect",
-        ready: errors.length === 0,
-        settings: settings,
-        errors: errors,
-      };
-    } catch (error) {
-      return {
-        connected: false,
-        message: error.message,
-        ready: false,
-        error: error,
-      };
-    }
-  }
-
-  // Create multiple cards in batch
-  async createCardsBatch(wordDataArray, options = {}) {
-    const results = [];
-
-    for (const wordData of wordDataArray) {
-      try {
-        const result = await this.createCard(wordData, options);
-        results.push({
-          word:
-            wordData.character || wordData.simplified || wordData.traditional,
-          success: result.success,
-          noteId: result.noteId,
-          error: result.error,
-        });
-      } catch (error) {
-        results.push({
-          word:
-            wordData.character || wordData.simplified || wordData.traditional,
-          success: false,
-          error: error.message,
-        });
-      }
-    }
-
-    return results;
-  }
-
-  // FIXED: Helper method to create card with automatic field mapping
-  async createCardSmart(character, dictionaryManager, userSettings = {}) {
-    try {
-      console.log(
-        "🃏 Smart card creation for:",
-        character,
-        "with settings:",
-        userSettings
-      );
-
-      // Get current settings
-      const settings = await this.getSettings();
-      const finalSettings = { ...settings, ...userSettings };
-
-      console.log("🃏 Final settings for smart creation:", finalSettings);
-
-      // Validate settings before creating card
-      const errors = this.validateSettings(finalSettings);
-      if (errors.length > 0) {
-        console.warn("🃏 Settings validation warnings:", errors);
-        // Don't throw error - let background script handle with auto-mapping
-      }
-
-      // Create card with validated settings
-      return await this.createCardFromPopup(
-        character,
-        dictionaryManager,
-        finalSettings
-      );
-    } catch (error) {
-      console.error("🃏 Error in smart card creation:", error);
-      return {
-        success: false,
-        error: error.message,
-      };
-    }
-  }
-
-  // ADDED: Quick method for popup usage - simplified interface
-  async quickCreateCard(character, dictionaryManager) {
-    try {
-      console.log("🃏 Quick card creation for:", character);
-
-      // Use default settings
-      return await this.createCardFromPopup(character, dictionaryManager, {});
-    } catch (error) {
-      console.error("🃏 Error in quick card creation:", error);
-      return {
-        success: false,
-        error: error.message,
-      };
-    }
-  }
-
-  // ADDED: Get simplified status for popup display
+  // Get quick status for popup
   async getQuickStatus() {
     try {
       const isConnected = await this.checkAnkiConnect();
@@ -603,4 +306,92 @@ class AnkiManager {
       };
     }
   }
+
+  // Check if ready to create cards
+  async isReady() {
+    try {
+      const status = await this.getStatus();
+      const settings = await this.getSettings();
+
+      return status.connected && settings.deck && settings.noteType;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  // Validate settings
+  validateSettings(settings) {
+    const errors = [];
+
+    if (!settings.deck) {
+      errors.push("Please select a deck");
+    }
+
+    if (!settings.noteType) {
+      errors.push("Please select a note type");
+    }
+
+    return errors;
+  }
+
+  // Create multiple cards in batch
+  async createCardsBatch(characters, dictionaryManager) {
+    if (!this.isInitialized) {
+      this.initialize(dictionaryManager);
+    }
+
+    const results = [];
+
+    for (const character of characters) {
+      try {
+        const result = await this.createCard(character);
+        results.push({
+          character: character,
+          success: result.success,
+          noteId: result.noteId,
+          error: result.error,
+        });
+      } catch (error) {
+        results.push({
+          character: character,
+          success: false,
+          error: error.message,
+        });
+      }
+    }
+
+    return results;
+  }
+
+  // Smart card creation with auto-retry
+  async createCardSmart(character, dictionaryManager, userSettings = {}) {
+    if (!this.isInitialized) {
+      this.initialize(dictionaryManager);
+    }
+
+    // First check if we're ready
+    const ready = await this.isReady();
+    if (!ready) {
+      const status = await this.getStatus();
+      if (!status.connected) {
+        throw new Error(
+          "Anki is not connected. Please ensure Anki is running with AnkiConnect installed."
+        );
+      }
+
+      const settings = await this.getSettings();
+      const errors = this.validateSettings(settings);
+      if (errors.length > 0) {
+        throw new Error(`Settings incomplete: ${errors.join(", ")}`);
+      }
+    }
+
+    // Create card with user settings
+    return await this.createCard(character, userSettings);
+  }
+}
+
+// Export for use in other scripts
+if (typeof window !== "undefined") {
+  window.AnkiManager = AnkiManager;
 }
