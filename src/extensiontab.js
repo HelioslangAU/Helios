@@ -1,6 +1,21 @@
-// Helios Extension Tab JavaScript - Streamlined for New Design
+// Helios Extension Tab JavaScript - with Sunset/Sunrise Effect
 
-// Extension toggle functionality
+// Apply extension state styling
+function applyExtensionState(isEnabled) {
+  const body = document.body;
+
+  if (isEnabled) {
+    // Sunrise mode - extension is ON
+    body.classList.remove("extension-disabled");
+    console.log("🌅 Sunrise mode - Extension enabled");
+  } else {
+    // Sunset mode - extension is OFF
+    body.classList.add("extension-disabled");
+    console.log("🌆 Sunset mode - Extension disabled");
+  }
+}
+
+// Extension toggle functionality with sunset/sunrise effect
 function initializeExtensionToggle() {
   const extensionToggle = document.getElementById("extension-toggle");
   const settingsBtn = document.getElementById("settings-btn");
@@ -18,7 +33,10 @@ function initializeExtensionToggle() {
           extensionToggle.classList.remove("active");
         }
 
-        // Send message to background script (same as settings page)
+        // Apply sunset/sunrise effect
+        applyExtensionState(newState);
+
+        // Send message to background script
         if (window.chrome && chrome.runtime) {
           const response = await chrome.runtime.sendMessage({
             action: "toggleExtension",
@@ -27,7 +45,6 @@ function initializeExtensionToggle() {
 
           if (response && response.success) {
             console.log("Extension", newState ? "enabled" : "disabled");
-
             // Also update storage directly for consistency
             await chrome.storage.local.set({ extensionEnabled: newState });
           } else {
@@ -37,6 +54,8 @@ function initializeExtensionToggle() {
             } else {
               extensionToggle.classList.add("active");
             }
+            // Revert visual state
+            applyExtensionState(!newState);
             console.error("Failed to toggle extension:", response?.error);
           }
         } else {
@@ -57,11 +76,13 @@ function initializeExtensionToggle() {
         } else {
           extensionToggle.classList.add("active");
         }
+        // Revert visual state
+        applyExtensionState(!newState);
         console.error("Error toggling extension:", error);
       }
     });
 
-    // Load extension state on startup
+    // Load extension state on startup and apply visual state
     if (window.chrome && chrome.storage) {
       chrome.storage.local.get(["extensionEnabled"], (result) => {
         const isEnabled = result.extensionEnabled !== false; // Default to true
@@ -70,8 +91,15 @@ function initializeExtensionToggle() {
         } else {
           extensionToggle.classList.remove("active");
         }
+
+        // Apply the appropriate visual state
+        applyExtensionState(isEnabled);
+
         console.log("Loaded extension state:", isEnabled);
       });
+    } else {
+      // Default to enabled state if no storage available
+      applyExtensionState(true);
     }
   }
 
@@ -263,17 +291,15 @@ function removeVocabItem(word) {
   });
 }
 
-// Open Helios Settings (updated from Anki Settings)
+// Open Helios Settings
 function openHeliosSettings() {
   try {
     if (window.chrome && chrome.tabs) {
-      // Open Helios settings in a new tab
       chrome.tabs.create({
         url: chrome.runtime.getURL("helios-settings.html"),
         active: true,
       });
     } else if (window.chrome && chrome.runtime) {
-      // Fallback: try to open using runtime URL
       const settingsUrl = chrome.runtime.getURL("helios-settings.html");
       window.open(
         settingsUrl,
@@ -281,14 +307,11 @@ function openHeliosSettings() {
         "width=1200,height=800,scrollbars=yes,resizable=yes"
       );
     } else {
-      // Final fallback - try to navigate in current tab
       window.location.href = chrome.runtime.getURL("helios-settings.html");
     }
     console.log("Opening Helios Settings page ⚙️");
   } catch (error) {
     console.error("Error opening Helios settings:", error);
-
-    // Ultra fallback - try opening Chrome's options page
     try {
       if (chrome.runtime && chrome.runtime.openOptionsPage) {
         chrome.runtime.openOptionsPage();
@@ -306,28 +329,24 @@ function openHeliosSettings() {
   }
 }
 
-// Legacy functions for compatibility (these are removed from UI but kept for backwards compatibility)
+// Legacy functions for compatibility
 function updateSessionCounter() {
-  // Removed from UI but kept for compatibility
   console.log("Session counter removed from streamlined UI");
 }
 
 function updateProgress() {
-  // Removed from UI but kept for compatibility
   console.log("Progress section removed from streamlined UI");
 }
 
 function exportData() {
-  // Removed from UI but kept for compatibility
   console.log("Export feature removed from streamlined UI");
 }
 
 function openReview() {
-  // Removed from UI but kept for compatibility
   console.log("Review feature removed from streamlined UI");
 }
 
-// Function to increment session counter when words are looked up (still used internally)
+// Function to increment session counter when words are looked up
 function incrementSessionCounter() {
   if (!window.chrome || !chrome.storage || !chrome.storage.local) return;
 
@@ -336,7 +355,6 @@ function incrementSessionCounter() {
     const lastReset = result.lastResetDate || "";
     let lookupCount = result.todayLookupCount || 0;
 
-    // Reset counter if it's a new day
     if (lastReset !== today) {
       lookupCount = 0;
     }
@@ -359,14 +377,14 @@ function incrementSessionCounter() {
 window.addEventListener("DOMContentLoaded", () => {
   console.log("Helios Extension tab loaded ☀️");
 
-  // Initialize new toggle functionality
+  // Initialize toggle functionality with sunset/sunrise effect
   initializeExtensionToggle();
 
   // Update core data
   updateKnownWordsCounter();
   loadVocabularyList();
 
-  // Handle old UI elements if they still exist (for backwards compatibility)
+  // Handle old UI elements if they still exist (backwards compatibility)
   const oldUpdateBtn = document.getElementById("update-known-words-btn");
   const oldInput = document.getElementById("known-words-input");
 
@@ -390,7 +408,6 @@ window.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // Get current known words from storage
       chrome.storage.local.get(["chineseExtensionKnownWords"], (result) => {
         const current = new Set(result.chineseExtensionKnownWords || []);
         const newWords = words.filter((w) => !current.has(w));
@@ -422,7 +439,6 @@ window.addEventListener("DOMContentLoaded", () => {
     reviewBtn.addEventListener("click", openReview);
   }
 
-  // Handle old Anki settings button (for backwards compatibility)
   const ankiSettingsBtn = document.getElementById("anki-settings-btn");
   if (ankiSettingsBtn) {
     ankiSettingsBtn.addEventListener("click", openHeliosSettings);
@@ -444,14 +460,17 @@ window.addEventListener("DOMContentLoaded", () => {
           loadVocabularyList();
         }
         if (changes.extensionEnabled) {
-          // Update toggle state if changed from elsewhere
+          // Update toggle state and visual appearance if changed from elsewhere
           const toggle = document.getElementById("extension-toggle");
           if (toggle) {
-            if (changes.extensionEnabled.newValue) {
+            const newState = changes.extensionEnabled.newValue;
+            if (newState) {
               toggle.classList.add("active");
             } else {
               toggle.classList.remove("active");
             }
+            // Apply sunset/sunrise effect
+            applyExtensionState(newState);
           }
         }
       }
@@ -468,7 +487,7 @@ window.heliosExtension = {
   openHeliosSettings,
   removeVocabItem,
   initializeExtensionToggle,
-  // Legacy functions (removed from UI but kept for compatibility)
+  applyExtensionState, // New function for sunset/sunrise
   updateSessionCounter,
   updateProgress,
   exportData,
