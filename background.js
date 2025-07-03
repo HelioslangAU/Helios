@@ -1,9 +1,7 @@
-// Background Script for Helios Language Learning Extension with Anki Integration (Manifest V3)
+// Background Script for Helios Language Learning Extension with Clean Anki Integration
 class BackgroundService {
   constructor() {
-    this.ankiConnectUrl = "http://127.0.0.1:8765";
-    this.isAnkiAvailable = null;
-    this.extensionSettings = {}; // Store current settings
+    this.extensionSettings = {};
     this.init();
   }
 
@@ -22,13 +20,12 @@ class BackgroundService {
     // Reset daily session count
     this.setupDailyReset();
 
-    // Check Anki availability on startup
-    this.checkAnkiConnect();
-
     // Load extension settings on startup
     this.loadExtensionSettings();
 
-    console.log("🔧 Helios Background Service initialized (Manifest V3)");
+    console.log(
+      "🔧 Helios Background Service initialized with clean Anki integration"
+    );
   }
 
   async loadExtensionSettings() {
@@ -40,7 +37,6 @@ class BackgroundService {
         "popupTheme",
       ]);
 
-      // Set defaults if not found
       this.extensionSettings = {
         extensionEnabled:
           result.extensionEnabled !== undefined
@@ -55,7 +51,6 @@ class BackgroundService {
       console.log("🔍 Loaded extension settings:", this.extensionSettings);
     } catch (error) {
       console.error("🔍 Error loading extension settings:", error);
-      // Use defaults
       this.extensionSettings = {
         extensionEnabled: true,
         activationKey: "Shift",
@@ -95,24 +90,15 @@ class BackgroundService {
         });
       }
 
-      // Initialize Anki settings with field mappings structure
+      // Initialize Anki settings with clean structure
       if (!result.ankiSettings) {
         const defaultAnkiSettings = {
-          // Main settings
-          ankiDeck: "Chinese::Helios",
-          deck: "Chinese::Helios", // compatibility
-          ankiNoteType: "Basic",
-          noteType: "Basic", // compatibility
-
-          // Field mappings - this is the key structure
-          ankiFieldMappings: {},
-          fieldMappings: {}, // compatibility
-
-          // Options
+          deck: "Chinese::Helios",
+          noteType: "Basic",
+          fieldMappings: {},
           checkDuplicates: true,
           allowDuplicates: false,
           includeSentence: true,
-          includeUrl: true,
           tags: ["helios"],
         };
         await chrome.storage.local.set({ ankiSettings: defaultAnkiSettings });
@@ -132,10 +118,8 @@ class BackgroundService {
         await chrome.storage.local.set({ popupTheme: "dark" });
       }
 
-      // Load settings into memory
       await this.loadExtensionSettings();
-
-      console.log("🔧 Helios extension initialized with default data");
+      console.log("🔧 Helios extension initialized with clean Anki system");
     } catch (error) {
       console.error("Failed to setup initial data:", error);
     }
@@ -144,12 +128,48 @@ class BackgroundService {
   async handleMessage(message, sender, sendResponse) {
     console.log(
       "🔧 Background received message:",
-      message.type || message.action
+      message.action || message.type
     );
 
     try {
-      switch (message.type || message.action) {
-        // === SETTINGS HANDLERS ===
+      switch (message.action || message.type) {
+        // === ANKI HANDLERS ===
+        case "ANKI_TEST_CONNECTION":
+          await this.handleAnkiTestConnection(sendResponse);
+          break;
+
+        case "ANKI_CREATE_CARD":
+          await this.handleAnkiCreateCard(
+            message.wordData,
+            message.options,
+            sendResponse
+          );
+          break;
+
+        case "ANKI_LOAD_SETTINGS":
+          await this.handleAnkiLoadSettings(sendResponse);
+          break;
+
+        case "ANKI_SAVE_SETTINGS":
+          await this.handleAnkiSaveSettings(message.settings, sendResponse);
+          break;
+
+        case "ANKI_GET_DECKS":
+          await this.handleAnkiGetDecks(sendResponse);
+          break;
+
+        case "ANKI_GET_NOTE_TYPES":
+          await this.handleAnkiGetNoteTypes(sendResponse);
+          break;
+
+        case "ANKI_GET_NOTE_TYPE_FIELDS":
+          await this.handleAnkiGetNoteTypeFields(
+            message.noteType,
+            sendResponse
+          );
+          break;
+
+        // === EXTENSION HANDLERS ===
         case "toggleExtension":
           await this.handleToggleExtension(message.enabled, sendResponse);
           break;
@@ -179,50 +199,10 @@ class BackgroundService {
           await this.incrementSessionCount(sendResponse);
           break;
 
-        // === ANKI HANDLERS ===
-        case "CHECK_ANKI_CONNECT":
-          await this.handleCheckAnkiConnect(sendResponse);
-          break;
-
-        case "CREATE_ANKI_CARD":
-          await this.handleCreateAnkiCard(
-            message.wordData,
-            message.options,
-            sendResponse
-          );
-          break;
-
-        case "GET_ANKI_SETTINGS":
-          await this.handleGetAnkiSettings(sendResponse);
-          break;
-
-        case "SAVE_ANKI_SETTINGS":
-          await this.handleSaveAnkiSettings(message.settings, sendResponse);
-          break;
-
-        case "TEST_ANKI_CONNECTION":
-          await this.handleTestAnkiConnection(sendResponse);
-          break;
-
-        case "GET_ANKI_DECKS":
-          await this.handleGetAnkiDecks(sendResponse);
-          break;
-
-        case "GET_ANKI_NOTE_TYPES":
-          await this.handleGetAnkiNoteTypes(sendResponse);
-          break;
-
-        case "GET_ANKI_NOTE_TYPE_FIELDS":
-          await this.handleGetAnkiNoteTypeFields(
-            message.noteType,
-            sendResponse
-          );
-          break;
-
         default:
           console.warn(
             "🔧 Unknown message type:",
-            message.type || message.action
+            message.action || message.type
           );
           sendResponse({ success: false, error: "Unknown message type" });
       }
@@ -235,11 +215,274 @@ class BackgroundService {
     }
   }
 
-  // ============ SETTINGS HANDLERS ============
+  // ============ ANKI HANDLERS ============
+
+  async handleAnkiTestConnection(sendResponse) {
+    try {
+      const result = await this.invokeAnki("version");
+      sendResponse({
+        success: true,
+        version: result,
+      });
+    } catch (error) {
+      sendResponse({
+        success: false,
+        error: error.message,
+      });
+    }
+  }
+
+  async handleAnkiCreateCard(wordData, options = {}, sendResponse) {
+    try {
+      console.log("🃏 Creating Anki card with data:", wordData);
+
+      // Load settings
+      const result = await chrome.storage.local.get(["ankiSettings"]);
+      const settings = result.ankiSettings || {};
+      const finalSettings = { ...settings, ...options };
+
+      // Validate settings
+      if (!finalSettings.deck || !finalSettings.noteType) {
+        throw new Error("Deck and note type must be configured in settings");
+      }
+
+      // Build card fields
+      const fields = this.buildCardFields(
+        wordData,
+        finalSettings.fieldMappings || {}
+      );
+
+      // Check for duplicates if enabled
+      if (finalSettings.checkDuplicates && !finalSettings.allowDuplicates) {
+        const duplicates = await this.findDuplicates(wordData.character);
+        if (duplicates.length > 0) {
+          throw new Error("Card already exists in Anki");
+        }
+      }
+
+      // Ensure deck exists
+      await this.ensureDeck(finalSettings.deck);
+
+      // Create note
+      const note = {
+        deckName: finalSettings.deck,
+        modelName: finalSettings.noteType,
+        fields: fields,
+        tags: finalSettings.tags || ["helios"],
+        options: {
+          allowDuplicate: finalSettings.allowDuplicates || false,
+        },
+      };
+
+      const noteId = await this.invokeAnki("addNote", { note });
+
+      // Update statistics
+      await this.updateAnkiStats(true);
+
+      sendResponse({
+        success: true,
+        noteId: noteId,
+        message: "Card created successfully",
+      });
+    } catch (error) {
+      console.error("🃏 Error creating Anki card:", error);
+      await this.updateAnkiStats(false);
+      sendResponse({
+        success: false,
+        error: error.message,
+      });
+    }
+  }
+
+  async handleAnkiLoadSettings(sendResponse) {
+    try {
+      const result = await chrome.storage.local.get(["ankiSettings"]);
+      const defaultSettings = {
+        deck: "Chinese::Helios",
+        noteType: "Basic",
+        fieldMappings: {},
+        checkDuplicates: true,
+        allowDuplicates: false,
+        includeSentence: true,
+        tags: ["helios"],
+      };
+
+      sendResponse({
+        success: true,
+        settings: result.ankiSettings || defaultSettings,
+      });
+    } catch (error) {
+      sendResponse({
+        success: false,
+        error: error.message,
+      });
+    }
+  }
+
+  async handleAnkiSaveSettings(settings, sendResponse) {
+    try {
+      await chrome.storage.local.set({ ankiSettings: settings });
+      sendResponse({
+        success: true,
+        message: "Anki settings saved",
+      });
+    } catch (error) {
+      sendResponse({
+        success: false,
+        error: error.message,
+      });
+    }
+  }
+
+  async handleAnkiGetDecks(sendResponse) {
+    try {
+      const decks = await this.invokeAnki("deckNames");
+      sendResponse({
+        success: true,
+        decks: decks.sort(),
+      });
+    } catch (error) {
+      sendResponse({
+        success: false,
+        error: error.message,
+        decks: [],
+      });
+    }
+  }
+
+  async handleAnkiGetNoteTypes(sendResponse) {
+    try {
+      const noteTypes = await this.invokeAnki("modelNames");
+      sendResponse({
+        success: true,
+        noteTypes: noteTypes.sort(),
+      });
+    } catch (error) {
+      sendResponse({
+        success: false,
+        error: error.message,
+        noteTypes: [],
+      });
+    }
+  }
+
+  async handleAnkiGetNoteTypeFields(noteType, sendResponse) {
+    try {
+      const fields = await this.invokeAnki("modelFieldNames", {
+        modelName: noteType,
+      });
+      sendResponse({
+        success: true,
+        fields: fields,
+      });
+    } catch (error) {
+      sendResponse({
+        success: false,
+        error: error.message,
+        fields: [],
+      });
+    }
+  }
+
+  // ============ ANKI HELPER METHODS ============
+
+  async invokeAnki(action, params = {}) {
+    try {
+      const response = await fetch("http://127.0.0.1:8765", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: action,
+          version: 6,
+          params: params,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      return data.result;
+    } catch (error) {
+      console.error("🃏 AnkiConnect error:", error);
+      throw error;
+    }
+  }
+
+  buildCardFields(wordData, fieldMappings) {
+    const fields = {};
+
+    // Available data
+    const dataMap = {
+      expression: wordData.character,
+      reading: wordData.pinyin,
+      meaning: wordData.definition,
+      sentence: wordData.sentence,
+      traditional: wordData.traditional,
+      simplified: wordData.simplified,
+      source: wordData.url,
+      frequency: wordData.frequency?.toString() || "",
+    };
+
+    // Apply field mappings
+    for (const [fieldName, dataType] of Object.entries(fieldMappings)) {
+      if (dataType && dataMap[dataType]) {
+        fields[fieldName] = dataMap[dataType];
+      }
+    }
+
+    // Fallback if no mappings
+    if (Object.keys(fields).length === 0) {
+      fields["Front"] = wordData.character || "Unknown";
+      fields["Back"] =
+        wordData.pinyin && wordData.definition
+          ? `${wordData.pinyin}<br>${wordData.definition}`
+          : wordData.definition || "No definition";
+    }
+
+    return fields;
+  }
+
+  async findDuplicates(character) {
+    try {
+      const query = `"${character}"`;
+      return await this.invokeAnki("findNotes", { query });
+    } catch (error) {
+      console.warn("Could not check duplicates:", error);
+      return [];
+    }
+  }
+
+  async ensureDeck(deckName) {
+    try {
+      const decks = await this.invokeAnki("deckNames");
+      if (!decks.includes(deckName)) {
+        await this.invokeAnki("createDeck", { deck: deckName });
+      }
+    } catch (error) {
+      console.warn("Could not ensure deck exists:", error);
+    }
+  }
+
+  async updateAnkiStats(success) {
+    try {
+      const result = await chrome.storage.local.get(["ankiCardsCreated"]);
+      const newCount = (result.ankiCardsCreated || 0) + (success ? 1 : 0);
+      await chrome.storage.local.set({ ankiCardsCreated: newCount });
+    } catch (error) {
+      console.warn("Could not update Anki stats:", error);
+    }
+  }
+
+  // ============ EXTENSION HANDLERS ============
 
   async handleToggleExtension(enabled, sendResponse) {
     try {
-      console.log("🔍 Extension toggle:", enabled);
       await chrome.storage.local.set({ extensionEnabled: enabled });
       this.extensionSettings.extensionEnabled = enabled;
 
@@ -260,7 +503,6 @@ class BackgroundService {
         message: `Extension ${enabled ? "enabled" : "disabled"}`,
       });
     } catch (error) {
-      console.error("🔍 Error toggling extension:", error);
       sendResponse({
         success: false,
         error: error.message,
@@ -270,7 +512,6 @@ class BackgroundService {
 
   async handleSettingsChanged(settings, sendResponse) {
     try {
-      console.log("🔍 Settings changed:", settings);
       this.extensionSettings = { ...this.extensionSettings, ...settings };
 
       const tabs = await chrome.tabs.query({});
@@ -290,7 +531,6 @@ class BackgroundService {
         message: "Settings updated and broadcasted",
       });
     } catch (error) {
-      console.error("🔍 Error handling settings change:", error);
       sendResponse({
         success: false,
         error: error.message,
@@ -306,596 +546,10 @@ class BackgroundService {
         settings: this.extensionSettings,
       });
     } catch (error) {
-      console.error("🔍 Error getting extension settings:", error);
       sendResponse({
         success: false,
         error: error.message,
         settings: this.extensionSettings,
-      });
-    }
-  }
-
-  // ============ ANKI INTEGRATION METHODS ============
-
-  async checkAnkiConnect() {
-    try {
-      console.log("🃏 Checking AnkiConnect availability...");
-      const response = await this.invokeAnki("version");
-      this.isAnkiAvailable = response !== null;
-      console.log(
-        "🃏 AnkiConnect status:",
-        this.isAnkiAvailable ? "Available" : "Not available"
-      );
-      return this.isAnkiAvailable;
-    } catch (error) {
-      console.warn("🃏 AnkiConnect not available:", error);
-      this.isAnkiAvailable = false;
-      return false;
-    }
-  }
-
-  async invokeAnki(action, params = {}) {
-    try {
-      console.log(`🃏 Invoking Anki action: ${action}`, params);
-
-      const response = await fetch(this.ankiConnectUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          action: action,
-          version: 6,
-          params: params,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      console.log(`🃏 Anki response for ${action}:`, data);
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      return data.result;
-    } catch (error) {
-      console.error("🃏 AnkiConnect error:", error);
-      throw error;
-    }
-  }
-
-  async ensureDeckExists(deckName) {
-    try {
-      const decks = await this.invokeAnki("deckNames");
-      if (!decks.includes(deckName)) {
-        await this.invokeAnki("createDeck", { deck: deckName });
-        console.log(`🃏 Created deck: ${deckName}`);
-      }
-      return true;
-    } catch (error) {
-      console.error("🃏 Error ensuring deck exists:", error);
-      return false;
-    }
-  }
-
-  async findDuplicates(expression) {
-    try {
-      const query = `"Expression:${expression}" OR "Front:${expression}" OR "Chinese:${expression}" OR "Target Word:${expression}"`;
-      return await this.invokeAnki("findNotes", { query: query });
-    } catch (error) {
-      console.error("🃏 Error finding duplicates:", error);
-      return [];
-    }
-  }
-
-  // WORKING: Basic card field preparation (fallback)
-  prepareCardFields(wordData) {
-    console.log("🃏 Preparing basic card fields for:", wordData);
-
-    const {
-      character,
-      traditional,
-      simplified,
-      pinyin,
-      definition,
-      sentence,
-      url,
-      frequency,
-    } = wordData || {};
-
-    // Ensure we have at least a character
-    if (!character && !simplified && !traditional) {
-      console.error("🃏 No character data provided:", wordData);
-      throw new Error("No character data provided for card creation");
-    }
-
-    const mainCharacter = character || simplified || traditional;
-    const reading = pinyin || "";
-    const meaning = definition || "";
-
-    return {
-      // Primary fields
-      Expression: mainCharacter,
-      Reading: reading,
-      Meaning: meaning,
-
-      // Additional fields
-      Sentence: sentence || "",
-      Traditional: traditional || mainCharacter,
-      Simplified: simplified || mainCharacter,
-      Source: url || "",
-      Frequency: frequency ? frequency.toString() : "",
-
-      // Alternative field names for compatibility
-      Front: mainCharacter,
-      Back: reading ? `${reading}<br>${meaning}` : meaning,
-      Chinese: mainCharacter,
-      Pinyin: reading,
-      English: meaning,
-      Context: sentence || "",
-      URL: url || "",
-
-      // Migaku-style fields
-      "Target Word": mainCharacter,
-      Definitions: meaning,
-    };
-  }
-
-  // WORKING: Field mapping with user configuration (from old working code)
-  prepareCardFieldsWithMapping(wordData, fieldMappings) {
-    console.log(
-      "🃏 Preparing mapped card fields for:",
-      wordData,
-      "mappings:",
-      fieldMappings
-    );
-
-    const {
-      character,
-      traditional,
-      simplified,
-      pinyin,
-      definition,
-      sentence,
-      url,
-      frequency,
-    } = wordData || {};
-
-    // Ensure we have at least a character
-    if (!character && !simplified && !traditional) {
-      console.error("🃏 No character data provided:", wordData);
-      throw new Error("No character data provided for card creation");
-    }
-
-    const fields = {};
-    const mainCharacter = character || simplified || traditional;
-
-    console.log("🃏 Available field mappings:", Object.keys(fieldMappings));
-
-    // Map Helios fields to Anki fields based on user configuration
-    // This maps the Helios data type to the actual Anki field name
-    for (const [ankiFieldName, heliosDataType] of Object.entries(
-      fieldMappings
-    )) {
-      if (heliosDataType && heliosDataType !== "") {
-        console.log(`🃏 Mapping ${ankiFieldName} <- ${heliosDataType}`);
-
-        switch (heliosDataType) {
-          case "expression":
-            fields[ankiFieldName] = mainCharacter;
-            break;
-          case "reading":
-            fields[ankiFieldName] = pinyin || "";
-            break;
-          case "meaning":
-            fields[ankiFieldName] = definition || "";
-            break;
-          case "sentence":
-            fields[ankiFieldName] = sentence || "";
-            break;
-          case "traditional":
-            fields[ankiFieldName] = traditional || mainCharacter;
-            break;
-          case "simplified":
-            fields[ankiFieldName] = simplified || mainCharacter;
-            break;
-          case "source":
-            fields[ankiFieldName] = url || "";
-            break;
-          case "frequency":
-            fields[ankiFieldName] = frequency ? frequency.toString() : "";
-            break;
-          default:
-            console.warn(`🃏 Unknown Helios data type: ${heliosDataType}`);
-        }
-      }
-    }
-
-    console.log("🃏 Mapped fields before fallback:", fields);
-
-    // Fallback: if no fields are mapped, use basic mapping
-    if (Object.keys(fields).length === 0) {
-      console.warn("🃏 No field mappings found, using fallback");
-      fields["Front"] = mainCharacter;
-      fields["Back"] = pinyin
-        ? `${pinyin}<br>${definition || ""}`
-        : definition || "";
-    }
-
-    console.log("🃏 Final mapped fields:", fields);
-    return fields;
-  }
-
-  // ============ ANKI MESSAGE HANDLERS ============
-
-  async handleCheckAnkiConnect(sendResponse) {
-    try {
-      const isAvailable = await this.checkAnkiConnect();
-      sendResponse({
-        success: true,
-        isAvailable: isAvailable,
-      });
-    } catch (error) {
-      sendResponse({
-        success: false,
-        error: error.message,
-        isAvailable: false,
-      });
-    }
-  }
-
-  // WORKING: Main card creation handler (from old working code, with logging)
-  async handleCreateAnkiCard(wordData, options = {}, sendResponse) {
-    try {
-      console.log(
-        "🃏 Creating Anki card with data:",
-        wordData,
-        "options:",
-        options
-      );
-
-      // Check AnkiConnect availability
-      if (this.isAnkiAvailable === null) {
-        await this.checkAnkiConnect();
-      }
-
-      if (!this.isAnkiAvailable) {
-        throw new Error(
-          "AnkiConnect is not available. Please make sure Anki is running with AnkiConnect add-on installed."
-        );
-      }
-
-      // Get settings with better error handling
-      let settings;
-      try {
-        const result = await chrome.storage.local.get(["ankiSettings"]);
-        settings = result.ankiSettings || {
-          ankiDeck: "Chinese::Helios",
-          deck: "Chinese::Helios",
-          ankiNoteType: "Basic",
-          noteType: "Basic",
-          ankiFieldMappings: {},
-          fieldMappings: {},
-          checkDuplicates: true,
-          allowDuplicates: false,
-          tags: ["helios"],
-        };
-
-        console.log("🃏 Loaded settings:", settings);
-      } catch (error) {
-        console.error("🃏 Error getting Anki settings:", error);
-        // Use defaults if settings can't be loaded
-        settings = {
-          ankiDeck: "Chinese::Helios",
-          deck: "Chinese::Helios",
-          ankiNoteType: "Basic",
-          noteType: "Basic",
-          ankiFieldMappings: {},
-          fieldMappings: {},
-          checkDuplicates: true,
-          allowDuplicates: false,
-          tags: ["helios"],
-        };
-      }
-
-      // Merge options with settings
-      const finalOptions = { ...settings, ...options };
-
-      // Normalize deck and noteType names
-      finalOptions.deck =
-        finalOptions.ankiDeck || finalOptions.deck || "Chinese::Helios";
-      finalOptions.noteType =
-        finalOptions.ankiNoteType || finalOptions.noteType || "Basic";
-      finalOptions.fieldMappings =
-        finalOptions.ankiFieldMappings || finalOptions.fieldMappings || {};
-
-      console.log("🃏 Final options:", finalOptions);
-
-      // Ensure deck exists
-      try {
-        await this.ensureDeckExists(finalOptions.deck);
-      } catch (error) {
-        console.error("🃏 Error ensuring deck exists:", error);
-        // Continue anyway, Anki might create it automatically
-      }
-
-      // Prepare card fields with better error handling
-      let fields;
-      try {
-        console.log(
-          "🃏 Field mappings available:",
-          Object.keys(finalOptions.fieldMappings).length > 0
-        );
-
-        if (
-          finalOptions.fieldMappings &&
-          Object.keys(finalOptions.fieldMappings).length > 0
-        ) {
-          fields = this.prepareCardFieldsWithMapping(
-            wordData,
-            finalOptions.fieldMappings
-          );
-        } else {
-          console.log(
-            "🃏 No field mappings found, using basic field preparation"
-          );
-          fields = this.prepareCardFields(wordData);
-        }
-      } catch (error) {
-        console.error("🃏 Error preparing card fields:", error);
-        // Fall back to basic fields
-        fields = this.prepareCardFields(wordData);
-      }
-
-      console.log("🃏 Prepared card fields:", fields);
-
-      // Validate fields
-      if (!fields || Object.keys(fields).length === 0) {
-        throw new Error("No valid fields prepared for card creation");
-      }
-
-      // Check for duplicates if enabled
-      if (finalOptions.checkDuplicates && !finalOptions.allowDuplicates) {
-        try {
-          const duplicates = await this.findDuplicates(
-            fields.Front ||
-              fields.Expression ||
-              fields["Target Word"] ||
-              wordData.character
-          );
-          if (duplicates.length > 0) {
-            console.log("🃏 Duplicate card found");
-            sendResponse({
-              success: false,
-              error: "Card already exists",
-              duplicateIds: duplicates,
-            });
-            return;
-          }
-        } catch (error) {
-          console.warn("🃏 Error checking duplicates:", error);
-          // Continue with card creation if duplicate check fails
-        }
-      }
-
-      // Create the note with better error handling
-      let noteId;
-      try {
-        const noteData = {
-          deckName: finalOptions.deck,
-          modelName: finalOptions.noteType,
-          fields: fields,
-          tags: finalOptions.tags || ["helios"],
-          options: {
-            allowDuplicate: finalOptions.allowDuplicates || false,
-          },
-        };
-
-        console.log("🃏 Creating note with data:", noteData);
-
-        noteId = await this.invokeAnki("addNote", { note: noteData });
-      } catch (error) {
-        console.error("🃏 AnkiConnect addNote error:", error);
-
-        // Provide more specific error messages
-        if (error.message.includes("model was not found")) {
-          throw new Error(
-            `Note type "${finalOptions.noteType}" not found in Anki. Please check your note type settings.`
-          );
-        } else if (error.message.includes("deck was not found")) {
-          throw new Error(
-            `Deck "${finalOptions.deck}" not found in Anki. Please check your deck settings.`
-          );
-        } else if (error.message.includes("field")) {
-          throw new Error(
-            `Field mapping error: ${error.message}. Please check your field mappings in settings.`
-          );
-        } else {
-          throw new Error(`Anki error: ${error.message}`);
-        }
-      }
-
-      console.log("🃏 Anki card created successfully with note ID:", noteId);
-
-      // Update Anki cards created counter
-      try {
-        const result = await chrome.storage.local.get(["ankiCardsCreated"]);
-        const newCount = (result.ankiCardsCreated || 0) + 1;
-        await chrome.storage.local.set({ ankiCardsCreated: newCount });
-      } catch (error) {
-        console.warn("🃏 Could not update Anki cards counter:", error);
-      }
-
-      sendResponse({
-        success: true,
-        noteId: noteId,
-        message: "Card created successfully",
-      });
-    } catch (error) {
-      console.error("🃏 Error creating Anki card:", error);
-      sendResponse({
-        success: false,
-        error: error.message,
-      });
-    }
-  }
-
-  async handleGetAnkiSettings(sendResponse) {
-    try {
-      const result = await chrome.storage.local.get(["ankiSettings"]);
-      const defaultSettings = {
-        ankiDeck: "Chinese::Helios",
-        deck: "Chinese::Helios",
-        ankiNoteType: "Basic",
-        noteType: "Basic",
-        ankiFieldMappings: {},
-        fieldMappings: {},
-        checkDuplicates: true,
-        allowDuplicates: false,
-        includeSentence: true,
-        includeUrl: true,
-        tags: ["helios"],
-      };
-
-      sendResponse({
-        success: true,
-        settings: result.ankiSettings || defaultSettings,
-      });
-    } catch (error) {
-      sendResponse({
-        success: false,
-        error: error.message,
-      });
-    }
-  }
-
-  async handleSaveAnkiSettings(settings, sendResponse) {
-    try {
-      console.log("🃏 Saving Anki settings:", settings);
-      await chrome.storage.local.set({ ankiSettings: settings });
-      sendResponse({
-        success: true,
-        message: "Anki settings saved",
-      });
-    } catch (error) {
-      sendResponse({
-        success: false,
-        error: error.message,
-      });
-    }
-  }
-
-  async handleTestAnkiConnection(sendResponse) {
-    try {
-      const isConnected = await this.checkAnkiConnect();
-      if (isConnected) {
-        const version = await this.invokeAnki("version");
-        sendResponse({
-          success: true,
-          message: `Connected to AnkiConnect (version ${version})`,
-          version: version,
-        });
-      } else {
-        sendResponse({
-          success: false,
-          message: "AnkiConnect not available",
-        });
-      }
-    } catch (error) {
-      sendResponse({
-        success: false,
-        message: error.message,
-      });
-    }
-  }
-
-  async handleGetAnkiDecks(sendResponse) {
-    try {
-      if (this.isAnkiAvailable === null) {
-        await this.checkAnkiConnect();
-      }
-
-      if (!this.isAnkiAvailable) {
-        throw new Error("AnkiConnect is not available");
-      }
-
-      const decks = await this.invokeAnki("deckNames");
-      const validDecks = decks
-        .filter((deck) => deck && deck.trim() !== "")
-        .sort((a, b) => a.localeCompare(b));
-
-      sendResponse({
-        success: true,
-        decks: validDecks,
-      });
-    } catch (error) {
-      console.error("🃏 Error getting Anki decks:", error);
-      sendResponse({
-        success: false,
-        error: error.message,
-        decks: [],
-      });
-    }
-  }
-
-  async handleGetAnkiNoteTypes(sendResponse) {
-    try {
-      if (this.isAnkiAvailable === null) {
-        await this.checkAnkiConnect();
-      }
-
-      if (!this.isAnkiAvailable) {
-        throw new Error("AnkiConnect is not available");
-      }
-
-      const noteTypes = await this.invokeAnki("modelNames");
-
-      sendResponse({
-        success: true,
-        noteTypes: noteTypes,
-      });
-    } catch (error) {
-      console.error("🃏 Error getting Anki note types:", error);
-      sendResponse({
-        success: false,
-        error: error.message,
-        noteTypes: [],
-      });
-    }
-  }
-
-  async handleGetAnkiNoteTypeFields(noteType, sendResponse) {
-    try {
-      if (this.isAnkiAvailable === null) {
-        await this.checkAnkiConnect();
-      }
-
-      if (!this.isAnkiAvailable) {
-        throw new Error("AnkiConnect is not available");
-      }
-
-      if (!noteType) {
-        throw new Error("Note type is required");
-      }
-
-      const modelInfo = await this.invokeAnki("modelFieldNames", {
-        modelName: noteType,
-      });
-
-      sendResponse({
-        success: true,
-        fields: modelInfo,
-      });
-    } catch (error) {
-      console.error("🃏 Error getting note type fields:", error);
-      sendResponse({
-        success: false,
-        error: error.message,
-        fields: [],
       });
     }
   }
@@ -1032,7 +686,7 @@ class BackgroundService {
     // Check immediately
     await checkAndReset();
 
-    // Set up alarm to check daily (Manifest V3 compatible)
+    // Set up alarm to check daily
     try {
       await chrome.alarms.create("dailyReset", {
         delayInMinutes: 1,
@@ -1050,10 +704,10 @@ class BackgroundService {
   }
 }
 
-// Initialize background service for Manifest V3
+// Initialize background service
 const backgroundService = new BackgroundService();
 
-// Export for debugging (optional)
+// Export for debugging
 if (typeof globalThis !== "undefined") {
   globalThis.backgroundService = backgroundService;
 }

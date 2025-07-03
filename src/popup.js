@@ -16,28 +16,12 @@ class PopupManager {
     this.isMouseOverHighlight = false;
     this.hideTimeout = null;
 
-    // Initialize Anki Manager
+    // Initialize Anki Manager with new system
     this.ankiManager = new AnkiManager();
-    this.isAnkiAvailable = null;
+    this.ankiManager.initialize(this.dictionaryManager);
 
     // Initialize Pronunciation Manager
     this.pronunciationManager = new PronunciationManager();
-
-    // Check Anki availability on startup
-    this.checkAnkiStatus();
-  }
-
-  async checkAnkiStatus() {
-    try {
-      this.isAnkiAvailable = await this.ankiManager.checkAnkiConnect();
-      console.log(
-        "🃏 Anki status:",
-        this.isAnkiAvailable ? "Available" : "Not available"
-      );
-    } catch (error) {
-      this.isAnkiAvailable = false;
-      console.warn("🃏 Could not check Anki status:", error);
-    }
   }
 
   showDictionaryPopup(x, y, character) {
@@ -201,13 +185,8 @@ class PopupManager {
   }
 
   createAnkiButton() {
-    if (this.isAnkiAvailable === null) {
-      return `<button class="anki-btn anki-checking" disabled title="Checking Anki connection...">A</button>`;
-    } else if (this.isAnkiAvailable === false) {
-      return `<button class="anki-btn anki-unavailable" disabled title="Anki not available. Make sure Anki is running with AnkiConnect add-on.">A</button>`;
-    } else {
-      return `<button class="anki-btn anki-available" title="Add to Anki">A</button>`;
-    }
+    // Simple Anki button - AnkiManager handles availability checking
+    return `<button class="anki-btn anki-available" title="Add to Anki">A</button>`;
   }
 
   setupPopupEventListeners(character) {
@@ -270,10 +249,15 @@ class PopupManager {
       });
     }
 
-    // Anki button event listener
+    // NEW: Simple Anki button event listener
     if (ankiBtn && !ankiBtn.disabled) {
       ankiBtn.addEventListener("click", async () => {
-        await this.handleAnkiCardCreation(character, ankiBtn);
+        // AnkiManager handles everything - just pass the button and character
+        await this.ankiManager.createCardFromPopup(
+          character,
+          ankiBtn,
+          this.frequencyManager
+        );
       });
     }
 
@@ -342,200 +326,6 @@ class PopupManager {
         button.disabled = false;
         button.title = "Play pronunciation";
       }, 1500);
-    }
-  }
-
-  // FIXED: Improved Anki card creation handler
-  async handleAnkiCardCreation(character, button) {
-    try {
-      console.log(`🃏 Starting Anki card creation for: ${character}`);
-
-      // Update button to show loading state
-      button.textContent = "⏳";
-      button.disabled = true;
-      button.title = "Creating Anki card...";
-
-      // Validate inputs
-      if (!character || character.trim() === "") {
-        throw new Error("No character provided for card creation");
-      }
-
-      if (!this.dictionaryManager || !this.dictionaryManager.dictionary) {
-        throw new Error("Dictionary not available");
-      }
-
-      // Check if character exists in dictionary
-      const matches = this.dictionaryManager.dictionary[character] || [];
-      if (matches.length === 0) {
-        throw new Error(`Character "${character}" not found in dictionary`);
-      }
-
-      console.log(`🃏 Dictionary matches found:`, matches);
-
-      // Get frequency data if available
-      let frequency = "";
-      if (this.frequencyManager) {
-        const freqData = this.frequencyManager.getFrequency(character);
-        frequency = freqData ? freqData.toString() : "";
-      }
-
-      // Prepare options with frequency data
-      const options = {
-        frequency: frequency,
-      };
-
-      console.log(`🃏 Creating card with options:`, options);
-
-      // Create card using AnkiManager
-      const result = await this.ankiManager.createCardFromPopup(
-        character,
-        this.dictionaryManager,
-        options
-      );
-
-      console.log(`🃏 Card creation result:`, result);
-
-      if (result.success) {
-        // Success feedback
-        button.textContent = "✓";
-        button.className = "anki-btn anki-success";
-        button.title = "Successfully added to Anki!";
-
-        // Show success message briefly then hide popup
-        setTimeout(() => {
-          this.hidePopup();
-        }, 1500);
-
-        console.log(`✅ Successfully created Anki card for: ${character}`);
-
-        // Optional: Save to vocabulary list as well
-        this.saveToVocabList(character);
-
-        // Update session statistics
-        this.updateAnkiStatistics(true);
-      } else {
-        // Handle different error types
-        console.error(`🃏 Anki card creation failed:`, result.error);
-
-        if (result.error && result.error.includes("already exists")) {
-          // Duplicate card
-          button.textContent = "!";
-          button.className = "anki-btn anki-duplicate";
-          button.title = "Card already exists in Anki";
-        } else if (result.error && result.error.includes("not available")) {
-          // Connection issue
-          button.textContent = "⚠";
-          button.className = "anki-btn anki-unavailable";
-          button.title = "Anki connection lost";
-
-          // Update global Anki status
-          this.isAnkiAvailable = false;
-        } else if (result.error && result.error.includes("empty")) {
-          // Empty fields issue
-          button.textContent = "⚠";
-          button.className = "anki-btn anki-error";
-          button.title =
-            "Card fields are empty - check your field mappings in settings";
-        } else {
-          // Generic error
-          button.textContent = "✗";
-          button.className = "anki-btn anki-error";
-          button.title = `Failed to create card: ${result.error}`;
-        }
-
-        // Update session statistics
-        this.updateAnkiStatistics(false);
-
-        // Reset button after showing error
-        setTimeout(() => {
-          button.textContent = "A";
-          button.className = "anki-btn anki-available";
-          button.disabled = false;
-          button.title = "Add to Anki";
-        }, 3000);
-      }
-    } catch (error) {
-      console.error("🃏 Error in Anki card creation:", error);
-
-      // Error feedback
-      button.textContent = "✗";
-      button.className = "anki-btn anki-error";
-      button.title = `Error: ${error.message}`;
-
-      // Update session statistics
-      this.updateAnkiStatistics(false);
-
-      // Reset button after showing error
-      setTimeout(() => {
-        button.textContent = "A";
-        button.className = "anki-btn anki-available";
-        button.disabled = false;
-        button.title = "Add to Anki";
-      }, 3000);
-    }
-  }
-
-  // ADDED: Update Anki statistics
-  updateAnkiStatistics(success) {
-    try {
-      if (window.chrome && chrome.storage && chrome.storage.local) {
-        chrome.storage.local.get(
-          [
-            "ankiCardsCreated",
-            "ankiCardsToday",
-            "ankiSuccessCount",
-            "ankiTotalAttempts",
-            "lastAnkiResetDate",
-          ],
-          (result) => {
-            const today = new Date().toDateString();
-            const lastReset = result.lastAnkiResetDate || "";
-
-            let cardsCreated = result.ankiCardsCreated || 0;
-            let cardsToday = result.ankiCardsToday || 0;
-            let successCount = result.ankiSuccessCount || 0;
-            let totalAttempts = result.ankiTotalAttempts || 0;
-
-            // Reset daily counters if it's a new day
-            if (lastReset !== today) {
-              cardsToday = 0;
-            }
-
-            // Update counters
-            totalAttempts++;
-            if (success) {
-              cardsCreated++;
-              cardsToday++;
-              successCount++;
-            }
-
-            // Calculate success rate
-            const successRate =
-              totalAttempts > 0
-                ? Math.round((successCount / totalAttempts) * 100)
-                : 100;
-
-            // Save updated statistics
-            chrome.storage.local.set(
-              {
-                ankiCardsCreated: cardsCreated,
-                ankiCardsToday: cardsToday,
-                ankiSuccessCount: successCount,
-                ankiTotalAttempts: totalAttempts,
-                ankiSuccessRate: successRate,
-                lastAnkiResetDate: today,
-              },
-              () => {
-                console.log(
-                  `📊 Anki stats updated: ${cardsCreated} total, ${cardsToday} today, ${successRate}% success rate`
-                );
-              }
-            );
-          }
-        );
-      }
-    } catch (error) {
-      console.warn("Could not update Anki statistics:", error);
     }
   }
 
