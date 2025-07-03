@@ -47,7 +47,6 @@
   animation: heliosEntranceFloat 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   ruby-position: over !important;
-
 }
 
 /* Ambient background glow */
@@ -91,7 +90,7 @@
   animation: heliosShimmer 4s ease-in-out infinite alternate;
   z-index: 1;
 }
-/*
+
 @keyframes heliosShimmer {
   0% {
     opacity: 0.8;
@@ -130,7 +129,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 16px;
 }
 
 .character.highlight {
@@ -144,9 +143,12 @@
 }
 
 .character.highlight ruby {
-
-  display: inline-block;
-  margin-right: 4px;
+  display: inline-ruby;
+  ruby-position: over !important;
+  ruby-align: center !important;
+  text-align: center;
+  writing-mode: horizontal-tb !important;
+  line-height: 1.5;
 }
 
 .character.highlight rt {
@@ -154,11 +156,15 @@
   font-weight: 600;
   color: #ffffff;
   letter-spacing: 1px;
-  margin-bottom: 8px;
-  text-align: center;
-  display: block;
+  text-align: center !important;
+  ruby-align: center !important;
+  display: ruby-text !important;
   opacity: 0.95;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  ruby-position: over !important;
+  margin: 0 auto;
+  margin-bottom: 8px;
+  width: 100%;
 }
 
 /* Frequency Container - Right side, just above description box */
