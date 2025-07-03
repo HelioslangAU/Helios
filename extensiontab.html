@@ -59,7 +59,7 @@
         overflow: hidden;
         box-shadow: var(--helios-shadow-strong);
         position: relative;
-        transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: all 1.6s cubic-bezier(0.4, 0, 0.2, 1);
       }
 
       /* Sunset mode when extension is disabled */
@@ -149,7 +149,6 @@
             transparent 60%
           ),
           linear-gradient(135deg, transparent 0%, rgba(255, 255, 255, 0.1) 100%);
-        animation: headerShimmer 6s ease-in-out infinite alternate;
         transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
       }
 
@@ -164,9 +163,9 @@
             transparent 0%,
             rgba(255, 255, 255, 0.03) 100%
           );
-        animation: none;
       }
 
+      /* Remove unused animations */
       @keyframes headerShimmer {
         0% {
           opacity: 0.8;
@@ -175,6 +174,26 @@
         100% {
           opacity: 1;
           transform: scale(1.01);
+        }
+      }
+
+      @keyframes pulse {
+        0% {
+          transform: translate(-50%, -50%) scale(0.8);
+          opacity: 0.15;
+        }
+        100% {
+          transform: translate(-50%, -50%) scale(1.2);
+          opacity: 0.25;
+        }
+      }
+
+      @keyframes countFloat {
+        0% {
+          transform: translateY(0px);
+        }
+        100% {
+          transform: translateY(-4px);
         }
       }
 
@@ -351,7 +370,6 @@
         );
         border-radius: 50%;
         opacity: 0.2;
-        animation: pulse 4s ease-in-out infinite alternate;
         transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
       }
 
@@ -362,7 +380,6 @@
           transparent 70%
         );
         opacity: 0.1;
-        animation: none;
       }
 
       @keyframes pulse {
@@ -384,13 +401,11 @@
         position: relative;
         z-index: 2;
         text-shadow: 0 2px 8px rgba(255, 255, 255, 0.05);
-        animation: countFloat 3s ease-in-out infinite alternate;
         transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
       }
 
       body.extension-disabled .words-count {
         color: var(--helios-sunset-text-primary);
-        animation: none;
       }
 
       @keyframes countFloat {
@@ -665,41 +680,10 @@
         filter: grayscale(0.8);
       }
 
-      /* Enhanced entrance animations */
-      @keyframes slideUpFade {
-        from {
-          opacity: 0;
-          transform: translateY(24px) scale(0.98);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0) scale(1);
-        }
-      }
-
-      @keyframes slideUpFadeDelay {
-        from {
-          opacity: 0;
-          transform: translateY(32px) scale(0.96);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0) scale(1);
-        }
-      }
-
-      .words-learned {
-        animation: slideUpFade 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-      }
-
+      /* Remove all entrance animations */
+      .words-learned,
       .vocab-section {
-        animation: slideUpFadeDelay 1s cubic-bezier(0.4, 0, 0.2, 1);
-      }
-
-      /* Sunset animation overrides */
-      body.extension-disabled .words-learned,
-      body.extension-disabled .vocab-section {
-        animation: none;
+        /* No entrance animations */
       }
 
       /* Micro interactions */
