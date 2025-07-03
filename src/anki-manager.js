@@ -1,4 +1,4 @@
-// Updated Content Script AnkiManager - Simplified and Clean
+// Enhanced AnkiManager - Handles all Anki logic including popup integration
 class AnkiManager {
   constructor() {
     this.isInitialized = false;
@@ -64,76 +64,18 @@ class AnkiManager {
     return this.status;
   }
 
-  // Get available decks
-  async getDecks() {
+  // Get quick status for popup
+  async getQuickStatus() {
     try {
-      const response = await this.sendMessage("ANKI_GET_DECKS");
-      return response.decks || [];
-    } catch (error) {
-      console.error("Error getting decks:", error);
-      return [];
-    }
-  }
-
-  // Get available note types
-  async getNoteTypes() {
-    try {
-      const response = await this.sendMessage("ANKI_GET_NOTE_TYPES");
-      return response.noteTypes || [];
-    } catch (error) {
-      console.error("Error getting note types:", error);
-      return ["Basic"];
-    }
-  }
-
-  // Get fields for a note type
-  async getNoteTypeFields(noteType) {
-    try {
-      const response = await this.sendMessage("ANKI_GET_NOTE_TYPE_FIELDS", {
-        noteType,
-      });
-      return response.fields || [];
-    } catch (error) {
-      console.error("Error getting note type fields:", error);
-      return ["Front", "Back"];
-    }
-  }
-
-  // Create card from character
-  async createCard(character, options = {}) {
-    try {
-      if (!this.isInitialized) {
-        throw new Error("AnkiManager not initialized");
-      }
-
-      if (!character) {
-        throw new Error("Character is required");
-      }
-
-      // Extract word data
-      const wordData = this.extractWordData(character);
-
-      // Create card via background script
-      const response = await this.sendMessage("ANKI_CREATE_CARD", {
-        wordData,
-        options,
-      });
-
-      if (response.success) {
-        console.log("🃏 Card created successfully:", response.noteId);
-        return {
-          success: true,
-          noteId: response.noteId,
-          message: response.message,
-        };
-      } else {
-        throw new Error(response.error);
-      }
-    } catch (error) {
-      console.error("🃏 Card creation failed:", error);
+      const isConnected = await this.checkAnkiConnect();
       return {
-        success: false,
-        error: error.message,
+        available: isConnected,
+        message: isConnected ? "Anki Ready" : "Anki Not Available",
+      };
+    } catch (error) {
+      return {
+        available: false,
+        message: "Connection Error",
       };
     }
   }
@@ -230,22 +172,282 @@ class AnkiManager {
     return "";
   }
 
-  // Quick create card (for popup usage)
-  async quickCreateCard(character, dictionaryManager) {
-    if (!this.isInitialized) {
-      this.initialize(dictionaryManager);
-    }
+  // Create card from character
+  async createCard(character, options = {}) {
+    try {
+      if (!this.isInitialized) {
+        throw new Error("AnkiManager not initialized");
+      }
 
-    return await this.createCard(character);
+      if (!character) {
+        throw new Error("Character is required");
+      }
+
+      // Extract word data
+      const wordData = this.extractWordData(character);
+
+      // Create card via background script
+      const response = await this.sendMessage("ANKI_CREATE_CARD", {
+        wordData,
+        options,
+      });
+
+      if (response.success) {
+        console.log("🃏 Card created successfully:", response.noteId);
+
+        // Update statistics
+        this.updateAnkiStatistics(true);
+
+        return {
+          success: true,
+          noteId: response.noteId,
+          message: response.message,
+        };
+      } else {
+        throw new Error(response.error);
+      }
+    } catch (error) {
+      console.error("🃏 Card creation failed:", error);
+
+      // Update statistics
+      this.updateAnkiStatistics(false);
+
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
   }
 
-  // Create card from popup context
-  async createCardFromPopup(character, dictionaryManager, options = {}) {
-    if (!this.isInitialized) {
-      this.initialize(dictionaryManager);
-    }
+  // Handle popup card creation with button management
+  async createCardFromPopup(character, button, frequencyManager = null) {
+    try {
+      console.log(`🃏 Creating Anki card from popup for: ${character}`);
 
-    return await this.createCard(character, options);
+      // Update button to loading state
+      this.updateButtonState(button, "loading");
+
+      // Validate inputs
+      if (!character || character.trim() === "") {
+        throw new Error("No character provided");
+      }
+
+      if (!this.dictionaryManager?.dictionary) {
+        throw new Error("Dictionary not available");
+      }
+
+      // Check if character exists in dictionary
+      const matches = this.dictionaryManager.dictionary[character] || [];
+      if (matches.length === 0) {
+        throw new Error(`Character "${character}" not found in dictionary`);
+      }
+
+      // Get frequency if available
+      let frequency = "";
+      if (frequencyManager) {
+        const freqData = frequencyManager.getFrequency(character);
+        frequency = freqData ? freqData.toString() : "";
+      }
+
+      // Create card
+      const result = await this.createCard(character, { frequency });
+
+      if (result.success) {
+        // Success state
+        this.updateButtonState(button, "success");
+        console.log(`✅ Successfully created Anki card for: ${character}`);
+        return result;
+      } else {
+        // Error state
+        this.updateButtonState(button, "error", result.error);
+        return result;
+      }
+    } catch (error) {
+      console.error("🃏 Error in popup card creation:", error);
+      this.updateButtonState(button, "error", error.message);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  }
+
+  // Update button state with different visual states
+  updateButtonState(button, state, errorMessage = "") {
+    if (!button) return;
+
+    switch (state) {
+      case "loading":
+        button.textContent = "⏳";
+        button.disabled = true;
+        button.title = "Creating Anki card...";
+        button.className = "anki-btn anki-loading";
+        break;
+
+      case "success":
+        button.textContent = "✓";
+        button.disabled = true;
+        button.title = "Successfully added to Anki!";
+        button.className = "anki-btn anki-success";
+        break;
+
+      case "error":
+        const errorType = this.categorizeError(errorMessage);
+        button.textContent = errorType.icon;
+        button.disabled = true;
+        button.title = errorType.message;
+        button.className = `anki-btn ${errorType.class}`;
+
+        // Reset button after 3 seconds
+        setTimeout(() => {
+          this.updateButtonState(button, "default");
+        }, 3000);
+        break;
+
+      case "default":
+        button.textContent = "A";
+        button.disabled = false;
+        button.title = "Add to Anki";
+        button.className = "anki-btn anki-available";
+        break;
+
+      case "unavailable":
+        button.textContent = "A";
+        button.disabled = true;
+        button.title = "Anki not available";
+        button.className = "anki-btn anki-unavailable";
+        break;
+    }
+  }
+
+  // Categorize errors for better user feedback
+  categorizeError(errorMessage) {
+    if (errorMessage.includes("already exists")) {
+      return {
+        icon: "!",
+        message: "Card already exists in Anki",
+        class: "anki-duplicate",
+      };
+    } else if (
+      errorMessage.includes("not available") ||
+      errorMessage.includes("connection")
+    ) {
+      return {
+        icon: "⚠",
+        message: "Anki connection lost",
+        class: "anki-unavailable",
+      };
+    } else if (
+      errorMessage.includes("deck") ||
+      errorMessage.includes("note type") ||
+      errorMessage.includes("Settings")
+    ) {
+      return {
+        icon: "⚙",
+        message: "Settings incomplete - check Anki settings",
+        class: "anki-settings-error",
+      };
+    } else {
+      return {
+        icon: "✗",
+        message: `Error: ${errorMessage}`,
+        class: "anki-error",
+      };
+    }
+  }
+
+  // Update Anki statistics
+  updateAnkiStatistics(success) {
+    try {
+      if (chrome.storage?.local) {
+        chrome.storage.local.get(
+          [
+            "ankiCardsCreated",
+            "ankiCardsToday",
+            "ankiSuccessCount",
+            "ankiTotalAttempts",
+            "lastAnkiResetDate",
+          ],
+          (result) => {
+            const today = new Date().toDateString();
+            const lastReset = result.lastAnkiResetDate || "";
+
+            let cardsCreated = result.ankiCardsCreated || 0;
+            let cardsToday = result.ankiCardsToday || 0;
+            let successCount = result.ankiSuccessCount || 0;
+            let totalAttempts = result.ankiTotalAttempts || 0;
+
+            // Reset daily counters if new day
+            if (lastReset !== today) {
+              cardsToday = 0;
+            }
+
+            // Update counters
+            totalAttempts++;
+            if (success) {
+              cardsCreated++;
+              cardsToday++;
+              successCount++;
+            }
+
+            const successRate =
+              totalAttempts > 0
+                ? Math.round((successCount / totalAttempts) * 100)
+                : 100;
+
+            chrome.storage.local.set({
+              ankiCardsCreated: cardsCreated,
+              ankiCardsToday: cardsToday,
+              ankiSuccessCount: successCount,
+              ankiTotalAttempts: totalAttempts,
+              ankiSuccessRate: successRate,
+              lastAnkiResetDate: today,
+            });
+
+            console.log(
+              `📊 Anki stats: ${cardsCreated} total, ${cardsToday} today, ${successRate}% success`
+            );
+          }
+        );
+      }
+    } catch (error) {
+      console.warn("Could not update Anki statistics:", error);
+    }
+  }
+
+  // Get available decks
+  async getDecks() {
+    try {
+      const response = await this.sendMessage("ANKI_GET_DECKS");
+      return response.decks || [];
+    } catch (error) {
+      console.error("Error getting decks:", error);
+      return [];
+    }
+  }
+
+  // Get available note types
+  async getNoteTypes() {
+    try {
+      const response = await this.sendMessage("ANKI_GET_NOTE_TYPES");
+      return response.noteTypes || [];
+    } catch (error) {
+      console.error("Error getting note types:", error);
+      return ["Basic"];
+    }
+  }
+
+  // Get fields for a note type
+  async getNoteTypeFields(noteType) {
+    try {
+      const response = await this.sendMessage("ANKI_GET_NOTE_TYPE_FIELDS", {
+        noteType,
+      });
+      return response.fields || [];
+    } catch (error) {
+      console.error("Error getting note type fields:", error);
+      return [];
+    }
   }
 
   // Get current settings
@@ -291,22 +493,6 @@ class AnkiManager {
     }
   }
 
-  // Get quick status for popup
-  async getQuickStatus() {
-    try {
-      const isConnected = await this.checkAnkiConnect();
-      return {
-        available: isConnected,
-        message: isConnected ? "Anki Ready" : "Anki Not Available",
-      };
-    } catch (error) {
-      return {
-        available: false,
-        message: "Connection Error",
-      };
-    }
-  }
-
   // Check if ready to create cards
   async isReady() {
     try {
@@ -317,77 +503,6 @@ class AnkiManager {
     } catch (error) {
       return false;
     }
-  }
-
-  // Validate settings
-  validateSettings(settings) {
-    const errors = [];
-
-    if (!settings.deck) {
-      errors.push("Please select a deck");
-    }
-
-    if (!settings.noteType) {
-      errors.push("Please select a note type");
-    }
-
-    return errors;
-  }
-
-  // Create multiple cards in batch
-  async createCardsBatch(characters, dictionaryManager) {
-    if (!this.isInitialized) {
-      this.initialize(dictionaryManager);
-    }
-
-    const results = [];
-
-    for (const character of characters) {
-      try {
-        const result = await this.createCard(character);
-        results.push({
-          character: character,
-          success: result.success,
-          noteId: result.noteId,
-          error: result.error,
-        });
-      } catch (error) {
-        results.push({
-          character: character,
-          success: false,
-          error: error.message,
-        });
-      }
-    }
-
-    return results;
-  }
-
-  // Smart card creation with auto-retry
-  async createCardSmart(character, dictionaryManager, userSettings = {}) {
-    if (!this.isInitialized) {
-      this.initialize(dictionaryManager);
-    }
-
-    // First check if we're ready
-    const ready = await this.isReady();
-    if (!ready) {
-      const status = await this.getStatus();
-      if (!status.connected) {
-        throw new Error(
-          "Anki is not connected. Please ensure Anki is running with AnkiConnect installed."
-        );
-      }
-
-      const settings = await this.getSettings();
-      const errors = this.validateSettings(settings);
-      if (errors.length > 0) {
-        throw new Error(`Settings incomplete: ${errors.join(", ")}`);
-      }
-    }
-
-    // Create card with user settings
-    return await this.createCard(character, userSettings);
   }
 }
 

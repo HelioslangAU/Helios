@@ -19,23 +19,9 @@ class PopupManager {
     // Initialize Anki Manager with new system
     this.ankiManager = new AnkiManager();
     this.ankiManager.initialize(this.dictionaryManager);
-    this.ankiStatus = { available: false, ready: false };
 
     // Initialize Pronunciation Manager
     this.pronunciationManager = new PronunciationManager();
-
-    // Check Anki availability on startup
-    this.checkAnkiStatus();
-  }
-
-  async checkAnkiStatus() {
-    try {
-      this.ankiStatus = await this.ankiManager.getQuickStatus();
-      console.log("🃏 Anki status:", this.ankiStatus);
-    } catch (error) {
-      this.ankiStatus = { available: false, ready: false };
-      console.warn("🃏 Could not check Anki status:", error);
-    }
   }
 
   showDictionaryPopup(x, y, character) {
@@ -90,7 +76,6 @@ class PopupManager {
 
     this.popup = popup;
     this.setupPopupEventListeners(character);
-    this.setupPopupPersistence();
   }
 
   scheduleHidePopup() {
@@ -118,7 +103,7 @@ class PopupManager {
             <div class="character highlight">${character}</div>
           </div>
           <div class="definition">Character not found in dictionary</div>
-          ${this.createAnkiButton(character)}
+          ${this.createAnkiButton()}
         </div>
       `;
     }
@@ -194,33 +179,14 @@ class PopupManager {
             ${isKnown ? "Mark Unknown" : "Mark Known"}
           </button>
         </div>
-        ${this.createAnkiButton(character)}
+        ${this.createAnkiButton()}
       </div>
     `;
   }
 
-  createAnkiButton(character) {
-    if (!this.ankiStatus.available) {
-      return `
-        <button 
-          class="anki-btn anki-unavailable" 
-          disabled 
-          title="Anki not available. Make sure Anki is running with AnkiConnect add-on."
-        >
-          A
-        </button>
-      `;
-    }
-
-    return `
-      <button 
-        class="anki-btn anki-available" 
-        title="Add to Anki"
-        data-character="${character}"
-      >
-        A
-      </button>
-    `;
+  createAnkiButton() {
+    // Simple Anki button - AnkiManager handles availability checking
+    return `<button class="anki-btn anki-available" title="Add to Anki">A</button>`;
   }
 
   setupPopupEventListeners(character) {
@@ -231,20 +197,67 @@ class PopupManager {
 
     if (markKnownBtn) {
       markKnownBtn.addEventListener("click", async () => {
-        await this.handleMarkKnown(character);
+        // Update known words counter
+        if (typeof updateKnownWordsCounter === "function") {
+          updateKnownWordsCounter();
+        }
+
+        // Mark word as known
+        await this.vocabManager.markWordAsKnown(character);
+
+        // Save to vocabulary list and increment session counter
+        this.saveToVocabList(character);
+
+        // Update page styling
+        if (window.pageProcessor) {
+          window.pageProcessor.updateWordStyling(character, true);
+        }
+
+        this.hidePopup();
       });
     }
 
     if (markUnknownBtn) {
       markUnknownBtn.addEventListener("click", async () => {
-        await this.handleMarkUnknown(character);
+        // Update known words counter
+        if (typeof updateKnownWordsCounter === "function") {
+          updateKnownWordsCounter();
+        }
+
+        // Mark word as unknown
+        await this.vocabManager.markWordAsUnknown(character);
+
+        // Save to vocabulary list and increment session counter
+        this.saveToVocabList(character);
+
+        // Update page styling
+        if (window.pageProcessor) {
+          window.pageProcessor.updateWordStyling(character, false);
+        }
+
+        // Re-highlight the word if possible
+        if (window.highlightManager) {
+          const el = document.querySelector(`span[data-word="${character}"]`);
+          if (el) {
+            window.highlightManager.removeLookupHighlight();
+            el.classList.add("lookup-highlight");
+            window.highlightManager.currentHighlight = el;
+          }
+        }
+
+        this.hidePopup();
       });
     }
 
-    // Anki button event listener
+    // NEW: Simple Anki button event listener
     if (ankiBtn && !ankiBtn.disabled) {
       ankiBtn.addEventListener("click", async () => {
-        await this.handleAnkiCardCreation(character, ankiBtn);
+        // AnkiManager handles everything - just pass the button and character
+        await this.ankiManager.createCardFromPopup(
+          character,
+          ankiBtn,
+          this.frequencyManager
+        );
       });
     }
 
@@ -260,64 +273,6 @@ class PopupManager {
         await this.handlePronunciation(btn, word, pinyin);
       });
     });
-  }
-
-  async handleMarkKnown(character) {
-    try {
-      // Update known words counter
-      if (typeof updateKnownWordsCounter === "function") {
-        updateKnownWordsCounter();
-      }
-
-      // Mark word as known
-      await this.vocabManager.markWordAsKnown(character);
-
-      // Save to vocabulary list and increment session counter
-      this.saveToVocabList(character);
-
-      // Update page styling
-      if (window.pageProcessor) {
-        window.pageProcessor.updateWordStyling(character, true);
-      }
-
-      this.hidePopup();
-    } catch (error) {
-      console.error("Error marking word as known:", error);
-    }
-  }
-
-  async handleMarkUnknown(character) {
-    try {
-      // Update known words counter
-      if (typeof updateKnownWordsCounter === "function") {
-        updateKnownWordsCounter();
-      }
-
-      // Mark word as unknown
-      await this.vocabManager.markWordAsUnknown(character);
-
-      // Save to vocabulary list and increment session counter
-      this.saveToVocabList(character);
-
-      // Update page styling
-      if (window.pageProcessor) {
-        window.pageProcessor.updateWordStyling(character, false);
-      }
-
-      // Re-highlight the word if possible
-      if (window.highlightManager) {
-        const el = document.querySelector(`span[data-word="${character}"]`);
-        if (el) {
-          window.highlightManager.removeLookupHighlight();
-          el.classList.add("lookup-highlight");
-          window.highlightManager.currentHighlight = el;
-        }
-      }
-
-      this.hidePopup();
-    } catch (error) {
-      console.error("Error marking word as unknown:", error);
-    }
   }
 
   async handlePronunciation(button, word, pinyin) {
@@ -371,176 +326,6 @@ class PopupManager {
         button.disabled = false;
         button.title = "Play pronunciation";
       }, 1500);
-    }
-  }
-
-  async handleAnkiCardCreation(character, button) {
-    try {
-      console.log(`🃏 Creating Anki card for: ${character}`);
-
-      // Update button to loading state
-      button.textContent = "⏳";
-      button.disabled = true;
-      button.title = "Creating Anki card...";
-
-      // Validate character
-      if (!character || character.trim() === "") {
-        throw new Error("No character provided");
-      }
-
-      // Check if dictionary is available
-      if (!this.dictionaryManager?.dictionary) {
-        throw new Error("Dictionary not available");
-      }
-
-      // Check if character exists in dictionary
-      const matches = this.dictionaryManager.dictionary[character] || [];
-      if (matches.length === 0) {
-        throw new Error(`Character "${character}" not found in dictionary`);
-      }
-
-      // Get frequency if available
-      let frequency = "";
-      if (this.frequencyManager) {
-        const freqData = this.frequencyManager.getFrequency(character);
-        frequency = freqData ? freqData.toString() : "";
-      }
-
-      // Create card using new AnkiManager
-      const result = await this.ankiManager.createCard(character, {
-        frequency,
-      });
-
-      if (result.success) {
-        // Success state
-        button.textContent = "✓";
-        button.className = "anki-btn anki-success";
-        button.title = "Successfully added to Anki!";
-
-        // Update statistics
-        this.updateAnkiStatistics(true);
-
-        // Save to vocab list
-        this.saveToVocabList(character);
-
-        // Hide popup after delay
-        setTimeout(() => {
-          this.hidePopup();
-        }, 1500);
-
-        console.log(`✅ Successfully created Anki card for: ${character}`);
-      } else {
-        // Handle different error types
-        this.handleAnkiError(button, result.error);
-        this.updateAnkiStatistics(false);
-      }
-    } catch (error) {
-      console.error("🃏 Error in Anki card creation:", error);
-      this.handleAnkiError(button, error.message);
-      this.updateAnkiStatistics(false);
-    }
-  }
-
-  handleAnkiError(button, errorMessage) {
-    let buttonText = "✗";
-    let buttonClass = "anki-btn anki-error";
-    let buttonTitle = `Error: ${errorMessage}`;
-
-    if (errorMessage.includes("already exists")) {
-      buttonText = "!";
-      buttonClass = "anki-btn anki-duplicate";
-      buttonTitle = "Card already exists in Anki";
-    } else if (
-      errorMessage.includes("not available") ||
-      errorMessage.includes("connection")
-    ) {
-      buttonText = "⚠";
-      buttonClass = "anki-btn anki-unavailable";
-      buttonTitle = "Anki connection lost";
-      this.ankiStatus.available = false;
-    } else if (
-      errorMessage.includes("Settings") ||
-      errorMessage.includes("deck") ||
-      errorMessage.includes("note type")
-    ) {
-      buttonText = "⚙";
-      buttonClass = "anki-btn anki-settings-error";
-      buttonTitle = "Settings incomplete - check Anki settings";
-    }
-
-    button.textContent = buttonText;
-    button.className = buttonClass;
-    button.title = buttonTitle;
-
-    // Reset button after showing error
-    setTimeout(() => {
-      button.textContent = "A";
-      button.className = "anki-btn anki-available";
-      button.disabled = false;
-      button.title = "Add to Anki";
-    }, 3000);
-  }
-
-  updateAnkiStatistics(success) {
-    try {
-      if (window.chrome && chrome.storage && chrome.storage.local) {
-        chrome.storage.local.get(
-          [
-            "ankiCardsCreated",
-            "ankiCardsToday",
-            "ankiSuccessCount",
-            "ankiTotalAttempts",
-            "lastAnkiResetDate",
-          ],
-          (result) => {
-            const today = new Date().toDateString();
-            const lastReset = result.lastAnkiResetDate || "";
-
-            let cardsCreated = result.ankiCardsCreated || 0;
-            let cardsToday = result.ankiCardsToday || 0;
-            let successCount = result.ankiSuccessCount || 0;
-            let totalAttempts = result.ankiTotalAttempts || 0;
-
-            // Reset daily counters if it's a new day
-            if (lastReset !== today) {
-              cardsToday = 0;
-            }
-
-            // Update counters
-            totalAttempts++;
-            if (success) {
-              cardsCreated++;
-              cardsToday++;
-              successCount++;
-            }
-
-            // Calculate success rate
-            const successRate =
-              totalAttempts > 0
-                ? Math.round((successCount / totalAttempts) * 100)
-                : 100;
-
-            // Save updated statistics
-            chrome.storage.local.set(
-              {
-                ankiCardsCreated: cardsCreated,
-                ankiCardsToday: cardsToday,
-                ankiSuccessCount: successCount,
-                ankiTotalAttempts: totalAttempts,
-                ankiSuccessRate: successRate,
-                lastAnkiResetDate: today,
-              },
-              () => {
-                console.log(
-                  `📊 Anki stats updated: ${cardsCreated} total, ${cardsToday} today, ${successRate}% success rate`
-                );
-              }
-            );
-          }
-        );
-      }
-    } catch (error) {
-      console.warn("Could not update Anki statistics:", error);
     }
   }
 
@@ -623,51 +408,6 @@ class PopupManager {
     }
   }
 
-  // Setup mouse event listeners for popup persistence
-  setupPopupPersistence() {
-    if (this.popup) {
-      this.popup.addEventListener("mouseenter", () => {
-        this.isMouseOverPopup = true;
-        clearTimeout(this.hideTimeout);
-      });
-
-      this.popup.addEventListener("mouseleave", () => {
-        this.isMouseOverPopup = false;
-        this.scheduleHidePopup();
-      });
-    }
-
-    if (this.highlightManager?.currentHighlight) {
-      this.highlightManager.currentHighlight.addEventListener(
-        "mouseenter",
-        () => {
-          this.isMouseOverHighlight = true;
-          clearTimeout(this.hideTimeout);
-        }
-      );
-
-      this.highlightManager.currentHighlight.addEventListener(
-        "mouseleave",
-        () => {
-          this.isMouseOverHighlight = false;
-          this.scheduleHidePopup();
-        }
-      );
-    }
-  }
-
-  hidePopup(event) {
-    if (this.popup && event && this.popup.contains(event.target)) {
-      return;
-    }
-    if (this.popup && (!event || !this.popup.contains(event.target))) {
-      this.popup.remove();
-      this.popup = null;
-      this.isMouseOverPopup = false;
-    }
-  }
-
-  // Additional helper methods
   async saveVocabList() {
     try {
       localStorage.setItem(
@@ -698,19 +438,14 @@ class PopupManager {
     }
   }
 
-  // Cleanup method
-  cleanup() {
-    if (this.popup) {
+  hidePopup(event) {
+    if (this.popup && event && this.popup.contains(event.target)) {
+      return;
+    }
+    if (this.popup && (!event || !this.popup.contains(event.target))) {
       this.popup.remove();
       this.popup = null;
+      this.isMouseOverPopup = false;
     }
-
-    if (this.hideTimeout) {
-      clearTimeout(this.hideTimeout);
-      this.hideTimeout = null;
-    }
-
-    this.isMouseOverPopup = false;
-    this.isMouseOverHighlight = false;
   }
 }
