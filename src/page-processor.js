@@ -10,7 +10,6 @@ class PageProcessor {
   processPageForUnknownWords() {
     // Ensure CSS is injected globally
     this.ensureGlobalCSS();
-    
     const textNodes = this.getAllTextNodes(document.body);
 
     for (const textNode of textNodes) {
@@ -18,6 +17,26 @@ class PageProcessor {
     }
 
     console.log('Page processed for unknown words');
+  }
+
+  calculateComprehensionPercentage() {
+    // Get all text nodes in the body
+    const textNodes = this.getAllTextNodes(document.body);
+    let totalWords = 0;
+    let knownWords = 0;
+
+    for (const textNode of textNodes) {
+        const chineseWords = this.extractChineseWords(textNode.textContent);
+        for (const { word } of chineseWords) {
+            totalWords++;
+            if (this.vocabManager.isWordKnown(word)) {
+                knownWords++;
+            }
+        }
+    }
+
+    if (totalWords === 0) return 100; // If no words, consider comprehension 100%
+    return Math.round((knownWords / totalWords) * 100);
   }
 
   ensureGlobalCSS() {
@@ -425,7 +444,4 @@ class PageProcessor {
 
     console.log('Finished reprocessing, unknown words should be underlined');
   }
-
-  // Remove old method that doesn't work
-  // injectUnderlineCSS() removed - using ensureGlobalCSS() instead
 }

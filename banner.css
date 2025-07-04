@@ -1,0 +1,21 @@
+.comprehension-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  background: #2196f3;
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: bold;
+  text-align: center;
+  padding: 8px 0;
+  z-index: 10000;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  letter-spacing: 0.5px;
+}
+#comprehension-percentage {
+  font-size: 1.2em;
+}
+body {
+  padding-top: 40px !important;
+}

@@ -15,6 +15,7 @@ class ChineseLanguageLearningExtension {
     this.pageProcessor = null;
     this.highlightManager = null;
     this.popup = null;
+    this.bannerManager = null;
 
     this.init();
   }
@@ -35,6 +36,7 @@ class ChineseLanguageLearningExtension {
     this.vocabManager = new VocabManager();
     this.highlightManager = new HighlightManager();
     this.frequencyManager = new FrequencyManager();
+    
 
     await Promise.all([
       this.dictionaryManager.loadDictionary(),
@@ -47,6 +49,7 @@ class ChineseLanguageLearningExtension {
       this.vocabManager
     );
     window.pageProcessor = this.pageProcessor; // Make globally accessible for popup updates
+    this.bannerManager = new BannerManager();
 
     this.popup = new PopupManager({
       highlightManager: this.highlightManager,
@@ -68,6 +71,7 @@ class ChineseLanguageLearningExtension {
 
     this.initAsbplayerIntegration();
     this.setupMessageListener();
+    
 
     console.log(
       "🔍 Chinese Language Learning Extension initialized successfully"
