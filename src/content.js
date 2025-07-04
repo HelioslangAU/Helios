@@ -58,7 +58,8 @@ class ChineseLanguageLearningExtension {
     // NEW: Start observing for dynamic content changes
     this.pinyinManager.observeForDynamicContent();
 
-    this.popup = new PopupManager({
+    // CHANGED: Use MultiCardPopupManager instead of PopupManager
+    this.popup = new MultiCardPopupManager({
       highlightManager: this.highlightManager,
       dictionaryManager: this.dictionaryManager,
       vocabManager: this.vocabManager,

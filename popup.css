@@ -655,3 +655,69 @@
     max-width: 400px !important;
   }
 }
+/* Clean and simple card transitions */
+
+.navigation-dots {
+  position: absolute;
+  bottom: 8px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 4px 12px;
+  border-radius: 16px;
+  backdrop-filter: blur(8px);
+  z-index: 100;
+}
+
+.nav-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.nav-dot:hover {
+  background: rgba(255, 255, 255, 0.7);
+  transform: scale(1.2);
+}
+
+.nav-dot.active {
+  background: var(--helios-accent-primary);
+  width: 8px;
+  height: 8px;
+  box-shadow: 0 0 8px rgba(255, 107, 71, 0.6);
+}
+
+.card-counter {
+  font-size: 10px;
+  color: var(--helios-text-secondary);
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+/* Clean slide transitions */
+.popup-content {
+  transition: all 0.2s ease;
+}
+
+.popup-content.sliding-out {
+  opacity: 0;
+  transform: scale(0.95) translateY(-10px);
+}
+
+.popup-content.sliding-in {
+  opacity: 0;
+  transform: scale(1.05) translateY(10px);
+  animation: slideIn 0.2s ease forwards;
+}
+
+@keyframes slideIn {
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
