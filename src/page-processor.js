@@ -34,10 +34,19 @@ class PageProcessor {
             }
         }
     }
-
     if (totalWords === 0) return 100; // If no words, consider comprehension 100%
     return Math.round((knownWords / totalWords) * 100);
   }
+
+  analyzeASBPlayerSubtitlesComprehension(subtitlesText) {
+  // subtitlesText: string containing all subtitles for the video
+  const chineseWords = this.extractChineseWords(subtitlesText);
+  let totalWords = chineseWords.length;
+  let knownWords = chineseWords.filter(({ word }) => this.vocabManager.isWordKnown(word)).length;
+  if (totalWords === 0) return 100;
+  return Math.round((knownWords / totalWords) * 100);
+}
+
 
   ensureGlobalCSS() {
     if (this.injectedCSS) return;
@@ -405,6 +414,7 @@ class PageProcessor {
   }
 
   forceReprocessElement(element) {
+
     // --- Preserve highlight if present ---
     let highlightedWord = null;
     let highlightText = null;
@@ -441,7 +451,13 @@ class PageProcessor {
         }
       }
     }
-
+  const container = document.querySelector('.asbplayer-offscreen');
+  if (container) {
+    console.log(container.innerText);
+    window.bannerManager.updateComprehension(this.analyzeASBPlayerSubtitlesComprehension(container.innerText));
+  } else {
+    console.warn("ASBPlayer subtitle container not found!");
+  }
     console.log('Finished reprocessing, unknown words should be underlined');
   }
 }

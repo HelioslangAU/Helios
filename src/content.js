@@ -50,6 +50,7 @@ class ChineseLanguageLearningExtension {
     );
     window.pageProcessor = this.pageProcessor; // Make globally accessible for popup updates
     this.bannerManager = new BannerManager();
+    window.bannerManager = this.bannerManager; // Make globally accessible for banner updates
 
     this.popup = new PopupManager({
       highlightManager: this.highlightManager,
@@ -472,17 +473,18 @@ class ChineseLanguageLearningExtension {
 
     // More comprehensive asbplayer detection
     const selectors = [
-      '[class*="asbplayer"]',
-      '[id*="asbplayer"]',
-      '[class*="subtitle"]',
-      '[class*="caption"]',
-      "video + div", // Common pattern for subtitle overlays
-      ".ytp-caption-segment", // YouTube captions
-      ".netflix-player .player-timedtext", // Netflix
-      '[data-uia="player-caption-text"]', // Netflix alternative
+      '.asbplayer-offscreen'
+      // '[id*="asbplayer"]',
+      // '[class*="subtitle"]',
+      // '[class*="caption"]',
+      // "video + div", // Common pattern for subtitle overlays
+      // ".ytp-caption-segment", // YouTube captions
+      // ".netflix-player .player-timedtext", // Netflix
+      // '[data-uia="player-caption-text"]', // Netflix alternative
     ];
 
     const foundElements = new Set();
+    
 
     selectors.forEach((selector) => {
       try {
