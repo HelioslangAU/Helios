@@ -33,7 +33,8 @@
         "src/vocab-manager.js",
         "src/dictionary-manager.js",
         "src/content.js",
-        "src/banner-manager.js"
+        "src/banner-manager.js",
+        "src/banner.js"
       ],
       "css": ["popup.css"],
       "run_at": "document_end"
@@ -69,7 +70,8 @@
         "settings/*",
         "styles/*",
         "banner.html",
-        "banner.css"
+        "banner.css",
+        "src/banner.js"
 
       ],
       "matches": ["<all_urls>"]

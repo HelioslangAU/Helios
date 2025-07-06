@@ -29,6 +29,10 @@ class BannerManager {
         this.banner = temp.firstElementChild;
         this.banner.id = 'comprehension-banner';
         document.body.prepend(this.banner);
+        
+        // Now that the banner is in the DOM, we can instantiate the banner logic
+        new HeliosComprehensionBanner();
+
         const comprehension = window.pageProcessor.calculateComprehensionPercentage();
         this.updateComprehension(comprehension);
     }

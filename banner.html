@@ -1,5 +1,29 @@
-<div>
-    <div class ="comprehension-banner">
-        <div id="comprehension-percentage">Comprehension: 0%</div>
+<div class="helios-comprehension-banner" id="comprehension-banner">
+    <div class="banner-tab" id="bannerTab">
+        <div class="tab-icon">
+            <span>📊</span>
+            <span class="tab-arrow">▼</span>
+        </div>
     </div>
+    
+    <div class="banner-content" id="bannerContent">
+        <div class="banner-stats">
+            <div class="stat-item">
+                <div class="stat-icon known-words">✓</div>
+                <div class="stat-text">
+                    <div class="stat-label">Known Words</div>
+                    <div class="stat-value" id="knownWordsCount">1,247</div>
+                </div>
+            </div>
+
+            <div class="stat-item">
+                <div class="stat-icon comprehension">📖</div>
+                <div class="stat-text">
+                    <div class="stat-label">Comprehension</div>
+                    <div class="stat-value comprehension-value" id="comprehension-percentage">87%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="src/banner.js"></script>
 </div>
