@@ -1,0 +1,62 @@
+/* Pinyin Ruby Text Styles */
+.helios-pinyin-wrapper {
+  display: inline;
+}
+
+ruby.helios-pinyin {
+  ruby-align: center;
+  ruby-position: over;
+  display: inline-ruby;
+  vertical-align: baseline;
+}
+
+ruby.helios-pinyin rt {
+  font-size: 0.6em;
+  color: #666;
+  font-weight: normal;
+  line-height: 1.1;
+  text-align: center;
+  display: ruby-text;
+  unicode-bidi: isolate;
+  font-family: inherit;
+  letter-spacing: 0;
+}
+
+/* Dark theme support */
+@media (prefers-color-scheme: dark) {
+  ruby.helios-pinyin rt {
+    color: #aaa;
+  }
+}
+
+/* Improved spacing between ruby elements */
+ruby.helios-pinyin + ruby.helios-pinyin {
+  margin-left: 1px;
+}
+
+/* Better support for different fonts */
+ruby.helios-pinyin {
+  font-variant-east-asian: normal;
+}
+
+/* Ensure pinyin doesn't break layouts */
+ruby.helios-pinyin rt {
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+/* Mobile optimization */
+@media (max-width: 768px) {
+  ruby.helios-pinyin rt {
+    font-size: 0.55em;
+    line-height: 1;
+  }
+}
+
+/* High DPI display optimization */
+@media (-webkit-min-device-pixel-ratio: 2) {
+  ruby.helios-pinyin rt {
+    font-weight: 400;
+  }
+}

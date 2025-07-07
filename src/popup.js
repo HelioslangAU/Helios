@@ -108,25 +108,8 @@ class PopupManager {
       `;
     }
 
-    // Get pinyin from first match for ruby text and pronunciation
+    // Get pinyin from first match for pronunciation
     pinyin = matches[0].pinyin;
-
-    // Split pinyin and character for proper spacing
-    const pinyinSyllables = pinyin.split(" ");
-    const characters = character.split("");
-
-    // Create ruby text with proper spacing
-    let rubyText = "";
-    if (characters.length === pinyinSyllables.length) {
-      rubyText = characters
-        .map(
-          (char, i) =>
-            `<ruby>${char}<rt>${pinyinSyllables[i] || ""}</rt></ruby>`
-        )
-        .join("");
-    } else {
-      rubyText = `<ruby>${character}<rt>${pinyin}</rt></ruby>`;
-    }
 
     const definitionsHtml = matches
       .map((def, idx) => {
@@ -165,7 +148,7 @@ class PopupManager {
     return `
       <div class="popup-content">
         <div class="character-container">
-          <div class="character highlight">${rubyText}</div>
+          <div class="character highlight"><ruby>${character}<rt>${pinyin}</rt></ruby></div>
           ${pronunciationBtn}
           ${
             frequency
