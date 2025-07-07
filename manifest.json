@@ -32,7 +32,9 @@
         "src/page-processor.js",
         "src/vocab-manager.js",
         "src/dictionary-manager.js",
-        "src/content.js"
+        "src/content.js",
+        "src/banner-manager.js",
+        "src/banner.js"
       ],
       "css": ["popup.css"],
       "run_at": "document_end"
@@ -66,7 +68,11 @@
         "src/settings-vocabulary.js",
         "src/settings-advanced.js",
         "settings/*",
-        "styles/*"
+        "styles/*",
+        "banner.html",
+        "banner.css",
+        "src/banner.js"
+
       ],
       "matches": ["<all_urls>"]
     }

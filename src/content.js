@@ -15,6 +15,7 @@ class ChineseLanguageLearningExtension {
     this.pageProcessor = null;
     this.highlightManager = null;
     this.popup = null;
+    this.bannerManager = null;
     this.pinyinManager = null; // NEW: Add pinyin manager
 
     this.init();
@@ -36,6 +37,7 @@ class ChineseLanguageLearningExtension {
     this.vocabManager = new VocabManager();
     this.highlightManager = new HighlightManager();
     this.frequencyManager = new FrequencyManager();
+    
 
     await Promise.all([
       this.dictionaryManager.loadDictionary(),
@@ -48,6 +50,9 @@ class ChineseLanguageLearningExtension {
       this.vocabManager
     );
     window.pageProcessor = this.pageProcessor; // Make globally accessible for popup updates
+    this.bannerManager = new BannerManager();
+    window.bannerManager = this.bannerManager; // Make globally accessible for banner updates
+    window.vocabManager = this.vocabManager; // Make vocab manager globally accessible
 
     // NEW: Initialize pinyin manager after dictionary and page processor are ready
     this.pinyinManager = new PinyinManager(
@@ -78,6 +83,7 @@ class ChineseLanguageLearningExtension {
 
     this.initAsbplayerIntegration();
     this.setupMessageListener();
+    
 
     console.log(
       "🔍 Chinese Language Learning Extension initialized successfully"
@@ -500,17 +506,18 @@ class ChineseLanguageLearningExtension {
 
     // More comprehensive asbplayer detection
     const selectors = [
-      '[class*="asbplayer"]',
-      '[id*="asbplayer"]',
-      '[class*="subtitle"]',
-      '[class*="caption"]',
-      "video + div", // Common pattern for subtitle overlays
-      ".ytp-caption-segment", // YouTube captions
-      ".netflix-player .player-timedtext", // Netflix
-      '[data-uia="player-caption-text"]', // Netflix alternative
+      '.asbplayer-offscreen'
+      // '[id*="asbplayer"]',
+      // '[class*="subtitle"]',
+      // '[class*="caption"]',
+      // "video + div", // Common pattern for subtitle overlays
+      // ".ytp-caption-segment", // YouTube captions
+      // ".netflix-player .player-timedtext", // Netflix
+      // '[data-uia="player-caption-text"]', // Netflix alternative
     ];
 
     const foundElements = new Set();
+    
 
     selectors.forEach((selector) => {
       try {
