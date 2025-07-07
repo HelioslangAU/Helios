@@ -24,12 +24,12 @@ class PopupManager {
     this.pronunciationManager = new PronunciationManager();
   }
 
-  showDictionaryPopup(x, y, character) {
+  async showDictionaryPopup(x, y, character) {
     this.hidePopup();
 
     const popup = document.createElement("div");
     popup.className = "chinese-lang-extension-popup";
-    popup.innerHTML = this.createPopupContent(character);
+    popup.innerHTML = await this.createPopupContent(character);
 
     // Default position (fallback)
     let posX = x,
@@ -82,19 +82,20 @@ class PopupManager {
     clearTimeout(this.hideTimeout);
     this.hideTimeout = setTimeout(() => {
       if (!this.isMouseOverPopup && !this.isMouseOverHighlight) {
-        this.hidePopup();
         this.highlightManager.removeLookupHighlight();
       }
     }, 50);
   }
 
-  createPopupContent(character) {
+  async createPopupContent(character) {
     const matches = this.dictionaryManager.dictionary[character] || [];
-    const isKnown = this.vocabManager.isWordKnown(character);
+    const wordStatus = this.vocabManager.getWordStatus(character);
     let frequency = null;
     if (this.frequencyManager) {
       frequency = this.frequencyManager.getFrequency(character);
     }
+
+    const ankiButton = await this.createAnkiButton();
 
     if (matches.length === 0) {
       return `
@@ -103,7 +104,7 @@ class PopupManager {
             <div class="character highlight">${character}</div>
           </div>
           <div class="definition">Character not found in dictionary</div>
-          ${this.createAnkiButton()}
+          ${ankiButton}
         </div>
       `;
     }
@@ -158,23 +159,50 @@ class PopupManager {
         </div>
         <div class="definitions-scroll">${definitionsHtml}</div>
         <div class="popup-buttons">
-          <button class="${isKnown ? "mark-unknown-btn" : "mark-known-btn"}">
-            ${isKnown ? "Mark Unknown" : "Mark Known"}
-          </button>
+          ${this.createWordStatusButton(character, wordStatus)}
         </div>
-        ${this.createAnkiButton()}
+        ${ankiButton}
       </div>
     `;
   }
 
-  createAnkiButton() {
-    // Simple Anki button - AnkiManager handles availability checking
-    return `<button class="anki-btn anki-available" title="Add to Anki">A</button>`;
+  createWordStatusButton(character, status) {
+    switch(status) {
+      case 'known':
+        return `<button class="mark-ignore-btn" data-word="${character}">Mark Ignore</button>`;
+      case 'ignored':
+        return `<button class="mark-unknown-btn" data-word="${character}">Mark Unknown</button>`;
+      case 'unknown':
+      default:
+        return `<button class="mark-known-btn" data-word="${character}">Mark Known</button>`;
+    }
+  }
+
+  async createAnkiButton() {
+    // Check Anki connection status
+    const status = await this.ankiManager.getQuickStatus();
+    
+    if (status.available) {
+      return `<button class="anki-btn anki-available" title="Add to Anki">A</button>`;
+    } else {
+      return `<button class="anki-btn anki-unavailable" title="Anki not connected" disabled>A</button>`;
+    }
+  }
+
+  async refreshPopupContent(character) {
+    if (!this.popup) return;
+    
+    // Update the popup content while maintaining position
+    this.popup.innerHTML = await this.createPopupContent(character);
+    
+    // Re-setup event listeners
+    this.setupPopupEventListeners(character);
   }
 
   setupPopupEventListeners(character) {
     const markKnownBtn = this.popup.querySelector(".mark-known-btn");
     const markUnknownBtn = this.popup.querySelector(".mark-unknown-btn");
+    const markIgnoreBtn = this.popup.querySelector(".mark-ignore-btn");
     const ankiBtn = this.popup.querySelector(".anki-btn");
     const pronunciationBtns = this.popup.querySelectorAll(".pronunciation-btn");
 
@@ -196,7 +224,8 @@ class PopupManager {
           window.pageProcessor.updateWordStyling(character, true);
         }
 
-        this.hidePopup();
+        // Refresh popup content
+        this.refreshPopupContent(character);
       });
     }
 
@@ -228,7 +257,23 @@ class PopupManager {
           }
         }
 
-        this.hidePopup();
+        // Refresh popup content
+        this.refreshPopupContent(character);
+      });
+    }
+
+    if (markIgnoreBtn) {
+      markIgnoreBtn.addEventListener("click", async () => {
+        // Mark word as ignored
+        await this.vocabManager.markWordAsIgnored(character);
+
+        // Update page styling (ignored words might have special styling)
+        if (window.pageProcessor) {
+          window.pageProcessor.updateWordStyling(character, false);
+        }
+
+        // Refresh popup content
+        this.refreshPopupContent(character);
       });
     }
 

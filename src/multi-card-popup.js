@@ -5,7 +5,7 @@ class MultiCardPopupManager extends PopupManager {
     this.currentCardIndex = 0;
   }
 
-  showDictionaryPopup(x, y, character) {
+  async showDictionaryPopup(x, y, character) {
     // Check if character has multiple pronunciations
     const allEntries = this.dictionaryManager.dictionary[character] || [];
     const pronunciations = this.groupByPronunciation(allEntries);
@@ -18,7 +18,7 @@ class MultiCardPopupManager extends PopupManager {
     // Multi-card: Show first card with navigation
     this.currentCards = pronunciations;
     this.currentCardIndex = 0;
-    this.showCard(x, y, character, 0);
+    await this.showCard(x, y, character, 0);
   }
 
   groupByPronunciation(entries) {
@@ -35,7 +35,33 @@ class MultiCardPopupManager extends PopupManager {
     }));
   }
 
-  showCard(x, y, character, cardIndex) {
+  sortDefinitions(defs) {
+    // Sort definitions to put ancient/archaic ones at the end
+    const ancientKeywords = ['ancient', 'archaic', 'old', 'classical', 'historical', 'obsolete', 'thou', 'thy', 'thee', 'hast', 'hath', 'doth', 'shalt', 'ye olde'];
+    
+    return defs.sort((a, b) => {
+      const aIsAncient = ancientKeywords.some(keyword => a.toLowerCase().includes(keyword));
+      const bIsAncient = ancientKeywords.some(keyword => b.toLowerCase().includes(keyword));
+      
+      if (aIsAncient && !bIsAncient) return 1;
+      if (!aIsAncient && bIsAncient) return -1;
+      return 0;
+    });
+  }
+
+  createWordStatusButton(cardId, status) {
+    switch(status) {
+      case 'known':
+        return `<button class="mark-ignore-btn" data-card-id="${cardId}">Mark Ignore</button>`;
+      case 'ignored':
+        return `<button class="mark-unknown-btn" data-card-id="${cardId}">Mark Unknown</button>`;
+      case 'unknown':
+      default:
+        return `<button class="mark-known-btn" data-card-id="${cardId}">Mark Known</button>`;
+    }
+  }
+
+  async showCard(x, y, character, cardIndex) {
     this.hidePopup();
 
     const card = this.currentCards[cardIndex];
@@ -43,7 +69,7 @@ class MultiCardPopupManager extends PopupManager {
     // Create popup using EXACT same method as original
     const popup = document.createElement("div");
     popup.className = "chinese-lang-extension-popup";
-    popup.innerHTML = this.createCardContent(character, card);
+    popup.innerHTML = await this.createCardContent(character, card);
 
     // Position exactly like original
     let posX = x,
@@ -92,10 +118,10 @@ class MultiCardPopupManager extends PopupManager {
     }, 0);
   }
 
-  createCardContent(character, card) {
+  async createCardContent(character, card) {
     const { pinyin, entries } = card;
     const cardId = `${character}-${pinyin}`;
-    const isKnown = this.vocabManager.isWordKnown(cardId);
+    const wordStatus = this.vocabManager.getWordStatus(cardId);
     const frequency = this.frequencyManager
       ? this.frequencyManager.getFrequency(character)
       : null;
@@ -107,12 +133,16 @@ class MultiCardPopupManager extends PopupManager {
           .split(";")
           .map((d) => d.trim())
           .filter(Boolean);
+        
+        // Sort definitions to put ancient ones at the end
+        const sortedDefs = this.sortDefinitions(defs);
+        
         const bullets =
-          defs.length > 1
-            ? `<ul class="definition-list">${defs
+          sortedDefs.length > 1
+            ? `<ul class="definition-list">${sortedDefs
                 .map((d) => `<li>${d}</li>`)
                 .join("")}</ul>`
-            : `<div class="definition">${defs[0]}</div>`;
+            : `<div class="definition">${sortedDefs[0]}</div>`;
         return `<div class="definition-block">${bullets}</div>`;
       })
       .join("");
@@ -143,13 +173,9 @@ class MultiCardPopupManager extends PopupManager {
         </div>
         <div class="definitions-scroll">${definitionsHtml}</div>
         <div class="popup-buttons">
-          <button class="${
-            isKnown ? "mark-unknown-btn" : "mark-known-btn"
-          }" data-card-id="${cardId}">
-            ${isKnown ? "Mark Unknown" : "Mark Known"}
-          </button>
+          ${this.createWordStatusButton(cardId, wordStatus)}
         </div>
-        ${this.createAnkiButton()}
+        ${await this.createAnkiButton()}
       </div>
     `;
   }
@@ -244,11 +270,10 @@ class MultiCardPopupManager extends PopupManager {
   goToCard(index) {
     if (index < 0 || index >= this.currentCards.length) return;
 
-    const oldIndex = this.currentCardIndex;
     this.currentCardIndex = index;
     const character =
-      this.currentCards[index].entries[0].traditional ||
-      this.currentCards[index].entries[0].simplified;
+      this.currentCards[index].entries[0].simplified ||
+      this.currentCards[index].entries[0].traditional;
     const newCard = this.currentCards[index];
 
     // Clean slide transition - just update content with smooth animation
@@ -257,9 +282,9 @@ class MultiCardPopupManager extends PopupManager {
     // Add slide-out class
     popupContent.classList.add("sliding-out");
 
-    setTimeout(() => {
+    setTimeout(async () => {
       // Update content
-      popupContent.innerHTML = this.createCardContentInner(character, newCard);
+      popupContent.innerHTML = await this.createCardContentInner(character, newCard);
 
       // Remove slide-out, add slide-in
       popupContent.classList.remove("sliding-out");
@@ -276,10 +301,10 @@ class MultiCardPopupManager extends PopupManager {
     }, 100);
   }
 
-  createCardContentInner(character, card) {
+  async createCardContentInner(character, card) {
     const { pinyin, entries } = card;
     const cardId = `${character}-${pinyin}`;
-    const isKnown = this.vocabManager.isWordKnown(cardId);
+    const wordStatus = this.vocabManager.getWordStatus(cardId);
 
     // Try to get frequency for the specific pronunciation first, then fallback to character
     let frequency = null;
@@ -297,12 +322,16 @@ class MultiCardPopupManager extends PopupManager {
           .split(";")
           .map((d) => d.trim())
           .filter(Boolean);
+        
+        // Sort definitions to put ancient ones at the end
+        const sortedDefs = this.sortDefinitions(defs);
+        
         const bullets =
-          defs.length > 1
-            ? `<ul class="definition-list">${defs
+          sortedDefs.length > 1
+            ? `<ul class="definition-list">${sortedDefs
                 .map((d) => `<li>${d}</li>`)
                 .join("")}</ul>`
-            : `<div class="definition">${defs[0]}</div>`;
+            : `<div class="definition">${sortedDefs[0]}</div>`;
         return `<div class="definition-block">${bullets}</div>`;
       })
       .join("");
@@ -333,13 +362,9 @@ class MultiCardPopupManager extends PopupManager {
       </div>
       <div class="definitions-scroll">${definitionsHtml}</div>
       <div class="popup-buttons">
-        <button class="${
-          isKnown ? "mark-unknown-btn" : "mark-known-btn"
-        }" data-card-id="${cardId}">
-          ${isKnown ? "Mark Unknown" : "Mark Known"}
-        </button>
+        ${this.createWordStatusButton(cardId, wordStatus)}
       </div>
-      ${this.createAnkiButton()}
+      ${await this.createAnkiButton()}
     `;
   }
 
@@ -420,6 +445,7 @@ class MultiCardPopupManager extends PopupManager {
     // All button events exactly like original
     const markKnownBtn = this.popup.querySelector(".mark-known-btn");
     const markUnknownBtn = this.popup.querySelector(".mark-unknown-btn");
+    const markIgnoreBtn = this.popup.querySelector(".mark-ignore-btn");
     const ankiBtn = this.popup.querySelector(".anki-btn");
     const pronunciationBtns = this.popup.querySelectorAll(".pronunciation-btn");
 
@@ -427,6 +453,10 @@ class MultiCardPopupManager extends PopupManager {
       markKnownBtn.addEventListener("click", async () => {
         const cardId = markKnownBtn.getAttribute("data-card-id");
         await this.vocabManager.markWordAsKnown(cardId);
+        
+        // Mark all pronunciations of this character as known
+        await this.markAllCardsAsKnown(character, true);
+        
         this.saveToVocabList(
           character,
           card.pinyin,
@@ -435,7 +465,9 @@ class MultiCardPopupManager extends PopupManager {
         if (window.pageProcessor) {
           window.pageProcessor.updateWordStyling(character, true);
         }
-        this.hidePopup();
+
+        // Refresh current card
+        await this.refreshCurrentCard(character);
       });
     }
 
@@ -443,6 +475,10 @@ class MultiCardPopupManager extends PopupManager {
       markUnknownBtn.addEventListener("click", async () => {
         const cardId = markUnknownBtn.getAttribute("data-card-id");
         await this.vocabManager.markWordAsUnknown(cardId);
+        
+        // Mark all pronunciations of this character as unknown
+        await this.markAllCardsAsKnown(character, false);
+        
         this.saveToVocabList(
           character,
           card.pinyin,
@@ -459,7 +495,26 @@ class MultiCardPopupManager extends PopupManager {
             window.highlightManager.currentHighlight = el;
           }
         }
-        this.hidePopup();
+
+        // Refresh current card
+        await this.refreshCurrentCard(character);
+      });
+    }
+
+    if (markIgnoreBtn) {
+      markIgnoreBtn.addEventListener("click", async () => {
+        const cardId = markIgnoreBtn.getAttribute("data-card-id");
+        await this.vocabManager.markWordAsIgnored(cardId);
+        
+        // Mark all pronunciations of this character as ignored
+        await this.markAllCardsAsIgnored(character);
+        
+        if (window.pageProcessor) {
+          window.pageProcessor.updateWordStyling(character, false);
+        }
+
+        // Refresh current card
+        await this.refreshCurrentCard(character);
       });
     }
 
@@ -490,6 +545,52 @@ class MultiCardPopupManager extends PopupManager {
         this.goToCard(index);
       }
     });
+  }
+
+  async markAllCardsAsKnown(character, isKnown) {
+    // Mark all pronunciations of this character as known/unknown
+    try {
+      for (const card of this.currentCards) {
+        const cardId = `${character}-${card.pinyin}`;
+        if (isKnown) {
+          await this.vocabManager.markWordAsKnown(cardId);
+        } else {
+          await this.vocabManager.markWordAsUnknown(cardId);
+        }
+      }
+    } catch (error) {
+      console.warn("Could not mark all cards:", error);
+    }
+  }
+
+  async markAllCardsAsIgnored(character) {
+    // Mark all pronunciations of this character as ignored
+    try {
+      for (const card of this.currentCards) {
+        const cardId = `${character}-${card.pinyin}`;
+        await this.vocabManager.markWordAsIgnored(cardId);
+      }
+    } catch (error) {
+      console.warn("Could not mark all cards as ignored:", error);
+    }
+  }
+
+  async refreshCurrentCard(character) {
+    if (!this.popup || this.currentCards.length === 0) return;
+    
+    const currentCard = this.currentCards[this.currentCardIndex];
+    const popupContent = this.popup.querySelector(".popup-content");
+    
+    if (popupContent && currentCard) {
+      // Update the popup content
+      popupContent.innerHTML = await this.createCardContentInner(character, currentCard);
+      
+      // Re-setup event listeners
+      this.setupCardEventListeners(character, currentCard);
+      
+      // Update navigation dots
+      this.updateNavigationDots();
+    }
   }
 
   saveToVocabList(character, pinyin, definition) {

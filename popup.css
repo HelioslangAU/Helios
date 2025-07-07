@@ -367,9 +367,10 @@
   align-items: center;
 }
 
-/* Mark Known/Unknown Button */
+/* Mark Known/Unknown/Ignore Button */
 .mark-known-btn,
-.mark-unknown-btn {
+.mark-unknown-btn,
+.mark-ignore-btn {
   padding: 8px 16px;
   border: none;
   border-radius: 10px;
@@ -406,6 +407,16 @@
 .mark-unknown-btn:hover {
   transform: translateY(-3px) scale(1.02);
   box-shadow: 0 8px 32px var(--helios-accent-glow);
+}
+
+.mark-ignore-btn {
+  background: linear-gradient(135deg, #6b7280, #4b5563);
+  color: white;
+}
+
+.mark-ignore-btn:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 32px rgba(107, 114, 128, 0.4);
 }
 
 /* Anki Button - Small Icon in Top Right */

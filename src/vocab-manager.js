@@ -1,11 +1,12 @@
 class VocabManager {
   constructor() {
     this.knownWords = new Set();
+    this.ignoredWords = new Set();
   }
 
   async loadKnownWords() {
     try {
-      const result = await chrome.storage.local.get(['chineseExtensionKnownWords']);
+      const result = await chrome.storage.local.get(['chineseExtensionKnownWords', 'chineseExtensionIgnoredWords']);
       if (result.chineseExtensionKnownWords) {
         this.knownWords = new Set(result.chineseExtensionKnownWords);
         console.log('Known words loaded from extension storage');
@@ -14,18 +15,29 @@ class VocabManager {
         this.knownWords = new Set();
         console.log('No known words found in extension storage, starting fresh');
       }
+      
+      if (result.chineseExtensionIgnoredWords) {
+        this.ignoredWords = new Set(result.chineseExtensionIgnoredWords);
+        console.log('Ignored words loaded from extension storage');
+        console.log(this.ignoredWords);
+      } else {
+        this.ignoredWords = new Set();
+        console.log('No ignored words found in extension storage, starting fresh');
+      }
     } catch (err) {
       console.warn('Failed to load known words from extension storage.', err);
       this.knownWords = new Set();
+      this.ignoredWords = new Set();
     }
   }
 
   async saveKnownWords() {
     try {
       await chrome.storage.local.set({
-        chineseExtensionKnownWords: [...this.knownWords]
+        chineseExtensionKnownWords: [...this.knownWords],
+        chineseExtensionIgnoredWords: [...this.ignoredWords]
       });
-      console.log('Known words saved to extension storage');
+      console.log('Known and ignored words saved to extension storage');
     } catch (error) {
       console.warn('Could not save known words:', error);
     }
@@ -33,9 +45,13 @@ class VocabManager {
 
   async clearKnownWords() {
     this.knownWords.clear();
+    this.ignoredWords.clear();
     try {
-      await chrome.storage.local.set({ chineseExtensionKnownWords: [] });
-      console.log('Known words cleared in extension storage');
+      await chrome.storage.local.set({ 
+        chineseExtensionKnownWords: [],
+        chineseExtensionIgnoredWords: []
+      });
+      console.log('Known and ignored words cleared in extension storage');
     } catch (error) {
       console.warn('Could not clear known words:', error);
     }
@@ -85,12 +101,30 @@ class VocabManager {
 
   async markWordAsUnknown(word) {
     this.knownWords.delete(word);
+    this.ignoredWords.delete(word);
     await this.saveKnownWords();
     console.log('Marked word as unknown:', word);
   }
 
+  async markWordAsIgnored(word) {
+    this.knownWords.delete(word);
+    this.ignoredWords.add(word);
+    await this.saveKnownWords();
+    console.log('Marked word as ignored:', word);
+  }
+
   isWordKnown(word) {
     return this.knownWords.has(word);
+  }
+
+  isWordIgnored(word) {
+    return this.ignoredWords.has(word);
+  }
+
+  getWordStatus(word) {
+    if (this.knownWords.has(word)) return 'known';
+    if (this.ignoredWords.has(word)) return 'ignored';
+    return 'unknown';
   }
 
   // Batch operations for better performance
