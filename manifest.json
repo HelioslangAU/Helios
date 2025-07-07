@@ -27,6 +27,7 @@
         "src/anki-manager.js",
         "src/pronunciation.js",
         "src/popup.js",
+        "src/multi-card-popup.js",
         "src/extensiontab.js",
         "src/text-highlighter.js",
         "src/page-processor.js",
