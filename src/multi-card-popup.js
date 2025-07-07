@@ -3,9 +3,13 @@ class MultiCardPopupManager extends PopupManager {
     super(options);
     this.currentCards = [];
     this.currentCardIndex = 0;
+    this.originalCharacter = null; // FIX 1: Store original character to prevent switching
   }
 
   showDictionaryPopup(x, y, character) {
+    // FIX 1: Store the original character from the website
+    this.originalCharacter = character;
+
     // Check if character has multiple pronunciations
     const allEntries = this.dictionaryManager.dictionary[character] || [];
     const pronunciations = this.groupByPronunciation(allEntries);
@@ -43,7 +47,9 @@ class MultiCardPopupManager extends PopupManager {
     // Create popup using EXACT same method as original
     const popup = document.createElement("div");
     popup.className = "chinese-lang-extension-popup";
-    popup.innerHTML = this.createCardContent(character, card);
+
+    // FIX 1: Use originalCharacter consistently throughout
+    popup.innerHTML = this.createCardContent(this.originalCharacter, card);
 
     // Position exactly like original
     let posX = x,
@@ -67,7 +73,7 @@ class MultiCardPopupManager extends PopupManager {
     this.addNavigationDots();
 
     // Set up events exactly like original
-    this.setupCardEventListeners(character, card);
+    this.setupCardEventListeners(this.originalCharacter, card);
     this.setupScrolling();
 
     // Position adjustment exactly like original
@@ -96,8 +102,12 @@ class MultiCardPopupManager extends PopupManager {
     const { pinyin, entries } = card;
     const cardId = `${character}-${pinyin}`;
     const isKnown = this.vocabManager.isWordKnown(cardId);
+
+    // FIX 1: Always use the original character from the website, not from dictionary entries
+    const displayCharacter = this.originalCharacter || character;
+
     const frequency = this.frequencyManager
-      ? this.frequencyManager.getFrequency(character)
+      ? this.frequencyManager.getFrequency(displayCharacter)
       : null;
 
     // Create definitions exactly like original
@@ -122,7 +132,7 @@ class MultiCardPopupManager extends PopupManager {
       <button 
         class="pronunciation-btn" 
         title="Play pronunciation"
-        data-word="${character}"
+        data-word="${displayCharacter}"
         data-pinyin="${pinyin}"
       >
         <span class="icon">🔊</span>
@@ -133,7 +143,7 @@ class MultiCardPopupManager extends PopupManager {
     return `
       <div class="popup-content">
         <div class="character-container">
-          <div class="character highlight"><ruby>${character}<rt>${pinyin}</rt></ruby></div>
+          <div class="character highlight"><ruby>${displayCharacter}<rt>${pinyin}</rt></ruby></div>
           ${pronunciationBtn}
           ${
             frequency
@@ -246,9 +256,9 @@ class MultiCardPopupManager extends PopupManager {
 
     const oldIndex = this.currentCardIndex;
     this.currentCardIndex = index;
-    const character =
-      this.currentCards[index].entries[0].traditional ||
-      this.currentCards[index].entries[0].simplified;
+
+    // FIX 1: Always use originalCharacter instead of getting from entries
+    const character = this.originalCharacter;
     const newCard = this.currentCards[index];
 
     // Clean slide transition - just update content with smooth animation
@@ -281,13 +291,16 @@ class MultiCardPopupManager extends PopupManager {
     const cardId = `${character}-${pinyin}`;
     const isKnown = this.vocabManager.isWordKnown(cardId);
 
+    // FIX 1: Always use the original character from the website
+    const displayCharacter = this.originalCharacter || character;
+
     // Try to get frequency for the specific pronunciation first, then fallback to character
     let frequency = null;
     if (this.frequencyManager) {
       // Try pronunciation-specific frequency first (like "长-cháng")
       frequency =
         this.frequencyManager.getFrequency(cardId) ||
-        this.frequencyManager.getFrequency(character);
+        this.frequencyManager.getFrequency(displayCharacter);
     }
 
     // Create definitions exactly like original
@@ -312,7 +325,7 @@ class MultiCardPopupManager extends PopupManager {
       <button 
         class="pronunciation-btn" 
         title="Play pronunciation (${pinyin})"
-        data-word="${character}"
+        data-word="${displayCharacter}"
         data-pinyin="${pinyin}"
         data-tts-text="${pinyin}"
       >
@@ -323,7 +336,7 @@ class MultiCardPopupManager extends PopupManager {
     // Return just the inner content
     return `
       <div class="character-container">
-        <div class="character highlight"><ruby>${character}<rt>${pinyin}</rt></ruby></div>
+        <div class="character highlight"><ruby>${displayCharacter}<rt>${pinyin}</rt></ruby></div>
         ${pronunciationBtn}
         ${
           frequency
@@ -425,40 +438,16 @@ class MultiCardPopupManager extends PopupManager {
 
     if (markKnownBtn) {
       markKnownBtn.addEventListener("click", async () => {
-        const cardId = markKnownBtn.getAttribute("data-card-id");
-        await this.vocabManager.markWordAsKnown(cardId);
-        this.saveToVocabList(
-          character,
-          card.pinyin,
-          card.entries[0].definition
-        );
-        if (window.pageProcessor) {
-          window.pageProcessor.updateWordStyling(character, true);
-        }
+        // FIX 2: Mark ALL cards as known when clicking "Mark Known"
+        await this.markAllCardsAsKnown();
         this.hidePopup();
       });
     }
 
     if (markUnknownBtn) {
       markUnknownBtn.addEventListener("click", async () => {
-        const cardId = markUnknownBtn.getAttribute("data-card-id");
-        await this.vocabManager.markWordAsUnknown(cardId);
-        this.saveToVocabList(
-          character,
-          card.pinyin,
-          card.entries[0].definition
-        );
-        if (window.pageProcessor) {
-          window.pageProcessor.updateWordStyling(character, false);
-        }
-        if (window.highlightManager) {
-          const el = document.querySelector(`span[data-word="${character}"]`);
-          if (el) {
-            window.highlightManager.removeLookupHighlight();
-            el.classList.add("lookup-highlight");
-            window.highlightManager.currentHighlight = el;
-          }
-        }
+        // FIX 2: Mark ALL cards as unknown when clicking "Mark Unknown"
+        await this.markAllCardsAsUnknown();
         this.hidePopup();
       });
     }
@@ -466,7 +455,7 @@ class MultiCardPopupManager extends PopupManager {
     if (ankiBtn && !ankiBtn.disabled) {
       ankiBtn.addEventListener("click", async () => {
         await this.ankiManager.createCardFromPopup(
-          `${character}-${card.pinyin}`,
+          `${this.originalCharacter}-${card.pinyin}`,
           ankiBtn,
           this.frequencyManager
         );
@@ -492,13 +481,89 @@ class MultiCardPopupManager extends PopupManager {
     });
   }
 
+  // FIX 2: New method to mark all cards as known
+  async markAllCardsAsKnown() {
+    console.log(
+      "🎯 Marking all cards as known for character:",
+      this.originalCharacter
+    );
+
+    // Mark the base character as known
+    await this.vocabManager.markWordAsKnown(this.originalCharacter);
+
+    // Mark each pronunciation variant as known
+    for (const card of this.currentCards) {
+      const cardId = `${this.originalCharacter}-${card.pinyin}`;
+      await this.vocabManager.markWordAsKnown(cardId);
+      console.log("🎯 Marked as known:", cardId);
+    }
+
+    // Save to vocab list using the first pronunciation for display
+    const firstCard = this.currentCards[0];
+    this.saveToVocabList(
+      this.originalCharacter,
+      firstCard.pinyin,
+      firstCard.entries[0].definition
+    );
+
+    // Update page styling
+    if (window.pageProcessor) {
+      window.pageProcessor.updateWordStyling(this.originalCharacter, true);
+    }
+  }
+
+  // FIX 2: New method to mark all cards as unknown
+  async markAllCardsAsUnknown() {
+    console.log(
+      "🎯 Marking all cards as unknown for character:",
+      this.originalCharacter
+    );
+
+    // Mark the base character as unknown
+    await this.vocabManager.markWordAsUnknown(this.originalCharacter);
+
+    // Mark each pronunciation variant as unknown
+    for (const card of this.currentCards) {
+      const cardId = `${this.originalCharacter}-${card.pinyin}`;
+      await this.vocabManager.markWordAsUnknown(cardId);
+      console.log("🎯 Marked as unknown:", cardId);
+    }
+
+    // Save to vocab list using the first pronunciation for display
+    const firstCard = this.currentCards[0];
+    this.saveToVocabList(
+      this.originalCharacter,
+      firstCard.pinyin,
+      firstCard.entries[0].definition
+    );
+
+    // Update page styling
+    if (window.pageProcessor) {
+      window.pageProcessor.updateWordStyling(this.originalCharacter, false);
+    }
+
+    // Re-highlight the word if possible
+    if (window.highlightManager) {
+      const el = document.querySelector(
+        `span[data-word="${this.originalCharacter}"]`
+      );
+      if (el) {
+        window.highlightManager.removeLookupHighlight();
+        el.classList.add("lookup-highlight");
+        window.highlightManager.currentHighlight = el;
+      }
+    }
+  }
+
   saveToVocabList(character, pinyin, definition) {
-    // Same as before
+    // FIX 1: Use originalCharacter consistently
+    const displayCharacter = this.originalCharacter || character;
+
     try {
       if (window.chrome && chrome.storage && chrome.storage.local) {
         chrome.storage.local.get(["chineseExtensionVocabList"], (result) => {
           const vocabItems = result.chineseExtensionVocabList || [];
-          const cardId = `${character}-${pinyin}`;
+          const cardId = `${displayCharacter}-${pinyin}`;
 
           const exists = vocabItems.some(
             (item) => (item.character || item.word) === cardId
