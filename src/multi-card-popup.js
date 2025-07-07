@@ -60,10 +60,56 @@ class MultiCardPopupManager extends PopupManager {
       groups[entry.pinyin].push(entry);
     });
 
-    return Object.entries(groups).map(([pinyin, entries]) => ({
+    // Start with the main word pronunciations
+    const mainWordCards = Object.entries(groups).map(([pinyin, entries]) => ({
       pinyin,
-      entries: this.filterAndSortDefinitions(entries), // Apply filtering here
+      entries: this.filterAndSortDefinitions(entries),
+      isMainWord: true,
     }));
+
+    // Add individual character cards for multi-character words
+    const characterCards = this.createCharacterCards();
+
+    return [...mainWordCards, ...characterCards];
+  }
+
+  createCharacterCards() {
+    const word = this.originalCharacter;
+    const characterCards = [];
+
+    // Only create character cards for multi-character words
+    if (!word || word.length < 2) {
+      return characterCards;
+    }
+
+    // Create cards for all characters EXCEPT the last one (users can hover over last char separately)
+    for (let i = 0; i < word.length - 1; i++) {
+      const character = word[i];
+      const charEntries = this.dictionaryManager.dictionary[character];
+
+      if (charEntries && charEntries.length > 0) {
+        // Group character entries by pronunciation
+        const charGroups = {};
+        charEntries.forEach((entry) => {
+          if (!charGroups[entry.pinyin]) {
+            charGroups[entry.pinyin] = [];
+          }
+          charGroups[entry.pinyin].push(entry);
+        });
+
+        // Add cards for each pronunciation of this character
+        Object.entries(charGroups).forEach(([pinyin, entries]) => {
+          characterCards.push({
+            pinyin,
+            entries: this.filterAndSortDefinitions(entries),
+            isCharacterCard: true,
+            character: character,
+          });
+        });
+      }
+    }
+
+    return characterCards;
   }
 
   // EXTENSIBLE FILTERING SYSTEM
@@ -193,10 +239,14 @@ class MultiCardPopupManager extends PopupManager {
   }
 
   createCardContent(character, card) {
-    const { pinyin, entries } = card;
-    const cardId = `${character}-${pinyin}`;
+    const { pinyin, entries, isCharacterCard, character: cardCharacter } = card;
+
+    // For character cards, use the individual character; for main word, use original
+    const displayCharacter = isCharacterCard
+      ? cardCharacter
+      : this.originalCharacter || character;
+    const cardId = `${displayCharacter}-${pinyin}`;
     const isKnown = this.vocabManager.isWordKnown(cardId);
-    const displayCharacter = this.originalCharacter || character;
     const frequency = this.frequencyManager
       ? this.frequencyManager.getFrequency(displayCharacter)
       : null;
@@ -349,10 +399,14 @@ class MultiCardPopupManager extends PopupManager {
   }
 
   createCardContentInner(character, card) {
-    const { pinyin, entries } = card;
-    const cardId = `${character}-${pinyin}`;
+    const { pinyin, entries, isCharacterCard, character: cardCharacter } = card;
+
+    // For character cards, use the individual character; for main word, use original
+    const displayCharacter = isCharacterCard
+      ? cardCharacter
+      : this.originalCharacter || character;
+    const cardId = `${displayCharacter}-${pinyin}`;
     const isKnown = this.vocabManager.isWordKnown(cardId);
-    const displayCharacter = this.originalCharacter || character;
 
     let frequency = null;
     if (this.frequencyManager) {
