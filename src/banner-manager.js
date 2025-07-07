@@ -35,6 +35,7 @@ class BannerManager {
 
         const comprehension = window.pageProcessor.calculateComprehensionPercentage();
         this.updateComprehension(comprehension);
+        this.updateKnownWords(window.vocabManager.getKnownWordsCount());
     }
 
     updateComprehension(comprehension) {
@@ -42,7 +43,16 @@ class BannerManager {
 
         const comprehensionElement = this.banner.querySelector('#comprehension-percentage');
         if (comprehensionElement) {
-            comprehensionElement.textContent = `Comprehension: ${comprehension}%`;
+            comprehensionElement.textContent = `${comprehension}%`;
+        }
+    }
+
+    updateKnownWords(knownWords) {
+        if (!this.banner) return;
+
+        const knownWordsElement = this.banner.querySelector('#known-words');
+        if (knownWordsElement) {
+            knownWordsElement.textContent = `${knownWords}`;
         }
     }
 

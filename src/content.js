@@ -52,6 +52,7 @@ class ChineseLanguageLearningExtension {
     window.pageProcessor = this.pageProcessor; // Make globally accessible for popup updates
     this.bannerManager = new BannerManager();
     window.bannerManager = this.bannerManager; // Make globally accessible for banner updates
+    window.vocabManager = this.vocabManager; // Make vocab manager globally accessible
 
     // NEW: Initialize pinyin manager after dictionary and page processor are ready
     this.pinyinManager = new PinyinManager(
