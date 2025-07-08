@@ -323,15 +323,22 @@ class ChineseLanguageLearningExtension {
 
       clearTimeout(this.hoverTimeout);
       this.hoverTimeout = setTimeout(() => {
+        // CRITICAL FIX: Extract the sentence BEFORE modifying the DOM with a highlight.
+        const sentence = this.getSentenceContextFromNode(newCharacterInfo.textNode, newCharacterInfo.word);
+
+        // Now that the sentence is safely captured, apply the highlight.
         this.highlightManager.highlightLookupText(
           newCharacterInfo.textNode,
           newCharacterInfo.start,
           newCharacterInfo.end
         );
+
+        // Finally, show the popup with the correct sentence.
         this.popup.showDictionaryPopup(
           this.highlightManager.currentHighlight.getBoundingClientRect().left,
           this.highlightManager.currentHighlight.getBoundingClientRect().bottom,
-          newCharacterInfo.word
+          newCharacterInfo.word,
+          sentence
         );
       }, 10);
 
@@ -339,6 +346,43 @@ class ChineseLanguageLearningExtension {
     } else {
       this.popup.scheduleHidePopup();
     }
+  }
+
+  getSentenceContextFromNode(textNode, character) {
+    let bestSentence = '';
+    let currentElement = textNode.parentElement;
+
+    // Walk up the DOM tree to find the best sentence container.
+    for (let i = 0; i < 5 && currentElement; i++) {
+        const currentText = currentElement.textContent || '';
+
+        if (currentText.includes(character) && currentText.trim().length > character.length) {
+            // Split by sentence-ending punctuation.
+            const sentences = currentText.split(/[.!?。！？\n]+/);
+
+            for (const sentence of sentences) {
+                if (sentence.includes(character)) {
+                    const trimmedSentence = sentence.trim();
+                    // A longer sentence is generally better context.
+                    if (trimmedSentence.length > bestSentence.length && trimmedSentence.length < 300) {
+                        bestSentence = trimmedSentence;
+                    }
+                }
+            }
+        }
+        currentElement = currentElement.parentElement;
+    }
+
+    // If no sentence was found, use the text of the immediate parent as a fallback.
+    if (!bestSentence && textNode.parentElement) {
+        const parentText = textNode.parentElement.textContent.trim();
+        if (parentText) {
+            return parentText;
+        }
+    }
+    
+    // If all else fails, return the word itself.
+    return bestSentence || character;
   }
 
   _onKeyDownTS(event) {

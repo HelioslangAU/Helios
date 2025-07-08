@@ -24,8 +24,9 @@ class PopupManager {
     this.pronunciationManager = new PronunciationManager();
   }
 
-  showDictionaryPopup(x, y, character) {
+  showDictionaryPopup(x, y, character, sentence) {
     this.hidePopup();
+    this.capturedSentence = sentence; // Store the sentence
 
     const popup = document.createElement("div");
     popup.className = "chinese-lang-extension-popup";
@@ -235,9 +236,19 @@ class PopupManager {
     // NEW: Simple Anki button event listener
     if (ankiBtn && !ankiBtn.disabled) {
       ankiBtn.addEventListener("click", async () => {
-        // AnkiManager handles everything - just pass the button and character
+        // Construct a wordData object similar to the multi-card popup
+        const matches = this.dictionaryManager.dictionary[character] || [];
+        const wordData = {
+          character: character,
+          pinyin: matches.length > 0 ? matches[0].pinyin : '',
+          definition: matches.length > 0 ? matches[0].definition : 'No definition',
+          sentence: this.capturedSentence, // Use the stored sentence
+          traditional: matches.length > 0 ? matches[0].traditional : character,
+          simplified: matches.length > 0 ? matches[0].simplified : character,
+        };
+        
         await this.ankiManager.createCardFromPopup(
-          character,
+          wordData,
           ankiBtn,
           this.frequencyManager
         );

@@ -35,14 +35,16 @@ class MultiCardPopupManager extends PopupManager {
     };
   }
 
-  showDictionaryPopup(x, y, character) {
+  showDictionaryPopup(x, y, character, sentence) {
     this.originalCharacter = character;
+    this.capturedSentence = sentence; // Store the sentence
 
     const allEntries = this.dictionaryManager.dictionary[character] || [];
     const pronunciations = this.groupByPronunciation(allEntries);
 
     if (pronunciations.length <= 1) {
-      return super.showDictionaryPopup(x, y, character);
+      // Also pass the sentence to the parent method
+      return super.showDictionaryPopup(x, y, character, sentence);
     }
 
     this.currentCards = pronunciations;
@@ -569,7 +571,7 @@ class MultiCardPopupManager extends PopupManager {
           character: displayCharacter,
           pinyin: currentCard.pinyin,
           definition: currentCard.entries.map(e => e.definition).join('; '),
-          // You can add other fields here if needed, e.g., traditional/simplified
+          sentence: this.capturedSentence, // Use the stored sentence
           traditional: currentCard.entries[0].traditional,
           simplified: currentCard.entries[0].simplified,
         };

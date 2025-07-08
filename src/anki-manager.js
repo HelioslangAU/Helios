@@ -110,16 +110,17 @@ class AnkiManager {
   // Extract sentence context from the page
   extractSentenceContext(character) {
     try {
-      // Method 1: Find highlighted element and start from its parent
+      // Method 1: Find highlighted element and start from it
       const highlight = document.querySelector(
         ".lookup-highlight, .helios-highlight"
       );
-      if (highlight && highlight.parentElement) {
-        const context = this.getContextFromElement(highlight.parentElement, character);
+      if (highlight) {
+        // Start the search from the highlight element itself and walk up.
+        const context = this.getContextFromElement(highlight, character);
         if (context) return context;
       }
 
-      // Method 2: Search in visible text elements
+      // Method 2: Fallback search in visible text elements
       const textElements = document.querySelectorAll("p, div, span, td, li");
       for (const element of textElements) {
         const text = element.textContent || "";
@@ -142,34 +143,34 @@ class AnkiManager {
   // Get context from specific element
   getContextFromElement(element, character) {
     let current = element;
+    let bestSentence = '';
 
     // Walk up DOM tree to find good context
-    for (let i = 0; i < 5; i++) {
-      if (!current) break;
-
+    for (let i = 0; i < 5 && current; i++) {
       const text = current.textContent || "";
-      if (text.includes(character)) {
-        // Try to find sentence boundaries
+      // This is the key change: ensure we are looking at a container,
+      // not just the word itself.
+      if (text.includes(character) && text.trim().length > character.length) {
         const sentences = text.split(/[.!?。！？\n]+/);
         for (const sentence of sentences) {
-          if (sentence.includes(character) && sentence.trim().length <= 200) {
-            return sentence.trim();
+          if (sentence.includes(character)) {
+            const trimmedSentence = sentence.trim();
+            if (trimmedSentence.length > bestSentence.length && trimmedSentence.length <= 200) {
+                bestSentence = trimmedSentence;
+            }
           }
         }
-
-        // Fallback: get surrounding text
-        const charIndex = text.indexOf(character);
-        if (charIndex !== -1) {
-          const start = Math.max(0, charIndex - 50);
-          const end = Math.min(text.length, charIndex + 50);
-          return text.substring(start, end).trim();
-        }
       }
-
+      if (bestSentence) break; // Found a good candidate
       current = current.parentNode;
     }
+    
+    // If no sentence is found after walking up, return the highlight's text content as a last resort.
+    if (!bestSentence && element.textContent) {
+        bestSentence = element.textContent.trim();
+    }
 
-    return "";
+    return bestSentence;
   }
 
   // Create card from character or word data object
@@ -188,20 +189,17 @@ class AnkiManager {
         // If we just got a character string, extract everything.
         wordData = this.extractWordData(data);
       } else {
-        // If we got an object from the multi-card popup, it has the correct
-        // pinyin/definition but is missing page context. We'll add it here.
-        const character = data.character;
-        if (!character) {
-          throw new Error("Character is missing from word data object");
-        }
-        
-        // Combine the specific data from the popup with page context.
+        // If we got an object, it should already have everything, including the pre-captured sentence.
+        // We just ensure the timestamp and URL are present.
         wordData = {
-          ...data, // Use pinyin, definition, etc. from the popup card.
+          ...data,
           timestamp: new Date().toISOString(),
           url: window.location.href,
-          sentence: this.extractSentenceContext(character),
         };
+        // If sentence is somehow missing, extract it as a fallback.
+        if (!wordData.sentence) {
+            wordData.sentence = this.extractSentenceContext(data.character);
+        }
       }
 
       // Create card via background script
