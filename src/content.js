@@ -157,6 +157,9 @@ class ChineseLanguageLearningExtension {
         if (this.autoHighlight) {
           this.pageProcessor.processPageForUnknownWords();
         }
+        if (this.bannerManager) {
+          this.bannerManager.showBanner();
+        }
         // NEW: Resume pinyin observation
         if (this.pinyinManager) {
           this.pinyinManager.observeForDynamicContent();
@@ -167,6 +170,9 @@ class ChineseLanguageLearningExtension {
       this.removeTextScannerEvents();
       this.hidePopup();
       this.clearHighlights();
+      if (this.bannerManager) {
+        this.bannerManager.hideBanner();
+      }
       // NEW: Clean up pinyin
       if (this.pinyinManager) {
         this.pinyinManager.destroy();
