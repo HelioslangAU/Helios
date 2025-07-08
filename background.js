@@ -418,7 +418,7 @@ class BackgroundService {
     }
   }
 
-  pinyinTonesToNumbers(pinyin) {
+  pinyinTonesToNumbers(pinyin, charCount = 1) {
     if (!pinyin) return '';
     const toneMap = {
       'ā': 'a1', 'á': 'a2', 'ǎ': 'a3', 'à': 'a4',
@@ -434,6 +434,15 @@ class BackgroundService {
       'Ū': 'U1', 'Ú': 'U2', 'Ǔ': 'U3', 'Ù': 'U4',
       'Ǖ': 'Ü1', 'Ǘ': 'Ü2', 'Ǚ': 'Ü3', 'Ǜ': 'Ü4'
     };
+
+    // Heuristic to split unspaced pinyin for multi-character words.
+    // This regex finds a vowel and splits before the following consonant.
+    if (charCount > 1 && !pinyin.includes(' ')) {
+        const syllables = pinyin.replace(/([aeiouvüāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ])([b-df-hj-np-tv-z])/g, '$1 $2').split(' ');
+        if (syllables.length === charCount) {
+            pinyin = syllables.join(' ');
+        }
+    }
 
     return pinyin.split(' ').map(syllable => {
       if (syllable.match(/[1-5]$/)) {
@@ -466,7 +475,7 @@ class BackgroundService {
   buildCardFields(wordData, fieldMappings) {
     const fields = {};
 
-    const pinyinWithNumbers = this.pinyinTonesToNumbers(wordData.pinyin);
+    const pinyinWithNumbers = this.pinyinTonesToNumbers(wordData.pinyin, wordData.character.length);
 
     // Available data
     const dataMap = {
