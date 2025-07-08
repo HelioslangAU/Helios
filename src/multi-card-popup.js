@@ -559,7 +559,7 @@ class MultiCardPopupManager extends PopupManager {
     if (ankiBtn && !ankiBtn.disabled) {
       ankiBtn.addEventListener("click", async () => {
         await this.ankiManager.createCardFromPopup(
-          `${this.originalCharacter}-${card.pinyin}`,
+          this.originalCharacter,
           ankiBtn,
           this.frequencyManager
         );
