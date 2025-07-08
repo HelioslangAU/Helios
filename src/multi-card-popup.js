@@ -558,8 +558,24 @@ class MultiCardPopupManager extends PopupManager {
 
     if (ankiBtn && !ankiBtn.disabled) {
       ankiBtn.addEventListener("click", async () => {
+        // Get the data from the currently displayed card
+        const currentCard = this.currentCards[this.currentCardIndex];
+        const displayCharacter = currentCard.isCharacterCard
+          ? currentCard.character
+          : this.originalCharacter;
+
+        // Construct the word data object to pass to the Anki manager
+        const wordData = {
+          character: displayCharacter,
+          pinyin: currentCard.pinyin,
+          definition: currentCard.entries.map(e => e.definition).join('; '),
+          // You can add other fields here if needed, e.g., traditional/simplified
+          traditional: currentCard.entries[0].traditional,
+          simplified: currentCard.entries[0].simplified,
+        };
+
         await this.ankiManager.createCardFromPopup(
-          this.originalCharacter,
+          wordData, // Pass the whole object
           ankiBtn,
           this.frequencyManager
         );
