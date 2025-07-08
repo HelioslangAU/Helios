@@ -198,46 +198,51 @@ class MultiCardPopupManager extends PopupManager {
     popup.className = "chinese-lang-extension-popup";
     popup.innerHTML = this.createCardContent(this.originalCharacter, card);
 
-    let posX = x,
-      posY = y;
-    if (this.highlightManager.currentHighlight) {
-      const rect =
-        this.highlightManager.currentHighlight.getBoundingClientRect();
-      posX = rect.left;
-      posY = rect.bottom + 5;
-    }
-
-    popup.style.left = `${posX}px`;
-    popup.style.top = `${posY}px`;
+    // Set initial style but don't display yet
     popup.style.position = "fixed";
     popup.style.zIndex = "2147483647";
-
+    popup.style.visibility = "hidden";
     document.body.appendChild(popup);
+
+    // Get dimensions of the popup and the highlighted word
+    const popupRect = popup.getBoundingClientRect();
+    const highlight = this.highlightManager.currentHighlight;
+    if (!highlight) {
+        popup.remove();
+        return;
+    }
+    const highlightRect = highlight.getBoundingClientRect();
+
+    // Determine vertical position
+    const middleOfScreen = window.innerHeight / 2;
+    if (highlightRect.top < middleOfScreen) {
+        // Word is in top half, show popup below
+        popup.style.top = `${highlightRect.bottom}px`;
+    } else {
+        // Word is in bottom half, show popup above
+        popup.style.bottom = `${window.innerHeight - highlightRect.top}px`;
+    }
+
+    // Determine horizontal position
+    let posX = highlightRect.left;
+
+    // Adjust if it goes off-screen horizontally
+    if (posX + popupRect.width > window.innerWidth) {
+        posX = window.innerWidth - popupRect.width - 10;
+    }
+    if (posX < 0) {
+        posX = 10;
+    }
+    popup.style.left = `${posX}px`;
+
+    // Make visible
+    popup.style.visibility = "visible";
+
     this.popup = popup;
 
     this.addNavigationDots();
     this.setupCardEventListeners(this.originalCharacter, card);
     this.setupScrolling();
-
-    setTimeout(() => {
-      const popupRect = popup.getBoundingClientRect();
-      if (popupRect.right > window.innerWidth) {
-        const newX = window.innerWidth - popupRect.width - 10;
-        popup.style.left = `${Math.max(10, newX)}px`;
-      }
-      if (popupRect.bottom > window.innerHeight) {
-        let newY = posY;
-        if (this.highlightManager.currentHighlight) {
-          const rect =
-            this.highlightManager.currentHighlight.getBoundingClientRect();
-          newY = rect.top - popupRect.height - 5;
-        } else {
-          newY = posY - popupRect.height - 10;
-        }
-        newY = Math.max(10, newY);
-        popup.style.top = `${newY}px`;
-      }
-    }, 0);
   }
 
   createCardContent(character, card) {
