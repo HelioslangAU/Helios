@@ -24,55 +24,54 @@ class PopupManager {
     this.pronunciationManager = new PronunciationManager();
   }
 
-  showDictionaryPopup(x, y, character) {
+  showDictionaryPopup(x, y, character, sentence) {
     this.hidePopup();
+    this.capturedSentence = sentence; // Store the sentence
 
     const popup = document.createElement("div");
     popup.className = "chinese-lang-extension-popup";
     popup.innerHTML = this.createPopupContent(character);
 
-    // Default position (fallback)
-    let posX = x,
-      posY = y;
-
-    // If there is a highlight, position popup exactly below it
-    if (this.highlightManager.currentHighlight) {
-      const rect =
-        this.highlightManager.currentHighlight.getBoundingClientRect();
-      posX = rect.left;
-      posY = rect.bottom + 5; // Small gap below highlight
-    }
-
-    popup.style.left = `${posX}px`;
-    popup.style.top = `${posY}px`;
+    // Set initial style but don't display yet
     popup.style.position = "fixed";
     popup.style.zIndex = "2147483647";
-
+    popup.style.visibility = "hidden";
     document.body.appendChild(popup);
 
-    // Check if popup goes offscreen and reposition if needed
+    // Get dimensions of the popup and the highlighted word
     const popupRect = popup.getBoundingClientRect();
+    const highlight = this.highlightManager.currentHighlight;
+    if (!highlight) {
+        popup.remove();
+        return;
+    }
+    const highlightRect = highlight.getBoundingClientRect();
 
-    // Adjust horizontal position if going off right edge
-    if (popupRect.right > window.innerWidth) {
-      const newX = window.innerWidth - popupRect.width - 10;
-      popup.style.left = `${Math.max(10, newX)}px`;
+    // Determine vertical position
+    const middleOfScreen = window.innerHeight / 2;
+    if (highlightRect.top < middleOfScreen) {
+        // Word is in top half, show popup below
+        popup.style.top = `${highlightRect.bottom}px`;
+    } else {
+        // Word is in bottom half, show popup above
+        // This aligns the popup's bottom with the highlight's top.
+        popup.style.bottom = `${window.innerHeight - highlightRect.top}px`;
     }
 
-    // Adjust vertical position if going off bottom edge
-    if (popupRect.bottom > window.innerHeight) {
-      let newY = posY;
-      if (this.highlightManager.currentHighlight) {
-        const rect =
-          this.highlightManager.currentHighlight.getBoundingClientRect();
-        newY = rect.top - popupRect.height - 5; // Above highlight
-      } else {
-        newY = posY - popupRect.height - 10;
-      }
-      // Prevent going off the top
-      newY = Math.max(10, newY);
-      popup.style.top = `${newY}px`;
+    // Determine horizontal position
+    let posX = highlightRect.left;
+
+    // Adjust if it goes off-screen horizontally
+    if (posX + popupRect.width > window.innerWidth) {
+        posX = window.innerWidth - popupRect.width - 10;
     }
+    if (posX < 0) {
+        posX = 10;
+    }
+    popup.style.left = `${posX}px`;
+
+    // Make visible
+    popup.style.visibility = "visible";
 
     this.popup = popup;
     this.setupPopupEventListeners(character);
@@ -235,9 +234,19 @@ class PopupManager {
     // NEW: Simple Anki button event listener
     if (ankiBtn && !ankiBtn.disabled) {
       ankiBtn.addEventListener("click", async () => {
-        // AnkiManager handles everything - just pass the button and character
+        // Construct a wordData object similar to the multi-card popup
+        const matches = this.dictionaryManager.dictionary[character] || [];
+        const wordData = {
+          character: character,
+          pinyin: matches.length > 0 ? matches[0].pinyin : '',
+          definition: matches.length > 0 ? matches[0].definition : 'No definition',
+          sentence: this.capturedSentence, // Use the stored sentence
+          traditional: matches.length > 0 ? matches[0].traditional : character,
+          simplified: matches.length > 0 ? matches[0].simplified : character,
+        };
+        
         await this.ankiManager.createCardFromPopup(
-          character,
+          wordData,
           ankiBtn,
           this.frequencyManager
         );

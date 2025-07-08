@@ -254,7 +254,11 @@ class BackgroundService {
 
       // Check for duplicates if enabled
       if (finalSettings.checkDuplicates && !finalSettings.allowDuplicates) {
-        const duplicates = await this.findDuplicates(wordData.character);
+        const duplicates = await this.findDuplicates(
+          wordData.character,
+          finalSettings.fieldMappings || {},
+          finalSettings.noteType
+        );
         if (duplicates.length > 0) {
           throw new Error("Card already exists in Anki");
         }
@@ -414,13 +418,70 @@ class BackgroundService {
     }
   }
 
+  pinyinTonesToNumbers(pinyin, charCount = 1) {
+    if (!pinyin) return '';
+    const toneMap = {
+      'ā': 'a1', 'á': 'a2', 'ǎ': 'a3', 'à': 'a4',
+      'ē': 'e1', 'é': 'e2', 'ě': 'e3', 'è': 'e4',
+      'ī': 'i1', 'í': 'i2', 'ǐ': 'i3', 'ì': 'i4',
+      'ō': 'o1', 'ó': 'o2', 'ǒ': 'o3', 'ò': 'o4',
+      'ū': 'u1', 'ú': 'u2', 'ǔ': 'u3', 'ù': 'u4',
+      'ǖ': 'ü1', 'ǘ': 'ü2', 'ǚ': 'ü3', 'ǜ': 'ü4',
+      'Ā': 'A1', 'Á': 'A2', 'Ǎ': 'A3', 'À': 'A4',
+      'Ē': 'E1', 'É': 'E2', 'Ě': 'E3', 'È': 'E4',
+      'Ī': 'I1', 'Í': 'I2', 'Ǐ': 'I3', 'Ì': 'I4',
+      'Ō': 'O1', 'Ó': 'O2', 'Ǒ': 'O3', 'Ò': 'O4',
+      'Ū': 'U1', 'Ú': 'U2', 'Ǔ': 'U3', 'Ù': 'U4',
+      'Ǖ': 'Ü1', 'Ǘ': 'Ü2', 'Ǚ': 'Ü3', 'Ǜ': 'Ü4'
+    };
+
+    // Heuristic to split unspaced pinyin for multi-character words.
+    // This regex finds a vowel and splits before the following consonant.
+    if (charCount > 1 && !pinyin.includes(' ')) {
+        const syllables = pinyin.replace(/([aeiouvüāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ])([b-df-hj-np-tv-z])/g, '$1 $2').split(' ');
+        if (syllables.length === charCount) {
+            pinyin = syllables.join(' ');
+        }
+    }
+
+    return pinyin.split(' ').map(syllable => {
+      if (syllable.match(/[1-5]$/)) {
+        return syllable;
+      }
+
+      let result = '';
+      let tone = '';
+      for (const char of syllable) {
+        if (toneMap[char]) {
+          const mapping = toneMap[char];
+          result += mapping.slice(0, -1);
+          tone = mapping.slice(-1);
+        } else {
+          result += char;
+        }
+      }
+      
+      if (tone) {
+        return result + tone;
+      } else {
+        if (result.match(/^[a-zA-ZüÜ]+$/i)) {
+            return result + '5';
+        }
+        return result;
+      }
+    }).join(' ');
+  }
+
   buildCardFields(wordData, fieldMappings) {
     const fields = {};
+
+    const pinyinWithNumbers = this.pinyinTonesToNumbers(wordData.pinyin, wordData.character.length);
 
     // Available data
     const dataMap = {
       expression: wordData.character,
-      reading: wordData.pinyin,
+      expressionRubyTxt: `${wordData.character}[${pinyinWithNumbers};]`,
+      reading: pinyinWithNumbers,
       meaning: wordData.definition,
       sentence: wordData.sentence,
       traditional: wordData.traditional,
@@ -440,17 +501,34 @@ class BackgroundService {
     if (Object.keys(fields).length === 0) {
       fields["Front"] = wordData.character || "Unknown";
       fields["Back"] =
-        wordData.pinyin && wordData.definition
-          ? `${wordData.pinyin}<br>${wordData.definition}`
+        pinyinWithNumbers && wordData.definition
+          ? `${pinyinWithNumbers}<br>${wordData.definition}`
           : wordData.definition || "No definition";
     }
 
     return fields;
   }
 
-  async findDuplicates(character) {
+  async findDuplicates(character, fieldMappings, noteType) {
     try {
-      const query = `"${character}"`;
+      // Find which field is used for the expression
+      let expressionField = null;
+      for (const [fieldName, dataType] of Object.entries(fieldMappings)) {
+        if (dataType === 'expression') {
+          expressionField = fieldName;
+          break;
+        }
+      }
+
+      // If no mapping is found, use a default field name.
+      // For "Basic" and many other common note types, "Front" is the expression field.
+      if (!expressionField) {
+        expressionField = 'Front';
+      }
+
+      // Construct a query for an exact match in a specific field and note type.
+      // e.g., 'note:Basic "Front:=你好"'
+      const query = `note:"${noteType}" "${expressionField}:=${character}"`;
       return await this.invokeAnki("findNotes", { query });
     } catch (error) {
       console.warn("Could not check duplicates:", error);

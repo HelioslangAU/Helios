@@ -110,16 +110,17 @@ class AnkiManager {
   // Extract sentence context from the page
   extractSentenceContext(character) {
     try {
-      // Method 1: Find highlighted element
+      // Method 1: Find highlighted element and start from it
       const highlight = document.querySelector(
         ".lookup-highlight, .helios-highlight"
       );
       if (highlight) {
+        // Start the search from the highlight element itself and walk up.
         const context = this.getContextFromElement(highlight, character);
         if (context) return context;
       }
 
-      // Method 2: Search in visible text elements
+      // Method 2: Fallback search in visible text elements
       const textElements = document.querySelectorAll("p, div, span, td, li");
       for (const element of textElements) {
         const text = element.textContent || "";
@@ -142,49 +143,64 @@ class AnkiManager {
   // Get context from specific element
   getContextFromElement(element, character) {
     let current = element;
+    let bestSentence = '';
 
     // Walk up DOM tree to find good context
-    for (let i = 0; i < 5; i++) {
-      if (!current) break;
-
+    for (let i = 0; i < 5 && current; i++) {
       const text = current.textContent || "";
-      if (text.includes(character)) {
-        // Try to find sentence boundaries
+      // This is the key change: ensure we are looking at a container,
+      // not just the word itself.
+      if (text.includes(character) && text.trim().length > character.length) {
         const sentences = text.split(/[.!?。！？\n]+/);
         for (const sentence of sentences) {
-          if (sentence.includes(character) && sentence.trim().length <= 200) {
-            return sentence.trim();
+          if (sentence.includes(character)) {
+            const trimmedSentence = sentence.trim();
+            if (trimmedSentence.length > bestSentence.length && trimmedSentence.length <= 200) {
+                bestSentence = trimmedSentence;
+            }
           }
         }
-
-        // Fallback: get surrounding text
-        const charIndex = text.indexOf(character);
-        if (charIndex !== -1) {
-          const start = Math.max(0, charIndex - 50);
-          const end = Math.min(text.length, charIndex + 50);
-          return text.substring(start, end).trim();
-        }
       }
-
+      if (bestSentence) break; // Found a good candidate
       current = current.parentNode;
     }
+    
+    // If no sentence is found after walking up, return the highlight's text content as a last resort.
+    if (!bestSentence && element.textContent) {
+        bestSentence = element.textContent.trim();
+    }
 
-    return "";
+    return bestSentence;
   }
 
-  // Create card from character
-  async createCard(character, options = {}) {
+  // Create card from character or word data object
+  async createCard(data, options = {}) {
     try {
       if (!this.isInitialized) {
         throw new Error("AnkiManager not initialized");
       }
 
-      if (!character) {
-        throw new Error("Character is required");
+      if (!data) {
+        throw new Error("Character or word data is required");
       }
 
-      // Extract word data
-      const wordData = this.extractWordData(character);
+      let wordData;
+      if (typeof data === 'string') {
+        // If we just got a character string, extract everything.
+        wordData = this.extractWordData(data);
+      } else {
+        // If we got an object, it should already have everything, including the pre-captured sentence.
+        // We just ensure the timestamp and URL are present.
+        wordData = {
+          ...data,
+          timestamp: new Date().toISOString(),
+          url: window.location.href,
+        };
+        // If sentence is somehow missing, extract it as a fallback.
+        if (!wordData.sentence) {
+            wordData.sentence = this.extractSentenceContext(data.character);
+        }
+      }
 
       // Create card via background script
       const response = await this.sendMessage("ANKI_CREATE_CARD", {
@@ -220,8 +236,9 @@ class AnkiManager {
   }
 
   // Handle popup card creation with button management
-  async createCardFromPopup(character, button, frequencyManager = null) {
+  async createCardFromPopup(wordData, button, frequencyManager = null) {
     try {
+      const character = (typeof wordData === 'string') ? wordData : wordData.character;
       console.log(`🃏 Creating Anki card from popup for: ${character}`);
 
       // Update button to loading state
@@ -236,12 +253,6 @@ class AnkiManager {
         throw new Error("Dictionary not available");
       }
 
-      // Check if character exists in dictionary
-      const matches = this.dictionaryManager.dictionary[character] || [];
-      if (matches.length === 0) {
-        throw new Error(`Character "${character}" not found in dictionary`);
-      }
-
       // Get frequency if available
       let frequency = "";
       if (frequencyManager) {
@@ -250,7 +261,7 @@ class AnkiManager {
       }
 
       // Create card
-      const result = await this.createCard(character, { frequency });
+      const result = await this.createCard(wordData, { frequency });
 
       if (result.success) {
         // Success state

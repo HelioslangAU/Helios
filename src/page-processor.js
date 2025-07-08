@@ -117,10 +117,10 @@ class PageProcessor {
       }
       const span = document.createElement('span');
       span.textContent = word;
+      span.setAttribute('data-word', word); // Always add data-word
 
       if (!this.vocabManager.isWordKnown(word) && this.dictionaryManager.dictionary[word]) {
         span.className = 'chinese-unknown-word';
-        span.setAttribute('data-word', word);
         this.unknownWordElements.set(word, span);
       }
 

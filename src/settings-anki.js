@@ -11,6 +11,7 @@ class HeliosSettingsAnki {
     // Available data types for field mapping
     this.availableDataTypes = [
       { value: "", label: "Not mapped" },
+      { value: "expressionRubyTxt", label: "Expression (with ruby Text Pinyin)" },
       { value: "expression", label: "Expression (对)" },
       { value: "reading", label: "Reading (duì)" },
       { value: "meaning", label: "Meaning (right; correct)" },

@@ -157,6 +157,9 @@ class ChineseLanguageLearningExtension {
         if (this.autoHighlight) {
           this.pageProcessor.processPageForUnknownWords();
         }
+        if (this.bannerManager) {
+          this.bannerManager.showBanner();
+        }
         // NEW: Resume pinyin observation
         if (this.pinyinManager) {
           this.pinyinManager.observeForDynamicContent();
@@ -167,6 +170,9 @@ class ChineseLanguageLearningExtension {
       this.removeTextScannerEvents();
       this.hidePopup();
       this.clearHighlights();
+      if (this.bannerManager) {
+        this.bannerManager.hideBanner();
+      }
       // NEW: Clean up pinyin
       if (this.pinyinManager) {
         this.pinyinManager.destroy();
@@ -323,15 +329,22 @@ class ChineseLanguageLearningExtension {
 
       clearTimeout(this.hoverTimeout);
       this.hoverTimeout = setTimeout(() => {
+        // Step 1: Reliably extract the sentence BEFORE modifying the DOM.
+        const sentence = this.getSentenceContextFromNode(newCharacterInfo.textNode, newCharacterInfo.word);
+
+        // Step 2: Now that the sentence is safely captured, apply the highlight.
         this.highlightManager.highlightLookupText(
           newCharacterInfo.textNode,
           newCharacterInfo.start,
           newCharacterInfo.end
         );
+
+        // Step 3: Show the popup with the correct sentence.
         this.popup.showDictionaryPopup(
           this.highlightManager.currentHighlight.getBoundingClientRect().left,
           this.highlightManager.currentHighlight.getBoundingClientRect().bottom,
-          newCharacterInfo.word
+          newCharacterInfo.word,
+          sentence
         );
       }, 10);
 
@@ -339,6 +352,47 @@ class ChineseLanguageLearningExtension {
     } else {
       this.popup.scheduleHidePopup();
     }
+  }
+
+  getSentenceContextFromNode(textNode, word) {
+    let container = textNode.parentElement;
+
+    // 1. Find the most likely block-level container element by walking up the DOM.
+    for (let i = 0; i < 5 && container; i++) {
+        const displayStyle = window.getComputedStyle(container).display;
+        if (['block', 'list-item', 'table-cell', 'flex'].includes(displayStyle)) {
+            break; // Found a good container
+        }
+        container = container.parentElement;
+    }
+
+    // Fallback to the immediate parent if no better container is found.
+    if (!container) {
+        container = textNode.parentElement;
+    }
+    if (!container) {
+        return word; // Last resort
+    }
+
+    // 2. Get the full text content of the container.
+    const fullText = container.textContent || '';
+
+    // 3. Segment the text into sentences using a regex that keeps the delimiters.
+    const sentences = fullText.split(/(?<=[.!?。！？\n])/);
+
+    // 4. Find the first sentence that contains the word.
+    for (const sentence of sentences) {
+        if (sentence.includes(word)) {
+            const trimmedSentence = sentence.trim();
+            if (trimmedSentence) {
+              console.log("🔍 Extracted sentence:", trimmedSentence);
+                return trimmedSentence;
+            }
+        }
+    }
+
+    // If the sentence splitting fails, return the container's text as a fallback.
+    return container.textContent.trim() || word;
   }
 
   _onKeyDownTS(event) {

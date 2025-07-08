@@ -87,7 +87,7 @@ function decode_pinyin_syllable(syllable) {
           return syllable
       }
 
-      const ret = syllable.replace(/v/g, 'ü')
+      const ret = syllable.replace(/u:/g, 'ü').replace(/v/g, 'ü')
 
       if (tone_idx == 5) {
           return ret.slice(0, -1)
