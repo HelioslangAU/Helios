@@ -254,7 +254,11 @@ class BackgroundService {
 
       // Check for duplicates if enabled
       if (finalSettings.checkDuplicates && !finalSettings.allowDuplicates) {
-        const duplicates = await this.findDuplicates(wordData.character);
+        const duplicates = await this.findDuplicates(
+          wordData.character,
+          finalSettings.fieldMappings || {},
+          finalSettings.noteType
+        );
         if (duplicates.length > 0) {
           throw new Error("Card already exists in Anki");
         }
@@ -466,7 +470,7 @@ class BackgroundService {
 
     // Available data
     const dataMap = {
-      expresison: wordData.character,
+      expression: wordData.character,
       expressionRubyTxt: `${wordData.character}[${pinyinWithNumbers};]`,
       reading: pinyinWithNumbers,
       meaning: wordData.definition,
@@ -496,9 +500,26 @@ class BackgroundService {
     return fields;
   }
 
-  async findDuplicates(character) {
+  async findDuplicates(character, fieldMappings, noteType) {
     try {
-      const query = `"${character}"`;
+      // Find which field is used for the expression
+      let expressionField = null;
+      for (const [fieldName, dataType] of Object.entries(fieldMappings)) {
+        if (dataType === 'expression') {
+          expressionField = fieldName;
+          break;
+        }
+      }
+
+      // If no mapping is found, use a default field name.
+      // For "Basic" and many other common note types, "Front" is the expression field.
+      if (!expressionField) {
+        expressionField = 'Front';
+      }
+
+      // Construct a query for an exact match in a specific field and note type.
+      // e.g., 'note:Basic "Front:=你好"'
+      const query = `note:"${noteType}" "${expressionField}:=${character}"`;
       return await this.invokeAnki("findNotes", { query });
     } catch (error) {
       console.warn("Could not check duplicates:", error);
