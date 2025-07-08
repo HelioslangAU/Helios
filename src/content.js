@@ -329,17 +329,17 @@ class ChineseLanguageLearningExtension {
 
       clearTimeout(this.hoverTimeout);
       this.hoverTimeout = setTimeout(() => {
-        // CRITICAL FIX: Extract the sentence BEFORE modifying the DOM with a highlight.
+        // Step 1: Reliably extract the sentence BEFORE modifying the DOM.
         const sentence = this.getSentenceContextFromNode(newCharacterInfo.textNode, newCharacterInfo.word);
 
-        // Now that the sentence is safely captured, apply the highlight.
+        // Step 2: Now that the sentence is safely captured, apply the highlight.
         this.highlightManager.highlightLookupText(
           newCharacterInfo.textNode,
           newCharacterInfo.start,
           newCharacterInfo.end
         );
 
-        // Finally, show the popup with the correct sentence.
+        // Step 3: Show the popup with the correct sentence.
         this.popup.showDictionaryPopup(
           this.highlightManager.currentHighlight.getBoundingClientRect().left,
           this.highlightManager.currentHighlight.getBoundingClientRect().bottom,
@@ -354,41 +354,45 @@ class ChineseLanguageLearningExtension {
     }
   }
 
-  getSentenceContextFromNode(textNode, character) {
-    let bestSentence = '';
-    let currentElement = textNode.parentElement;
+  getSentenceContextFromNode(textNode, word) {
+    let container = textNode.parentElement;
 
-    // Walk up the DOM tree to find the best sentence container.
-    for (let i = 0; i < 5 && currentElement; i++) {
-        const currentText = currentElement.textContent || '';
+    // 1. Find the most likely block-level container element by walking up the DOM.
+    for (let i = 0; i < 5 && container; i++) {
+        const displayStyle = window.getComputedStyle(container).display;
+        if (['block', 'list-item', 'table-cell', 'flex'].includes(displayStyle)) {
+            break; // Found a good container
+        }
+        container = container.parentElement;
+    }
 
-        if (currentText.includes(character) && currentText.trim().length > character.length) {
-            // Split by sentence-ending punctuation.
-            const sentences = currentText.split(/[.!?。！？\n]+/);
+    // Fallback to the immediate parent if no better container is found.
+    if (!container) {
+        container = textNode.parentElement;
+    }
+    if (!container) {
+        return word; // Last resort
+    }
 
-            for (const sentence of sentences) {
-                if (sentence.includes(character)) {
-                    const trimmedSentence = sentence.trim();
-                    // A longer sentence is generally better context.
-                    if (trimmedSentence.length > bestSentence.length && trimmedSentence.length < 300) {
-                        bestSentence = trimmedSentence;
-                    }
-                }
+    // 2. Get the full text content of the container.
+    const fullText = container.textContent || '';
+
+    // 3. Segment the text into sentences using a regex that keeps the delimiters.
+    const sentences = fullText.split(/(?<=[.!?。！？\n])/);
+
+    // 4. Find the first sentence that contains the word.
+    for (const sentence of sentences) {
+        if (sentence.includes(word)) {
+            const trimmedSentence = sentence.trim();
+            if (trimmedSentence) {
+              console.log("🔍 Extracted sentence:", trimmedSentence);
+                return trimmedSentence;
             }
         }
-        currentElement = currentElement.parentElement;
     }
 
-    // If no sentence was found, use the text of the immediate parent as a fallback.
-    if (!bestSentence && textNode.parentElement) {
-        const parentText = textNode.parentElement.textContent.trim();
-        if (parentText) {
-            return parentText;
-        }
-    }
-    
-    // If all else fails, return the word itself.
-    return bestSentence || character;
+    // If the sentence splitting fails, return the container's text as a fallback.
+    return container.textContent.trim() || word;
   }
 
   _onKeyDownTS(event) {
