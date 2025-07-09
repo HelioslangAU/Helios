@@ -185,10 +185,21 @@ class PageProcessor {
     elements.forEach(element => {
       if (isKnown) {
         element.classList.remove('chinese-unknown-word');
+        if (element.classList.contains('helios-recommended-word')) {
+          element.classList.remove('helios-recommended-word');
+          if (this.recommendationManager) {
+            this.recommendationManager.decrementRecommendationCount();
+          }
+        }
       } else {
         element.classList.add('chinese-unknown-word');
       }
     });
+
+    if (window.bannerManager) {
+      window.bannerManager.updateKnownWords(this.vocabManager.getKnownWordsCount());
+      window.bannerManager.updateComprehension(this.calculateComprehensionPercentage());
+    }
   }
 
   observePageChanges() {

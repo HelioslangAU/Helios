@@ -57,6 +57,11 @@ class RecommendationManager {
     window.bannerManager.updateRecommendedSentences(this.recommendedSentencesCount);
   }
 
+  decrementRecommendationCount() {
+    this.recommendedSentencesCount--;
+    window.bannerManager.updateRecommendedSentences(this.recommendedSentencesCount);
+  }
+
   // Removes the highlight class, but leaves the span intact
   clearRecommendations(element) {
     const recommendedWords = (element || document.body).querySelectorAll('.helios-recommended-word');
