@@ -1,0 +1,19 @@
+.helios-recommended-word {
+  background-color: #ff6b47; /* Yellow highlight */
+  cursor: pointer;
+  position: relative;
+}
+
+.helios-recommended-word:hover::after {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #333;
+  color: #fff;
+  padding: 5px;
+  border-radius: 3px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 10000;
+}

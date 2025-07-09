@@ -17,6 +17,7 @@ class ChineseLanguageLearningExtension {
     this.popup = null;
     this.bannerManager = null;
     this.pinyinManager = null; // NEW: Add pinyin manager
+    this.recommendationManager = null;
 
     this.init();
   }
@@ -59,6 +60,15 @@ class ChineseLanguageLearningExtension {
       this.dictionaryManager,
       this.pageProcessor
     );
+
+    await this.bannerManager.ready;
+
+    this.recommendationManager = new RecommendationManager({
+      vocabManager: this.vocabManager,
+      frequencyManager: this.frequencyManager,
+      pageProcessor: this.pageProcessor,
+    });
+    this.recommendationManager.init();
 
     // NEW: Start observing for dynamic content changes
     this.pinyinManager.observeForDynamicContent();

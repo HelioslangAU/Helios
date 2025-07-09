@@ -1,12 +1,12 @@
 class BannerManager {
     constructor() {
         this.banner = null;
-        this.init();
+        this.ready = this.init();
     }
 
-    init() {
+    async init() {
         this.injectBannerCSS();
-        this.createBanner();
+        await this.createBanner();
     }
 
     injectBannerCSS() {
@@ -54,6 +54,16 @@ class BannerManager {
         if (knownWordsElement) {
             knownWordsElement.textContent = `${knownWords}`;
         }
+    }
+
+    updateRecommendedSentences(count) {
+        if (!this.banner) return;
+
+        const recommendedSentencesElement = this.banner.querySelector('#recommended-sentences');
+        if (recommendedSentencesElement) {
+            recommendedSentencesElement.textContent = `${count}`;
+        }
+        console.log("sdfsdfds")
     }
 
 

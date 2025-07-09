@@ -33,11 +33,12 @@
         "src/page-processor.js",
         "src/vocab-manager.js",
         "src/dictionary-manager.js",
+        "src/recommendation-manager.js",
         "src/content.js",
         "src/banner-manager.js",
         "src/banner.js"
       ],
-      "css": ["popup.css"],
+      "css": ["popup.css", "styles/recommendation.css"],
       "run_at": "document_end"
     }
   ],
