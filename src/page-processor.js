@@ -5,6 +5,7 @@ class PageProcessor {
     this.unknownWordElements = new Map();
     this.injectedCSS = false;
     this.asbplayerObservers = new Set();
+    this.recommendationManager = null;
   }
 
   processPageForUnknownWords() {
@@ -453,11 +454,14 @@ class PageProcessor {
     }
   const container = document.querySelector('.asbplayer-offscreen');
   if (container) {
-    console.log(container.innerText);
+    //console.log(container.innerText);
     window.bannerManager.updateComprehension(this.analyzeASBPlayerSubtitlesComprehension(container.innerText));
   } else {
     console.warn("ASBPlayer subtitle container not found!");
   }
+    if (this.recommendationManager) {
+      this.recommendationManager.processElementForRecommendations(element);
+    }
     console.log('Finished reprocessing, unknown words should be underlined');
   }
 }

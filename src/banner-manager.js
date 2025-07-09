@@ -63,7 +63,6 @@ class BannerManager {
         if (recommendedSentencesElement) {
             recommendedSentencesElement.textContent = `${count}`;
         }
-        console.log("sdfsdfds")
     }
 
 

@@ -69,6 +69,7 @@ class ChineseLanguageLearningExtension {
       pageProcessor: this.pageProcessor,
     });
     this.recommendationManager.init();
+    this.pageProcessor.recommendationManager = this.recommendationManager;
 
     // NEW: Start observing for dynamic content changes
     this.pinyinManager.observeForDynamicContent();
