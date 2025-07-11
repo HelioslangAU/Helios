@@ -253,7 +253,7 @@ class MultiCardPopupManager extends PopupManager {
       ? cardCharacter
       : this.originalCharacter || character;
     const cardId = `${displayCharacter}-${pinyin}`;
-    const isKnown = this.vocabManager.isWordKnown(cardId);
+    const isKnown = this.vocabManager.isWordKnown(character);
     const frequency = this.frequencyManager
       ? this.frequencyManager.getFrequency(displayCharacter)
       : null;
@@ -551,14 +551,16 @@ class MultiCardPopupManager extends PopupManager {
 
     if (markKnownBtn) {
       markKnownBtn.addEventListener("click", async () => {
-        await this.markAllCardsAsKnown();
+        const cardId = markKnownBtn.getAttribute("data-card-id");
+        await this.markSingleCardAsKnown(cardId);
         this.hidePopup();
       });
     }
 
     if (markUnknownBtn) {
       markUnknownBtn.addEventListener("click", async () => {
-        await this.markAllCardsAsUnknown();
+        const cardId = markUnknownBtn.getAttribute("data-card-id");
+        await this.markSingleCardAsUnknown(cardId);
         this.hidePopup();
       });
     }
@@ -607,66 +609,73 @@ class MultiCardPopupManager extends PopupManager {
     });
   }
 
-  async markAllCardsAsKnown() {
-    console.log(
-      "🎯 Marking all cards as known for character:",
-      this.originalCharacter
-    );
+  async markSingleCardAsKnown(cardId) {
 
-    await this.vocabManager.markWordAsKnown(this.originalCharacter);
 
-    for (const card of this.currentCards) {
-      const cardId = `${this.originalCharacter}-${card.pinyin}`;
-      await this.vocabManager.markWordAsKnown(cardId);
-      console.log("🎯 Marked as known:", cardId);
-    }
-
-    const firstCard = this.currentCards[0];
-    this.saveToVocabList(
-      this.originalCharacter,
-      firstCard.pinyin,
-      firstCard.entries[0].definition
-    );
+    const cardInfo = this.getCardInfoFromId(cardId);
+    await window.vocabManager.markWordAsKnown(cardInfo.character);
+        console.log("🎯 Marking card as known:", cardId.character);
+    
 
     if (window.pageProcessor) {
       window.pageProcessor.updateWordStyling(this.originalCharacter, true);
     }
   }
 
-  async markAllCardsAsUnknown() {
-    console.log(
-      "🎯 Marking all cards as unknown for character:",
-      this.originalCharacter
-    );
+  async markSingleCardAsUnknown(cardId) {
+    console.log("🎯 Marking card as unknown:", cardId);
+    const cardInfo = this.getCardInfoFromId(cardId);
+    await this.vocabManager.markWordAsUnknown(cardInfo.character);
+    this.removeFromVocabList(cardId);
 
-    await this.vocabManager.markWordAsUnknown(this.originalCharacter);
+    const isAnyOtherDefinitionKnown = this.currentCards.some(card => {
+      const otherCardId = `${this.originalCharacter}-${card.pinyin}`;
+      return cardId !== otherCardId && this.vocabManager.isWordKnown(otherCardId);
+    });
 
-    for (const card of this.currentCards) {
-      const cardId = `${this.originalCharacter}-${card.pinyin}`;
-      await this.vocabManager.markWordAsUnknown(cardId);
-      console.log("🎯 Marked as unknown:", cardId);
-    }
-
-    const firstCard = this.currentCards[0];
-    this.saveToVocabList(
-      this.originalCharacter,
-      firstCard.pinyin,
-      firstCard.entries[0].definition
-    );
-
-    if (window.pageProcessor) {
+    if (window.pageProcessor && !isAnyOtherDefinitionKnown) {
       window.pageProcessor.updateWordStyling(this.originalCharacter, false);
     }
+  }
 
-    if (window.highlightManager) {
-      const el = document.querySelector(
-        `span[data-word="${this.originalCharacter}"]`
-      );
-      if (el) {
-        window.highlightManager.removeLookupHighlight();
-        el.classList.add("lookup-highlight");
-        window.highlightManager.currentHighlight = el;
+  getCardInfoFromId(cardId) {
+    const parts = cardId.split('-');
+    if (parts.length < 2) return null;
+  
+    const pinyin = parts.pop();
+    const character = parts.join('-');
+  
+    const card = this.currentCards.find(c => {
+      const cardCharacter = c.isCharacterCard ? c.character : this.originalCharacter;
+      return cardCharacter === character && c.pinyin === pinyin;
+    });
+  
+    if (card) {
+      return {
+        character: character,
+        pinyin: pinyin,
+        definition: card.entries.map(e => e.definition).join('; ')
+      };
+    }
+    return null;
+  }
+
+  removeFromVocabList(cardId) {
+    try {
+      if (window.chrome && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.get(["chineseExtensionVocabList"], (result) => {
+          let vocabItems = result.chineseExtensionVocabList || [];
+          const initialCount = vocabItems.length;
+          vocabItems = vocabItems.filter(
+            (item) => (item.character || item.word) !== cardId
+          );
+          if (vocabItems.length < initialCount) {
+            chrome.storage.local.set({ chineseExtensionVocabList: vocabItems });
+          }
+        });
       }
+    } catch (error) {
+      console.warn("Could not remove from vocab list:", error);
     }
   }
 
