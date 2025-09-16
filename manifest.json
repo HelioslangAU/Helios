@@ -26,8 +26,14 @@
         "src/frequency-manager.js",
         "src/anki-manager.js",
         "src/pronunciation.js",
-        "src/popup.js",
-        "src/multi-card-popup.js",
+        "src/popup/components/popup-positioner.js",
+        "src/popup/components/popup-content-builder.js",
+        "src/popup/components/popup-event-handler.js",
+        "src/popup/components/card-navigator.js",
+        "src/popup/components/definition-filter.js",
+        "src/popup/components/card-manager.js",
+        "src/popup/popup-manager.js",
+        "src/popup/multi-card-popup-manager.js",
         "src/extensiontab.js",
         "src/text-highlighter.js",
         "src/page-processor.js",
@@ -37,7 +43,7 @@
         "src/banner-manager.js",
         "src/banner.js"
       ],
-      "css": ["popup.css"],
+      "css": ["styles/popup.css"],
       "run_at": "document_end"
     }
   ],
@@ -58,7 +64,7 @@
     {
       "resources": [
         "dictionary.json",
-        "popup.css",
+        "styles/popup.css",
         "cedict_ts.u8",
         "BLCUcoll/*",
         "helios-settings.html",
