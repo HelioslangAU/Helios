@@ -25,6 +25,7 @@
       "matches": ["<all_urls>"],
       "js": [
         "src/config/paths.js",
+        "src/content/pinyin-manager.js",
         "src/content/frequency-manager.js",
         "src/content/anki-manager.js",
         "src/content/pronunciation.js",
