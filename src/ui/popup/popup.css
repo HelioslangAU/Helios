@@ -1,0 +1,723 @@
+/* Helios Language Learning Extension - Beautiful Modern UI */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap");
+
+:root {
+  --helios-bg-primary: #0a0a0b;
+  --helios-bg-secondary: #151518;
+  --helios-bg-tertiary: #1f1f23;
+  --helios-bg-glass: rgba(255, 255, 255, 0.03);
+  --helios-accent-primary: #ff6b47;
+  --helios-accent-secondary: #ff8f47;
+  --helios-accent-tertiary: #ffb347;
+  --helios-accent-glow: rgba(255, 107, 71, 0.4);
+  --helios-text-primary: #f8fafc;
+  --helios-text-secondary: #e2e8f0;
+  --helios-text-muted: #94a3b8;
+  --helios-border: rgba(255, 255, 255, 0.08);
+  --helios-border-hover: rgba(255, 255, 255, 0.12);
+  --helios-shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.4);
+  --helios-shadow-strong: 0 10px 40px rgba(0, 0, 0, 0.6);
+  --helios-blur: blur(16px);
+  --helios-known-green: #10b981;
+  --helios-anki-blue: #3b82f6;
+}
+
+/* Main Popup Container */
+.chinese-lang-extension-popup {
+  position: fixed !important;
+  z-index: 2147483647 !important;
+  background: radial-gradient(
+    ellipse at top,
+    var(--helios-bg-secondary) 0%,
+    var(--helios-bg-primary) 100%
+  );
+  border: 1px solid var(--helios-border);
+  border-radius: 20px;
+  box-shadow: var(--helios-shadow-strong), 0 0 8px rgba(255, 107, 71, 0.15);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  font-size: 14px;
+  width: 400px !important;
+  height: 300px !important;
+  overflow: hidden;
+  backdrop-filter: var(--helios-blur);
+  display: flex;
+  flex-direction: column;
+  animation: heliosEntranceFloat 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  ruby-position: over !important;
+}
+
+/* Ambient background glow */
+.chinese-lang-extension-popup::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(
+      circle at 20% 80%,
+      rgba(255, 107, 71, 0.08) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      circle at 80% 20%,
+      rgba(255, 179, 71, 0.06) 0%,
+      transparent 50%
+    );
+  pointer-events: none;
+  z-index: 0;
+  border-radius: 20px;
+}
+
+/* Top accent border */
+.chinese-lang-extension-popup::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--helios-accent-primary),
+    var(--helios-accent-secondary),
+    var(--helios-accent-tertiary)
+  );
+  border-radius: 20px 20px 0 0;
+  animation: heliosShimmer 4s ease-in-out infinite alternate;
+  z-index: 1;
+}
+
+@keyframes heliosShimmer {
+  0% {
+    opacity: 0.8;
+    transform: scaleX(1);
+  }
+  100% {
+    opacity: 1;
+    transform: scaleX(1.02);
+  }
+}
+
+@keyframes heliosEntranceFloat {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Content Container */
+.popup-content {
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 2;
+}
+
+/* Character Display with Beautiful Ruby Text */
+.character-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.character.highlight {
+  font-size: 42px;
+  font-weight: 900;
+  color: var(--helios-text-primary);
+  letter-spacing: 2px;
+  line-height: 1;
+  text-shadow: 0 4px 16px rgba(255, 255, 255, 0.1);
+  position: relative;
+}
+
+.character.highlight ruby {
+  display: inline-ruby;
+  ruby-position: over !important;
+  ruby-align: center !important;
+  text-align: center;
+  writing-mode: horizontal-tb !important;
+  line-height: 1.5;
+}
+
+.character.highlight rt {
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: 1px;
+  text-align: center !important;
+  ruby-align: center !important;
+  display: ruby-text !important;
+  opacity: 0.95;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  ruby-position: over !important;
+  margin: 0 auto;
+  margin-bottom: 8px;
+  width: 100%;
+}
+
+/* Frequency Container - Right side, just above description box */
+.frequency-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+  margin-top: 8px;
+}
+
+/* Frequency Badge */
+.frequency {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 107, 71, 0.15),
+    rgba(255, 143, 71, 0.15)
+  );
+  border: 1px solid rgba(255, 107, 71, 0.3);
+  border-radius: 12px;
+  padding: 3px 8px;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--helios-accent-tertiary);
+  text-align: center;
+  backdrop-filter: var(--helios-blur);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  display: inline-block;
+  width: fit-content;
+  box-shadow: 0 1px 4px rgba(255, 107, 71, 0.1);
+}
+
+/* Definitions Scroll Container */
+.definitions-scroll {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 50px;
+  padding-right: 6px;
+  min-height: 120px;
+}
+
+.definitions-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.definitions-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.definitions-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    var(--helios-accent-primary),
+    var(--helios-accent-secondary)
+  );
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Definition Blocks */
+.definition-block {
+  background: var(--helios-bg-glass);
+  border-radius: 16px;
+  padding: 14px 18px;
+  margin-bottom: 12px;
+  border: 1px solid var(--helios-border);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  backdrop-filter: var(--helios-blur);
+  box-shadow: var(--helios-shadow-soft);
+}
+
+.definition-block:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--helios-border-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.definition-block:last-child {
+  margin-bottom: 0;
+}
+
+/* Pinyin in Definition Block */
+.pinyin {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.pinyin-text {
+  font-weight: 700;
+  font-size: 16px;
+  background: linear-gradient(
+    135deg,
+    var(--helios-accent-primary),
+    var(--helios-accent-secondary),
+    var(--helios-accent-tertiary)
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-style: italic;
+  letter-spacing: 0.5px;
+}
+
+/* Tone Indicator */
+.tone-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  transition: transform 0.2s ease;
+}
+
+.tone-indicator:hover {
+  transform: scale(1.1);
+}
+
+.tone-1 {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+.tone-2 {
+  background: linear-gradient(135deg, var(--helios-accent-primary), #ea580c);
+}
+.tone-3 {
+  background: linear-gradient(135deg, var(--helios-known-green), #059669);
+}
+.tone-4 {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+.tone-0 {
+  background: linear-gradient(135deg, #6b7280, #4b5563);
+}
+
+/* Variants Display */
+.variants {
+  font-size: 12px;
+  color: var(--helios-text-muted);
+  margin-bottom: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-style: italic;
+  font-weight: 500;
+}
+
+/* Definition Text */
+.definition {
+  color: var(--helios-text-primary);
+  line-height: 1.6;
+  font-weight: 500;
+}
+
+.definition-list {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  color: var(--helios-text-primary);
+}
+
+.definition-list li {
+  position: relative;
+  margin-bottom: 2px;
+  padding-left: 20px;
+  line-height: 1.5;
+  color: var(--helios-text-primary);
+  font-weight: 500;
+}
+
+.definition-list li::before {
+  content: "•";
+  color: var(--helios-accent-primary);
+  font-weight: bold;
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: 16px;
+}
+
+.definition-list li:last-child {
+  margin-bottom: 0;
+}
+
+/* Button Container */
+.popup-buttons {
+  position: absolute;
+  bottom: 12px;
+  right: 16px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* Mark Known/Unknown Button */
+.mark-known-btn,
+.mark-unknown-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  box-shadow: var(--helios-shadow-soft);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.mark-known-btn {
+  background: linear-gradient(135deg, var(--helios-known-green), #059669);
+  color: white;
+}
+
+.mark-known-btn:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 32px rgba(16, 185, 129, 0.4);
+}
+
+.mark-unknown-btn {
+  background: linear-gradient(
+    135deg,
+    var(--helios-accent-primary),
+    var(--helios-accent-secondary)
+  );
+  color: white;
+}
+
+.mark-unknown-btn:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 32px var(--helios-accent-glow);
+}
+
+/* Anki Button - Small Icon in Top Right */
+.anki-btn {
+  position: absolute !important;
+  top: 16px;
+  right: 16px;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px !important;
+  font-weight: 800;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  opacity: 0.8;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.anki-btn:hover {
+  opacity: 1;
+  transform: scale(1.08) rotate(5deg);
+}
+
+/* Anki Button States */
+.anki-btn.anki-available {
+  background: linear-gradient(135deg, var(--helios-anki-blue), #2563eb);
+  color: white;
+}
+
+.anki-btn.anki-checking {
+  background: linear-gradient(135deg, #6b7280, #4b5563);
+  color: white;
+  animation: ankiPulse 2s ease-in-out infinite;
+}
+
+.anki-btn.anki-unavailable {
+  background: linear-gradient(135deg, #374151, #1f2937);
+  color: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.anki-btn.anki-success {
+  background: linear-gradient(135deg, var(--helios-known-green), #059669);
+  color: white;
+  animation: ankiSuccess 0.6s ease-out;
+}
+
+.anki-btn.anki-error {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  animation: ankiShake 0.6s ease-out;
+}
+
+.anki-btn.anki-duplicate {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+}
+
+@keyframes ankiPulse {
+  0%,
+  100% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes ankiSuccess {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2) rotate(10deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes ankiShake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-2px);
+  }
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+/* Pronunciation Button */
+.pronunciation-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    var(--helios-accent-primary),
+    var(--helios-accent-secondary)
+  );
+  color: white;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(255, 107, 71, 0.3);
+  opacity: 0.9;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.pronunciation-btn:hover:not(:disabled) {
+  transform: scale(1.15);
+  opacity: 1;
+  box-shadow: 0 6px 24px rgba(255, 107, 71, 0.5);
+}
+
+.pronunciation-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pronunciation-btn.playing {
+  animation: pronunciationPulse 2s ease-in-out infinite;
+  background: linear-gradient(135deg, var(--helios-known-green), #059669);
+}
+
+.pronunciation-btn.error {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  animation: pronunciationShake 0.5s ease-out;
+}
+
+.pronunciation-btn.loading {
+  background: linear-gradient(135deg, #6b7280, #4b5563);
+}
+
+.pronunciation-btn.loading .icon {
+  animation: pronunciationSpin 1s linear infinite;
+}
+
+@keyframes pronunciationPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+}
+
+@keyframes pronunciationShake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-1px);
+  }
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(1px);
+  }
+}
+
+@keyframes pronunciationSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Word Highlighting */
+.chinese-unknown-word {
+  text-decoration: underline !important;
+  text-decoration-color: var(--helios-accent-primary) !important;
+  text-decoration-thickness: 0px !important;
+  text-underline-offset: 3px !important;
+  cursor: help !important;
+  transition: all 0.3s ease;
+}
+
+.chinese-unknown-word:hover {
+  background-color: rgba(255, 107, 71, 0.15) !important;
+  border-radius: 4px;
+}
+
+.lookup-highlight {
+  background: linear-gradient(
+    135deg,
+    var(--helios-accent-primary),
+    var(--helios-accent-secondary)
+  ) !important;
+  color: white !important;
+  border-radius: 3px !important;
+  padding: 0px 0px !important;
+  box-shadow: 0 4px 20px var(--helios-accent-glow) !important;
+  transition: all 0.4s ease !important;
+  animation: lookupGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes lookupGlow {
+  from {
+    box-shadow: 0 4px 20px var(--helios-accent-glow);
+  }
+  to {
+    box-shadow: 0 6px 32px rgba(255, 107, 71, 0.6);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+  .chinese-lang-extension-popup {
+    width: 95vw !important;
+    max-width: 400px !important;
+  }
+}
+/* Clean and simple card transitions */
+
+.navigation-dots {
+  position: absolute;
+  bottom: 8px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 4px 12px;
+  border-radius: 16px;
+  backdrop-filter: blur(8px);
+  z-index: 100;
+}
+
+.nav-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.nav-dot:hover {
+  background: rgba(255, 255, 255, 0.7);
+  transform: scale(1.2);
+}
+
+.nav-dot.active {
+  background: var(--helios-accent-primary);
+  width: 8px;
+  height: 8px;
+  box-shadow: 0 0 8px rgba(255, 107, 71, 0.6);
+}
+
+.card-counter {
+  font-size: 10px;
+  color: var(--helios-text-secondary);
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+/* Clean slide transitions */
+.popup-content {
+  transition: all 0.2s ease;
+}
+
+.popup-content.sliding-out {
+  opacity: 0;
+  transform: scale(0.95) translateY(-10px);
+}
+
+.popup-content.sliding-in {
+  opacity: 0;
+  transform: scale(1.05) translateY(10px);
+  animation: slideIn 0.2s ease forwards;
+}
+
+@keyframes slideIn {
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}

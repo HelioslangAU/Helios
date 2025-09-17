@@ -294,20 +294,22 @@ function removeVocabItem(word) {
 // Open Helios Settings
 function openHeliosSettings() {
   try {
+    // File paths are centralized in src/config/paths.js
+    const settingsUrl = window.PATHS ? window.PATHS.getChromeURL('HTML.HELIOS_SETTINGS') : chrome.runtime.getURL("src/ui/settings/helios-settings.html");
+    
     if (window.chrome && chrome.tabs) {
       chrome.tabs.create({
-        url: chrome.runtime.getURL("helios-settings.html"),
+        url: settingsUrl,
         active: true,
       });
     } else if (window.chrome && chrome.runtime) {
-      const settingsUrl = chrome.runtime.getURL("helios-settings.html");
       window.open(
         settingsUrl,
         "_blank",
         "width=1200,height=800,scrollbars=yes,resizable=yes"
       );
     } else {
-      window.location.href = chrome.runtime.getURL("helios-settings.html");
+      window.location.href = settingsUrl;
     }
     console.log("Opening Helios Settings page ⚙️");
   } catch (error) {

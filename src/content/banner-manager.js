@@ -15,14 +15,17 @@ class BannerManager {
             link.id = 'language-extension-banner-css';
             link.rel = 'stylesheet';
             link.type = 'text/css';
-            link.href = chrome.runtime.getURL('banner.css');
+            // File paths are centralized in src/config/paths.js
+            link.href = window.PATHS ? window.PATHS.getChromeURL('CSS.BANNER') : chrome.runtime.getURL('src/ui/banner/banner.css');
             document.head.appendChild(link);
         }
     }
 
     async createBanner() {
         // Fetch the HTML for the banner
-        const response = await fetch(chrome.runtime.getURL('banner.html'));
+        // File paths are centralized in src/config/paths.js
+        const bannerUrl = window.PATHS ? window.PATHS.getChromeURL('HTML.BANNER') : chrome.runtime.getURL('src/ui/banner/banner.html');
+        const response = await fetch(bannerUrl);
         const html = await response.text();
         const temp = document.createElement('div');
         temp.innerHTML = html;
