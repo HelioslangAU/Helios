@@ -68,6 +68,7 @@
         "src/settings/settings-anki.js",
         "src/settings/settings-vocabulary.js",
         "src/settings/settings-advanced.js",
+        "src/settings/*",
         "settings/*",
         "styles/*",
         "banner.html",
