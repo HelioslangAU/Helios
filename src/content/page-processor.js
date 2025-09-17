@@ -7,6 +7,70 @@ class PageProcessor {
     this.asbplayerObservers = new Set();
   }
 
+  // Extract a sentence around a word from a given text node's container
+  getSentenceContextFromNode(textNode, word) {
+    let container = textNode?.parentElement;
+
+    for (let i = 0; i < 5 && container; i++) {
+      const displayStyle = window.getComputedStyle(container).display;
+      if (["block", "list-item", "table-cell", "flex"].includes(displayStyle)) {
+        break;
+      }
+      container = container.parentElement;
+    }
+
+    if (!container) container = textNode?.parentElement;
+    if (!container) return word;
+
+    const fullText = container.textContent || '';
+    const sentences = fullText.split(/(?<=[.!?。！？\n])/);
+    for (const sentence of sentences) {
+      if (sentence.includes(word)) {
+        const trimmed = sentence.trim();
+        if (trimmed) return trimmed;
+      }
+    }
+    return (container.textContent || '').trim() || word;
+  }
+
+  // Heuristics to detect likely subtitle containers (e.g., asbplayer)
+  isLikelySubtitleElement(element) {
+    const text = element.textContent || "";
+    const hasChinese = /[\u4e00-\u9fff\u3400-\u4dbf]/.test(text);
+    if (hasChinese) return true;
+    const attributeText = [
+      element.className,
+      element.id,
+      element.getAttribute("data-testid") || "",
+      element.getAttribute("aria-label") || "",
+    ].join(" ").toLowerCase();
+    const subtitleKeywords = ["subtitle", "caption", "asbplayer", "timedtext"];
+    return subtitleKeywords.some((kw) => attributeText.includes(kw));
+  }
+
+  // Discover and observe new subtitle-like elements for processing
+  detectAsbplayerElements() {
+    const selectors = [
+      '.asbplayer-offscreen'
+    ];
+    const found = new Set();
+    selectors.forEach((selector) => {
+      try {
+        document.querySelectorAll(selector).forEach((el) => {
+          if (this.isLikelySubtitleElement(el)) {
+            found.add(el);
+          }
+        });
+      } catch (_) {}
+    });
+    found.forEach((el) => {
+      if (!el.hasAttribute('data-chinese-processed')) {
+        el.setAttribute('data-chinese-processed', 'true');
+        this.observeSubtitleContainer(el);
+      }
+    });
+  }
+
   processPageForUnknownWords() {
     // Ensure CSS is injected globally
     this.ensureGlobalCSS();
@@ -459,5 +523,34 @@ class PageProcessor {
     console.warn("ASBPlayer subtitle container not found!");
   }
     console.log('Finished reprocessing, unknown words should be underlined');
+  }
+
+  // Remove unknown word styling and clear tracked elements
+  clearUnknownWordHighlights() {
+    try {
+      document.querySelectorAll('.chinese-unknown-word').forEach((el) => {
+        el.classList.remove('chinese-unknown-word');
+      });
+      this.unknownWordElements?.clear?.();
+    } catch (_) {}
+  }
+
+  // Clear both lookup highlight and unknown word highlights
+  clearHighlights() {
+    try {
+      if (window.highlightManager && window.highlightManager.removeLookupHighlight) {
+        window.highlightManager.removeLookupHighlight();
+      }
+    } catch (_) {}
+    this.clearUnknownWordHighlights();
+  }
+
+  // Handle auto-highlight toggling and reprocessing
+  handleAutoHighlightUpdate(enabled, extensionEnabled = true) {
+    if (enabled && extensionEnabled) {
+      this.processPageForUnknownWords();
+    } else {
+      this.clearUnknownWordHighlights();
+    }
   }
 }

@@ -58,6 +58,15 @@ class VocabManager {
     URL.revokeObjectURL(url);
   }
 
+  // Export known words as a JSON string (for programmatic use)
+  exportKnownWordsAsJson() {
+    const data = {
+      knownWords: [...this.knownWords],
+      exportDate: new Date().toISOString()
+    };
+    return JSON.stringify(data, null, 2);
+  }
+
   async importKnownWordsFromFile(file) {
     try {
       const text = await file.text();
@@ -73,6 +82,23 @@ class VocabManager {
       }
     } catch (error) {
       console.error('Failed to import known words:', error);
+      return false;
+    }
+  }
+
+  // Import known words from a JSON string. Merges with existing known words.
+  async importKnownWordsFromJson(jsonString) {
+    try {
+      const data = JSON.parse(jsonString);
+      if (data.knownWords && Array.isArray(data.knownWords)) {
+        this.knownWords = new Set([...this.knownWords, ...data.knownWords]);
+        await this.saveKnownWords();
+        console.log('Known words imported from JSON');
+        return true;
+      }
+      throw new Error('Invalid JSON format: missing knownWords array');
+    } catch (error) {
+      console.error('Failed to import known words from JSON:', error);
       return false;
     }
   }

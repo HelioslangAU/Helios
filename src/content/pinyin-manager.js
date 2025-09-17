@@ -20,6 +20,8 @@ class PinyinManager {
 
   addPinyinToPage() {
     console.log("🔤 Adding pinyin to page...");
+    // Ensure styles are present for ruby rendering
+    this.injectPinyinCSS && this.injectPinyinCSS();
 
     // Get all text nodes that contain Chinese characters
     const textNodes = this.getAllChineseTextNodes(document.body);
@@ -50,6 +52,21 @@ class PinyinManager {
     this.originalTextNodes.clear();
 
     console.log("🔤 Pinyin removed from page");
+  }
+
+  // Inject minimal CSS for ruby display if not already present
+  injectPinyinCSS() {
+    if (document.getElementById("helios-pinyin-styles")) return;
+    const style = document.createElement("style");
+    style.id = "helios-pinyin-styles";
+    style.textContent = `
+      .helios-pinyin-wrapper { display: inline; }
+      ruby.helios-pinyin { ruby-align: center; ruby-position: over; display: inline-ruby; vertical-align: baseline; }
+      ruby.helios-pinyin rt { font-size: 0.6em; color: #666; line-height: 1.1; text-align: center; display: ruby-text; }
+      @media (prefers-color-scheme: dark) { ruby.helios-pinyin rt { color: #aaa; } }
+      ruby.helios-pinyin + ruby.helios-pinyin { margin-left: 1px; }
+    `;
+    document.head.appendChild(style);
   }
 
   getAllChineseTextNodes(element) {
