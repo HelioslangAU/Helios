@@ -237,7 +237,8 @@ class HeliosSettingsManager {
       console.log("🔍 DEBUG: Fetching HTML for:", tabName);
 
       // Fetch the appropriate HTML file
-      const url = chrome.runtime.getURL(`settings/${tabName}-settings.html`);
+      // File paths are centralized in src/config/paths.js
+      const url = window.PATHS ? window.PATHS.getChromeURL(`HTML.${tabName.toUpperCase()}_SETTINGS`) : chrome.runtime.getURL(`src/ui/settings/${tabName}-settings.html`);
       console.log("🔍 DEBUG: Fetch URL:", url);
 
       const response = await fetch(url);

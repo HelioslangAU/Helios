@@ -3,6 +3,7 @@
   "name": "Helios",
   "version": "1.1",
   "description": "A browser extension for language learning with subtitle reading, popup dictionary, vocab tracking, and Anki integration",
+  "_comment": "File paths are centralized in src/config/paths.js - update paths there instead of here",
 
   "permissions": ["activeTab", "storage", "scripting", "alarms"],
 
@@ -23,21 +24,22 @@
     {
       "matches": ["<all_urls>"],
       "js": [
-        "src/frequency-manager.js",
-        "src/anki-manager.js",
-        "src/pronunciation.js",
-        "src/popup.js",
-        "src/multi-card-popup.js",
-        "src/extensiontab.js",
-        "src/text-highlighter.js",
-        "src/page-processor.js",
-        "src/vocab-manager.js",
-        "src/dictionary-manager.js",
-        "src/content.js",
-        "src/banner-manager.js",
-        "src/banner.js"
+        "src/config/paths.js",
+        "src/content/frequency-manager.js",
+        "src/content/anki-manager.js",
+        "src/content/pronunciation.js",
+        "src/content/popup.js",
+        "src/content/multi-card-popup.js",
+        "src/content/extensiontab.js",
+        "src/content/text-highlighter.js",
+        "src/content/page-processor.js",
+        "src/content/vocab-manager.js",
+        "src/content/dictionary-manager.js",
+        "src/content/content.js",
+        "src/content/banner-manager.js",
+        "src/content/banner.js"
       ],
-      "css": ["popup.css"],
+      "css": ["src/ui/popup/popup.css"],
       "run_at": "document_end"
     }
   ],
@@ -48,32 +50,33 @@
   },
 
   "action": {
-    "default_popup": "extensiontab.html",
+    "default_popup": "src/ui/tab/extensiontab.html",
     "default_title": "Helios Language Learning Extension"
   },
 
-  "options_page": "helios-settings.html",
+  "options_page": "src/ui/settings/helios-settings.html",
 
   "web_accessible_resources": [
     {
       "resources": [
         "dictionary.json",
-        "popup.css",
+        "src/config/paths.js",
+        "src/ui/popup/popup.css",
         "cedict_ts.u8",
-        "BLCUcoll/*",
-        "helios-settings.html",
+        "freq-dict/*",
+        "src/ui/settings/helios-settings.html",
         "src/settings/helios-settings.js",
         "src/settings/settings-storage.js",
         "src/settings/settings-ui.js",
         "src/settings/settings-anki.js",
         "src/settings/settings-vocabulary.js",
-        "src/settings/settings-advanced.js",
+        "src/content/settings/settings-advanced.js",
         "src/settings/*",
-        "settings/*",
-        "styles/*",
-        "banner.html",
-        "banner.css",
-        "src/banner.js"
+        "src/ui/settings/*",
+        "src/ui/settings/helios-settings.css",        
+        "src/ui/banner/banner.html",
+        "src/ui/banner/banner.css",
+        "src/content/banner.js"
 
       ],
       "matches": ["<all_urls>"]

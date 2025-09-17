@@ -7,7 +7,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles/helios-settings.css" />
+    <link rel="stylesheet" href="helios-settings.css" />
   </head>
   <body>
     <!-- Beautiful gradient header matching extension tab -->
@@ -91,15 +91,18 @@
       </div>
     </div>
 
-    <!-- Load all settings modules first -->
-    <script src="src/settings/settings-storage.js"></script>
-    <script src="src/settings/settings-ui.js"></script>
-    <script src="src/settings/settings-anki.js"></script>
-    <script src="src/settings/settings-vocabulary.js"></script>
-    <script src="src/settings/settings-advanced.js"></script>
-    <script src="src/vocab-manager.js"></script>
+    <!-- Load paths configuration first (correct relative path from src/ui/settings/) -->
+    <script src="../../config/paths.js"></script>
 
-    <!-- Load main settings manager last -->
-    <script src="src/settings/helios-settings.js"></script>
+    <!-- Load all settings modules as external scripts (MV3 CSP-safe) -->
+    <script src="../../content/settings/settings-storage.js"></script>
+    <script src="../../content/settings/settings-ui.js"></script>
+    <script src="../../content/settings/settings-anki.js"></script>
+    <script src="../../content/settings/settings-vocabulary.js"></script>
+    <script src="../../content/settings/settings-advanced.js"></script>
+    <script src="../../content/vocab-manager.js"></script>
+
+    <!-- Main settings manager last -->
+    <script src="../../content/settings/helios-settings.js"></script>
   </body>
 </html>

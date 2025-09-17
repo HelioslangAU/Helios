@@ -5,7 +5,8 @@ class DictionaryManager {
 
   async loadDictionary() {
     try {
-      const dictionaryUrl = chrome.runtime.getURL('cedict_ts.u8');
+      // File paths are centralized in src/config/paths.js
+      const dictionaryUrl = window.PATHS ? window.PATHS.getChromeURL('CEDICT') : chrome.runtime.getURL('cedict_ts.u8');
       const response = await fetch(dictionaryUrl);
       const text = await response.text();
       this.parseCEDICT(text);

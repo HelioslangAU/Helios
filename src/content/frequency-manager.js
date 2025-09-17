@@ -4,9 +4,10 @@ class FrequencyManager {
   }
 
   async loadFrequencyList() {
-    // Load all files in [ZH Freq] BLCUcoll/ that start with term_meta_bank
-    const folder = 'BLCUcoll/';
-    const fileNames = [
+    // Load all files in freq-dict/ that start with term_meta_bank
+    // File paths are centralized in src/config/paths.js
+    const folder = window.PATHS ? window.PATHS.FREQ_DICT : 'freq-dict/';
+    const fileNames = window.PATHS ? window.PATHS.FREQUENCY_FILES : [
       'term_meta_bank_1.json',
       'term_meta_bank_2.json',
       'term_meta_bank_3.json',
