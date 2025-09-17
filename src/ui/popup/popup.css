@@ -618,10 +618,355 @@
   }
 }
 
+/* Theme Variations */
+.chinese-lang-extension-popup.theme-light {
+  background:
+    radial-gradient(
+      circle at 80% 20%,
+      rgba(255, 107, 71, 0.05) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      circle at 20% 80%,
+      rgba(255, 143, 71, 0.03) 0%,
+      transparent 50%
+    ),
+    linear-gradient(
+      135deg,
+      #ffffff 0%,
+      #f8fafc 50%,
+      #f1f5f9 100%
+    );
+  border-color: rgba(255, 107, 71, 0.3);
+  color: #1f2937;
+  box-shadow:
+    0 10px 40px rgba(0, 0, 0, 0.15),
+    0 0 20px rgba(255, 107, 71, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.chinese-lang-extension-popup.theme-light .popup-content {
+  color: #1f2937;
+}
+
+.chinese-lang-extension-popup.theme-light .character.highlight {
+  color: #1f2937;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.chinese-lang-extension-popup.theme-light .character.highlight rt {
+  color: #4b5563;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.chinese-lang-extension-popup.theme-light .definition-block {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 107, 71, 0.15);
+  color: #374151;
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.chinese-lang-extension-popup.theme-light .definition-block:hover {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(255, 107, 71, 0.25);
+  box-shadow:
+    0 6px 24px rgba(0, 0, 0, 0.12),
+    0 0 20px rgba(255, 107, 71, 0.1);
+}
+
+.chinese-lang-extension-popup.theme-light .definition-list li {
+  color: #374151;
+}
+
+.chinese-lang-extension-popup.theme-light .definition-list li::before {
+  color: var(--popup-orange-primary);
+}
+
+.chinese-lang-extension-popup.theme-light .definition {
+  color: #374151;
+}
+
+.chinese-lang-extension-popup.theme-light .frequency {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 107, 71, 0.1),
+    rgba(255, 143, 71, 0.08)
+  );
+  border-color: rgba(255, 107, 71, 0.4);
+  color: #d97706;
+  box-shadow: 0 2px 8px rgba(255, 107, 71, 0.1);
+}
+
+.chinese-lang-extension-popup.theme-light .mark-known-btn,
+.chinese-lang-extension-popup.theme-light .mark-unknown-btn {
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.chinese-lang-extension-popup.theme-light .anki-btn {
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.chinese-lang-extension-popup.theme-light .pronunciation-btn {
+  border-color: rgba(255, 107, 71, 0.3);
+  box-shadow: 0 4px 16px rgba(255, 107, 71, 0.2);
+}
+
+.chinese-lang-extension-popup.theme-light .navigation-dots {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+}
+
+.chinese-lang-extension-popup.theme-light .nav-dot {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.chinese-lang-extension-popup.theme-light .nav-dot:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.chinese-lang-extension-popup.theme-light .card-counter {
+  color: #6b7280;
+}
+
+/* Font Size Variations */
+.chinese-lang-extension-popup.size-small {
+  width: 360px !important;
+  height: 260px !important;
+  font-size: 12px;
+}
+
+.chinese-lang-extension-popup.size-small .character.highlight {
+  font-size: 36px;
+}
+
+.chinese-lang-extension-popup.size-small .character.highlight rt {
+  font-size: 12px;
+}
+
+.chinese-lang-extension-popup.size-small .popup-content {
+  padding: 16px 18px;
+}
+
+.chinese-lang-extension-popup.size-small .mark-known-btn,
+.chinese-lang-extension-popup.size-small .mark-unknown-btn {
+  padding: 6px 12px;
+  font-size: 10px;
+}
+
+.chinese-lang-extension-popup.size-small .anki-btn {
+  width: 28px !important;
+  height: 28px !important;
+  font-size: 12px !important;
+}
+
+.chinese-lang-extension-popup.size-small .pronunciation-btn {
+  width: 24px;
+  height: 24px;
+  font-size: 10px;
+}
+
+.chinese-lang-extension-popup.size-small .frequency {
+  padding: 2px 6px;
+  font-size: 8px;
+}
+
+.chinese-lang-extension-popup.size-small .nav-dot {
+  width: 5px;
+  height: 5px;
+}
+
+.chinese-lang-extension-popup.size-small .nav-dot.active {
+  width: 6px;
+  height: 6px;
+}
+
+.chinese-lang-extension-popup.size-medium {
+  width: 400px !important;
+  height: 300px !important;
+  font-size: 14px;
+}
+
+.chinese-lang-extension-popup.size-medium .character.highlight {
+  font-size: 42px;
+}
+
+.chinese-lang-extension-popup.size-medium .character.highlight rt {
+  font-size: 14px;
+}
+
+.chinese-lang-extension-popup.size-large {
+  width: 450px !important;
+  height: 340px !important;
+  font-size: 16px;
+}
+
+.chinese-lang-extension-popup.size-large .character.highlight {
+  font-size: 48px;
+}
+
+.chinese-lang-extension-popup.size-large .character.highlight rt {
+  font-size: 16px;
+}
+
+.chinese-lang-extension-popup.size-large .popup-content {
+  padding: 24px 26px;
+}
+
+.chinese-lang-extension-popup.size-large .mark-known-btn,
+.chinese-lang-extension-popup.size-large .mark-unknown-btn {
+  padding: 10px 18px;
+  font-size: 13px;
+}
+
+.chinese-lang-extension-popup.size-large .anki-btn {
+  width: 36px !important;
+  height: 36px !important;
+  font-size: 16px !important;
+}
+
+.chinese-lang-extension-popup.size-large .pronunciation-btn {
+  width: 32px;
+  height: 32px;
+  font-size: 14px;
+}
+
+.chinese-lang-extension-popup.size-large .frequency {
+  padding: 4px 10px;
+  font-size: 10px;
+}
+
+.chinese-lang-extension-popup.size-large .nav-dot {
+  width: 7px;
+  height: 7px;
+}
+
+.chinese-lang-extension-popup.size-large .nav-dot.active {
+  width: 9px;
+  height: 9px;
+}
+
+.chinese-lang-extension-popup.size-extra-large {
+  width: 500px !important;
+  height: 380px !important;
+  font-size: 18px;
+}
+
+.chinese-lang-extension-popup.size-extra-large .character.highlight {
+  font-size: 54px;
+}
+
+.chinese-lang-extension-popup.size-extra-large .character.highlight rt {
+  font-size: 18px;
+}
+
+.chinese-lang-extension-popup.size-extra-large .popup-content {
+  padding: 28px 30px;
+}
+
+.chinese-lang-extension-popup.size-extra-large .mark-known-btn,
+.chinese-lang-extension-popup.size-extra-large .mark-unknown-btn {
+  padding: 12px 20px;
+  font-size: 14px;
+}
+
+.chinese-lang-extension-popup.size-extra-large .anki-btn {
+  width: 40px !important;
+  height: 40px !important;
+  font-size: 18px !important;
+}
+
+.chinese-lang-extension-popup.size-extra-large .pronunciation-btn {
+  width: 36px;
+  height: 36px;
+  font-size: 16px;
+}
+
+.chinese-lang-extension-popup.size-extra-large .frequency {
+  padding: 5px 12px;
+  font-size: 11px;
+}
+
+.chinese-lang-extension-popup.size-extra-large .nav-dot {
+  width: 8px;
+  height: 8px;
+}
+
+.chinese-lang-extension-popup.size-extra-large .nav-dot.active {
+  width: 10px;
+  height: 10px;
+}
+
+/* Frequency Display Control */
+.frequency.hidden {
+  display: none !important;
+}
+
+/* Persistent Mode Styling */
+.chinese-lang-extension-popup.persistent-mode {
+  box-shadow:
+    var(--popup-shadow-strong),
+    0 0 30px rgba(255, 107, 71, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.chinese-lang-extension-popup.persistent-mode::after {
+  animation: persistentGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes persistentGlow {
+  0% {
+    box-shadow: 0 0 15px rgba(255, 107, 71, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 25px rgba(255, 107, 71, 0.6);
+  }
+}
+
+/* Auto-close indicator */
+.chinese-lang-extension-popup.auto-closing::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--popup-orange-primary), transparent);
+  animation: autoCloseCountdown var(--auto-close-duration, 5s) linear forwards;
+  z-index: 10;
+}
+
+@keyframes autoCloseCountdown {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
 /* Responsive Design */
 @media (max-width: 480px) {
   .chinese-lang-extension-popup {
     width: 95vw !important;
     max-width: 400px !important;
+  }
+
+  .chinese-lang-extension-popup.size-small {
+    width: 90vw !important;
+    max-width: 360px !important;
+  }
+
+  .chinese-lang-extension-popup.size-large {
+    width: 95vw !important;
+    max-width: 450px !important;
+  }
+
+  .chinese-lang-extension-popup.size-extra-large {
+    width: 95vw !important;
+    max-width: 500px !important;
   }
 }

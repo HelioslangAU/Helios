@@ -79,7 +79,8 @@ class CardNavigator {
         displayCharacter,
         newCard,
         isKnown,
-        frequency
+        frequency,
+        this.popupManager.settingsManager.settings
       );
 
       popupContent.classList.remove("sliding-out");

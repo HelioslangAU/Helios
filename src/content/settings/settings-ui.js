@@ -112,6 +112,132 @@ class HeliosSettingsUI {
 
   setupPopupEventListeners() {
     console.log("Setting up popup event listeners");
+
+    // Popup theme change
+    const popupTheme = document.getElementById("popup-theme");
+    if (popupTheme) {
+      popupTheme.addEventListener("change", (e) => {
+        console.log("Popup theme changed:", e.target.value);
+        // Send message to content scripts to update popup theme
+        if (chrome.tabs && chrome.tabs.query) {
+          chrome.tabs.query({}, (tabs) => {
+            tabs.forEach((tab) => {
+              if (chrome.tabs.sendMessage) {
+                chrome.tabs
+                  .sendMessage(tab.id, {
+                    action: "updatePopupTheme",
+                    theme: e.target.value,
+                  })
+                  .catch(() => {
+                    // Tab might not have content script loaded, ignore
+                  });
+              }
+            });
+          });
+        }
+      });
+    }
+
+    // Font size change
+    const popupFontSize = document.getElementById("popup-font-size");
+    if (popupFontSize) {
+      popupFontSize.addEventListener("change", (e) => {
+        console.log("Popup font size changed:", e.target.value);
+        // Send message to content scripts to update font size
+        if (chrome.tabs && chrome.tabs.query) {
+          chrome.tabs.query({}, (tabs) => {
+            tabs.forEach((tab) => {
+              if (chrome.tabs.sendMessage) {
+                chrome.tabs
+                  .sendMessage(tab.id, {
+                    action: "updatePopupFontSize",
+                    fontSize: e.target.value,
+                  })
+                  .catch(() => {
+                    // Tab might not have content script loaded, ignore
+                  });
+              }
+            });
+          });
+        }
+      });
+    }
+
+    // Show frequency toggle
+    const showFrequency = document.getElementById("show-frequency");
+    if (showFrequency) {
+      showFrequency.addEventListener("change", (e) => {
+        console.log("Show frequency changed:", e.target.checked);
+        // Send message to content scripts to update frequency display
+        if (chrome.tabs && chrome.tabs.query) {
+          chrome.tabs.query({}, (tabs) => {
+            tabs.forEach((tab) => {
+              if (chrome.tabs.sendMessage) {
+                chrome.tabs
+                  .sendMessage(tab.id, {
+                    action: "updateShowFrequency",
+                    enabled: e.target.checked,
+                  })
+                  .catch(() => {
+                    // Tab might not have content script loaded, ignore
+                  });
+              }
+            });
+          });
+        }
+      });
+    }
+
+
+    // Persistent popup toggle
+    const persistentPopup = document.getElementById("persistent-popup");
+    if (persistentPopup) {
+      persistentPopup.addEventListener("change", (e) => {
+        console.log("Persistent popup changed:", e.target.checked);
+        // Send message to content scripts to update popup persistence
+        if (chrome.tabs && chrome.tabs.query) {
+          chrome.tabs.query({}, (tabs) => {
+            tabs.forEach((tab) => {
+              if (chrome.tabs.sendMessage) {
+                chrome.tabs
+                  .sendMessage(tab.id, {
+                    action: "updatePersistentPopup",
+                    enabled: e.target.checked,
+                  })
+                  .catch(() => {
+                    // Tab might not have content script loaded, ignore
+                  });
+              }
+            });
+          });
+        }
+      });
+    }
+
+    // Auto-close delay change
+    const autoCloseDelay = document.getElementById("auto-close-delay");
+    if (autoCloseDelay) {
+      autoCloseDelay.addEventListener("change", (e) => {
+        console.log("Auto-close delay changed:", e.target.value);
+        // Send message to content scripts to update auto-close delay
+        if (chrome.tabs && chrome.tabs.query) {
+          chrome.tabs.query({}, (tabs) => {
+            tabs.forEach((tab) => {
+              if (chrome.tabs.sendMessage) {
+                chrome.tabs
+                  .sendMessage(tab.id, {
+                    action: "updateAutoCloseDelay",
+                    delay: parseInt(e.target.value) || 0,
+                  })
+                  .catch(() => {
+                    // Tab might not have content script loaded, ignore
+                  });
+              }
+            });
+          });
+        }
+      });
+    }
   }
 
   setupAnkiEventListeners() {
@@ -231,40 +357,62 @@ class HeliosSettingsUI {
   }
 
   updatePopupUI(tabElement) {
+    console.log("🔍 Updating popup UI with settings:", this.manager.settings);
+
+    const popupTheme = tabElement.querySelector("#popup-theme");
+    if (popupTheme) {
+      popupTheme.value = this.manager.settings.popupTheme;
+      console.log("🔍 Set popup theme:", this.manager.settings.popupTheme);
+    }
+
     const popupFontSize = tabElement.querySelector("#popup-font-size");
-    if (popupFontSize)
+    if (popupFontSize) {
       popupFontSize.value = this.manager.settings.popupFontSize;
+      console.log("🔍 Set popup font size:", this.manager.settings.popupFontSize);
+    }
 
     const showFrequency = tabElement.querySelector("#show-frequency");
-    if (showFrequency)
+    if (showFrequency) {
       showFrequency.checked = this.manager.settings.showFrequency;
+      console.log("🔍 Set show frequency:", this.manager.settings.showFrequency);
+    }
 
-    const showVariants = tabElement.querySelector("#show-variants");
-    if (showVariants) showVariants.checked = this.manager.settings.showVariants;
 
     const persistentPopup = tabElement.querySelector("#persistent-popup");
-    if (persistentPopup)
+    if (persistentPopup) {
       persistentPopup.checked = this.manager.settings.persistentPopup;
+      console.log("🔍 Set persistent popup:", this.manager.settings.persistentPopup);
+    }
 
     const autoCloseDelay = tabElement.querySelector("#auto-close-delay");
-    if (autoCloseDelay)
+    if (autoCloseDelay) {
       autoCloseDelay.value = this.manager.settings.autoCloseDelay;
+      console.log("🔍 Set auto-close delay:", this.manager.settings.autoCloseDelay);
+    }
 
     const highlightStyle = tabElement.querySelector("#highlight-style");
-    if (highlightStyle)
+    if (highlightStyle) {
       highlightStyle.value = this.manager.settings.highlightStyle;
+      console.log("🔍 Set highlight style:", this.manager.settings.highlightStyle);
+    }
 
     const highlightColor = tabElement.querySelector("#highlight-color");
-    if (highlightColor)
+    if (highlightColor) {
       highlightColor.value = this.manager.settings.highlightColor;
+      console.log("🔍 Set highlight color:", this.manager.settings.highlightColor);
+    }
 
     const highlightIntensity = tabElement.querySelector("#highlight-intensity");
-    if (highlightIntensity)
+    if (highlightIntensity) {
       highlightIntensity.value = this.manager.settings.highlightIntensity;
+      console.log("🔍 Set highlight intensity:", this.manager.settings.highlightIntensity);
+    }
 
     const hideKnownSites = tabElement.querySelector("#hide-known-sites");
-    if (hideKnownSites)
+    if (hideKnownSites) {
       hideKnownSites.checked = this.manager.settings.hideKnownSites;
+      console.log("🔍 Set hide known sites:", this.manager.settings.hideKnownSites);
+    }
   }
 
   updateAnkiUI(tabElement) {

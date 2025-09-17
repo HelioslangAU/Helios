@@ -48,7 +48,8 @@ class MultiCardPopupManager extends PopupManager {
       displayCharacter,
       card,
       isKnown,
-      frequency
+      frequency,
+      this.settingsManager.settings
     );
 
     // Add to DOM and position
@@ -60,6 +61,9 @@ class MultiCardPopupManager extends PopupManager {
     }
 
     this.popup = popup;
+
+    // Apply settings to the popup
+    this.settingsManager.onPopupCreated(popup);
 
     // Add navigation if multiple cards
     this.cardNavigator.addNavigationDots(popup);

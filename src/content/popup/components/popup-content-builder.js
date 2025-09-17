@@ -3,7 +3,7 @@
  * Handles building different types of popup content
  */
 class PopupContentBuilder {
-  static createBasicContent(character, dictionaryData, vocabManager, frequencyManager) {
+  static createBasicContent(character, dictionaryData, vocabManager, frequencyManager, settings = {}) {
     const { matches, isKnown, frequency } = dictionaryData;
 
     if (matches.length === 0) {
@@ -21,13 +21,14 @@ class PopupContentBuilder {
     const pinyin = matches[0].pinyin;
     const definitionsHtml = this.createDefinitionsHtml(matches);
     const pronunciationBtn = this.createPronunciationButton(character, pinyin);
+    const showFrequency = settings.showFrequency !== false;
 
     return `
       <div class="popup-content">
         <div class="character-container">
           <div class="character highlight"><ruby>${character}<rt>${pinyin}</rt></ruby></div>
           ${pronunciationBtn}
-          ${frequency ? `<div class="frequency">Frequency: ${frequency}</div>` : ""}
+          ${frequency && showFrequency ? `<div class="frequency">Frequency: ${frequency}</div>` : ""}
         </div>
         <div class="definitions-scroll">${definitionsHtml}</div>
         <div class="popup-buttons">
@@ -40,17 +41,18 @@ class PopupContentBuilder {
     `;
   }
 
-  static createCardContent(displayCharacter, card, isKnown, frequency) {
+  static createCardContent(displayCharacter, card, isKnown, frequency, settings = {}) {
     const { pinyin, entries } = card;
     const definitionsHtml = this.createDefinitionsHtml(entries);
     const pronunciationBtn = this.createPronunciationButton(displayCharacter, pinyin);
+    const showFrequency = settings.showFrequency !== false;
 
     return `
       <div class="popup-content">
         <div class="character-container">
           <div class="character highlight"><ruby>${displayCharacter}<rt>${pinyin}</rt></ruby></div>
           ${pronunciationBtn}
-          ${frequency ? `<div class="frequency">Frequency: ${frequency}</div>` : ""}
+          ${frequency && showFrequency ? `<div class="frequency">Frequency: ${frequency}</div>` : ""}
         </div>
         <div class="definitions-scroll">${definitionsHtml}</div>
         <div class="popup-buttons">
@@ -63,16 +65,17 @@ class PopupContentBuilder {
     `;
   }
 
-  static createCardContentInner(displayCharacter, card, isKnown, frequency) {
+  static createCardContentInner(displayCharacter, card, isKnown, frequency, settings = {}) {
     const { pinyin, entries } = card;
     const definitionsHtml = this.createDefinitionsHtml(entries);
     const pronunciationBtn = this.createPronunciationButton(displayCharacter, pinyin, pinyin);
+    const showFrequency = settings.showFrequency !== false;
 
     return `
       <div class="character-container">
         <div class="character highlight"><ruby>${displayCharacter}<rt>${pinyin}</rt></ruby></div>
         ${pronunciationBtn}
-        ${frequency ? `<div class="frequency">Frequency: ${frequency}</div>` : ""}
+        ${frequency && showFrequency ? `<div class="frequency">Frequency: ${frequency}</div>` : ""}
       </div>
       <div class="definitions-scroll">${definitionsHtml}</div>
       <div class="popup-buttons">

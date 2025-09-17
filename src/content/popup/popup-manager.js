@@ -21,6 +21,9 @@ class PopupManager {
 
     // Initialize internal components
     this.cardManager = new CardManager(this.dictionaryManager, new DefinitionFilter());
+
+    // Initialize popup settings manager
+    this.settingsManager = new PopupSettingsManager();
   }
 
   showDictionaryPopup(x, y, character, sentence) {
@@ -40,7 +43,8 @@ class PopupManager {
       character,
       dictionaryData,
       this.vocabManager,
-      this.frequencyManager
+      this.frequencyManager,
+      this.settingsManager.settings
     );
 
     // Add to DOM and position
@@ -53,6 +57,9 @@ class PopupManager {
 
     this.popup = popup;
 
+    // Apply settings to the popup
+    this.settingsManager.onPopupCreated(popup);
+
     // Setup event handlers
     const managers = {
       vocabManager: this.vocabManager,
@@ -60,7 +67,8 @@ class PopupManager {
       pronunciationManager: this.pronunciationManager,
       frequencyManager: this.frequencyManager,
       dictionaryManager: this.dictionaryManager,
-      popupManager: this
+      popupManager: this,
+      settingsManager: this.settingsManager
     };
 
     PopupEventHandler.setupBasicEvents(popup, character, managers);
@@ -68,6 +76,12 @@ class PopupManager {
 
   scheduleHidePopup() {
     clearTimeout(this.hideTimeout);
+
+    // Check if persistent mode is enabled
+    if (this.settingsManager.shouldPreventAutoHide()) {
+      return; // Don't auto-hide in persistent mode
+    }
+
     this.hideTimeout = setTimeout(() => {
       if (!this.isMouseOverPopup && !this.isMouseOverHighlight) {
         this.hidePopup();
@@ -81,6 +95,7 @@ class PopupManager {
       return;
     }
     if (this.popup && (!event || !this.popup.contains(event.target))) {
+      this.settingsManager.onPopupDestroyed();
       this.popup.remove();
       this.popup = null;
       this.isMouseOverPopup = false;

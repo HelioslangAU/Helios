@@ -122,7 +122,6 @@ class HeliosSettingsStorage {
       "prefer-traditional": "preferTraditional",
       "popup-font-size": "popupFontSize",
       "show-frequency": "showFrequency",
-      "show-variants": "showVariants",
       "persistent-popup": "persistentPopup",
       "auto-close-delay": "autoCloseDelay",
       "highlight-style": "highlightStyle",
