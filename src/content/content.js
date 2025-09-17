@@ -429,6 +429,12 @@ class ChineseLanguageLearningExtension {
       this.isActivationKeyPressed = false;
       this.toggleActivationMode(false);
       clearTimeout(this.hoverTimeout);
+
+      // Only hide popup if persistent mode is not enabled
+      if (this.popup && this.popup.settingsManager && !this.popup.settingsManager.shouldPreventKeyUpHide()) {
+        this.popup.hidePopup();
+        this.highlightManager.removeLookupHighlight();
+      }
     }
   }
 

@@ -48,7 +48,8 @@ class MultiCardPopupManager extends PopupManager {
       displayCharacter,
       card,
       isKnown,
-      frequency
+      frequency,
+      this.settingsManager.settings
     );
 
     // Add to DOM and position
@@ -60,6 +61,9 @@ class MultiCardPopupManager extends PopupManager {
     }
 
     this.popup = popup;
+
+    // Apply settings to the popup
+    this.settingsManager.onPopupCreated(popup);
 
     // Add navigation if multiple cards
     this.cardNavigator.addNavigationDots(popup);
@@ -119,14 +123,7 @@ class MultiCardPopupManager extends PopupManager {
       window.pageProcessor.updateWordStyling(this.originalCharacter, false);
     }
 
-    if (window.highlightManager) {
-      const el = document.querySelector(`span[data-word="${this.originalCharacter}"]`);
-      if (el) {
-        window.highlightManager.removeLookupHighlight();
-        el.classList.add("lookup-highlight");
-        window.highlightManager.currentHighlight = el;
-      }
-    }
+    // Removed problematic highlight code that was affecting popup button styling
   }
 
   saveToVocabList(character, pinyin, definition) {

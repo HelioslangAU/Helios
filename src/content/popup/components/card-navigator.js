@@ -79,7 +79,8 @@ class CardNavigator {
         displayCharacter,
         newCard,
         isKnown,
-        frequency
+        frequency,
+        this.popupManager.settingsManager.settings
       );
 
       popupContent.classList.remove("sliding-out");
@@ -119,21 +120,27 @@ class CardNavigator {
   }
 
   setupCardContentEvents(popupContent, currentCard) {
-    // Mark known/unknown buttons - special multi-card handling
-    const markKnownBtn = popupContent.querySelector(".mark-known-btn");
-    const markUnknownBtn = popupContent.querySelector(".mark-unknown-btn");
+    // Mark known/unknown buttons - unified toggle approach
+    const markButton = popupContent.querySelector(".mark-known-btn, .mark-unknown-btn");
 
-    if (markKnownBtn) {
-      markKnownBtn.addEventListener("click", async () => {
-        await this.popupManager.markAllCardsAsKnown();
-        this.popupManager.hidePopup();
-      });
-    }
+    if (markButton) {
+      markButton.addEventListener("click", async () => {
+        const isCurrentlyKnown = markButton.classList.contains("mark-unknown-btn");
 
-    if (markUnknownBtn) {
-      markUnknownBtn.addEventListener("click", async () => {
-        await this.popupManager.markAllCardsAsUnknown();
-        this.popupManager.hidePopup();
+        if (isCurrentlyKnown) {
+          // Currently known, mark as unknown
+          await this.popupManager.markAllCardsAsUnknown();
+          this.updateMarkButton(markButton, false); // Now unknown, so show "Mark Known"
+        } else {
+          // Currently unknown, mark as known
+          await this.popupManager.markAllCardsAsKnown();
+          this.updateMarkButton(markButton, true); // Now known, so show "Mark Unknown"
+        }
+
+        // Only hide popup if not in persistent mode
+        if (this.popupManager.settingsManager && !this.popupManager.settingsManager.shouldPreventAutoHide()) {
+          this.popupManager.hidePopup();
+        }
       });
     }
 
@@ -173,5 +180,17 @@ class CardNavigator {
         await PopupEventHandler.handlePronunciation(btn, word, pinyin, this.popupManager.pronunciationManager);
       });
     });
+  }
+
+  updateMarkButton(button, isNowKnown) {
+    if (isNowKnown) {
+      // Word is now known, so show "Mark Unknown" button
+      button.textContent = "Mark Unknown";
+      button.className = "mark-unknown-btn";
+    } else {
+      // Word is now unknown, so show "Mark Known" button
+      button.textContent = "Mark Known";
+      button.className = "mark-known-btn";
+    }
   }
 }

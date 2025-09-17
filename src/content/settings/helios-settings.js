@@ -28,7 +28,6 @@ class HeliosSettingsManager {
       popupTheme: "dark",
       popupFontSize: "medium",
       showFrequency: true,
-      showVariants: true,
       persistentPopup: true,
       autoCloseDelay: 0,
       highlightStyle: "underline",
