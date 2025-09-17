@@ -32,6 +32,16 @@
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* When not expanded, the banner should not block page interactions */
+.helios-comprehension-banner:not(.banner-expanded) {
+    pointer-events: none;
+}
+
+/* Keep the tab clickable even when the container ignores pointer events */
+.helios-comprehension-banner .banner-tab {
+    pointer-events: auto;
+}
+
 /* Tab - Always visible */
 .banner-tab {
     position: absolute;
@@ -123,6 +133,13 @@
     pointer-events: none;
     transform: translateY(-100%);
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Remove hidden content from layout so it doesn't create a click-blocking layer */
+.helios-comprehension-banner:not(.banner-expanded) .banner-content {
+    display: none;
+    padding: 0;
+    border-bottom: none;
 }
 
 .banner-expanded .banner-content {
