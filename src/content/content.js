@@ -1,22 +1,19 @@
 class ChineseLanguageLearningExtension {
   constructor() {
-    this.isActivationKeyPressed = false;
-    this.hoverTimeout = null;
-    this.lastMouseEvent = null;
-    this.lastHighlightInfo = null;
-    this.currentWord = null;
-    this.extensionEnabled = true;
-    this.activationKey = "Shift"; // Default activation key
-    this.autoHighlight = true;
-    this.popupTheme = "dark";
-
+    this.activation = new ActivationController();
+    this.textScanner = new TextScanner();
+    this.highlightManager = null;
     this.dictionaryManager = null;
     this.vocabManager = null;
+    this.frequencyManager = null;
     this.pageProcessor = null;
-    this.highlightManager = null;
     this.popup = null;
     this.bannerManager = null;
-    this.pinyinManager = null; // NEW: Add pinyin manager
+    this.pinyinManager = null;
+    this.lookup = null;
+    this.featureToggle = null;
+    this.settings = null;
+    this.asb = null;
 
     this.init();
   }
@@ -24,20 +21,11 @@ class ChineseLanguageLearningExtension {
   async init() {
     console.log("🔍 Initializing Chinese Language Learning Extension...");
 
-    // Load extension settings first
-    await this.loadExtensionSettings();
-
-    // Only proceed if extension is enabled
-    if (!this.extensionEnabled) {
-      console.log("🔍 Extension is disabled, not initializing");
-      return;
-    }
-
+    // Core managers
     this.dictionaryManager = new DictionaryManager();
     this.vocabManager = new VocabManager();
     this.highlightManager = new HighlightManager();
     this.frequencyManager = new FrequencyManager();
-    
 
     await Promise.all([
       this.dictionaryManager.loadDictionary(),
@@ -45,383 +33,125 @@ class ChineseLanguageLearningExtension {
       this.frequencyManager.loadFrequencyList(),
     ]);
 
-    this.pageProcessor = new PageProcessor(
-      this.dictionaryManager,
-      this.vocabManager
-    );
-    window.pageProcessor = this.pageProcessor; // Make globally accessible for popup updates
+    this.pageProcessor = new PageProcessor(this.dictionaryManager, this.vocabManager);
+    window.pageProcessor = this.pageProcessor;
     this.bannerManager = new BannerManager();
-    window.bannerManager = this.bannerManager; // Make globally accessible for banner updates
-    window.vocabManager = this.vocabManager; // Make vocab manager globally accessible
+    window.bannerManager = this.bannerManager;
+    window.vocabManager = this.vocabManager;
 
-    // NEW: Initialize pinyin manager after dictionary and page processor are ready
-    this.pinyinManager = new PinyinManager(
-      this.dictionaryManager,
-      this.pageProcessor
-    );
-
-    // NEW: Start observing for dynamic content changes
+    this.pinyinManager = new PinyinManager(this.dictionaryManager, this.pageProcessor);
     this.pinyinManager.observeForDynamicContent();
 
-    // CHANGED: Use MultiCardPopupManager instead of PopupManager
     this.popup = new MultiCardPopupManager({
       highlightManager: this.highlightManager,
       dictionaryManager: this.dictionaryManager,
       vocabManager: this.vocabManager,
       frequencyManager: this.frequencyManager,
     });
-
-    // Set up communication between components
-    // Make highlightManager globally accessible for highlight preservation
     window.highlightManager = this.highlightManager;
 
-    this.initTextScannerEvents();
+    this.lookup = new LookupController({
+      pageProcessor: this.pageProcessor,
+      highlightManager: this.highlightManager,
+      popup: this.popup,
+      activation: this.activation,
+    });
 
-    // Apply auto-highlight setting (only affects automatic word marking, not manual lookup)
-    if (this.autoHighlight) {
-      this.pageProcessor.processPageForUnknownWords();
-    }
+    this.featureToggle = new FeatureToggle({
+      activation: this.activation,
+      textScanner: this.textScanner,
+      pageProcessor: this.pageProcessor,
+      popup: this.popup,
+      bannerManager: this.bannerManager,
+      pinyinManager: this.pinyinManager,
+    });
 
-    this.initAsbplayerIntegration();
-    this.setupMessageListener();
-    
+    this.settings = new SettingsSync({
+      onLoaded: (s) => this.featureToggle.applyInitial(s || {}),
+      onToggled: (enabled) => {
+        this.featureToggle.setEnabled(enabled);
+        if (enabled) this._registerScanner();
+      },
+      onSettingsUpdated: (s) => window.ContentSettingsApplier?.apply(this, s),
+      onActivationKeyChanged: (key) => this.activation.setKey(key),
+      onAutoHighlightChanged: (enabled) => this.featureToggle.setAutoHighlight(enabled),
+    });
+    await this.settings.load();
 
-    console.log(
-      "🔍 Chinese Language Learning Extension initialized successfully"
-    );
+    this._registerScanner();
+
+    this.asb = new AsbplayerIntegration(this.pageProcessor);
+    this.asb.start();
+
+    console.log("🔍 Chinese Language Learning Extension initialized successfully");
   }
 
-  async loadExtensionSettings() {
-    try {
-      console.log("🔍 Loading extension settings...");
-
-      // Request settings from background script
-      const response = await chrome.runtime.sendMessage({
-        action: "getExtensionSettings",
+  _registerScanner() {
+    const onPointerMove = (e) => this.lookup.onPointerMove(e);
+    const onKeyDown = (e) => {
+      // Activation key
+      const wasActive = this.activation.isActive();
+      this.activation.handleKeyDown(e, {
+        onActivate: () => {
+          this.activation.toggleActivationMode(true);
+          if (this.lookup.lastPointerEvent) {
+            this.lookup.onPointerMove(this.lookup.lastPointerEvent);
+          }
+        },
       });
-
-      if (response && response.success) {
-        this.extensionEnabled = response.settings.extensionEnabled;
-        this.activationKey = response.settings.activationKey;
-        this.autoHighlight = response.settings.autoHighlight;
-        this.popupTheme = response.settings.popupTheme;
-
-        console.log("🔍 Loaded settings:", response.settings);
-      } else {
-        console.log("🔍 Could not load settings, using defaults");
+      // Ctrl+G for pinyin
+      if (
+        e.ctrlKey &&
+        e.key &&
+        e.key.toLowerCase &&
+        e.key.toLowerCase() === "g" &&
+        !e.shiftKey &&
+        !e.altKey
+      ) {
+        e.preventDefault();
+        this.pinyinManager && this.pinyinManager.togglePinyin();
+        return false;
       }
-    } catch (error) {
-      console.log("🔍 Error loading settings, using defaults:", error);
-      // Keep default values
-    }
-  }
+    };
+    const onKeyUp = (e) => {
+      this.activation.handleKeyUp(e, {
+        onDeactivate: () => {
+          this.activation.toggleActivationMode(false);
+          this.lookup.onDeactivate();
+        },
+      });
+    };
+    const onSelectStart = (e) => this.activation.blockDuringActivation(e);
+    const onContextMenu = (e) => this.activation.blockDuringActivation(e);
+    const onClick = (e) => this.lookup.onClick(e);
 
-  setupMessageListener() {
-    // Listen for messages from background script (settings changes)
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-      console.log("🔍 Content script received message:", message.action);
-
-      switch (message.action) {
-        case "extensionToggled":
-          this.handleExtensionToggled(message.enabled);
-          break;
-
-        case "settingsUpdated":
-          this.handleSettingsUpdated(message.settings);
-          break;
-
-        case "updateActivationKey":
-          this.handleActivationKeyUpdate(message.key);
-          break;
-
-        case "updateAutoHighlight":
-          this.handleAutoHighlightUpdate(message.enabled);
-          break;
-      }
-
-      sendResponse({ success: true });
+    this.textScanner.register({
+      onPointerMove,
+      onKeyDown,
+      onKeyUp,
+      onSelectStart,
+      onContextMenu,
+      onClick,
     });
   }
 
-  handleExtensionToggled(enabled) {
-    console.log("🔍 Extension toggled:", enabled);
-    this.extensionEnabled = enabled;
-
-    if (enabled) {
-      // Re-initialize if extension was disabled
-      if (!this.dictionaryManager) {
-        this.init();
-      } else {
-        // Re-enable text scanner events
-        this.initTextScannerEvents();
-        if (this.autoHighlight) {
-          this.pageProcessor.processPageForUnknownWords();
-        }
-        if (this.bannerManager) {
-          this.bannerManager.showBanner();
-        }
-        // NEW: Resume pinyin observation
-        if (this.pinyinManager) {
-          this.pinyinManager.observeForDynamicContent();
-        }
-      }
-    } else {
-      // Disable extension functionality
-      this.removeTextScannerEvents();
-      this.popup.hidePopup()
-      this.pageProcessor.clearHighlights();
-      if (this.bannerManager) {
-        this.bannerManager.hideBanner();
-      }
-      // NEW: Clean up pinyin
-      if (this.pinyinManager) {
-        this.pinyinManager.destroy();
-      }
-    }
-  }
-
-  handleSettingsUpdated(settings) {
-    console.log("🔍 Settings updated:", settings);
-    if (window.ContentSettingsApplier) {
-      window.ContentSettingsApplier.apply(this, settings);
-    }
-  }
-
-  handleActivationKeyUpdate(key) {
-    console.log("🔍 Activation key updated:", key);
-    this.activationKey = key;
-    // Reset pressed state since key changed
-    this.isActivationKeyPressed = false;
-  }
-
-  removeTextScannerEvents() {
-    if (this._textScannerListeners) {
-      this._textScannerListeners.forEach(
-        ({ target, type, listener, options }) => {
-          target.removeEventListener(type, listener, options);
-        }
-      );
-      this._textScannerListeners = [];
-    }
-  }
-
-  initTextScannerEvents() {
-    // Remove existing listeners first
-    this.removeTextScannerEvents();
-
-    const capture = true;
-    this._textScannerListeners = [];
-
-    const addEvent = (target, type, listener, options) => {
-      target.addEventListener(type, listener, options);
-      this._textScannerListeners.push({ target, type, listener, options });
-    };
-
-    addEvent(
-      document,
-      "pointermove",
-      this._onPointerMoveTS.bind(this),
-      capture
-    );
-    addEvent(document, "keydown", this._onKeyDownTS.bind(this), capture);
-    addEvent(document, "keyup", this._onKeyUpTS.bind(this), capture);
-    addEvent(
-      document,
-      "selectstart",
-      this._onSelectStartTS.bind(this),
-      capture
-    );
-    addEvent(
-      document,
-      "contextmenu",
-      this._onContextMenuTS.bind(this),
-      capture
-    );
-    addEvent(document, "click", this._onClickTS.bind(this), capture);
-  }
-
-  _onPointerMoveTS(event) {
-    if (!this.extensionEnabled || !this.isActivationKeyPressed) return;
-
-    this.lastPointerEvent = event;
-
-    if (this.popup && this.popup.isMouseOverPopup) {
-      return;
-    }
-
-    const characterInfo = this.pageProcessor.getCharacterAtPosition(event);
-
-    if (characterInfo && characterInfo.word) {
-      clearTimeout(this.hideTimeout);
-
-      if (
-        this.currentWord === characterInfo.word &&
-        this.highlightManager.currentHighlight &&
-        this.highlightManager.currentHighlight.textContent ===
-          characterInfo.word
-      )
-        return;
-
-      this.highlightManager.removeLookupHighlight();
-
-      const newCharacterInfo = this.pageProcessor.getCharacterAtPosition(event);
-      if (!newCharacterInfo) {
-        this.popup.scheduleHidePopup();
-        return;
-      }
-
-      clearTimeout(this.hoverTimeout);
-      this.hoverTimeout = setTimeout(() => {
-        // Step 1: Reliably extract the sentence BEFORE modifying the DOM.
-        const sentence = this.pageProcessor.getSentenceContextFromNode(newCharacterInfo.textNode, newCharacterInfo.word);
-
-        // Step 2: Now that the sentence is safely captured, apply the highlight.
-        this.highlightManager.highlightLookupText(
-          newCharacterInfo.textNode,
-          newCharacterInfo.start,
-          newCharacterInfo.end
-        );
-
-        // Step 3: Show the popup with the correct sentence.
-        this.popup.showDictionaryPopup(
-          this.highlightManager.currentHighlight.getBoundingClientRect().left,
-          this.highlightManager.currentHighlight.getBoundingClientRect().bottom,
-          newCharacterInfo.word,
-          sentence
-        );
-      }, 10);
-
-      this.currentWord = newCharacterInfo.word;
-    } else {
-      this.popup.scheduleHidePopup();
-    }
-  }
-
-  
-
-  _onKeyDownTS(event) {
-    if (!this.extensionEnabled) return;
-
-    // Check if the pressed key matches our activation key
-    if (event.key === this.activationKey && !this.isActivationKeyPressed) {
-      this.isActivationKeyPressed = true;
-      this.toggleActivationMode(true);
-      if (this.lastPointerEvent) {
-        this._onPointerMoveTS(this.lastPointerEvent);
-      }
-    }
-
-    // NEW: Pinyin toggle with Ctrl+G
-    if (
-      event.ctrlKey &&
-      event.key.toLowerCase() === "g" &&
-      !event.shiftKey &&
-      !event.altKey
-    ) {
-      event.preventDefault();
-      if (this.pinyinManager) {
-        this.pinyinManager.togglePinyin();
-      }
-      return false;
-    }
-  }
-
-  _onKeyUpTS(event) {
-    if (!this.extensionEnabled) return;
-
-    if (event.key === this.activationKey) {
-      this.isActivationKeyPressed = false;
-      this.toggleActivationMode(false);
-      clearTimeout(this.hoverTimeout);
-
-      // Only hide popup if persistent mode is not enabled
-      if (this.popup && this.popup.settingsManager && !this.popup.settingsManager.shouldPreventKeyUpHide()) {
-        this.popup.hidePopup();
-        this.highlightManager.removeLookupHighlight();
-      }
-    }
-  }
-
-  _onSelectStartTS(event) {
-    if (!this.extensionEnabled) return;
-
-    if (this.isActivationKeyPressed) {
-      event.preventDefault();
-      return false;
-    }
-  }
-
-  _onContextMenuTS(event) {
-    if (!this.extensionEnabled) return;
-
-    if (this.isActivationKeyPressed) {
-      event.preventDefault();
-      return false;
-    }
-  }
-
-  _onClickTS(event) {
-    if (!this.extensionEnabled) return;
-
-    this.popup.hidePopup(event);
-    this.highlightManager.removeLookupHighlight();
-  }
-
-  toggleActivationMode(active) {
-    document.body.style.cursor = active ? "help" : "";
-    document.body.toggleAttribute("data-activation-active", active);
-    if (active) window.getSelection()?.removeAllRanges();
-  }
-
-
   getStats() {
+    if (typeof getStats === "function") {
+      try { return getStats(this.dictionaryManager, this.vocabManager); } catch (_) {}
+    }
     if (!this.dictionaryManager || !this.vocabManager) return null;
-
-    const totalWords = Object.keys(this.dictionaryManager.dictionary).length;
-    const knownWords = this.vocabManager.knownWords.size;
-    const unknownWordsOnPage = document.querySelectorAll(
-      ".chinese-unknown-word"
-    ).length;
-
+    const totalWords = Object.keys(this.dictionaryManager.dictionary || {}).length;
+    const knownWords = this.vocabManager.knownWords?.size || 0;
+    const unknownWordsOnPage = document.querySelectorAll('.chinese-unknown-word').length;
     return {
       totalWords,
       knownWords,
       unknownWordsOnPage,
-      knowledgePercentage:
-        totalWords > 0 ? ((knownWords / totalWords) * 100).toFixed(1) : 0,
+      knowledgePercentage: totalWords > 0 ? ((knownWords / totalWords) * 100).toFixed(1) : 0,
     };
   }
-
-  // Fixed asbplayer integration
-  initAsbplayerIntegration() {
-    if (!this.extensionEnabled) return;
-
-    console.log("Initializing asbplayer integration...");
-
-    // Multiple strategies to detect asbplayer
-    this.pageProcessor.detectAsbplayerElements();
-
-    // Also set up a periodic check for new asbplayer elements
-    this.asbplayerInterval = setInterval(() => {
-      if (this.extensionEnabled) {
-        this.pageProcessor.detectAsbplayerElements();
-      }
-    }, 2000);
-
-    // Stop checking after 60 seconds
-    setTimeout(() => {
-      if (this.asbplayerInterval) {
-        clearInterval(this.asbplayerInterval);
-        console.log("Stopped periodic asbplayer detection");
-      }
-    }, 60000);
-  }
-
-  
 }
 
-// NEW: Add PinyinManager class definition here (since you want everything in one file)
-// PinyinManager moved to src/content/pinyin-manager.js
 
 // Initialize extension when DOM is ready
 if (document.readyState === "loading") {

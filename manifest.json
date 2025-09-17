@@ -25,6 +25,13 @@
       "matches": ["<all_urls>"],
       "js": [
         "src/config/paths.js",
+        "src/content/config/constants.js",
+        "src/content/utils/activation-controller.js",
+        "src/content/utils/text-scanner.js",
+        "src/content/utils/lookup-controller.js",
+        "src/content/settings/settings-sync.js",
+        "src/content/utils/feature-toggle.js",
+        "src/content/utils/asbplayer-integration.js",
         "src/content/pinyin-manager.js",
         "src/content/frequency-manager.js",
         "src/content/anki-manager.js",
