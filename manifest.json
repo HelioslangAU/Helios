@@ -38,6 +38,7 @@
         "src/content/popup/popup-settings-manager.js",
         "src/content/popup/popup-manager.js",
         "src/content/popup/multi-card-popup-manager.js",
+        "src/content/settings/content-settings-applier.js",
         "src/content/extensiontab.js",
         "src/content/text-highlighter.js",
         "src/content/page-processor.js",

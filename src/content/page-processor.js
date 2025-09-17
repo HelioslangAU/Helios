@@ -524,4 +524,33 @@ class PageProcessor {
   }
     console.log('Finished reprocessing, unknown words should be underlined');
   }
+
+  // Remove unknown word styling and clear tracked elements
+  clearUnknownWordHighlights() {
+    try {
+      document.querySelectorAll('.chinese-unknown-word').forEach((el) => {
+        el.classList.remove('chinese-unknown-word');
+      });
+      this.unknownWordElements?.clear?.();
+    } catch (_) {}
+  }
+
+  // Clear both lookup highlight and unknown word highlights
+  clearHighlights() {
+    try {
+      if (window.highlightManager && window.highlightManager.removeLookupHighlight) {
+        window.highlightManager.removeLookupHighlight();
+      }
+    } catch (_) {}
+    this.clearUnknownWordHighlights();
+  }
+
+  // Handle auto-highlight toggling and reprocessing
+  handleAutoHighlightUpdate(enabled, extensionEnabled = true) {
+    if (enabled && extensionEnabled) {
+      this.processPageForUnknownWords();
+    } else {
+      this.clearUnknownWordHighlights();
+    }
+  }
 }

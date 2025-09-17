@@ -168,8 +168,8 @@ class ChineseLanguageLearningExtension {
     } else {
       // Disable extension functionality
       this.removeTextScannerEvents();
-      this.hidePopup();
-      this.clearHighlights();
+      this.popup.hidePopup()
+      this.pageProcessor.clearHighlights();
       if (this.bannerManager) {
         this.bannerManager.hideBanner();
       }
@@ -182,26 +182,8 @@ class ChineseLanguageLearningExtension {
 
   handleSettingsUpdated(settings) {
     console.log("🔍 Settings updated:", settings);
-
-    if (settings.extensionEnabled !== undefined) {
-      this.extensionEnabled = settings.extensionEnabled;
-    }
-
-    if (settings.activationKey !== undefined) {
-      this.activationKey = settings.activationKey;
-      console.log("🔍 Activation key updated to:", this.activationKey);
-    }
-
-    if (settings.autoHighlight !== undefined) {
-      this.autoHighlight = settings.autoHighlight;
-      this.handleAutoHighlightUpdate(settings.autoHighlight);
-    }
-
-    if (settings.popupTheme !== undefined) {
-      this.popupTheme = settings.popupTheme;
-      if (this.popup) {
-        this.popup.updateTheme(settings.popupTheme);
-      }
+    if (window.ContentSettingsApplier) {
+      window.ContentSettingsApplier.apply(this, settings);
     }
   }
 
@@ -210,45 +192,6 @@ class ChineseLanguageLearningExtension {
     this.activationKey = key;
     // Reset pressed state since key changed
     this.isActivationKeyPressed = false;
-  }
-
-  handleAutoHighlightUpdate(enabled) {
-    console.log("🔍 Auto-highlight updated:", enabled);
-    this.autoHighlight = enabled;
-
-    if (enabled && this.extensionEnabled && this.pageProcessor) {
-      // Enable automatic highlighting of unknown words
-      this.pageProcessor.processPageForUnknownWords();
-    } else {
-      // Disable automatic highlighting - remove existing unknown word highlights
-      // BUT keep manual lookup functionality working
-      this.clearUnknownWordHighlights();
-    }
-
-    // Manual lookup should still work regardless of auto-highlight setting
-    // The text scanner events remain active for manual lookups
-  }
-
-  clearUnknownWordHighlights() {
-    document.querySelectorAll(".chinese-unknown-word").forEach((el) => {
-      el.classList.remove("chinese-unknown-word");
-    });
-    if (this.pageProcessor) {
-      this.pageProcessor.unknownWordElements.clear();
-    }
-  }
-
-  hidePopup() {
-    if (this.popup) {
-      this.popup.hidePopup();
-    }
-  }
-
-  clearHighlights() {
-    if (this.highlightManager) {
-      this.highlightManager.removeLookupHighlight();
-    }
-    this.clearUnknownWordHighlights();
   }
 
   removeTextScannerEvents() {
@@ -430,14 +373,6 @@ class ChineseLanguageLearningExtension {
     if (active) window.getSelection()?.removeAllRanges();
   }
 
-  reprocessPage() {
-    if (!this.extensionEnabled || !this.pageProcessor) return;
-
-    this.clearUnknownWordHighlights();
-    if (this.autoHighlight) {
-      this.pageProcessor.processPageForUnknownWords();
-    }
-  }
 
   getStats() {
     if (!this.dictionaryManager || !this.vocabManager) return null;
@@ -455,47 +390,6 @@ class ChineseLanguageLearningExtension {
       knowledgePercentage:
         totalWords > 0 ? ((knownWords / totalWords) * 100).toFixed(1) : 0,
     };
-  }
-
-  exportKnownWords() {
-    if (!this.vocabManager) return null;
-
-    const data = {
-      knownWords: [...this.vocabManager.knownWords],
-      vocabList: this.vocabManager.vocabList,
-      exportDate: new Date().toISOString(),
-    };
-    return JSON.stringify(data, null, 2);
-  }
-
-  importKnownWords(jsonData) {
-    if (!this.vocabManager) return false;
-
-    try {
-      const data = JSON.parse(jsonData);
-      if (data.knownWords && Array.isArray(data.knownWords)) {
-        this.vocabManager.knownWords = new Set([
-          ...this.vocabManager.knownWords,
-          ...data.knownWords,
-        ]);
-        this.vocabManager.saveKnownWords();
-      }
-      if (data.vocabList && Array.isArray(data.vocabList)) {
-        const existingCharacters = new Set(
-          this.vocabManager.vocabList.map((item) => item.character)
-        );
-        const newVocabItems = data.vocabList.filter(
-          (item) => !existingCharacters.has(item.character)
-        );
-        this.vocabManager.vocabList.push(...newVocabItems);
-        this.vocabManager.saveVocabList();
-      }
-      this.reprocessPage();
-      return true;
-    } catch (error) {
-      console.error("Error importing data:", error);
-      return false;
-    }
   }
 
   // Fixed asbplayer integration
