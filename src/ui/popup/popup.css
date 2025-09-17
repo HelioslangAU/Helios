@@ -609,6 +609,18 @@
   animation: lookupGlow 2s ease-in-out infinite alternate;
 }
 
+/* Prevent lookup-highlight from affecting popup elements */
+.chinese-lang-extension-popup .lookup-highlight,
+.chinese-lang-extension-popup * .lookup-highlight {
+  background: none !important;
+  color: inherit !important;
+  border-radius: inherit !important;
+  padding: inherit !important;
+  box-shadow: none !important;
+  animation: none !important;
+  text-decoration: none !important;
+}
+
 @keyframes lookupGlow {
   from {
     box-shadow: 0 4px 20px var(--popup-orange-glow);

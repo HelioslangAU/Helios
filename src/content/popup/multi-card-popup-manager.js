@@ -123,14 +123,7 @@ class MultiCardPopupManager extends PopupManager {
       window.pageProcessor.updateWordStyling(this.originalCharacter, false);
     }
 
-    if (window.highlightManager) {
-      const el = document.querySelector(`span[data-word="${this.originalCharacter}"]`);
-      if (el) {
-        window.highlightManager.removeLookupHighlight();
-        el.classList.add("lookup-highlight");
-        window.highlightManager.currentHighlight = el;
-      }
-    }
+    // Removed problematic highlight code that was affecting popup button styling
   }
 
   saveToVocabList(character, pinyin, definition) {

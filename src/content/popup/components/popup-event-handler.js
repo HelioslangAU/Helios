@@ -15,21 +15,27 @@ class PopupEventHandler {
       managers.popupManager.isMouseOverPopup = false;
     });
 
-    // Mark known/unknown buttons
-    const markKnownBtn = popup.querySelector(".mark-known-btn");
-    const markUnknownBtn = popup.querySelector(".mark-unknown-btn");
+    // Mark known/unknown buttons - unified toggle approach
+    const markButton = popup.querySelector(".mark-known-btn, .mark-unknown-btn");
 
-    if (markKnownBtn) {
-      markKnownBtn.addEventListener("click", async () => {
-        await this.handleMarkKnown(character, vocabManager, managers);
-        managers.popupManager.hidePopup();
-      });
-    }
+    if (markButton) {
+      markButton.addEventListener("click", async () => {
+        const isCurrentlyKnown = markButton.classList.contains("mark-unknown-btn");
 
-    if (markUnknownBtn) {
-      markUnknownBtn.addEventListener("click", async () => {
-        await this.handleMarkUnknown(character, vocabManager, managers);
-        managers.popupManager.hidePopup();
+        if (isCurrentlyKnown) {
+          // Currently known, mark as unknown
+          await this.handleMarkUnknown(character, vocabManager, managers);
+          this.updateMarkButton(markButton, false); // Now unknown, so show "Mark Known"
+        } else {
+          // Currently unknown, mark as known
+          await this.handleMarkKnown(character, vocabManager, managers);
+          this.updateMarkButton(markButton, true); // Now known, so show "Mark Unknown"
+        }
+
+        // Only hide popup if not in persistent mode
+        if (managers.settingsManager && !managers.settingsManager.shouldPreventAutoHide()) {
+          managers.popupManager.hidePopup();
+        }
       });
     }
 
@@ -64,21 +70,27 @@ class PopupEventHandler {
       managers.popupManager.isMouseOverPopup = false;
     });
 
-    // Mark known/unknown buttons - special multi-card handling
-    const markKnownBtn = popup.querySelector(".mark-known-btn");
-    const markUnknownBtn = popup.querySelector(".mark-unknown-btn");
+    // Mark known/unknown buttons - unified toggle approach for multi-card
+    const markButton = popup.querySelector(".mark-known-btn, .mark-unknown-btn");
 
-    if (markKnownBtn) {
-      markKnownBtn.addEventListener("click", async () => {
-        await managers.popupManager.markAllCardsAsKnown();
-        managers.popupManager.hidePopup();
-      });
-    }
+    if (markButton) {
+      markButton.addEventListener("click", async () => {
+        const isCurrentlyKnown = markButton.classList.contains("mark-unknown-btn");
 
-    if (markUnknownBtn) {
-      markUnknownBtn.addEventListener("click", async () => {
-        await managers.popupManager.markAllCardsAsUnknown();
-        managers.popupManager.hidePopup();
+        if (isCurrentlyKnown) {
+          // Currently known, mark as unknown
+          await managers.popupManager.markAllCardsAsUnknown();
+          this.updateMarkButton(markButton, false); // Now unknown, so show "Mark Known"
+        } else {
+          // Currently unknown, mark as known
+          await managers.popupManager.markAllCardsAsKnown();
+          this.updateMarkButton(markButton, true); // Now known, so show "Mark Unknown"
+        }
+
+        // Only hide popup if not in persistent mode
+        if (managers.settingsManager && !managers.settingsManager.shouldPreventAutoHide()) {
+          managers.popupManager.hidePopup();
+        }
       });
     }
 
@@ -132,14 +144,7 @@ class PopupEventHandler {
     if (window.pageProcessor) {
       window.pageProcessor.updateWordStyling(character, false);
     }
-    if (window.highlightManager) {
-      const el = document.querySelector(`span[data-word="${character}"]`);
-      if (el) {
-        window.highlightManager.removeLookupHighlight();
-        el.classList.add("lookup-highlight");
-        window.highlightManager.currentHighlight = el;
-      }
-    }
+    // Removed problematic highlight code that was affecting popup button styling
   }
 
   static async handleAnkiAdd(character, managers) {
@@ -215,6 +220,18 @@ class PopupEventHandler {
         button.disabled = false;
         button.title = "Play pronunciation";
       }, 1500);
+    }
+  }
+
+  static updateMarkButton(button, isNowKnown) {
+    if (isNowKnown) {
+      // Word is now known, so show "Mark Unknown" button
+      button.textContent = "Mark Unknown";
+      button.className = "mark-unknown-btn";
+    } else {
+      // Word is now unknown, so show "Mark Known" button
+      button.textContent = "Mark Known";
+      button.className = "mark-known-btn";
     }
   }
 }
