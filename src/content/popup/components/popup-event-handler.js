@@ -10,7 +10,7 @@ class PopupEventHandler {
     this.setupMouseEvents(popup, managers);
 
     // Mark known/ignore/unknown buttons - unified three-state cycling approach
-    this.setupMarkButtonEvents(popup, character, managers, isMultiCard);
+    this.setupMarkButtonEvents(popup, character, managers, isMultiCard, currentCard);
 
     // Anki button
     this.setupAnkiEvents(popup, character, managers, isMultiCard, currentCard);
@@ -34,7 +34,7 @@ class PopupEventHandler {
     });
   }
 
-  static setupMarkButtonEvents(popup, character, managers, isMultiCard) {
+  static setupMarkButtonEvents(popup, character, managers, isMultiCard, currentCard = null) {
     const markButton = popup.querySelector(".mark-known-btn, .mark-ignore-btn, .mark-unknown-btn");
 
     if (markButton) {
@@ -43,7 +43,7 @@ class PopupEventHandler {
         const nextState = this.getNextMarkState(currentState);
 
         // Execute the appropriate action based on current state
-        await this.executeMarkAction(character, managers, nextState, isMultiCard);
+        await this.executeMarkAction(character, managers, nextState, isMultiCard, currentCard);
         
         // Update button appearance
         this.updateMarkButton(markButton, nextState);
@@ -105,9 +105,18 @@ class PopupEventHandler {
     return stateCycle[currentState] || "unknown";
   }
 
-  static async executeMarkAction(character, managers, targetState, isMultiCard) {
-
-    const targetCharacter = managers.popupManager.originalCharacter || character;
+  static async executeMarkAction(character, managers, targetState, isMultiCard, currentCard = null) {
+    let targetCharacter;
+    
+    if (isMultiCard && currentCard) {
+      // For multi-card mode, use the card-specific character
+      targetCharacter = currentCard.isCharacterCard 
+        ? currentCard.character 
+        : managers.popupManager.originalCharacter;
+    } else {
+      // For single card mode, use the original character
+      targetCharacter = managers.popupManager.originalCharacter || character;
+    }
     
     switch (targetState) {
       case "known":

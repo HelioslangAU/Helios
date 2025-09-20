@@ -70,9 +70,8 @@ class CardNavigator {
         ? newCard.character
         : this.popupManager.originalCharacter;
 
-      const cardId = `${displayCharacter}-${newCard.pinyin}`;
-      const isKnown = this.popupManager.vocabManager.isWordKnown(cardId);
-      const isIgnored = this.popupManager.vocabManager.isWordIgnored(cardId);
+      const isKnown = this.popupManager.vocabManager.isWordKnown(displayCharacter);
+      const isIgnored = this.popupManager.vocabManager.isWordIgnored(displayCharacter);
       const frequency = this.popupManager.frequencyManager?.getFrequency(displayCharacter);
 
       // Clear old content and add new content
@@ -90,6 +89,9 @@ class CardNavigator {
 
       // Setup event listeners for the NEW content (only on the new popupContent)
       this.updateNavigationDots();
+
+      // Re-setup event listeners for the new content
+      this.setupCardEvents(popup, newCard);
 
       setTimeout(() => {
         popupContent.classList.remove("sliding-in");
@@ -120,6 +122,27 @@ class CardNavigator {
     }
   }
 
+  setupCardEvents(popup, currentCard) {
+    const displayCharacter = currentCard.isCharacterCard
+      ? currentCard.character
+      : this.popupManager.originalCharacter;
 
+    const managers = {
+      vocabManager: this.popupManager.vocabManager,
+      ankiManager: this.popupManager.ankiManager,
+      pronunciationManager: this.popupManager.pronunciationManager,
+      frequencyManager: this.popupManager.frequencyManager,
+      dictionaryManager: this.popupManager.dictionaryManager,
+      popupManager: this.popupManager,
+      settingsManager: this.popupManager.settingsManager
+    };
+
+    // Setup events for the current card content
+    PopupEventHandler.setupEvents(popup, displayCharacter, managers, { 
+      isMultiCard: true,  // Enable multi-card mode for proper handling
+      currentCard: currentCard, 
+      cardNavigator: this 
+    });
+  }
 
 }

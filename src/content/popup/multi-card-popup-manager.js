@@ -82,7 +82,7 @@ class MultiCardPopupManager extends PopupManager {
     };
 
     PopupEventHandler.setupEvents(popup, character, managers, { 
-      isMultiCard: false,  // Use basic marking (first card only)
+      isMultiCard: true,  // Enable multi-card mode for proper handling
       currentCard: card, 
       cardNavigator: this.cardNavigator 
     });
