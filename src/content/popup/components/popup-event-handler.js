@@ -161,7 +161,7 @@ class PopupEventHandler {
     await window.vocabManager.markWordAsUnknown(character);
     await window.vocabManager.markWordAsIgnored(character);
     if (window.pageProcessor) {
-      window.pageProcessor.updateWordStyling(character, false);
+      window.pageProcessor.updateWordStyling(character, true);
     }
   }
 
