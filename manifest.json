@@ -3,7 +3,7 @@
   "name": "Helios",
   "version": "1.1",
   "description": "A browser extension for language learning with subtitle reading, popup dictionary, vocab tracking, and Anki integration",
-  "_comment": "File paths are centralized in src/config/paths.js - update paths there instead of here",
+
 
   "permissions": ["activeTab", "storage", "scripting", "alarms"],
 

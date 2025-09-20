@@ -39,15 +39,17 @@ class MultiCardPopupManager extends PopupManager {
       ? card.character
       : this.originalCharacter || character;
 
-    const cardId = `${displayCharacter}-${card.pinyin}`;
-    const isKnown = this.vocabManager.isWordKnown(cardId);
+    const isKnown = this.vocabManager.isWordKnown(displayCharacter);
+    const isIgnored = this.vocabManager.isWordIgnored(displayCharacter);
     const frequency = this.frequencyManager?.getFrequency(displayCharacter);
+
 
     // Build content
     popup.innerHTML = PopupContentBuilder.createCardContent(
       displayCharacter,
       card,
       isKnown,
+      isIgnored,
       frequency,
       this.settingsManager.settings
     );
@@ -68,92 +70,25 @@ class MultiCardPopupManager extends PopupManager {
     // Add navigation if multiple cards
     this.cardNavigator.addNavigationDots(popup);
 
-    // Setup basic popup events (mouse enter/leave) and navigation dots click
-    popup.addEventListener("mouseenter", () => {
-      this.isMouseOverPopup = true;
-    });
+    // Setup all popup events using unified event handler
+    const managers = {
+      vocabManager: this.vocabManager,
+      ankiManager: this.ankiManager,
+      pronunciationManager: this.pronunciationManager,
+      frequencyManager: this.frequencyManager,
+      dictionaryManager: this.dictionaryManager,
+      popupManager: this,
+      settingsManager: this.settingsManager
+    };
 
-    popup.addEventListener("mouseleave", () => {
-      this.isMouseOverPopup = false;
-    });
-
-    // Navigation dots
-    popup.addEventListener("click", (e) => {
-      if (e.target.classList.contains("nav-dot")) {
-        const index = parseInt(e.target.getAttribute("data-index"));
-        this.cardNavigator.goToCard(index);
-      }
+    PopupEventHandler.setupEvents(popup, character, managers, { 
+      isMultiCard: true,  // Enable multi-card mode for proper handling
+      currentCard: card, 
+      cardNavigator: this.cardNavigator 
     });
 
     // Setup events for the initial card content
-    const popupContent = popup.querySelector(".popup-content");
-    this.cardNavigator.setupCardContentEvents(popupContent, card);
     this.cardNavigator.setupScrolling(popup);
-  }
-
-  // Multi-card specific vocab management
-  async markAllCardsAsKnown() {
-    await this.vocabManager.markWordAsKnown(this.originalCharacter);
-
-    for (const card of this.cardNavigator.currentCards) {
-      const cardId = `${this.originalCharacter}-${card.pinyin}`;
-      await this.vocabManager.markWordAsKnown(cardId);
-    }
-
-    const firstCard = this.cardNavigator.currentCards[0];
-    this.saveToVocabList(this.originalCharacter, firstCard.pinyin, firstCard.entries[0].definition);
-
-    if (window.pageProcessor) {
-      window.pageProcessor.updateWordStyling(this.originalCharacter, true);
-    }
-  }
-
-  async markAllCardsAsUnknown() {
-    await this.vocabManager.markWordAsUnknown(this.originalCharacter);
-
-    for (const card of this.cardNavigator.currentCards) {
-      const cardId = `${this.originalCharacter}-${card.pinyin}`;
-      await this.vocabManager.markWordAsUnknown(cardId);
-    }
-
-    const firstCard = this.cardNavigator.currentCards[0];
-    this.saveToVocabList(this.originalCharacter, firstCard.pinyin, firstCard.entries[0].definition);
-
-    if (window.pageProcessor) {
-      window.pageProcessor.updateWordStyling(this.originalCharacter, false);
-    }
-
-    // Removed problematic highlight code that was affecting popup button styling
-  }
-
-  saveToVocabList(character, pinyin, definition) {
-    const displayCharacter = this.originalCharacter || character;
-
-    try {
-      if (window.chrome && chrome.storage && chrome.storage.local) {
-        chrome.storage.local.get(["chineseExtensionVocabList"], (result) => {
-          const vocabItems = result.chineseExtensionVocabList || [];
-          const cardId = `${displayCharacter}-${pinyin}`;
-
-          const exists = vocabItems.some(item => (item.character || item.word) === cardId);
-          if (!exists) {
-            const newItem = {
-              character: cardId,
-              word: cardId,
-              definition: definition.length > 100 ? definition.substring(0, 97) + "..." : definition,
-              pinyin: pinyin,
-              dateAdded: new Date().toISOString(),
-              reviewCount: 0,
-            };
-            vocabItems.push(newItem);
-            chrome.storage.local.set({ chineseExtensionVocabList: vocabItems });
-          }
-        });
-      }
-      this.incrementSessionCounter();
-    } catch (error) {
-      console.warn("Could not save to vocab list:", error);
-    }
   }
 
   // Expose filter management methods

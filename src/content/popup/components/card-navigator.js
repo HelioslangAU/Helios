@@ -70,8 +70,8 @@ class CardNavigator {
         ? newCard.character
         : this.popupManager.originalCharacter;
 
-      const cardId = `${displayCharacter}-${newCard.pinyin}`;
-      const isKnown = this.popupManager.vocabManager.isWordKnown(cardId);
+      const isKnown = this.popupManager.vocabManager.isWordKnown(displayCharacter);
+      const isIgnored = this.popupManager.vocabManager.isWordIgnored(displayCharacter);
       const frequency = this.popupManager.frequencyManager?.getFrequency(displayCharacter);
 
       // Clear old content and add new content
@@ -79,6 +79,7 @@ class CardNavigator {
         displayCharacter,
         newCard,
         isKnown,
+        isIgnored,
         frequency,
         this.popupManager.settingsManager.settings
       );
@@ -87,8 +88,10 @@ class CardNavigator {
       popupContent.classList.add("sliding-in");
 
       // Setup event listeners for the NEW content (only on the new popupContent)
-      this.setupCardContentEvents(popupContent, newCard);
       this.updateNavigationDots();
+
+      // Re-setup event listeners for the new content
+      this.setupCardEvents(popup, newCard);
 
       setTimeout(() => {
         popupContent.classList.remove("sliding-in");
@@ -119,78 +122,27 @@ class CardNavigator {
     }
   }
 
-  setupCardContentEvents(popupContent, currentCard) {
-    // Mark known/unknown buttons - unified toggle approach
-    const markButton = popupContent.querySelector(".mark-known-btn, .mark-unknown-btn");
+  setupCardEvents(popup, currentCard) {
+    const displayCharacter = currentCard.isCharacterCard
+      ? currentCard.character
+      : this.popupManager.originalCharacter;
 
-    if (markButton) {
-      markButton.addEventListener("click", async () => {
-        const isCurrentlyKnown = markButton.classList.contains("mark-unknown-btn");
+    const managers = {
+      vocabManager: this.popupManager.vocabManager,
+      ankiManager: this.popupManager.ankiManager,
+      pronunciationManager: this.popupManager.pronunciationManager,
+      frequencyManager: this.popupManager.frequencyManager,
+      dictionaryManager: this.popupManager.dictionaryManager,
+      popupManager: this.popupManager,
+      settingsManager: this.popupManager.settingsManager
+    };
 
-        if (isCurrentlyKnown) {
-          // Currently known, mark as unknown
-          await this.popupManager.markAllCardsAsUnknown();
-          this.updateMarkButton(markButton, false); // Now unknown, so show "Mark Known"
-        } else {
-          // Currently unknown, mark as known
-          await this.popupManager.markAllCardsAsKnown();
-          this.updateMarkButton(markButton, true); // Now known, so show "Mark Unknown"
-        }
-
-        // Only hide popup if not in persistent mode
-        if (this.popupManager.settingsManager && !this.popupManager.settingsManager.shouldPreventAutoHide()) {
-          this.popupManager.hidePopup();
-        }
-      });
-    }
-
-    // Anki button
-    const ankiBtn = popupContent.querySelector(".anki-btn");
-    if (ankiBtn && !ankiBtn.disabled) {
-      ankiBtn.addEventListener("click", async () => {
-        const displayCharacter = currentCard.isCharacterCard
-          ? currentCard.character
-          : this.popupManager.originalCharacter;
-
-        const wordData = {
-          character: displayCharacter,
-          pinyin: currentCard.pinyin,
-          definition: currentCard.entries.map(e => e.definition).join('; '),
-          sentence: this.popupManager.capturedSentence,
-          traditional: currentCard.entries[0].traditional,
-          simplified: currentCard.entries[0].simplified,
-        };
-
-        await this.popupManager.ankiManager.createCardFromPopup(
-          wordData,
-          ankiBtn,
-          this.popupManager.frequencyManager
-        );
-      });
-    }
-
-    // Pronunciation buttons
-    const pronunciationBtns = popupContent.querySelectorAll(".pronunciation-btn");
-    pronunciationBtns.forEach((btn) => {
-      btn.addEventListener("click", async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const word = btn.getAttribute("data-word");
-        const pinyin = btn.getAttribute("data-pinyin");
-        await PopupEventHandler.handlePronunciation(btn, word, pinyin, this.popupManager.pronunciationManager);
-      });
+    // Setup events for the current card content
+    PopupEventHandler.setupEvents(popup, displayCharacter, managers, { 
+      isMultiCard: true,  // Enable multi-card mode for proper handling
+      currentCard: currentCard, 
+      cardNavigator: this 
     });
   }
 
-  updateMarkButton(button, isNowKnown) {
-    if (isNowKnown) {
-      // Word is now known, so show "Mark Unknown" button
-      button.textContent = "Mark Unknown";
-      button.className = "mark-unknown-btn";
-    } else {
-      // Word is now unknown, so show "Mark Known" button
-      button.textContent = "Mark Known";
-      button.className = "mark-known-btn";
-    }
-  }
 }

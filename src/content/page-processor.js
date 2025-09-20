@@ -183,7 +183,7 @@ class PageProcessor {
       span.textContent = word;
       span.setAttribute('data-word', word); // Always add data-word
 
-      if (!this.vocabManager.isWordKnown(word) && this.dictionaryManager.dictionary[word]) {
+      if (!this.vocabManager.isWordKnown(word) && this.dictionaryManager.dictionary[word] && !this.vocabManager.isWordIgnored(word)) {
         span.className = 'chinese-unknown-word';
         this.unknownWordElements.set(word, span);
       }
