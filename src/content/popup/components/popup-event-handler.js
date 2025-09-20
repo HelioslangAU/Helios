@@ -3,10 +3,28 @@
  * Centralizes event handling for clean separation of concerns
  */
 class PopupEventHandler {
-  static setupBasicEvents(popup, character, managers) {
-    const { vocabManager, ankiManager, pronunciationManager, frequencyManager } = managers;
+  static setupEvents(popup, character, managers, options = {}) {
+    const { isMultiCard = false, currentCard = null, cardNavigator = null } = options;
 
-    // Mouse events for hiding logic
+    // Common mouse events for hiding logic
+    this.setupMouseEvents(popup, managers);
+
+    // Mark known/ignore/unknown buttons - unified three-state cycling approach
+    this.setupMarkButtonEvents(popup, character, managers, isMultiCard);
+
+    // Anki button
+    this.setupAnkiEvents(popup, character, managers, isMultiCard, currentCard);
+
+    // Pronunciation buttons
+    this.setupPronunciationEvents(popup, managers);
+
+    // Multi-card specific events
+    if (isMultiCard && cardNavigator) {
+      this.setupNavigationEvents(popup, cardNavigator);
+    }
+  }
+
+  static setupMouseEvents(popup, managers) {
     popup.addEventListener("mouseenter", () => {
       managers.popupManager.isMouseOverPopup = true;
     });
@@ -14,23 +32,21 @@ class PopupEventHandler {
     popup.addEventListener("mouseleave", () => {
       managers.popupManager.isMouseOverPopup = false;
     });
+  }
 
-    // Mark known/unknown buttons - unified toggle approach
-    const markButton = popup.querySelector(".mark-known-btn, .mark-unknown-btn");
+  static setupMarkButtonEvents(popup, character, managers, isMultiCard) {
+    const markButton = popup.querySelector(".mark-known-btn, .mark-ignore-btn, .mark-unknown-btn");
 
     if (markButton) {
       markButton.addEventListener("click", async () => {
-        const isCurrentlyKnown = markButton.classList.contains("mark-unknown-btn");
+        const currentState = this.getCurrentMarkState(markButton);
+        const nextState = this.getNextMarkState(currentState);
 
-        if (isCurrentlyKnown) {
-          // Currently known, mark as unknown
-          await this.handleMarkUnknown(character, vocabManager, managers);
-          this.updateMarkButton(markButton, false); // Now unknown, so show "Mark Known"
-        } else {
-          // Currently unknown, mark as known
-          await this.handleMarkKnown(character, vocabManager, managers);
-          this.updateMarkButton(markButton, true); // Now known, so show "Mark Unknown"
-        }
+        // Execute the appropriate action based on current state
+        await this.executeMarkAction(character, managers, nextState, isMultiCard);
+        
+        // Update button appearance
+        this.updateMarkButton(markButton, nextState);
 
         // Only hide popup if not in persistent mode
         if (managers.settingsManager && !managers.settingsManager.shouldPreventAutoHide()) {
@@ -38,17 +54,25 @@ class PopupEventHandler {
         }
       });
     }
+  }
 
-    // Anki button
+  static setupAnkiEvents(popup, character, managers, isMultiCard, currentCard) {
     const ankiBtn = popup.querySelector(".anki-btn");
     if (ankiBtn && !ankiBtn.disabled) {
       ankiBtn.addEventListener("click", async () => {
-        await this.handleAnkiAdd(character, managers);
+        if (isMultiCard && currentCard) {
+          await this.handleMultiCardAnkiAdd(currentCard, managers);
+        } else {
+          await this.handleAnkiAdd(character, managers);
+        }
       });
     }
+  }
 
-    // Pronunciation buttons
+  static setupPronunciationEvents(popup, managers) {
+    const { pronunciationManager } = managers;
     const pronunciationBtns = popup.querySelectorAll(".pronunciation-btn");
+    
     pronunciationBtns.forEach((btn) => {
       btn.addEventListener("click", async (e) => {
         e.preventDefault();
@@ -60,91 +84,76 @@ class PopupEventHandler {
     });
   }
 
-  static setupCardEvents(popup, originalCharacter, currentCard, managers) {
-    // Mouse events for hiding logic
-    popup.addEventListener("mouseenter", () => {
-      managers.popupManager.isMouseOverPopup = true;
-    });
-
-    popup.addEventListener("mouseleave", () => {
-      managers.popupManager.isMouseOverPopup = false;
-    });
-
-    // Mark known/unknown buttons - unified toggle approach for multi-card
-    const markButton = popup.querySelector(".mark-known-btn, .mark-unknown-btn");
-
-    if (markButton) {
-      markButton.addEventListener("click", async () => {
-        const isCurrentlyKnown = markButton.classList.contains("mark-unknown-btn");
-
-        if (isCurrentlyKnown) {
-          // Currently known, mark as unknown
-          await managers.popupManager.markAllCardsAsUnknown();
-          this.updateMarkButton(markButton, false); // Now unknown, so show "Mark Known"
-        } else {
-          // Currently unknown, mark as known
-          await managers.popupManager.markAllCardsAsKnown();
-          this.updateMarkButton(markButton, true); // Now known, so show "Mark Unknown"
-        }
-
-        // Only hide popup if not in persistent mode
-        if (managers.settingsManager && !managers.settingsManager.shouldPreventAutoHide()) {
-          managers.popupManager.hidePopup();
-        }
-      });
-    }
-
-    // Anki button
-    const ankiBtn = popup.querySelector(".anki-btn");
-    if (ankiBtn && !ankiBtn.disabled) {
-      ankiBtn.addEventListener("click", async () => {
-        await this.handleMultiCardAnkiAdd(currentCard, managers);
-      });
-    }
-
-    // Pronunciation buttons
-    const { pronunciationManager } = managers;
-    const pronunciationBtns = popup.querySelectorAll(".pronunciation-btn");
-    pronunciationBtns.forEach((btn) => {
-      btn.addEventListener("click", async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const word = btn.getAttribute("data-word");
-        const pinyin = btn.getAttribute("data-pinyin");
-        await this.handlePronunciation(btn, word, pinyin, pronunciationManager);
-      });
-    });
-
-    // Navigation dots
+  static setupNavigationEvents(popup, cardNavigator) {
     popup.addEventListener("click", (e) => {
       if (e.target.classList.contains("nav-dot")) {
         const index = parseInt(e.target.getAttribute("data-index"));
-        managers.cardNavigator.goToCard(index);
+        cardNavigator.goToCard(index);
       }
     });
   }
 
-  static async handleMarkKnown(character, vocabManager, managers) {
+  static getCurrentMarkState(button) {
+    if (button.classList.contains("mark-ignore-btn")) return "known";
+    if (button.classList.contains("mark-unknown-btn")) return "ignored";
+    if (button.classList.contains("mark-known-btn")) return "unknown";
+    return "unknown";
+  }
+
+  static getNextMarkState(currentState) {
+    const stateCycle = { unknown: "known", known: "ignored", ignored: "unknown" };
+    return stateCycle[currentState] || "unknown";
+  }
+
+  static async executeMarkAction(character, managers, targetState, isMultiCard) {
+
+    const targetCharacter = managers.popupManager.originalCharacter || character;
+    
+    switch (targetState) {
+      case "known":
+        await this.handleMarkKnown(targetCharacter);
+        break;
+      case "ignored":
+        await this.handleMarkIgnored(targetCharacter);
+        break;
+      case "unknown":
+        await this.handleMarkUnknown(targetCharacter);
+        break;
+      
+    }
+  }
+
+  static async handleMarkKnown(character) {
     if (typeof updateKnownWordsCounter === "function") {
       updateKnownWordsCounter();
     }
-    await vocabManager.markWordAsKnown(character);
-    managers.popupManager.saveToVocabList(character);
+    await window.vocabManager.markWordAsUnignored(character);
+    await window.vocabManager.markWordAsKnown(character);
     if (window.pageProcessor) {
       window.pageProcessor.updateWordStyling(character, true);
     }
   }
 
-  static async handleMarkUnknown(character, vocabManager, managers) {
+  static async handleMarkUnknown(character) {
     if (typeof updateKnownWordsCounter === "function") {
       updateKnownWordsCounter();
     }
-    await vocabManager.markWordAsUnknown(character);
-    managers.popupManager.saveToVocabList(character);
+    await window.vocabManager.markWordAsUnignored(character);
+    await window.vocabManager.markWordAsUnknown(character);
     if (window.pageProcessor) {
       window.pageProcessor.updateWordStyling(character, false);
     }
-    // Removed problematic highlight code that was affecting popup button styling
+  }
+
+  static async handleMarkIgnored(character) {
+    if (typeof updateKnownWordsCounter === "function") {
+      updateKnownWordsCounter();
+    }
+    await window.vocabManager.markWordAsUnknown(character);
+    await window.vocabManager.markWordAsIgnored(character);
+    if (window.pageProcessor) {
+      window.pageProcessor.updateWordStyling(character, false);
+    }
   }
 
   static async handleAnkiAdd(character, managers) {
@@ -223,15 +232,24 @@ class PopupEventHandler {
     }
   }
 
-  static updateMarkButton(button, isNowKnown) {
-    if (isNowKnown) {
-      // Word is now known, so show "Mark Unknown" button
-      button.textContent = "Mark Unknown";
-      button.className = "mark-unknown-btn";
-    } else {
-      // Word is now unknown, so show "Mark Known" button
-      button.textContent = "Mark Known";
-      button.className = "mark-known-btn";
+  static updateMarkButton(button, state) {
+    // Clear all state classes
+    button.classList.remove("mark-known-btn", "mark-ignore-btn", "mark-unknown-btn");
+    
+    switch (state) {
+      case "known":
+        button.textContent = "Mark Ignore";
+        button.className = "mark-ignore-btn";
+        break;
+      case "ignored":
+        button.textContent = "Mark Unknown";
+        button.className = "mark-unknown-btn";
+        break;
+      case "unknown":
+      default:
+        button.textContent = "Mark Known";
+        button.className = "mark-known-btn";
+        break;
     }
   }
 }

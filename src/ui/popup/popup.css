@@ -343,6 +343,7 @@
 
 /* Mark Known/Unknown Buttons */
 .mark-known-btn,
+.mark-ignore-btn,
 .mark-unknown-btn {
   padding: 8px 16px;
   border: none;
@@ -361,6 +362,12 @@
 .mark-known-btn {
   background: linear-gradient(135deg, var(--popup-green), #059669);
   color: white;
+}
+
+
+.mark-ignore-btn:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 32px rgba(99, 99, 99, 0.4);
 }
 
 .mark-known-btn:hover {

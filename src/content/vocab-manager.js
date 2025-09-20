@@ -1,6 +1,7 @@
 class VocabManager {
   constructor() {
     this.knownWords = new Set();
+    this.ignoredWords = new Set();
   }
 
   async loadKnownWords() {
@@ -23,7 +24,8 @@ class VocabManager {
   async saveKnownWords() {
     try {
       await chrome.storage.local.set({
-        chineseExtensionKnownWords: [...this.knownWords]
+        chineseExtensionKnownWords: [...this.knownWords],
+        chineseExtensionIgnoredWords: [...this.ignoredWords]
       });
       console.log('Known words saved to extension storage');
     } catch (error) {
@@ -115,8 +117,24 @@ class VocabManager {
     console.log('Marked word as unknown:', word);
   }
 
+  async markWordAsIgnored(word) {
+    this.ignoredWords.add(word);
+    await this.saveKnownWords();
+    console.log('Marked word as ignored:', word);
+  }
+
+  async markWordAsUnignored(word) {
+    this.ignoredWords.delete(word);
+    await this.saveKnownWords();
+    console.log('Marked word as unignored:', word);
+  }
+
   isWordKnown(word) {
     return this.knownWords.has(word);
+  }
+
+  isWordIgnored(word) {
+    return this.ignoredWords.has(word);
   }
 
   // Batch operations for better performance

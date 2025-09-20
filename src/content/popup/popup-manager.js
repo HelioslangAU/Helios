@@ -36,6 +36,7 @@ class PopupManager {
     // Prepare data
     const dictionaryData = this.cardManager.prepareBasicPopupData(character);
     dictionaryData.isKnown = this.vocabManager.isWordKnown(character);
+    dictionaryData.isIgnored = this.vocabManager.isWordIgnored(character);
     dictionaryData.frequency = this.frequencyManager?.getFrequency(character);
 
     // Build content
@@ -71,7 +72,7 @@ class PopupManager {
       settingsManager: this.settingsManager
     };
 
-    PopupEventHandler.setupBasicEvents(popup, character, managers);
+    PopupEventHandler.setupEvents(popup, character, managers, { isMultiCard: false });
   }
 
   scheduleHidePopup() {
@@ -101,40 +102,6 @@ class PopupManager {
       this.isMouseOverPopup = false;
     }
   }
-
-  saveToVocabList(character) {
-    try {
-      const matches = this.dictionaryManager.dictionary[character] || [];
-      const definition = matches.length > 0 ? matches[0].definition : "No definition available";
-      const pinyin = matches.length > 0 ? matches[0].pinyin : "";
-
-      if (window.chrome && chrome.storage && chrome.storage.local) {
-        chrome.storage.local.get(["chineseExtensionVocabList"], (result) => {
-          const vocabItems = result.chineseExtensionVocabList || [];
-          const exists = vocabItems.some(item => (item.character || item.word) === character);
-
-          if (!exists) {
-            const newItem = {
-              character: character,
-              word: character,
-              definition: definition.length > 100 ? definition.substring(0, 97) + "..." : definition,
-              pinyin: pinyin,
-              dateAdded: new Date().toISOString(),
-              reviewCount: 0,
-            };
-
-            vocabItems.push(newItem);
-            chrome.storage.local.set({ chineseExtensionVocabList: vocabItems });
-          }
-        });
-      }
-
-      this.incrementSessionCounter();
-    } catch (error) {
-      console.warn("Could not save to vocab list:", error);
-    }
-  }
-
   incrementSessionCounter() {
     if (window.chrome && chrome.storage && chrome.storage.local) {
       chrome.storage.local.get(["todayLookupCount", "lastResetDate"], (result) => {

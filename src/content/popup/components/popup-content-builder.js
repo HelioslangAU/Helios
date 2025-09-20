@@ -4,7 +4,7 @@
  */
 class PopupContentBuilder {
   static createBasicContent(character, dictionaryData, vocabManager, frequencyManager, settings = {}) {
-    const { matches, isKnown, frequency } = dictionaryData;
+    const { matches, isKnown, isIgnored, frequency } = dictionaryData;
 
     if (matches.length === 0) {
       return `
@@ -32,16 +32,14 @@ class PopupContentBuilder {
         </div>
         <div class="definitions-scroll">${definitionsHtml}</div>
         <div class="popup-buttons">
-          <button class="${isKnown ? "mark-unknown-btn" : "mark-known-btn"}">
-            ${isKnown ? "Mark Unknown" : "Mark Known"}
-          </button>
+          ${this.createMarkButton(isKnown, isIgnored)}
         </div>
         ${this.createAnkiButton()}
       </div>
     `;
   }
 
-  static createCardContent(displayCharacter, card, isKnown, frequency, settings = {}) {
+  static createCardContent(displayCharacter, card, isKnown, isIgnored, frequency, settings = {}) {
     const { pinyin, entries } = card;
     const definitionsHtml = this.createDefinitionsHtml(entries);
     const pronunciationBtn = this.createPronunciationButton(displayCharacter, pinyin);
@@ -56,8 +54,8 @@ class PopupContentBuilder {
         </div>
         <div class="definitions-scroll">${definitionsHtml}</div>
         <div class="popup-buttons">
-          <button class="${isKnown ? "mark-unknown-btn" : "mark-known-btn"}" data-card-id="${displayCharacter}-${pinyin}">
-            ${isKnown ? "Mark Unknown" : "Mark Known"}
+          <button class="${this.getMarkButtonClass(isKnown, isIgnored)}" data-card-id="${displayCharacter}-${pinyin}">
+            ${this.getMarkButtonText(isKnown, isIgnored)}
           </button>
         </div>
         ${this.createAnkiButton()}
@@ -65,7 +63,7 @@ class PopupContentBuilder {
     `;
   }
 
-  static createCardContentInner(displayCharacter, card, isKnown, frequency, settings = {}) {
+  static createCardContentInner(displayCharacter, card, isKnown, isIgnored, frequency, settings = {}) {
     const { pinyin, entries } = card;
     const definitionsHtml = this.createDefinitionsHtml(entries);
     const pronunciationBtn = this.createPronunciationButton(displayCharacter, pinyin, pinyin);
@@ -79,8 +77,8 @@ class PopupContentBuilder {
       </div>
       <div class="definitions-scroll">${definitionsHtml}</div>
       <div class="popup-buttons">
-        <button class="${isKnown ? "mark-unknown-btn" : "mark-known-btn"}" data-card-id="${displayCharacter}-${pinyin}">
-          ${isKnown ? "Mark Unknown" : "Mark Known"}
+        <button class="${this.getMarkButtonClass(isKnown, isIgnored)}" data-card-id="${displayCharacter}-${pinyin}">
+          ${this.getMarkButtonText(isKnown, isIgnored)}
         </button>
       </div>
       ${this.createAnkiButton()}
@@ -132,5 +130,29 @@ class PopupContentBuilder {
         <span class="card-counter">${currentIndex + 1} of ${cards.length}</span>
       </div>
     `;
+  }
+
+  static createMarkButton(isKnown, isIgnored) {
+    return `<button class="${this.getMarkButtonClass(isKnown, isIgnored)}">${this.getMarkButtonText(isKnown, isIgnored)}</button>`;
+  }
+
+  static getMarkButtonClass(isKnown, isIgnored) {
+    if (isKnown) {
+      return "mark-ignore-btn";
+    } else if (isIgnored) {
+      return "mark-unknown-btn";
+    } else {
+      return "mark-known-btn";
+    }
+  }
+
+  static getMarkButtonText(isKnown, isIgnored) {
+    if (isKnown) {
+      return "Mark Ignore";
+    } else if (isIgnored) {
+      return "Mark Unknown";
+    } else {
+      return "Mark Known";
+    }
   }
 }
