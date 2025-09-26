@@ -133,36 +133,33 @@ class PopupEventHandler {
   }
 
   static async handleMarkKnown(character) {
-    if (typeof updateKnownWordsCounter === "function") {
-      updateKnownWordsCounter();
-    }
     await window.vocabManager.markWordAsUnignored(character);
     await window.vocabManager.markWordAsKnown(character);
     if (window.pageProcessor) {
       window.pageProcessor.updateWordStyling(character, true);
     }
+    // Update counter via chrome storage listener (will trigger in extension tab)
+    this.notifyCounterUpdate();
   }
 
   static async handleMarkUnknown(character) {
-    if (typeof updateKnownWordsCounter === "function") {
-      updateKnownWordsCounter();
-    }
     await window.vocabManager.markWordAsUnignored(character);
     await window.vocabManager.markWordAsUnknown(character);
     if (window.pageProcessor) {
       window.pageProcessor.updateWordStyling(character, false);
     }
+    // Update counter via chrome storage listener (will trigger in extension tab)
+    this.notifyCounterUpdate();
   }
 
   static async handleMarkIgnored(character) {
-    if (typeof updateKnownWordsCounter === "function") {
-      updateKnownWordsCounter();
-    }
     await window.vocabManager.markWordAsUnknown(character);
     await window.vocabManager.markWordAsIgnored(character);
     if (window.pageProcessor) {
       window.pageProcessor.updateWordStyling(character, true);
     }
+    // Update counter via chrome storage listener (will trigger in extension tab)
+    this.notifyCounterUpdate();
   }
 
   static async handleAnkiAdd(character, managers) {
@@ -244,7 +241,7 @@ class PopupEventHandler {
   static updateMarkButton(button, state) {
     // Clear all state classes
     button.classList.remove("mark-known-btn", "mark-ignore-btn", "mark-unknown-btn");
-    
+
     switch (state) {
       case "known":
         button.textContent = "Mark Ignore";
@@ -260,5 +257,12 @@ class PopupEventHandler {
         button.className = "mark-known-btn";
         break;
     }
+  }
+
+  static notifyCounterUpdate() {
+    // The chrome.storage.onChanged listener in extensiontab.js will automatically
+    // detect changes to chineseExtensionKnownWords and update the counter
+    // This happens because VocabManager.saveKnownWords() triggers storage changes
+    console.log("Word status updated - extension tab will auto-update via storage listener");
   }
 }

@@ -35,12 +35,16 @@ class PopupPositioner {
     return true;
   }
 
-  static createPopupElement() {
+  static createPopupElement(fontSize = 'medium') {
     const popup = document.createElement("div");
-    popup.className = "chinese-lang-extension-popup";
+    popup.className = "chinese-lang-extension-popup creating";
     popup.style.position = "fixed";
     popup.style.zIndex = "2147483647";
     popup.style.visibility = "hidden";
+
+    // Apply size class immediately to prevent resizing after DOM insertion
+    popup.classList.add(`size-${fontSize}`);
+
     return popup;
   }
 }

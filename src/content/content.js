@@ -8,7 +8,7 @@ class ChineseLanguageLearningExtension {
     this.frequencyManager = null;
     this.pageProcessor = null;
     this.popup = null;
-    this.bannerManager = null;
+    this.sidebarManager = null;
     this.pinyinManager = null;
     this.lookup = null;
     this.featureToggle = null;
@@ -35,11 +35,14 @@ class ChineseLanguageLearningExtension {
 
     this.pageProcessor = new PageProcessor(this.dictionaryManager, this.vocabManager);
     window.pageProcessor = this.pageProcessor;
-    this.bannerManager = new BannerManager();
-    window.bannerManager = this.bannerManager;
     window.vocabManager = this.vocabManager;
 
+    // Initialize sidebar manager after other core systems
+    this.sidebarManager = new SidebarManager();
+    window.sidebarManager = this.sidebarManager;
+
     this.pinyinManager = new PinyinManager(this.dictionaryManager, this.pageProcessor);
+    window.pinyinManager = this.pinyinManager;
     this.pinyinManager.observeForDynamicContent();
 
     this.popup = new MultiCardPopupManager({
@@ -62,7 +65,7 @@ class ChineseLanguageLearningExtension {
       textScanner: this.textScanner,
       pageProcessor: this.pageProcessor,
       popup: this.popup,
-      bannerManager: this.bannerManager,
+      sidebarManager: this.sidebarManager,
       pinyinManager: this.pinyinManager,
     });
 

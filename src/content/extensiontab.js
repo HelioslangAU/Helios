@@ -480,6 +480,19 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 });
 
+// Debug function to check storage state
+function debugStorageState() {
+  if (window.chrome && chrome.storage && chrome.storage.local) {
+    chrome.storage.local.get(['chineseExtensionKnownWords', 'chineseExtensionIgnoredWords'], (result) => {
+      console.log('🔍 Storage Debug:');
+      console.log('Known words:', result.chineseExtensionKnownWords || []);
+      console.log('Ignored words:', result.chineseExtensionIgnoredWords || []);
+      console.log('Known words count:', (result.chineseExtensionKnownWords || []).length);
+      console.log('Ignored words count:', (result.chineseExtensionIgnoredWords || []).length);
+    });
+  }
+}
+
 // Make functions globally available for debugging and external use
 window.heliosExtension = {
   updateKnownWordsCounter,
@@ -494,4 +507,5 @@ window.heliosExtension = {
   updateProgress,
   exportData,
   openReview,
+  debugStorageState, // New debug function
 };

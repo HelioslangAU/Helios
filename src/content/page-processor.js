@@ -98,8 +98,47 @@ class PageProcessor {
             }
         }
     }
+
+    // Store totals for sidebar access
+    this.lastTotalWords = totalWords;
+    this.lastKnownWords = knownWords;
+
     if (totalWords === 0) return 100; // If no words, consider comprehension 100%
-    return Math.round((knownWords / totalWords) * 100);
+    const percentage = Math.round((knownWords / totalWords) * 100);
+
+    // Notify sidebar of updated data
+    this.notifySidebarUpdate();
+
+    return percentage;
+  }
+
+  getTotalWordsCount() {
+    return this.lastTotalWords || 0;
+  }
+
+  getKnownWordsCount() {
+    return this.lastKnownWords || 0;
+  }
+
+  notifySidebarUpdate() {
+    // Notify sidebar manager of data changes
+    if (window.sidebarManager && window.sidebarManager.refreshData) {
+      // Use a small delay to ensure all processing is complete
+      setTimeout(() => {
+        window.sidebarManager.refreshData();
+      }, 100);
+    }
+  }
+
+  reprocessPage() {
+    // Clear existing data
+    this.unknownWordElements.clear();
+
+    // Reprocess the page
+    this.processPageForUnknownWords();
+
+    // Recalculate comprehension
+    this.calculateComprehensionPercentage();
   }
 
   analyzeASBPlayerSubtitlesComprehension(subtitlesText) {
@@ -243,13 +282,17 @@ class PageProcessor {
     return words;
   }
 
-  updateWordStyling(word, isKnown) {
+  updateWordStyling(word, isKnownOrIgnored) {
     const elements = document.querySelectorAll(`[data-word="${word}"]`);
     elements.forEach(element => {
-      if (isKnown) {
+      if (isKnownOrIgnored) {
+        // Remove underline for both known and ignored words
         element.classList.remove('chinese-unknown-word');
       } else {
-        element.classList.add('chinese-unknown-word');
+        // Add underline only for unknown words (not ignored)
+        if (!this.vocabManager.isWordIgnored(word)) {
+          element.classList.add('chinese-unknown-word');
+        }
       }
     });
   }

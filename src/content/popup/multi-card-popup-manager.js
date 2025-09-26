@@ -32,7 +32,7 @@ class MultiCardPopupManager extends PopupManager {
     this.hidePopup();
 
     const card = this.cardNavigator.currentCards[cardIndex];
-    const popup = PopupPositioner.createPopupElement();
+    const popup = PopupPositioner.createPopupElement(this.settingsManager.settings.popupFontSize);
 
     // Determine display character and get data
     const displayCharacter = card.isCharacterCard
@@ -66,6 +66,9 @@ class MultiCardPopupManager extends PopupManager {
 
     // Apply settings to the popup
     this.settingsManager.onPopupCreated(popup);
+
+    // Remove creating class to enable transitions after initial setup
+    popup.classList.remove('creating');
 
     // Add navigation if multiple cards
     this.cardNavigator.addNavigationDots(popup);

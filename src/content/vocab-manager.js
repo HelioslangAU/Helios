@@ -120,12 +120,14 @@ class VocabManager {
     this.knownWords.add(word);
     await this.saveKnownWords();
     console.log('Marked word as known:', word);
+    this.notifySidebarUpdate();
   }
 
   async markWordAsUnknown(word) {
     this.knownWords.delete(word);
     await this.saveKnownWords();
     console.log('Marked word as unknown:', word);
+    this.notifySidebarUpdate();
   }
 
   async markWordAsIgnored(word) {
@@ -153,12 +155,24 @@ class VocabManager {
     words.forEach(word => this.knownWords.add(word));
     await this.saveKnownWords();
     console.log('Marked multiple words as known:', words);
+    this.notifySidebarUpdate();
   }
 
   async markMultipleWordsAsUnknown(words) {
     words.forEach(word => this.knownWords.delete(word));
     await this.saveKnownWords();
     console.log('Marked multiple words as unknown:', words);
+    this.notifySidebarUpdate();
+  }
+
+  notifySidebarUpdate() {
+    // Notify sidebar manager of vocabulary changes
+    if (window.sidebarManager && window.sidebarManager.onVocabUpdate) {
+      // Use a small delay to ensure processing is complete
+      setTimeout(() => {
+        window.sidebarManager.onVocabUpdate();
+      }, 100);
+    }
   }
 
   getKnownWordsCount() {
