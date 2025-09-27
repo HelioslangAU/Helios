@@ -364,10 +364,14 @@
   color: white;
 }
 
+.mark-ignore-btn {
+  background: linear-gradient(135deg, #6b7280, #4b5563);
+  color: white;
+}
 
 .mark-ignore-btn:hover {
   transform: translateY(-3px) scale(1.02);
-  box-shadow: 0 8px 32px rgba(99, 99, 99, 0.4);
+  box-shadow: 0 8px 32px rgba(107, 114, 128, 0.4);
 }
 
 .mark-known-btn:hover {
@@ -569,6 +573,11 @@
   transition: all 0.2s ease;
 }
 
+/* Disable transitions during initial creation to prevent zoom effect */
+.chinese-lang-extension-popup.creating .popup-content {
+  transition: none !important;
+}
+
 .popup-content.sliding-out {
   opacity: 0;
   transform: scale(0.95) translateY(-10px);
@@ -719,6 +728,7 @@
 }
 
 .chinese-lang-extension-popup.theme-light .mark-known-btn,
+.chinese-lang-extension-popup.theme-light .mark-ignore-btn,
 .chinese-lang-extension-popup.theme-light .mark-unknown-btn {
   border-color: rgba(0, 0, 0, 0.1);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);

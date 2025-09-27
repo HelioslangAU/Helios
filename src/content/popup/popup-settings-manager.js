@@ -96,32 +96,17 @@ class PopupSettingsManager {
   applyFontSize(popup) {
     if (!popup) return;
 
-    popup.classList.remove('size-small', 'size-medium', 'size-large', 'size-extra-large');
-
-    // Only apply size class for non-default sizes
-    // Medium uses the original CSS defaults, so no class needed
-    if (this.settings.popupFontSize !== 'medium') {
-      popup.classList.add(`size-${this.settings.popupFontSize}`);
+    // Size class is already applied during popup creation to prevent resizing
+    // Only update if the current class doesn't match settings
+    const expectedSizeClass = `size-${this.settings.popupFontSize}`;
+    if (!popup.classList.contains(expectedSizeClass)) {
+      popup.classList.remove('size-small', 'size-medium', 'size-large', 'size-extra-large');
+      popup.classList.add(expectedSizeClass);
     }
 
-    // Update dimensions based on font size (except medium which uses defaults)
-    const sizeConfig = {
-      'small': { width: '360px', height: '260px' },
-      'large': { width: '450px', height: '340px' },
-      'extra-large': { width: '500px', height: '380px' }
-    };
-
-    if (this.settings.popupFontSize !== 'medium') {
-      const config = sizeConfig[this.settings.popupFontSize];
-      if (config) {
-        popup.style.width = config.width;
-        popup.style.height = config.height;
-      }
-    } else {
-      // Reset to original CSS defaults for medium
-      popup.style.width = '';
-      popup.style.height = '';
-    }
+    // Remove any inline styles that might cause resizing
+    popup.style.width = '';
+    popup.style.height = '';
   }
 
   applyFrequencyDisplay(popup) {

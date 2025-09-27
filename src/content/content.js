@@ -39,7 +39,9 @@ class ChineseLanguageLearningExtension {
     window.bannerManager = this.bannerManager;
     window.vocabManager = this.vocabManager;
 
+
     this.pinyinManager = new PinyinManager(this.dictionaryManager, this.pageProcessor);
+    window.pinyinManager = this.pinyinManager;
     this.pinyinManager.observeForDynamicContent();
 
     this.popup = new MultiCardPopupManager({
@@ -60,9 +62,9 @@ class ChineseLanguageLearningExtension {
     this.featureToggle = new FeatureToggle({
       activation: this.activation,
       textScanner: this.textScanner,
+      bannerManager: this.bannerManager,
       pageProcessor: this.pageProcessor,
       popup: this.popup,
-      bannerManager: this.bannerManager,
       pinyinManager: this.pinyinManager,
     });
 

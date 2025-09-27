@@ -7,6 +7,22 @@ class PinyinManager {
     this.originalTextNodes = new Map(); // Store original text for restoration
   }
 
+  isEnabled() {
+    return this.pinyinEnabled;
+  }
+
+  enablePinyin() {
+    if (!this.pinyinEnabled) {
+      this.togglePinyin();
+    }
+  }
+
+  disablePinyin() {
+    if (this.pinyinEnabled) {
+      this.togglePinyin();
+    }
+  }
+
   togglePinyin() {
     this.pinyinEnabled = !this.pinyinEnabled;
     console.log("🔤 Pinyin toggle:", this.pinyinEnabled ? "ON" : "OFF");
@@ -15,6 +31,11 @@ class PinyinManager {
       this.addPinyinToPage();
     } else {
       this.removePinyinFromPage();
+    }
+
+    // Notify sidebar of change
+    if (window.sidebarManager) {
+      window.sidebarManager.onPinyinToggle(this.pinyinEnabled);
     }
   }
 

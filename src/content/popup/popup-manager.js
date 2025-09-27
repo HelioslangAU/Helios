@@ -30,8 +30,8 @@ class PopupManager {
     this.hidePopup();
     this.capturedSentence = sentence;
 
-    // Create popup element
-    const popup = PopupPositioner.createPopupElement();
+    // Create popup element with correct size from the start
+    const popup = PopupPositioner.createPopupElement(this.settingsManager.settings.popupFontSize);
 
     // Prepare data
     const dictionaryData = this.cardManager.prepareBasicPopupData(character);
@@ -60,6 +60,9 @@ class PopupManager {
 
     // Apply settings to the popup
     this.settingsManager.onPopupCreated(popup);
+
+    // Remove creating class to enable transitions after initial setup
+    popup.classList.remove('creating');
 
     // Setup event handlers
     const managers = {

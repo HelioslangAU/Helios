@@ -1,10 +1,10 @@
 class FeatureToggle {
-  constructor({ activation, textScanner, pageProcessor, popup, bannerManager, pinyinManager }) {
+  constructor({ activation, textScanner, pageProcessor, popup, sidebarManager, pinyinManager }) {
     this.activation = activation;
     this.textScanner = textScanner;
     this.pageProcessor = pageProcessor;
     this.popup = popup;
-    this.bannerManager = bannerManager;
+    this.sidebarManager = sidebarManager;
     this.pinyinManager = pinyinManager;
     this.extensionEnabled = true;
     this.autoHighlight = true;
@@ -33,14 +33,14 @@ class FeatureToggle {
     if (this.autoHighlight) {
       this.pageProcessor.processPageForUnknownWords();
     }
-    this.bannerManager && this.bannerManager.showBanner && this.bannerManager.showBanner();
+    this.sidebarManager && this.sidebarManager.showSidebar && this.sidebarManager.showSidebar();
   }
 
   disable() {
     this.textScanner && this.textScanner.unregister();
     this.popup && this.popup.hidePopup && this.popup.hidePopup();
     this.pageProcessor && this.pageProcessor.clearHighlights && this.pageProcessor.clearHighlights();
-    this.bannerManager && this.bannerManager.hideBanner && this.bannerManager.hideBanner();
+    this.sidebarManager && this.sidebarManager.hideSidebar && this.sidebarManager.hideSidebar();
     this.pinyinManager && this.pinyinManager.destroy && this.pinyinManager.destroy();
   }
 }
