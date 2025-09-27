@@ -8,7 +8,6 @@ class ChineseLanguageLearningExtension {
     this.frequencyManager = null;
     this.pageProcessor = null;
     this.popup = null;
-    this.sidebarManager = null;
     this.pinyinManager = null;
     this.lookup = null;
     this.featureToggle = null;
@@ -37,9 +36,6 @@ class ChineseLanguageLearningExtension {
     window.pageProcessor = this.pageProcessor;
     window.vocabManager = this.vocabManager;
 
-    // Initialize sidebar manager after other core systems
-    this.sidebarManager = new SidebarManager();
-    window.sidebarManager = this.sidebarManager;
 
     this.pinyinManager = new PinyinManager(this.dictionaryManager, this.pageProcessor);
     window.pinyinManager = this.pinyinManager;
@@ -65,7 +61,6 @@ class ChineseLanguageLearningExtension {
       textScanner: this.textScanner,
       pageProcessor: this.pageProcessor,
       popup: this.popup,
-      sidebarManager: this.sidebarManager,
       pinyinManager: this.pinyinManager,
     });
 

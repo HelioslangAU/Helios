@@ -51,9 +51,7 @@
         "src/content/page-processor.js",
         "src/content/vocab-manager.js",
         "src/content/dictionary-manager.js",
-        "src/content/content.js",
-        "src/content/sidebar-manager.js",
-        "src/ui/sidebar/smart-sidebar.js"
+        "src/content/content.js"
       ],
       "css": ["src/ui/popup/popup.css"],
       "run_at": "document_end"
