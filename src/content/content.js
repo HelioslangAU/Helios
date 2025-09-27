@@ -8,6 +8,7 @@ class ChineseLanguageLearningExtension {
     this.frequencyManager = null;
     this.pageProcessor = null;
     this.popup = null;
+    this.bannerManager = null;
     this.pinyinManager = null;
     this.lookup = null;
     this.featureToggle = null;
@@ -34,6 +35,8 @@ class ChineseLanguageLearningExtension {
 
     this.pageProcessor = new PageProcessor(this.dictionaryManager, this.vocabManager);
     window.pageProcessor = this.pageProcessor;
+    this.bannerManager = new BannerManager();
+    window.bannerManager = this.bannerManager;
     window.vocabManager = this.vocabManager;
 
 
@@ -59,6 +62,7 @@ class ChineseLanguageLearningExtension {
     this.featureToggle = new FeatureToggle({
       activation: this.activation,
       textScanner: this.textScanner,
+      bannerManager: this.bannerManager,
       pageProcessor: this.pageProcessor,
       popup: this.popup,
       pinyinManager: this.pinyinManager,
