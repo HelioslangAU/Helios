@@ -1,11 +1,13 @@
+// constructor: add bannerManager and store it
 class FeatureToggle {
-  constructor({ activation, textScanner, pageProcessor, popup, sidebarManager, pinyinManager }) {
+  constructor({ activation, textScanner, pageProcessor, popup, sidebarManager, pinyinManager, bannerManager }) {
     this.activation = activation;
     this.textScanner = textScanner;
     this.pageProcessor = pageProcessor;
     this.popup = popup;
     this.sidebarManager = sidebarManager;
     this.pinyinManager = pinyinManager;
+    this.bannerManager = bannerManager;
     this.extensionEnabled = true;
     this.autoHighlight = true;
   }
@@ -16,6 +18,8 @@ class FeatureToggle {
     if (settings.activationKey) this.activation.setKey(settings.activationKey);
     if (this.extensionEnabled) {
       this.enable();
+    } else {
+      this.disable(); // ensure banner and other UI are hidden on startup
     }
   }
 
@@ -24,16 +28,12 @@ class FeatureToggle {
     if (enabled) this.enable(); else this.disable();
   }
 
-  setAutoHighlight(enabled) {
-    this.autoHighlight = enabled;
-    this.pageProcessor.handleAutoHighlightUpdate(enabled, this.extensionEnabled);
-  }
-
   enable() {
     if (this.autoHighlight) {
       this.pageProcessor.processPageForUnknownWords();
     }
     this.sidebarManager && this.sidebarManager.showSidebar && this.sidebarManager.showSidebar();
+    this.bannerManager && this.bannerManager.showBanner && this.bannerManager.showBanner();
   }
 
   disable() {
@@ -42,7 +42,6 @@ class FeatureToggle {
     this.pageProcessor && this.pageProcessor.clearHighlights && this.pageProcessor.clearHighlights();
     this.sidebarManager && this.sidebarManager.hideSidebar && this.sidebarManager.hideSidebar();
     this.pinyinManager && this.pinyinManager.destroy && this.pinyinManager.destroy();
+    this.bannerManager && this.bannerManager.hideBanner && this.bannerManager.hideBanner();
   }
 }
-
-
