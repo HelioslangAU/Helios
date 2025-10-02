@@ -13,8 +13,25 @@ class ActivationController {
     return this.isActivationKeyPressed === true;
   }
 
+  _isEditable(target) {
+    if (!target) return false;
+    const tag = (target.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "textarea") return true;
+    if (target.isContentEditable) return true;
+    return false;
+  }
+
   handleKeyDown(event, { onActivate } = {}) {
-    if (event.key === this.activationKey && !this.isActivationKeyPressed) {
+    // Do not activate while typing in editable elements
+    if (this._isEditable(event.target)) return;
+    // Only activate when the exact activation key is pressed with no other modifiers
+    if (
+      event.key === this.activationKey &&
+      !event.altKey &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !this.isActivationKeyPressed
+    ) {
       this.isActivationKeyPressed = true;
       if (onActivate) onActivate();
     }
@@ -34,11 +51,11 @@ class ActivationController {
   }
 
   blockDuringActivation(event) {
+    // Allow normal behavior in editable elements
+    if (this._isEditable(event.target)) return;
     if (this.isActive()) {
       event.preventDefault();
       return false;
     }
   }
 }
-
-
