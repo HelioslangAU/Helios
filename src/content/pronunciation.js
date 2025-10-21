@@ -1,5 +1,5 @@
 // Pronunciation Manager for Chinese Language Learning Extension
-class PronunciationManager {
+class AudioManager {
   constructor() {
     this.audioCache = new Map();
     this.isPlaying = false;
@@ -25,7 +25,7 @@ class PronunciationManager {
     // Fallback methods
     this.fallbacks = ["google-translate", "web-speech"];
 
-    console.log("🔊 PronunciationManager initialized");
+    console.log("🔊 AudioManager initialized");
   }
 
   /**

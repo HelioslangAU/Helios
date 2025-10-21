@@ -9,23 +9,51 @@ class ChineseLanguageLearningExtension {
     this.pageProcessor = null;
     this.popup = null;
     this.bannerManager = null;
-    this.pinyinManager = null;
+    this.pronunciationManager = null;
     this.lookup = null;
     this.featureToggle = null;
     this.settings = null;
     this.asb = null;
+    this.languageRegistry = null;
 
     this.init();
   }
 
   async init() {
-    console.log("🔍 Initializing Chinese Language Learning Extension...");
+    console.log("🔍 Initializing Language Learning Extension...");
+
+    // Initialize language registry first
+    this.languageRegistry = new LanguageRegistry();
+    this.languageRegistry.initializeDefaultAdapters();
+    window.languageRegistry = this.languageRegistry;
 
     // Core managers
-    this.dictionaryManager = new DictionaryManager();
+    this.dictionaryManager = new DictionaryManager(this.languageRegistry);
     this.vocabManager = new VocabManager();
     this.highlightManager = new HighlightManager();
     this.frequencyManager = new FrequencyManager();
+
+    // Load settings first to get target language
+    this.settings = new SettingsSync({
+      onLoaded: (s) => {
+        const targetLanguage = s?.targetLanguage || 'en';
+        this.languageRegistry.setLanguage(targetLanguage);
+        this.featureToggle?.applyInitial(s || {});
+      },
+      onToggled: (enabled) => {
+        this.featureToggle?.setEnabled(enabled);
+        if (enabled) this._registerScanner();
+      },
+      onSettingsUpdated: (s) => window.ContentSettingsApplier?.apply(this, s),
+      onActivationKeyChanged: (key) => this.activation.setKey(key),
+      onAutoHighlightChanged: (enabled) => this.featureToggle?.setAutoHighlight(enabled),
+      onLanguageChanged: (languageCode) => {
+        this.languageRegistry.setLanguage(languageCode);
+        this.dictionaryManager.loadDictionary();
+        this.pageProcessor?.reprocessPage();
+      }
+    });
+    await this.settings.load();
 
     await Promise.all([
       this.dictionaryManager.loadDictionary(),
@@ -33,16 +61,15 @@ class ChineseLanguageLearningExtension {
       this.frequencyManager.loadFrequencyList(),
     ]);
 
-    this.pageProcessor = new PageProcessor(this.dictionaryManager, this.vocabManager);
+    this.pageProcessor = new PageProcessor(this.dictionaryManager, this.vocabManager, this.languageRegistry);
     window.pageProcessor = this.pageProcessor;
     this.bannerManager = new BannerManager();
     window.bannerManager = this.bannerManager;
     window.vocabManager = this.vocabManager;
 
-
-    this.pinyinManager = new PinyinManager(this.dictionaryManager, this.pageProcessor);
-    window.pinyinManager = this.pinyinManager;
-    this.pinyinManager.observeForDynamicContent();
+    this.pronunciationManager = new PronunciationManager(this.dictionaryManager, this.pageProcessor, this.languageRegistry);
+    window.pronunciationManager = this.pronunciationManager;
+    this.pronunciationManager.observeForDynamicContent();
 
     this.popup = new MultiCardPopupManager({
       highlightManager: this.highlightManager,
@@ -65,27 +92,15 @@ class ChineseLanguageLearningExtension {
       bannerManager: this.bannerManager,
       pageProcessor: this.pageProcessor,
       popup: this.popup,
-      pinyinManager: this.pinyinManager,
+      pronunciationManager: this.pronunciationManager,
     });
-
-    this.settings = new SettingsSync({
-      onLoaded: (s) => this.featureToggle.applyInitial(s || {}),
-      onToggled: (enabled) => {
-        this.featureToggle.setEnabled(enabled);
-        if (enabled) this._registerScanner();
-      },
-      onSettingsUpdated: (s) => window.ContentSettingsApplier?.apply(this, s),
-      onActivationKeyChanged: (key) => this.activation.setKey(key),
-      onAutoHighlightChanged: (enabled) => this.featureToggle.setAutoHighlight(enabled),
-    });
-    await this.settings.load();
 
     this._registerScanner();
 
     this.asb = new AsbplayerIntegration(this.pageProcessor);
     this.asb.start();
 
-    console.log("🔍 Chinese Language Learning Extension initialized successfully");
+    console.log("🔍 Language Learning Extension initialized successfully");
   }
 
   _registerScanner() {
@@ -101,7 +116,7 @@ class ChineseLanguageLearningExtension {
           }
         },
       });
-      // Ctrl+G for pinyin
+      // Ctrl+G for pronunciation
       if (
         e.ctrlKey &&
         e.key &&
@@ -111,7 +126,7 @@ class ChineseLanguageLearningExtension {
         !e.altKey
       ) {
         e.preventDefault();
-        this.pinyinManager && this.pinyinManager.togglePinyin();
+        this.pronunciationManager && this.pronunciationManager.togglePronunciation();
         return false;
       }
     };

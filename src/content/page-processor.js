@@ -1,7 +1,8 @@
 class PageProcessor {
-  constructor(dictionaryManager, vocabManager, unknownWordElements) {
+  constructor(dictionaryManager, vocabManager, languageRegistry, unknownWordElements) {
     this.dictionaryManager = dictionaryManager;
     this.vocabManager = vocabManager;
+    this.languageRegistry = languageRegistry;
     this.unknownWordElements = new Map();
     this.injectedCSS = false;
     this.asbplayerObservers = new Set();
@@ -23,7 +24,9 @@ class PageProcessor {
     if (!container) return word;
 
     const fullText = container.textContent || '';
-    const sentences = fullText.split(/(?<=[.!?。！？\n])/);
+    const adapter = this.languageRegistry.getAdapter();
+    const sentenceBoundary = adapter ? adapter.getSentenceBoundary() : /(?<=[.!?。！？\n])/;
+    const sentences = fullText.split(sentenceBoundary);
     for (const sentence of sentences) {
       if (sentence.includes(word)) {
         const trimmed = sentence.trim();
@@ -36,8 +39,9 @@ class PageProcessor {
   // Heuristics to detect likely subtitle containers (e.g., asbplayer)
   isLikelySubtitleElement(element) {
     const text = element.textContent || "";
-    const hasChinese = /[\u4e00-\u9fff\u3400-\u4dbf]/.test(text);
-    if (hasChinese) return true;
+    const adapter = this.languageRegistry.getAdapter();
+    const hasTargetLanguage = adapter ? adapter.containsTargetLanguage(text) : false;
+    if (hasTargetLanguage) return true;
     const attributeText = [
       element.className,
       element.id,
@@ -90,8 +94,9 @@ class PageProcessor {
     let knownWords = 0;
 
     for (const textNode of textNodes) {
-        const chineseWords = this.extractChineseWords(textNode.textContent);
-        for (const { word } of chineseWords) {
+        const adapter = this.languageRegistry.getAdapter();
+        const words = adapter ? adapter.extractWords(textNode.textContent, this.dictionaryManager.dictionary) : [];
+        for (const { word } of words) {
             totalWords++;
             if (this.vocabManager.isWordKnown(word)) {
                 knownWords++;
@@ -143,9 +148,10 @@ class PageProcessor {
 
   analyzeASBPlayerSubtitlesComprehension(subtitlesText) {
   // subtitlesText: string containing all subtitles for the video
-  const chineseWords = this.extractChineseWords(subtitlesText);
-  let totalWords = chineseWords.length;
-  let knownWords = chineseWords.filter(({ word }) => this.vocabManager.isWordKnown(word)).length;
+  const adapter = this.languageRegistry.getAdapter();
+  const words = adapter ? adapter.extractWords(subtitlesText, this.dictionaryManager.dictionary) : [];
+  let totalWords = words.length;
+  let knownWords = words.filter(({ word }) => this.vocabManager.isWordKnown(word)).length;
   if (totalWords === 0) return 100;
   return Math.round((knownWords / totalWords) * 100);
 }
@@ -159,14 +165,14 @@ class PageProcessor {
     const style = document.createElement('style');
     style.id = 'chinese-extension-styles';
     style.textContent = `
-      .chinese-unknown-word {
+      .lang-unknown-word {
         text-decoration: underline !important;
         text-decoration-color: #ff4444 !important;
         text-decoration-thickness: 2px !important;
         text-underline-offset: 2px !important;
         cursor: help !important;
       }
-      .chinese-unknown-word:hover {
+      .lang-unknown-word:hover {
         background-color: rgba(255, 68, 68, 0.1) !important;
       }
     `;
@@ -208,13 +214,14 @@ class PageProcessor {
     const text = textNode.textContent;
     if (!text) return;
 
-    const chineseWords = this.extractChineseWords(text);
-    if (chineseWords.length === 0) return;
+    const adapter = this.languageRegistry.getAdapter();
+    const words = adapter ? adapter.extractWords(text, this.dictionaryManager.dictionary) : [];
+    if (words.length === 0) return;
 
     const fragment = document.createDocumentFragment();
     let lastIndex = 0;
 
-    chineseWords.forEach(({ word, start, end }) => {
+    words.forEach(({ word, start, end }) => {
       if (start > lastIndex) {
         fragment.appendChild(document.createTextNode(text.slice(lastIndex, start)));
       }
@@ -223,7 +230,7 @@ class PageProcessor {
       span.setAttribute('data-word', word); // Always add data-word
 
       if (!this.vocabManager.isWordKnown(word) && this.dictionaryManager.dictionary[word] && !this.vocabManager.isWordIgnored(word)) {
-        span.className = 'chinese-unknown-word';
+        span.className = 'lang-unknown-word';
         this.unknownWordElements.set(word, span);
       }
 
@@ -238,48 +245,11 @@ class PageProcessor {
     textNode.parentNode.replaceChild(fragment, textNode);
   }
 
+  // Legacy method - now handled by language adapters
   extractChineseWords(text) {
-    const words = [];
-    let i = 0;
-
-    while (i < text.length) {
-      if (this.isChineseCharacter(text[i])) {
-        let longestWord = null;
-        let longestLength = 0;
-
-        for (let len = Math.min(5, text.length - i); len >= 1; len--) {
-          const candidate = text.substring(i, i + len);
-          if ([...candidate].every(c => this.isChineseCharacter(c)) && this.dictionaryManager.dictionary[candidate]) {
-            if (len > longestLength) {
-              longestWord = candidate;
-              longestLength = len;
-            }
-          }
-        }
-
-        if (longestWord) {
-          words.push({
-            word: longestWord,
-            start: i,
-            end: i + longestLength
-          });
-          i += longestLength;
-        } else {
-          if (this.dictionaryManager.dictionary[text[i]]) {
-            words.push({
-              word: text[i],
-              start: i,
-              end: i + 1
-            });
-          }
-          i++;
-        }
-      } else {
-        i++;
-      }
-    }
-
-    return words;
+    console.warn('extractChineseWords is deprecated. Use language adapters instead.');
+    const adapter = this.languageRegistry.getAdapter();
+    return adapter ? adapter.extractWords(text, this.dictionaryManager.dictionary) : [];
   }
 
   updateWordStyling(word, isKnownOrIgnored) {
@@ -287,11 +257,11 @@ class PageProcessor {
     elements.forEach(element => {
       if (isKnownOrIgnored) {
         // Remove underline for both known and ignored words
-        element.classList.remove('chinese-unknown-word');
+        element.classList.remove('lang-unknown-word');
       } else {
         // Add underline only for unknown words (not ignored)
         if (!this.vocabManager.isWordIgnored(word)) {
-          element.classList.add('chinese-unknown-word');
+          element.classList.add('lang-unknown-word');
         }
       }
     });
@@ -323,12 +293,11 @@ class PageProcessor {
     });
   }
 
+  // Legacy method - now handled by language adapters
   isChineseCharacter(char) {
-    if (!char) return false;
-    const code = char.charCodeAt(0);
-    return (code >= 0x4E00 && code <= 0x9FFF) ||
-           (code >= 0x3400 && code <= 0x4DBF) ||
-           (code >= 0x20000 && code <= 0x2A6DF);
+    console.warn('isChineseCharacter is deprecated. Use language adapters instead.');
+    const adapter = this.languageRegistry.getAdapter();
+    return adapter ? adapter.isTargetCharacter(char) : false;
   }
 
   getCharacterAtPosition(event) {
@@ -361,27 +330,26 @@ class PageProcessor {
     const text = textNode.textContent;
     if (!text) return null;
 
-    const range = document.createRange();
+    const adapter = this.languageRegistry.getAdapter();
+    if (!adapter) return null;
+
+    // For space-separated languages, find complete words, not individual characters
+    const words = adapter.extractWords(text, this.dictionaryManager.dictionary);
     
-    for (let i = 0; i < text.length; i++) {
-      if (!this.isChineseCharacter(text[i])) continue;
-      
-      range.setStart(textNode, i);
-      range.setEnd(textNode, i + 1);
+    for (const wordData of words) {
+      const range = document.createRange();
+      range.setStart(textNode, wordData.start);
+      range.setEnd(textNode, wordData.end);
       
       const rect = range.getBoundingClientRect();
       
       if (x >= rect.left && x <= rect.right && 
           y >= rect.top && y <= rect.bottom) {
-        
-        const wordResult = this.findLongestWord(textNode, i);
-        if (wordResult) return wordResult;
-        
-        return { 
-          word: text[i], 
-          textNode, 
-          start: i, 
-          end: i + 1 
+        return {
+          word: wordData.word,
+          textNode,
+          start: wordData.start,
+          end: wordData.end
         };
       }
     }
@@ -391,20 +359,21 @@ class PageProcessor {
 
   findLongestWord(textNode, startOffset) {
     const text = textNode.textContent;
+    const adapter = this.languageRegistry.getAdapter();
+    if (!adapter) return null;
+
+    // Use adapter's extractWords method to find all words
+    const words = adapter.extractWords(text, this.dictionaryManager.dictionary);
     
-    for (let len = 5; len >= 1; len--) {
-      if (startOffset + len <= text.length) {
-        const candidate = text.substring(startOffset, startOffset + len);
-        
-        if ([...candidate].every(c => this.isChineseCharacter(c)) &&
-            this.dictionaryManager.dictionary[candidate]) {
-          return { 
-            word: candidate, 
-            textNode, 
-            start: startOffset, 
-            end: startOffset + len 
-          };
-        }
+    // Find the word that contains the startOffset position
+    for (const wordData of words) {
+      if (startOffset >= wordData.start && startOffset < wordData.end) {
+        return {
+          word: wordData.word,
+          textNode,
+          start: wordData.start,
+          end: wordData.end
+        };
       }
     }
     
@@ -457,19 +426,22 @@ class PageProcessor {
     let { offsetNode: textNode, offset } = caret;
     if (textNode.nodeType !== Node.TEXT_NODE) return null;
 
-    for (let len = 5; len >= 1; len--) {
-      if (offset + len <= textNode.textContent.length) {
-        const candidate = textNode.textContent.substring(offset, offset + len);
-        if ([...candidate].every(c => this.isChineseCharacter(c)) &&
-            this.dictionaryManager.dictionary[candidate]) {
-          return { word: candidate, textNode, start: offset, end: offset + len };
-        }
-      }
-    }
+    const adapter = this.languageRegistry.getAdapter();
+    if (!adapter) return null;
 
-    const text = textNode.textContent;
-    if (this.isChineseCharacter(text[offset])) {
-      return { word: text[offset], textNode, start: offset, end: offset + 1 };
+    // Use adapter's extractWords method to find all words
+    const words = adapter.extractWords(textNode.textContent, this.dictionaryManager.dictionary);
+    
+    // Find the word that contains the offset position
+    for (const wordData of words) {
+      if (offset >= wordData.start && offset < wordData.end) {
+        return {
+          word: wordData.word,
+          textNode,
+          start: wordData.start,
+          end: wordData.end
+        };
+      }
     }
 
     return null;
@@ -571,8 +543,8 @@ class PageProcessor {
   // Remove unknown word styling and clear tracked elements
   clearUnknownWordHighlights() {
     try {
-      document.querySelectorAll('.chinese-unknown-word').forEach((el) => {
-        el.classList.remove('chinese-unknown-word');
+      document.querySelectorAll('.lang-unknown-word').forEach((el) => {
+        el.classList.remove('lang-unknown-word');
       });
       this.unknownWordElements?.clear?.();
     } catch (_) {}

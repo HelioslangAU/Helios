@@ -17,6 +17,8 @@ class HeliosSettingsManager {
     // Default settings
     this.defaultSettings = {
       // General
+
+      targetLanguage: "en",
       extensionEnabled: true,
       activationKey: "Shift",
       autoHighlight: true,
