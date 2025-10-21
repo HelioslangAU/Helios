@@ -8,7 +8,7 @@ class MultiCardPopupManager extends PopupManager {
     this.originalCharacter = null;
     this.cardNavigator = new CardNavigator(this);
     this.definitionFilter = new DefinitionFilter();
-    this.cardManager = new CardManager(this.dictionaryManager, this.definitionFilter);
+    this.cardManager = new CardManager(this.dictionaryManager, this.definitionFilter, this.languageRegistry);
   }
 
   showDictionaryPopup(x, y, character, sentence) {

@@ -76,6 +76,7 @@ class ChineseLanguageLearningExtension {
       dictionaryManager: this.dictionaryManager,
       vocabManager: this.vocabManager,
       frequencyManager: this.frequencyManager,
+      languageRegistry: this.languageRegistry,
     });
     window.highlightManager = this.highlightManager;
 

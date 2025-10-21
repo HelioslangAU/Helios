@@ -88,7 +88,7 @@ class PopupContentBuilder {
   static createDefinitionsHtml(entries) {
     return entries
       .map((entry) => {
-        const defs = entry.definition.split(";").map(d => d.trim()).filter(Boolean);
+        const defs = entry.translation.split(";").map(d => d.trim()).filter(Boolean);
         const bullets = defs.length > 1
           ? `<ul class="definition-list">${defs.map(d => `<li>${d}</li>`).join("")}</ul>`
           : `<div class="definition">${defs[0]}</div>`;

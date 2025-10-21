@@ -3,9 +3,10 @@
  * Handles grouping entries by pronunciation and creating character cards
  */
 class CardManager {
-  constructor(dictionaryManager, definitionFilter) {
+  constructor(dictionaryManager, definitionFilter, languageRegistry = null) {
     this.dictionaryManager = dictionaryManager;
     this.definitionFilter = definitionFilter;
+    this.languageRegistry = languageRegistry;
   }
 
   groupByPronunciation(entries, originalCharacter) {
@@ -33,6 +34,11 @@ class CardManager {
 
   createCharacterCards(word) {
     const characterCards = [];
+
+    // Only create character cards for Chinese language
+    if (!this.languageRegistry || this.languageRegistry.getCurrentLanguage() !== 'zh') {
+      return characterCards;
+    }
 
     // Only create character cards for multi-character words
     if (!word || word.length < 2) {
@@ -71,6 +77,9 @@ class CardManager {
   }
 
   prepareBasicPopupData(character) {
+    if (!this.languageRegistry || this.languageRegistry.getCurrentLanguage() == 'en') {
+      character = character.toLowerCase();
+    }
     const matches = this.dictionaryManager.dictionary[character] || [];
     return {
       matches,

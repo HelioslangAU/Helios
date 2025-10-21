@@ -3,11 +3,12 @@
  * Coordinates all popup components for basic single-definition popups
  */
 class PopupManager {
-  constructor({ highlightManager, dictionaryManager, vocabManager, frequencyManager }) {
+  constructor({ highlightManager, dictionaryManager, vocabManager, frequencyManager, languageRegistry }) {
     this.highlightManager = highlightManager;
     this.dictionaryManager = dictionaryManager;
     this.vocabManager = vocabManager;
     this.frequencyManager = frequencyManager;
+    this.languageRegistry = languageRegistry;
     this.popup = null;
     this.isMouseOverPopup = false;
     this.isMouseOverHighlight = false;
@@ -20,7 +21,7 @@ class PopupManager {
     this.pronunciationManager = new PronunciationManager();
 
     // Initialize internal components
-    this.cardManager = new CardManager(this.dictionaryManager, new DefinitionFilter());
+    this.cardManager = new CardManager(this.dictionaryManager, new DefinitionFilter(), this.languageRegistry);
 
     // Initialize popup settings manager
     this.settingsManager = new PopupSettingsManager();
