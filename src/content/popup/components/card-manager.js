@@ -81,6 +81,7 @@ class CardManager {
       character = character.toLowerCase();
     }
     const matches = this.dictionaryManager.dictionary[character] || [];
+    console.log('prepareBasicPopupData', character, matches);
     return {
       matches,
       isKnown: false, // Will be set by calling code

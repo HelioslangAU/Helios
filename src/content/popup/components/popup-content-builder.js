@@ -26,7 +26,7 @@ class PopupContentBuilder {
     return `
       <div class="popup-content">
         <div class="character-container">
-          <div class="character highlight"><ruby>${character}<rt>${pinyin}</rt></ruby></div>
+          <div class="character highlight">${pinyin ? `<ruby>${character}<rt>${pinyin}</rt></ruby>` : character}</div>
           ${pronunciationBtn}
           ${frequency && showFrequency ? `<div class="frequency">Frequency: ${frequency}</div>` : ""}
         </div>
@@ -48,7 +48,7 @@ class PopupContentBuilder {
     return `
       <div class="popup-content">
         <div class="character-container">
-          <div class="character highlight"><ruby>${displayCharacter}<rt>${pinyin}</rt></ruby></div>
+          <div class="character highlight">${pinyin ? `<ruby>${displayCharacter}<rt>${pinyin}</rt></ruby>` : displayCharacter}</div>
           ${pronunciationBtn}
           ${frequency && showFrequency ? `<div class="frequency">Frequency: ${frequency}</div>` : ""}
         </div>
@@ -88,7 +88,7 @@ class PopupContentBuilder {
   static createDefinitionsHtml(entries) {
     return entries
       .map((entry) => {
-        const defs = entry.translation.split(";").map(d => d.trim()).filter(Boolean);
+        const defs = entry.definition.split(";").map(d => d.trim()).filter(Boolean);
         const bullets = defs.length > 1
           ? `<ul class="definition-list">${defs.map(d => `<li>${d}</li>`).join("")}</ul>`
           : `<div class="definition">${defs[0]}</div>`;

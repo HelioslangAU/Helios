@@ -110,9 +110,9 @@ class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
         }
 
         dictionary[normalizedWord].push({
-          definition: definition || '',
+          definition: translation || '',
           pronunciation: phonetic || '',
-          translation: translation || '',
+          translation: definition || '',
           partOfSpeech: pos || '',
           collins: collins || '',
           oxford: oxford || '',
