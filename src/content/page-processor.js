@@ -6,6 +6,20 @@ class PageProcessor {
     this.unknownWordElements = new Map();
     this.injectedCSS = false;
     this.asbplayerObservers = new Set();
+    
+    // Initialize processing when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => this.initializeProcessing());
+    } else {
+      this.initializeProcessing();
+    }
+  }
+
+  initializeProcessing() {
+    // Process the page initially
+    this.processPageForUnknownWords();
+    // Set up observer for dynamic changes
+    //this.observePageChanges();
   }
 
   // Extract a sentence around a word from a given text node's container
@@ -211,7 +225,11 @@ class PageProcessor {
   }
 
   processTextNodeForUnknownWords(textNode) {
+
     const text = textNode.textContent;
+    if (this.languageRegistry.targetLanguage === 'en') {
+      text.toLowerCase();
+    }
     if (!text) return;
 
     const adapter = this.languageRegistry.getAdapter();
