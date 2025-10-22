@@ -53,6 +53,8 @@ class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
    */
   extractWords(text, dictionary) {
     const words = [];
+    //text = text.toLowerCase();
+    
 
     // Use regex to find word boundaries and extract complete words
     const wordRegex = /\b[a-zA-Z]+\b/g;

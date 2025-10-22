@@ -66,6 +66,7 @@ class ChineseLanguageLearningExtension {
     this.bannerManager = new BannerManager();
     window.bannerManager = this.bannerManager;
     window.vocabManager = this.vocabManager;
+    window.languageRegistry = this.languageRegistry;
 
     this.pronunciationManager = new PronunciationManager(this.dictionaryManager, this.pageProcessor, this.languageRegistry);
     window.pronunciationManager = this.pronunciationManager;

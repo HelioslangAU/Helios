@@ -227,9 +227,6 @@ class PageProcessor {
   processTextNodeForUnknownWords(textNode) {
 
     const text = textNode.textContent;
-    if (this.languageRegistry.targetLanguage === 'en') {
-      text.toLowerCase();
-    }
     if (!text) return;
 
     const adapter = this.languageRegistry.getAdapter();
@@ -247,9 +244,13 @@ class PageProcessor {
       span.textContent = word;
       span.setAttribute('data-word', word); // Always add data-word
 
-      if (!this.vocabManager.isWordKnown(word) && this.dictionaryManager.dictionary[word] && !this.vocabManager.isWordIgnored(word)) {
+      // Convert word to lowercase for dictionary lookup while preserving display
+      const lowercaseWord = word.toLowerCase();
+      if (!this.vocabManager.isWordKnown(lowercaseWord) && 
+          this.dictionaryManager.dictionary[lowercaseWord] && 
+          !this.vocabManager.isWordIgnored(lowercaseWord)) {
         span.className = 'lang-unknown-word';
-        this.unknownWordElements.set(word, span);
+        this.unknownWordElements.set(lowercaseWord, span);
       }
 
       fragment.appendChild(span);
