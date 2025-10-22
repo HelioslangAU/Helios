@@ -113,10 +113,21 @@ class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
           dictionary[normalizedWord] = [dictionary[normalizedWord]];
         }
 
+        // Clean up the definition/translation by removing part of speech markers and newlines
+        const cleanDefinition = (def) => {
+          return def
+            .replace(/\\n/g, ', ') // Replace \n with comma and space
+            .replace(/([a-z]\.|[a-z]{1,5}\.) /g, '') // Remove part of speech markers
+            .split(/,\s*/) // Split by commas
+            .filter(Boolean) // Remove empty items
+            .join(', ') // Join back with proper comma spacing
+            .trim();
+        };
+
         dictionary[normalizedWord].push({
-          definition: translation || '',
+          definition: cleanDefinition(translation || ''),
           pronunciation: phonetic || '',
-          translation: definition || '',
+          translation: cleanDefinition(definition || ''),
           partOfSpeech: pos || '',
           collins: collins || '',
           oxford: oxford || '',
