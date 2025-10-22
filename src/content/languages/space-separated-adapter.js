@@ -7,7 +7,7 @@
 class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
   constructor(config) {
     super();
-    this.config = {
+    const baseConfig = {
       code: 'en',
       name: 'English',
       displayName: 'English',
@@ -28,6 +28,7 @@ class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
       sentenceBoundaryRegex: /(?<=[.!?])\s+/,
       ...config
     };
+    this.setConfig(baseConfig);
   }
 
   /**
@@ -200,13 +201,6 @@ class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
     return this.config.sentenceBoundaryRegex;
   }
 
-  /**
-   * Get language configuration
-   * @returns {Object} - Language config
-   */
-  getConfig() {
-    return this.config;
-  }
 
   /**
    * Get dictionary file path

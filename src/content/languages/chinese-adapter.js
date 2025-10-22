@@ -5,8 +5,28 @@
  * CEDICT dictionary parsing, and pinyin pronunciation handling.
  */
 class ChineseLanguageAdapter extends BaseLanguageAdapter {
-  constructor() {
+  constructor(config) {
     super();
+    const baseConfig = {
+      code: 'zh',
+      name: 'Chinese',
+      displayName: 'Chinese (中文)',
+      maxWordLength: 5,
+      hasSpaces: false,
+      script: 'han',
+      direction: 'ltr',
+      scanResolution: 'char',
+      caseSensitive: false,
+      characterRanges: [
+        { start: 0x4E00, end: 0x9FFF },
+        { start: 0x3400, end: 0x4DBF },
+        { start: 0x20000, end: 0x2A6DF },
+      ],
+      wordBoundaryRegex: /()/,
+      sentenceBoundaryRegex: /(?<=[.!?。！？\n])/,
+      ...config
+    };
+    this.setConfig(baseConfig);
   }
 
   /**
@@ -144,24 +164,6 @@ class ChineseLanguageAdapter extends BaseLanguageAdapter {
    */
   getSentenceBoundary() {
     return /(?<=[.!?。！？\n])/;
-  }
-
-  /**
-   * Get Chinese language configuration
-   * @returns {Object} - Chinese language config
-   */
-  getConfig() {
-    return {
-      code: 'zh',
-      name: 'Chinese',
-      displayName: 'Chinese (中文)',
-      maxWordLength: 5,
-      hasSpaces: false,
-      script: 'han',
-      direction: 'ltr',
-      scanResolution: 'char',
-      caseSensitive: false,
-    };
   }
 
   /**
