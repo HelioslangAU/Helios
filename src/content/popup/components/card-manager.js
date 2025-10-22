@@ -35,8 +35,8 @@ class CardManager {
   createCharacterCards(word) {
     const characterCards = [];
 
-    // Only create character cards for Chinese language
-    if (!this.languageRegistry || this.languageRegistry.getCurrentLanguage() !== 'zh') {
+    // Only create character cards for char based languages 
+    if (!this.languageRegistry || this.languageRegistry.getLanguageInfo(this.languageRegistry.getCurrentLanguage()).scanResolution !== 'char') {
       return characterCards;
     }
 
@@ -77,7 +77,7 @@ class CardManager {
   }
 
   prepareBasicPopupData(character) {
-    if (!this.languageRegistry || this.languageRegistry.getCurrentLanguage() == 'en') {
+    if (this.languageRegistry.getCaseSensitive(this.languageRegistry.getCurrentLanguage())) {
       character = character.toLowerCase();
     }
     const matches = this.dictionaryManager.dictionary[character] || [];

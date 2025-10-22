@@ -68,6 +68,7 @@ class LanguageRegistry {
   getCurrentLanguage() {
     return this.currentLanguageCode;
   }
+  
 
   /**
    * Get all registered language adapters
@@ -93,6 +94,16 @@ class LanguageRegistry {
   getLanguageInfo(languageCode) {
     const adapter = this.adapters.get(languageCode);
     return adapter ? adapter.getConfig() : null;
+  }
+
+  getScanResolution(languageCode) {
+    const adapter = this.adapters.get(languageCode);
+    return adapter ? adapter.getConfig().scanResolution : null;
+  }
+
+  getCaseSensitive(languageCode) {
+    const adapter = this.adapters.get(languageCode);
+    return adapter ? adapter.getConfig().caseSensitive : false;
   }
 
   /**
@@ -158,6 +169,7 @@ class LanguageRegistry {
     return this.currentAdapter ? this.currentAdapter.getSentenceBoundary() : null;
   }
 
+
   /**
    * Check if text contains current language characters
    * @param {string} text - Text to check
@@ -166,6 +178,8 @@ class LanguageRegistry {
   containsTargetLanguage(text) {
     return this.currentAdapter ? this.currentAdapter.containsTargetLanguage(text) : false;
   }
+
+  
 
   /**
    * Add event listener

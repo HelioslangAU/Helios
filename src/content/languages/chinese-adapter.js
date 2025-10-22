@@ -158,7 +158,9 @@ class ChineseLanguageAdapter extends BaseLanguageAdapter {
       maxWordLength: 5,
       hasSpaces: false,
       script: 'han',
-      direction: 'ltr'
+      direction: 'ltr',
+      scanResolution: 'char',
+      caseSensitive: false,
     };
   }
 

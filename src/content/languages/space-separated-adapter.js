@@ -15,6 +15,8 @@ class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
       hasSpaces: true,
       script: 'latin',
       direction: 'ltr',
+      scanResolution: 'word',
+      caseSensitive: true,
       characterRanges: [
         { start: 0x0041, end: 0x005A }, // A-Z
         { start: 0x0061, end: 0x007A }, // a-z
