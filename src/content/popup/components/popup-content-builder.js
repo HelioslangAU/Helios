@@ -12,7 +12,7 @@ class PopupContentBuilder {
           <div class="character-container">
             <div class="character highlight">${character}</div>
           </div>
-          <div class="definition">Character not found in dictionary</div>
+          <div class="definition">Word not found in dictionary</div>
           ${this.createAnkiButton()}
         </div>
       `;

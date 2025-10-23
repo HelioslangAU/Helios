@@ -80,7 +80,15 @@ class CardManager {
     if (this.languageRegistry.getCaseSensitive(this.languageRegistry.getCurrentLanguage())) {
       character = character.toLowerCase();
     }
-    const matches = this.dictionaryManager.dictionary[character] || [];
+    let matches = this.dictionaryManager.dictionary[character];
+    console.log(matches && matches[0].definition == '');
+    if (matches && matches[0].definition == '') {
+      console.log(this.languageRegistry.getAdapter().findDictionaryForm(character, this.dictionaryManager.dictionary));
+      const word = [this.languageRegistry.getAdapter().findDictionaryForm(character, this.dictionaryManager.dictionary)];
+      console.log(this.dictionaryManager.dictionary[word]);
+      matches = this.dictionaryManager.dictionary[matches[0].variations[0]];
+    }
+    console.log(matches);
     console.log('prepareBasicPopupData', character, matches);
     return {
       matches,

@@ -14,13 +14,32 @@ class DictionaryManager {
 
       // Get dictionary path from adapter
       const dictionaryPath = adapter.getDictionaryPath();
-      const dictionaryUrl = chrome.runtime.getURL(dictionaryPath);
       
-      const response = await fetch(dictionaryUrl);
-      const text = await response.text();
-      
-      // Use adapter to parse dictionary
-      this.dictionary = adapter.parseDictionary(text);
+      if (adapter.constructor.name === 'FrenchLanguageAdapter') {
+        // Handle French dictionary with multiple term bank files
+        const baseUrl = chrome.runtime.getURL('dictionaries/French/');
+        const dictionary = {};
+        
+        // Load and process each term bank file
+        for (let i = 1; i <= 27; i++) {
+          const fileName = `term_bank_${i}.json`;
+          const response = await fetch(`${baseUrl}${fileName}`);
+          const bankContent = await response.json();
+          
+          // Merge entries from this bank into main dictionary
+          Object.assign(dictionary, adapter.processTermBank(bankContent, dictionary));
+          console.log(`Loaded term bank ${i} of 27`);
+        }
+        
+        this.dictionary = dictionary;
+      } else {
+        // Handle other languages with single dictionary file
+        const dictionaryUrl = chrome.runtime.getURL(dictionaryPath);
+        const response = await fetch(dictionaryUrl);
+        const text = await response.text();
+        this.dictionary = adapter.parseDictionary(text);
+      }
+
       console.log(`Dictionary loaded with ${Object.keys(this.dictionary).length} entries for ${adapter.getDisplayName()}`);
     } catch (error) {
       console.warn('Could not load dictionary file:', error);
