@@ -15,6 +15,7 @@ class ChineseLanguageLearningExtension {
     this.settings = null;
     this.asb = null;
     this.languageRegistry = null;
+    this.languageSwitchCoordinator = null;
 
     this.init();
   }
@@ -33,10 +34,21 @@ class ChineseLanguageLearningExtension {
     this.highlightManager = new HighlightManager();
     this.frequencyManager = new FrequencyManager();
 
+    // Initialize language switch coordinator
+    this.languageSwitchCoordinator = new LanguageSwitchCoordinator({
+      languageRegistry: this.languageRegistry,
+      dictionaryManager: this.dictionaryManager,
+      pageProcessor: null, // Will be set later
+      popup: null, // Will be set later
+      vocabManager: this.vocabManager
+    });
+
     // Load settings first to get target language
     this.settings = new SettingsSync({
       onLoaded: (s) => {
-        const targetLanguage = s?.targetLanguage || 'fr';
+        const targetLanguage = s?.targetLanguage || 'en';
+        console.log(`🌍 Loading extension with target language: ${targetLanguage}`);
+        console.log('📋 All settings received:', s);
         this.languageRegistry.setLanguage(targetLanguage);
         this.featureToggle?.applyInitial(s || {});
       },
@@ -47,20 +59,22 @@ class ChineseLanguageLearningExtension {
       onSettingsUpdated: (s) => window.ContentSettingsApplier?.apply(this, s),
       onActivationKeyChanged: (key) => this.activation.setKey(key),
       onAutoHighlightChanged: (enabled) => this.featureToggle?.setAutoHighlight(enabled),
-      onLanguageChanged: (languageCode) => {
-        this.languageRegistry.setLanguage(languageCode);
-        this.dictionaryManager.loadDictionary();
-        this.pageProcessor?.reprocessPage();
+      onLanguageChanged: async (languageCode) => {
+        console.log(`🔄 Language change requested: ${languageCode}`);
+        // Use the coordinator for smooth language switching
+        await this.languageSwitchCoordinator.switchLanguage(languageCode);
       }
     });
     await this.settings.load();
 
+    console.log(`📚 Loading dictionary for language: ${this.languageRegistry.getCurrentLanguage()}`);
     await Promise.all([
       this.dictionaryManager.loadDictionary(),
       this.vocabManager.loadKnownWords(),
       this.frequencyManager.loadFrequencyList(),
     ]);
 
+    console.log(`✅ Dictionary and resources loaded successfully`);
     this.pageProcessor = new PageProcessor(this.dictionaryManager, this.vocabManager, this.languageRegistry);
     window.pageProcessor = this.pageProcessor;
     this.bannerManager = new BannerManager();
@@ -80,6 +94,11 @@ class ChineseLanguageLearningExtension {
       languageRegistry: this.languageRegistry,
     });
     window.highlightManager = this.highlightManager;
+
+    // Update language switch coordinator with initialized components
+    this.languageSwitchCoordinator.pageProcessor = this.pageProcessor;
+    this.languageSwitchCoordinator.popup = this.popup;
+    window.languageSwitchCoordinator = this.languageSwitchCoordinator;
 
     this.lookup = new LookupController({
       pageProcessor: this.pageProcessor,

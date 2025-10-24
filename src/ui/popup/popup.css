@@ -170,22 +170,43 @@
   z-index: 2;
 }
 
-/* Character Display - Original Layout */
+/* Character Display - Compact Layout */
 .character-container {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 10px;
+  margin-bottom: 12px;
+  max-height: 80px;
+  overflow: visible;
 }
 
 .character.highlight {
-  font-size: 42px;
-  font-weight: 900;
+  font-size: 28px;
+  font-weight: 700;
   color: var(--popup-text-primary);
-  letter-spacing: 2px;
-  line-height: 1;
+  letter-spacing: 1px;
+  line-height: 1.2;
   text-shadow: 0 4px 16px rgba(255, 255, 255, 0.1);
   position: relative;
+  max-width: 100%;
+  max-height: 70px;
+  word-break: break-word;
+  display: inline-block;
+}
+
+/* Responsive font size for longer words - much more aggressive */
+.character.highlight.long-word {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  max-height: 60px;
+}
+
+.character.highlight.very-long-word {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0px;
+  max-height: 50px;
 }
 
 .character.highlight ruby {

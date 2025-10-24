@@ -7,8 +7,13 @@ class BackgroundService {
 
   init() {
     // Listen for extension installation
-    chrome.runtime.onInstalled.addListener(() => {
+    chrome.runtime.onInstalled.addListener((details) => {
       this.setupInitialData();
+
+      // Open onboarding page on first install
+      if (details.reason === 'install') {
+        this.openOnboardingPage();
+      }
     });
 
     // Listen for messages from content script and settings
@@ -35,6 +40,7 @@ class BackgroundService {
         "activationKey",
         "autoHighlight",
         "popupTheme",
+        "targetLanguage",
       ]);
 
       this.extensionSettings = {
@@ -46,6 +52,7 @@ class BackgroundService {
         autoHighlight:
           result.autoHighlight !== undefined ? result.autoHighlight : true,
         popupTheme: result.popupTheme || "dark",
+        targetLanguage: result.targetLanguage || "en",
       };
 
       console.log("🔍 Loaded extension settings:", this.extensionSettings);
@@ -56,6 +63,7 @@ class BackgroundService {
         activationKey: "Shift",
         autoHighlight: true,
         popupTheme: "dark",
+        targetLanguage: "en",
       };
     }
   }
@@ -71,6 +79,9 @@ class BackgroundService {
         "activationKey",
         "autoHighlight",
         "popupTheme",
+        "targetLanguage",
+        "hasCompletedOnboarding",
+        "installDate",
       ]);
 
       // Initialize empty vocabulary list if it doesn't exist
@@ -116,6 +127,18 @@ class BackgroundService {
       }
       if (!result.popupTheme) {
         await chrome.storage.local.set({ popupTheme: "dark" });
+      }
+
+      // Initialize target language (default to English if not set)
+      if (!result.targetLanguage) {
+        await chrome.storage.local.set({ targetLanguage: "en" });
+      }
+
+      // Set install date for first-time users
+      if (!result.installDate) {
+        await chrome.storage.local.set({
+          installDate: new Date().toISOString()
+        });
       }
 
       await this.loadExtensionSettings();
@@ -180,6 +203,10 @@ class BackgroundService {
 
         case "getExtensionSettings":
           await this.handleGetExtensionSettings(sendResponse);
+          break;
+
+        case "onboardingCompleted":
+          await this.handleOnboardingCompleted(message.language, sendResponse);
           break;
 
         // === VOCABULARY HANDLERS ===
@@ -736,6 +763,52 @@ class BackgroundService {
           success: false,
           error: error.message,
         });
+      }
+    }
+  }
+
+  /**
+   * Open onboarding page for first-time users
+   */
+  openOnboardingPage() {
+    const onboardingUrl = chrome.runtime.getURL('src/ui/onboarding/onboarding.html');
+    chrome.tabs.create({ url: onboardingUrl });
+    console.log('🔧 Opened onboarding page for first-time user');
+  }
+
+  /**
+   * Handle onboarding completion
+   */
+  async handleOnboardingCompleted(languageCode, sendResponse) {
+    try {
+      console.log(`🔧 Onboarding completed with language: ${languageCode}`);
+
+      // Reload our cached settings to include the new language
+      await this.loadExtensionSettings();
+
+      // Broadcast to all tabs to reload with new language
+      const tabs = await chrome.tabs.query({});
+      const broadcastPromises = tabs.map(tab => {
+        return chrome.tabs.sendMessage(tab.id, {
+          action: "settingsUpdated",
+          settings: { targetLanguage: languageCode }
+        }).catch(() => {
+          // Tab might not have content script loaded, ignore
+          console.log(`Could not send to tab ${tab.id}, probably no content script`);
+        });
+      });
+
+      await Promise.allSettled(broadcastPromises);
+
+      console.log(`✅ Successfully broadcasted language change to all tabs`);
+
+      if (sendResponse) {
+        sendResponse({ success: true });
+      }
+    } catch (error) {
+      console.error('❌ Error handling onboarding completion:', error);
+      if (sendResponse) {
+        sendResponse({ success: false, error: error.message });
       }
     }
   }

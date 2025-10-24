@@ -219,7 +219,7 @@ class ChineseLanguageAdapter extends BaseLanguageAdapter {
    * @returns {string} - Path to CEDICT file
    */
   getDictionaryPath() {
-    return 'cedict_ts.u8';
+    return 'dictionaries/Chinese/cedict_ts.u8';
   }
 }
 

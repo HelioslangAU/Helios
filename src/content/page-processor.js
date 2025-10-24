@@ -94,11 +94,130 @@ class PageProcessor {
     this.ensureGlobalCSS();
     const textNodes = this.getAllTextNodes(document.body);
 
-    for (const textNode of textNodes) {
-      this.processTextNodeForUnknownWords(textNode);
+    console.log(`⚡ Processing ${textNodes.length} text nodes...`);
+
+    // Prioritize visible content for faster perceived performance
+    const { visibleNodes, hiddenNodes } = this.partitionTextNodesByVisibility(textNodes);
+
+    console.log(`📊 ${visibleNodes.length} visible, ${hiddenNodes.length} hidden nodes`);
+
+    // INSTANT PROCESSING: Process visible nodes synchronously for immediate feedback
+    // Then batch process remaining hidden nodes in background
+    if (visibleNodes.length > 0) {
+      const start = Date.now();
+      visibleNodes.forEach(node => {
+        try {
+          this.processTextNodeForUnknownWords(node);
+        } catch (e) {
+          console.warn('Error processing visible node:', e);
+        }
+      });
+      console.log(`✅ Visible nodes processed in ${Date.now() - start}ms`);
+
+      // Calculate comprehension immediately after visible content is processed
+      // This gives quick feedback to banner/stats even before full page is done
+      this.calculateComprehensionPercentage();
     }
 
-    console.log('Page processed for unknown words');
+    // Process hidden nodes in background batches
+    if (hiddenNodes.length > 0) {
+      this.processBatchedTextNodes(hiddenNodes, () => {
+        // Recalculate comprehension after all processing is complete
+        this.calculateComprehensionPercentage();
+        console.log(`📊 Full page comprehension calculated`);
+      });
+    } else if (visibleNodes.length === 0) {
+      // If there are no nodes at all, still calculate
+      this.calculateComprehensionPercentage();
+    }
+  }
+
+  /**
+   * Partition text nodes into visible and hidden for prioritized processing
+   * @param {Array} textNodes - All text nodes
+   * @returns {Object} - {visibleNodes, hiddenNodes}
+   */
+  partitionTextNodesByVisibility(textNodes) {
+    const visibleNodes = [];
+    const hiddenNodes = [];
+
+    for (const node of textNodes) {
+      const element = node.parentElement;
+      if (!element) continue;
+
+      // Quick visibility check
+      const rect = element.getBoundingClientRect();
+      const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
+
+      if (isVisible) {
+        visibleNodes.push(node);
+      } else {
+        hiddenNodes.push(node);
+      }
+    }
+
+    return { visibleNodes, hiddenNodes };
+  }
+
+  /**
+   * Process text nodes in batches using requestIdleCallback for better performance
+   * @param {Array} textNodes - Array of text nodes to process
+   * @param {Function} onComplete - Callback when processing is complete
+   */
+  processBatchedTextNodes(textNodes, onComplete = null) {
+    if (textNodes.length === 0) {
+      if (onComplete) onComplete();
+      return;
+    }
+
+    const BATCH_SIZE = 100; // Process 100 nodes at a time (increased for speed)
+    let currentIndex = 0;
+    const startTime = Date.now();
+
+    const processBatch = (deadline) => {
+      // Process nodes while we have idle time
+      while (currentIndex < textNodes.length && (deadline.timeRemaining() > 0 || deadline.didTimeout)) {
+        const batchEnd = Math.min(currentIndex + BATCH_SIZE, textNodes.length);
+
+        for (let i = currentIndex; i < batchEnd; i++) {
+          try {
+            this.processTextNodeForUnknownWords(textNodes[i]);
+          } catch (error) {
+            // Skip problematic nodes
+            console.warn('Error processing text node:', error);
+          }
+        }
+
+        currentIndex = batchEnd;
+
+        // Break if we've processed a batch
+        if (currentIndex % BATCH_SIZE === 0) {
+          break;
+        }
+      }
+
+      // If there are more nodes, schedule next batch
+      if (currentIndex < textNodes.length) {
+        if (window.requestIdleCallback) {
+          window.requestIdleCallback(processBatch, { timeout: 1000 });
+        } else {
+          // Fallback for browsers without requestIdleCallback
+          setTimeout(() => processBatch({ timeRemaining: () => 50, didTimeout: false }), 0);
+        }
+      } else {
+        const elapsed = Date.now() - startTime;
+        console.log(`✅ Batch complete: ${textNodes.length} nodes in ${elapsed}ms`);
+        if (onComplete) onComplete();
+      }
+    };
+
+    // Start processing
+    if (window.requestIdleCallback) {
+      window.requestIdleCallback(processBatch, { timeout: 1000 });
+    } else {
+      // Fallback for browsers without requestIdleCallback
+      setTimeout(() => processBatch({ timeRemaining: () => 50, didTimeout: false }), 0);
+    }
   }
 
   calculateComprehensionPercentage() {

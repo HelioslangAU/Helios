@@ -32,6 +32,9 @@ class SettingsSync {
         case "updateAutoHighlight":
           this.callbacks.onAutoHighlightChanged && this.callbacks.onAutoHighlightChanged(message.enabled);
           break;
+        case "updateLanguage":
+          this.callbacks.onLanguageChanged && this.callbacks.onLanguageChanged(message.language);
+          break;
       }
       sendResponse({ success: true });
     });

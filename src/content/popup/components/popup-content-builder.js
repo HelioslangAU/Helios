@@ -3,14 +3,38 @@
  * Handles building different types of popup content
  */
 class PopupContentBuilder {
+  static getWordLengthClass(word) {
+    // Remove HTML tags and get actual character count
+    const cleanWord = word.replace(/<[^>]*>/g, '');
+    const length = cleanWord.length;
+
+    // Much more aggressive sizing for long words
+    if (length > 10) return 'very-long-word';
+    if (length > 5) return 'long-word';
+    return '';
+  }
+
+  static formatFrequency(frequency) {
+    if (!frequency) return null;
+
+    // Convert numeric frequency to readable label
+    if (frequency >= 10000) return 'Very Common';
+    if (frequency >= 5000) return 'Common';
+    if (frequency >= 1000) return 'Frequent';
+    if (frequency >= 500) return 'Uncommon';
+    return 'Rare';
+  }
+
   static createBasicContent(character, dictionaryData, vocabManager, frequencyManager, settings = {}) {
     const { matches, isKnown, isIgnored, frequency } = dictionaryData;
+    const lengthClass = this.getWordLengthClass(character);
+    const formattedFrequency = this.formatFrequency(frequency);
 
     if (matches.length === 0) {
       return `
         <div class="popup-content">
           <div class="character-container">
-            <div class="character highlight">${character}</div>
+            <div class="character highlight ${lengthClass}">${character}</div>
           </div>
           <div class="definition">Word not found in dictionary</div>
           ${this.createAnkiButton()}
@@ -26,9 +50,9 @@ class PopupContentBuilder {
     return `
       <div class="popup-content">
         <div class="character-container">
-          <div class="character highlight">${pinyin ? `<ruby>${character}<rt>${pinyin}</rt></ruby>` : character}</div>
+          <div class="character highlight ${lengthClass}">${pinyin ? `<ruby>${character}<rt>${pinyin}</rt></ruby>` : character}</div>
           ${pronunciationBtn}
-          ${frequency && showFrequency ? `<div class="frequency">Frequency: ${frequency}</div>` : ""}
+          ${formattedFrequency && showFrequency ? `<div class="frequency">${formattedFrequency}</div>` : ""}
         </div>
         <div class="definitions-scroll">${definitionsHtml}</div>
         <div class="popup-buttons">
@@ -41,6 +65,8 @@ class PopupContentBuilder {
 
   static createCardContent(displayCharacter, card, isKnown, isIgnored, frequency, settings = {}) {
     const { pinyin, entries } = card;
+    const lengthClass = this.getWordLengthClass(displayCharacter);
+    const formattedFrequency = this.formatFrequency(frequency);
     const definitionsHtml = this.createDefinitionsHtml(entries);
     const pronunciationBtn = this.createPronunciationButton(displayCharacter, pinyin);
     const showFrequency = settings.showFrequency !== false;
@@ -48,9 +74,9 @@ class PopupContentBuilder {
     return `
       <div class="popup-content">
         <div class="character-container">
-          <div class="character highlight">${pinyin ? `<ruby>${displayCharacter}<rt>${pinyin}</rt></ruby>` : displayCharacter}</div>
+          <div class="character highlight ${lengthClass}">${pinyin ? `<ruby>${displayCharacter}<rt>${pinyin}</rt></ruby>` : displayCharacter}</div>
           ${pronunciationBtn}
-          ${frequency && showFrequency ? `<div class="frequency">Frequency: ${frequency}</div>` : ""}
+          ${formattedFrequency && showFrequency ? `<div class="frequency">${formattedFrequency}</div>` : ""}
         </div>
         <div class="definitions-scroll">${definitionsHtml}</div>
         <div class="popup-buttons">
@@ -65,15 +91,17 @@ class PopupContentBuilder {
 
   static createCardContentInner(displayCharacter, card, isKnown, isIgnored, frequency, settings = {}) {
     const { pinyin, entries } = card;
+    const lengthClass = this.getWordLengthClass(displayCharacter);
+    const formattedFrequency = this.formatFrequency(frequency);
     const definitionsHtml = this.createDefinitionsHtml(entries);
     const pronunciationBtn = this.createPronunciationButton(displayCharacter, pinyin, pinyin);
     const showFrequency = settings.showFrequency !== false;
 
     return `
       <div class="character-container">
-        <div class="character highlight"><ruby>${displayCharacter}<rt>${pinyin}</rt></ruby></div>
+        <div class="character highlight ${lengthClass}"><ruby>${displayCharacter}<rt>${pinyin}</rt></ruby></div>
         ${pronunciationBtn}
-        ${frequency && showFrequency ? `<div class="frequency">Frequency: ${frequency}</div>` : ""}
+        ${formattedFrequency && showFrequency ? `<div class="frequency">${formattedFrequency}</div>` : ""}
       </div>
       <div class="definitions-scroll">${definitionsHtml}</div>
       <div class="popup-buttons">
