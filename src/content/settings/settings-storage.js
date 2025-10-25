@@ -115,6 +115,7 @@ class HeliosSettingsStorage {
     const keyMap = {
       "extension-enabled": "extensionEnabled",
       "activation-key": "activationKey",
+      "target-language": "targetLanguage",
       "auto-highlight": "autoHighlight",
       "popup-theme": "popupTheme",
       "scan-delay": "scanDelay", // Keep for backward compatibility

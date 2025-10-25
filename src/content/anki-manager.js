@@ -93,11 +93,13 @@ class AnkiManager {
       const matches = this.dictionaryManager.dictionary[character];
       if (matches && matches.length > 0) {
         const match = matches[0];
+        // Traditional/simplified only exist for Chinese
         wordData.traditional = match.traditional || character;
         wordData.simplified = match.simplified || character;
-        wordData.pinyin = match.pinyin || match.reading || "";
+        // Use pinyin for Chinese, pronunciation for other languages
+        wordData.pinyin = match.pinyin || match.pronunciation || match.reading || "";
         wordData.definition = match.definition || match.meaning || "";
-        wordData.frequency = match.frequency;
+        wordData.frequency = match.frequency || match.frq || "";
       }
     }
 

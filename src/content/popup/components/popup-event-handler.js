@@ -165,13 +165,17 @@ class PopupEventHandler {
   static async handleAnkiAdd(character, managers) {
     const { dictionaryManager, ankiManager, frequencyManager } = managers;
     const matches = dictionaryManager.dictionary[character] || [];
+    const firstMatch = matches.length > 0 ? matches[0] : {};
+
     const wordData = {
       character: character,
-      pinyin: matches.length > 0 ? matches[0].pinyin : '',
-      definition: matches.length > 0 ? matches[0].definition : 'No definition',
+      // Use pinyin for Chinese, pronunciation for other languages
+      pinyin: firstMatch.pinyin || firstMatch.pronunciation || '',
+      definition: firstMatch.definition || 'No definition',
       sentence: managers.popupManager.capturedSentence,
-      traditional: matches.length > 0 ? matches[0].traditional : character,
-      simplified: matches.length > 0 ? matches[0].simplified : character,
+      // Traditional/simplified only exist for Chinese, fallback to character
+      traditional: firstMatch.traditional || character,
+      simplified: firstMatch.simplified || character,
     };
 
     const ankiBtn = managers.popupManager.popup.querySelector(".anki-btn");
@@ -184,13 +188,17 @@ class PopupEventHandler {
       ? currentCard.character
       : managers.popupManager.originalCharacter;
 
+    const firstEntry = currentCard.entries[0] || {};
+
     const wordData = {
       character: displayCharacter,
-      pinyin: currentCard.pinyin,
+      // Use pinyin for Chinese, pronunciation for other languages
+      pinyin: currentCard.pinyin || firstEntry.pronunciation || '',
       definition: currentCard.entries.map(e => e.definition).join('; '),
       sentence: managers.popupManager.capturedSentence,
-      traditional: currentCard.entries[0].traditional,
-      simplified: currentCard.entries[0].simplified,
+      // Traditional/simplified only exist for Chinese, fallback to character
+      traditional: firstEntry.traditional || displayCharacter,
+      simplified: firstEntry.simplified || displayCharacter,
     };
 
     const ankiBtn = managers.popupManager.popup.querySelector(".anki-btn");

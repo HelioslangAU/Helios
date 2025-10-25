@@ -441,6 +441,12 @@ class BackgroundService {
       return data.result;
     } catch (error) {
       console.error("🃏 AnkiConnect error:", error);
+
+      // Provide more helpful error messages
+      if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
+        throw new Error('Cannot connect to Anki. Please ensure Anki is running and AnkiConnect add-on is installed.');
+      }
+
       throw error;
     }
   }

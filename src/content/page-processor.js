@@ -415,6 +415,11 @@ class PageProcessor {
       fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
     }
 
+    // Safety check: node might have been removed from DOM during async processing
+    if (!textNode.parentNode) {
+      return;
+    }
+
     textNode.parentNode.replaceChild(fragment, textNode);
   }
 
