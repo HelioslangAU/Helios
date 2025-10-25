@@ -82,8 +82,12 @@ class AnkiManager {
 
   // Extract word data from character and context
   extractWordData(character) {
+    // Get current language from registry
+    const currentLanguage = window.languageRegistry?.getCurrentLanguage() || 'zh';
+
     const wordData = {
       character: character,
+      language: currentLanguage, // Add language to wordData
       timestamp: new Date().toISOString(),
       url: window.location.href,
     };

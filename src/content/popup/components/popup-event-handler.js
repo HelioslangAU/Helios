@@ -167,8 +167,12 @@ class PopupEventHandler {
     const matches = dictionaryManager.dictionary[character] || [];
     const firstMatch = matches.length > 0 ? matches[0] : {};
 
+    // Get current language
+    const currentLanguage = window.languageRegistry?.getCurrentLanguage() || 'zh';
+
     const wordData = {
       character: character,
+      language: currentLanguage, // Add language
       // Use pinyin for Chinese, pronunciation for other languages
       pinyin: firstMatch.pinyin || firstMatch.pronunciation || '',
       definition: firstMatch.definition || 'No definition',
@@ -190,8 +194,12 @@ class PopupEventHandler {
 
     const firstEntry = currentCard.entries[0] || {};
 
+    // Get current language
+    const currentLanguage = window.languageRegistry?.getCurrentLanguage() || 'zh';
+
     const wordData = {
       character: displayCharacter,
+      language: currentLanguage, // Add language
       // Use pinyin for Chinese, pronunciation for other languages
       pinyin: currentCard.pinyin || firstEntry.pronunciation || '',
       definition: currentCard.entries.map(e => e.definition).join('; '),

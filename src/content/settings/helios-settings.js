@@ -90,10 +90,40 @@ class HeliosSettingsManager {
       // Set up main navigation
       this.setupEventListeners();
 
-      console.log("🔍 DEBUG: Event listeners set up, loading general tab...");
+      console.log("🔍 DEBUG: Event listeners set up, loading initial tab...");
 
-      // Load the first tab (General) immediately
-      await this.loadTabContent("general");
+      // Check localStorage for last active tab, otherwise default to 'general'
+      let initialTab = 'general';
+      try {
+        const savedTab = localStorage.getItem('helios-active-settings-tab');
+        if (savedTab && ['general', 'popup', 'anki', 'vocabulary', 'advanced'].includes(savedTab)) {
+          initialTab = savedTab;
+          console.log("🔍 DEBUG: Restoring saved tab:", initialTab);
+        }
+      } catch (e) {
+        console.warn('Could not read saved tab from localStorage:', e);
+      }
+
+      // Load the initial tab
+      await this.loadTabContent(initialTab);
+
+      // Update nav item to show the correct active tab
+      document.querySelectorAll('.nav-item').forEach((nav) => {
+        if (nav.getAttribute('data-tab') === initialTab) {
+          nav.classList.add('active');
+        } else {
+          nav.classList.remove('active');
+        }
+      });
+
+      // Show the correct tab content
+      document.querySelectorAll('.tab-content').forEach((tab) => {
+        if (tab.id === initialTab) {
+          tab.classList.add('active');
+        } else {
+          tab.classList.remove('active');
+        }
+      });
 
       console.log("🔍 DEBUG: Helios Settings Manager initialized successfully");
     } catch (error) {
@@ -191,6 +221,13 @@ class HeliosSettingsManager {
   async switchTab(event) {
     const targetTab = event.currentTarget.getAttribute("data-tab");
     console.log("🔍 DEBUG: Switching to tab:", targetTab);
+
+    // Save the active tab to localStorage
+    try {
+      localStorage.setItem('helios-active-settings-tab', targetTab);
+    } catch (e) {
+      console.warn('Could not save active tab to localStorage:', e);
+    }
 
     // Update active nav item
     document

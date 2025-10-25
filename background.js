@@ -507,21 +507,41 @@ class BackgroundService {
 
   buildCardFields(wordData, fieldMappings) {
     const fields = {};
+    const language = wordData.language || 'zh'; // Default to Chinese if not specified
+    const isChinese = language === 'zh';
 
-    const pinyinWithNumbers = this.pinyinTonesToNumbers(wordData.pinyin, wordData.character.length);
+    // Build dataMap differently based on language
+    let dataMap;
 
-    // Available data
-    const dataMap = {
-      expression: wordData.character,
-      expressionRubyTxt: `${wordData.character}[${pinyinWithNumbers};]`,
-      reading: pinyinWithNumbers,
-      meaning: wordData.definition,
-      sentence: wordData.sentence,
-      traditional: wordData.traditional,
-      simplified: wordData.simplified,
-      source: wordData.url,
-      frequency: wordData.frequency?.toString() || "",
-    };
+    if (isChinese) {
+      // For Chinese: convert pinyin to tone numbers and create ruby text
+      const pinyinWithNumbers = this.pinyinTonesToNumbers(wordData.pinyin, wordData.character.length);
+
+      dataMap = {
+        expression: wordData.character,
+        expressionRubyTxt: `${wordData.character}[${pinyinWithNumbers};]`,
+        reading: pinyinWithNumbers,
+        meaning: wordData.definition,
+        sentence: wordData.sentence,
+        traditional: wordData.traditional,
+        simplified: wordData.simplified,
+        source: wordData.url,
+        frequency: wordData.frequency?.toString() || "",
+      };
+    } else {
+      // For other languages: use raw pronunciation (IPA), no ruby text
+      dataMap = {
+        expression: wordData.character,
+        reading: wordData.pinyin || '', // Raw IPA pronunciation
+        meaning: wordData.definition,
+        sentence: wordData.sentence,
+        source: wordData.url,
+        frequency: wordData.frequency?.toString() || "",
+        // Traditional/simplified are same as expression for non-Chinese
+        traditional: wordData.character,
+        simplified: wordData.character,
+      };
+    }
 
     // Apply field mappings
     for (const [fieldName, dataType] of Object.entries(fieldMappings)) {
@@ -532,11 +552,17 @@ class BackgroundService {
 
     // Fallback if no mappings
     if (Object.keys(fields).length === 0) {
-      fields["Front"] = wordData.character || "Unknown";
-      fields["Back"] =
-        pinyinWithNumbers && wordData.definition
-          ? `${pinyinWithNumbers}<br>${wordData.definition}`
-          : wordData.definition || "No definition";
+      if (isChinese) {
+        const pinyinWithNumbers = this.pinyinTonesToNumbers(wordData.pinyin, wordData.character.length);
+        fields["Front"] = wordData.character || "Unknown";
+        fields["Back"] =
+          pinyinWithNumbers && wordData.definition
+            ? `${pinyinWithNumbers}<br>${wordData.definition}`
+            : wordData.definition || "No definition";
+      } else {
+        fields["Front"] = wordData.character || "Unknown";
+        fields["Back"] = wordData.definition || "No definition";
+      }
     }
 
     return fields;
