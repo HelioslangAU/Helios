@@ -82,11 +82,33 @@ class CardManager {
     }
     let matches = this.dictionaryManager.dictionary[character];
     console.log(matches && matches[0].definition == '');
-    if (matches && matches[0].definition == '') {
-      console.log(this.languageRegistry.getAdapter().findDictionaryForm(character, this.dictionaryManager.dictionary));
-      const word = [this.languageRegistry.getAdapter().findDictionaryForm(character, this.dictionaryManager.dictionary)];
-      console.log(this.dictionaryManager.dictionary[word]);
-      matches = this.dictionaryManager.dictionary[matches[0].variations[0]];
+    if (matches) {
+      // Process each match that has an empty definition
+      const processedMatches = [];
+      for (const match of matches) {
+        if (match.definition === '') {
+          // If this match has variations, get the base form's definition
+          if (match.variations && match.variations.length > 0) {
+            const baseForm = match.variations[0];
+            const baseFormDefs = this.dictionaryManager.dictionary[baseForm];
+            if (baseFormDefs && baseFormDefs.length > 0) {
+              // Add base form annotation to each definition
+              const annotatedDefs = baseFormDefs.map(def => ({
+                ...def,
+                word: `${character} {${baseForm}}`
+              }));
+              processedMatches.push(...annotatedDefs);
+            }
+          }
+        } else {
+          // Keep matches that already have definitions
+          processedMatches.push(match);
+        }
+      }
+      // Only update matches if we found any processed entries
+      if (processedMatches.length > 0) {
+        matches = processedMatches;
+      }
     }
     console.log(matches);
     console.log('prepareBasicPopupData', character, matches);

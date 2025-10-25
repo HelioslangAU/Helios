@@ -560,22 +560,22 @@ class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
           if (content.type === 'structured-content') {
             for (const section of content.content) {
               // Extract grammar information
-              if (section.content && Array.isArray(section.content)) {
-                for (const item of section.content) {
-                  if (item.data?.content === 'details-entry-Grammar') {
-                    const grammarContent = item.content.find(c => c.data?.content === 'Grammar-content');
-                    if (grammarContent) {
-                      grammar = grammarContent.content || '';
-                    }
-                  }
-                  if (item.data?.content === 'details-entry-Morphemes') {
-                    const morphContent = item.content.find(c => c.data?.content === 'Morphemes-content');
-                    if (morphContent) {
-                      morphology = morphContent.content || '';
-                    }
-                  }
-                }
-              }
+              // if (section.content && Array.isArray(section.content)) {
+              //   for (const item of section.content) {
+              //     if (item.data?.content === 'details-entry-Grammar') {
+              //       const grammarContent = item.content.find(c => c.data?.content === 'Grammar-content');
+              //       if (grammarContent) {
+              //         grammar = grammarContent.content || '';
+              //       }
+              //     }
+              //     // if (item.data?.content === 'details-entry-Morphemes') {
+              //     //   const morphContent = item.content.find(c => c.data?.content === 'Morphemes-content');
+              //     //   if (morphContent) {
+              //     //     morphology = morphContent.content || '';
+              //     //   }
+              //     // }
+              //   }
+              // }
                       // Extract definitions from glosses
               if (section.data?.content === 'glosses' && Array.isArray(section.content)) {
                 for (const li of section.content) {
@@ -585,8 +585,7 @@ class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
                       // Handle array of definition parts
                       const joinedDef = def
                         .map(part => {
-                          if (typeof part === 'string') return part;
-                          if (part && typeof part === 'object') return '';
+                          if (typeof part === 'string') return part.trim();
                           return '';
                         })
                         .filter(Boolean)
