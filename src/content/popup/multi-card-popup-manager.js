@@ -29,7 +29,9 @@ class MultiCardPopupManager extends PopupManager {
   }
 
   showCard(x, y, character, cardIndex) {
+    // CRITICAL: Remove ALL existing popups immediately (synchronously)
     this.hidePopup();
+    this.removeAllPopupsFromPage();
 
     const card = this.cardNavigator.currentCards[cardIndex];
     const popup = PopupPositioner.createPopupElement(this.settingsManager.settings.popupFontSize);
@@ -45,13 +47,15 @@ class MultiCardPopupManager extends PopupManager {
 
 
     // Build content
+    const currentLanguage = this.languageRegistry.getCurrentLanguage();
     popup.innerHTML = PopupContentBuilder.createCardContent(
       displayCharacter,
       card,
       isKnown,
       isIgnored,
       frequency,
-      this.settingsManager.settings
+      this.settingsManager.settings,
+      currentLanguage
     );
 
     // Add to DOM and position
@@ -70,6 +74,11 @@ class MultiCardPopupManager extends PopupManager {
     // Remove creating class to enable transitions after initial setup
     popup.classList.remove('creating');
 
+    // Track word lookup for recent vocabulary
+    if (card && card.entries && card.entries.length > 0) {
+      this.vocabManager.trackWordLookup(displayCharacter, card.entries[0]);
+    }
+
     // Add navigation if multiple cards
     this.cardNavigator.addNavigationDots(popup);
 
@@ -84,7 +93,7 @@ class MultiCardPopupManager extends PopupManager {
       settingsManager: this.settingsManager
     };
 
-    PopupEventHandler.setupEvents(popup, character, managers, { 
+    PopupEventHandler.setupEvents(popup, character, managers, {
       isMultiCard: true,  // Enable multi-card mode for proper handling
       currentCard: card, 
       cardNavigator: this.cardNavigator 

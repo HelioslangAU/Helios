@@ -1,6 +1,7 @@
 /* Clean Minimalistic Popup - Black with Orange Accents */
 
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap");
 
 :root {
   /* Original Clean Color Palette */
@@ -178,6 +179,7 @@
   margin-bottom: 12px;
   max-height: 80px;
   overflow: visible;
+  width: 100%;
 }
 
 .character.highlight {
@@ -190,8 +192,10 @@
   position: relative;
   max-width: 100%;
   max-height: 70px;
-  word-break: break-word;
+  word-break: normal;
+  overflow-wrap: normal;
   display: inline-block;
+  white-space: nowrap;
 }
 
 /* Responsive font size for longer words - much more aggressive */
@@ -207,6 +211,70 @@
   font-weight: 600;
   letter-spacing: 0px;
   max-height: 50px;
+}
+
+.character.highlight.extra-long-word {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0px;
+  max-height: 45px;
+}
+
+.character.highlight.super-long-word {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  max-height: 40px;
+}
+
+/* Language-specific font styling */
+.character.highlight.lang-french,
+.character.highlight.lang-english,
+.character.highlight.lang-spanish {
+  font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+  font-size: 26px;
+  text-transform: none;
+}
+
+.character.highlight.lang-french.long-word,
+.character.highlight.lang-english.long-word,
+.character.highlight.lang-spanish.long-word {
+  font-size: 20px;
+  letter-spacing: 0.2px;
+  font-weight: 600;
+}
+
+.character.highlight.lang-french.very-long-word,
+.character.highlight.lang-english.very-long-word,
+.character.highlight.lang-spanish.very-long-word {
+  font-size: 16px;
+  letter-spacing: 0px;
+  font-weight: 600;
+}
+
+.character.highlight.lang-french.extra-long-word,
+.character.highlight.lang-english.extra-long-word,
+.character.highlight.lang-spanish.extra-long-word {
+  font-size: 13px;
+  letter-spacing: 0px;
+  font-weight: 600;
+}
+
+.character.highlight.lang-french.super-long-word,
+.character.highlight.lang-english.super-long-word,
+.character.highlight.lang-spanish.super-long-word {
+  font-size: 11px;
+  letter-spacing: -0.2px;
+  font-weight: 600;
+  max-height: 40px;
+}
+
+/* Keep Chinese with Inter font */
+.character.highlight.lang-chinese {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 .character.highlight ruby {

@@ -48,10 +48,15 @@ class AudioManager {
       return this.audioCache.get(cacheKey);
     }
 
-    // Try ChinesePod101 first
-    let audioUrl = await this.tryChinesePod101(word);
+    let audioUrl = null;
 
-    // Try other sources if ChinesePod101 fails
+    // Language-specific audio sources
+    if (language === 'zh') {
+      // Try ChinesePod101 first for Chinese
+      audioUrl = await this.tryChinesePod101(word);
+    }
+
+    // Try Google Translate for all languages (including Chinese as fallback)
     if (!audioUrl) {
       audioUrl = await this.tryGoogleTranslate(word, language);
     }
@@ -218,30 +223,70 @@ class AudioManager {
         return false;
       }
 
-      console.log(`🔊 Using Web Speech API for: ${word}`);
+      console.log(`🔊 Using Web Speech API for: ${word} (language: ${language})`);
 
       // Stop any current speech
       speechSynthesis.cancel();
 
+      // Map language codes to proper speech synthesis language codes
+      const languageMap = {
+        'zh': 'zh-CN',
+        'en': 'en-US',
+        'fr': 'fr-FR',
+        'es': 'es-ES'
+      };
+
       // Create utterance
       const utterance = new SpeechSynthesisUtterance(word);
-      utterance.lang = language === "zh" ? "zh-CN" : language;
+      utterance.lang = languageMap[language] || language;
       utterance.rate = 0.8; // Slightly slower for better clarity
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
 
-      // Try to find a Chinese voice
-      const voices = speechSynthesis.getVoices();
-      const chineseVoice = voices.find(
-        (voice) =>
-          voice.lang.startsWith("zh") ||
-          voice.name.toLowerCase().includes("chinese") ||
-          voice.name.toLowerCase().includes("mandarin")
-      );
+      // Try to find an appropriate voice for the language
+      // Note: getVoices() might return empty on first call, so we call it multiple times
+      let voices = speechSynthesis.getVoices();
+      if (voices.length === 0) {
+        // Try to trigger voice loading
+        speechSynthesis.getVoices();
+        voices = speechSynthesis.getVoices();
+      }
 
-      if (chineseVoice) {
-        utterance.voice = chineseVoice;
-        console.log(`🔊 Using Chinese voice: ${chineseVoice.name}`);
+      console.log(`🔊 Available voices (${voices.length}):`, voices.map(v => `${v.name} (${v.lang})`));
+
+      let targetVoice = null;
+      if (language === 'zh') {
+        targetVoice = voices.find(
+          (voice) =>
+            voice.lang.startsWith("zh") ||
+            voice.name.toLowerCase().includes("chinese") ||
+            voice.name.toLowerCase().includes("mandarin")
+        );
+      } else if (language === 'fr') {
+        targetVoice = voices.find(
+          (voice) =>
+            voice.lang.startsWith("fr") ||
+            voice.name.toLowerCase().includes("french")
+        );
+      } else if (language === 'en') {
+        targetVoice = voices.find(
+          (voice) =>
+            voice.lang.startsWith("en") ||
+            voice.name.toLowerCase().includes("english")
+        );
+      } else if (language === 'es') {
+        targetVoice = voices.find(
+          (voice) =>
+            voice.lang.startsWith("es") ||
+            voice.name.toLowerCase().includes("spanish")
+        );
+      }
+
+      if (targetVoice) {
+        utterance.voice = targetVoice;
+        console.log(`🔊 Using voice: ${targetVoice.name} for language: ${language}`);
+      } else {
+        console.log(`🔊 No specific voice found for ${language}, using default`);
       }
 
       // Event listeners
@@ -345,5 +390,30 @@ class AudioManager {
     } catch (error) {
       console.warn(`🔊 Failed to preload audio for ${word}:`, error);
     }
+  }
+}
+
+/**
+ * PopupPronunciationManager - Simple wrapper for AudioManager for popup use
+ * Automatically detects language from global languageRegistry
+ */
+class PopupPronunciationManager {
+  constructor() {
+    this.audioManager = new AudioManager();
+  }
+
+  async playPronunciation(word) {
+    // Get current language from global languageRegistry if available
+    const language = window.languageRegistry?.getCurrentLanguage() || 'zh';
+    console.log(`🔊 Playing pronunciation for "${word}" in language: ${language}`);
+    return this.audioManager.playPronunciation(word, language);
+  }
+
+  stopCurrentAudio() {
+    return this.audioManager.stopCurrentAudio();
+  }
+
+  getPlayingStatus() {
+    return this.audioManager.getPlayingStatus();
   }
 }

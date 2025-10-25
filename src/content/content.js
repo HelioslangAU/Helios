@@ -50,6 +50,7 @@ class ChineseLanguageLearningExtension {
         console.log(`🌍 Loading extension with target language: ${targetLanguage}`);
         console.log('📋 All settings received:', s);
         this.languageRegistry.setLanguage(targetLanguage);
+        this.vocabManager.setCurrentLanguage(targetLanguage);
         this.featureToggle?.applyInitial(s || {});
       },
       onToggled: (enabled) => {
@@ -67,7 +68,11 @@ class ChineseLanguageLearningExtension {
     });
     await this.settings.load();
 
-    console.log(`📚 Loading dictionary for language: ${this.languageRegistry.getCurrentLanguage()}`);
+    // Ensure vocab manager has the correct language before loading
+    const currentLang = this.languageRegistry.getCurrentLanguage();
+    this.vocabManager.setCurrentLanguage(currentLang);
+    console.log(`📚 Loading dictionary for language: ${currentLang}`);
+
     await Promise.all([
       this.dictionaryManager.loadDictionary(),
       this.vocabManager.loadKnownWords(),

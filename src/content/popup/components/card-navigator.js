@@ -75,13 +75,15 @@ class CardNavigator {
       const frequency = this.popupManager.frequencyManager?.getFrequency(displayCharacter);
 
       // Clear old content and add new content
+      const currentLanguage = this.popupManager.languageRegistry.getCurrentLanguage();
       popupContent.innerHTML = PopupContentBuilder.createCardContentInner(
         displayCharacter,
         newCard,
         isKnown,
         isIgnored,
         frequency,
-        this.popupManager.settingsManager.settings
+        this.popupManager.settingsManager.settings,
+        currentLanguage
       );
 
       popupContent.classList.remove("sliding-out");

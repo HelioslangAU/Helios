@@ -55,6 +55,11 @@ class LanguageSwitchCoordinator {
       this.languageRegistry.setLanguage(newLanguageCode);
       this.currentLanguage = newLanguageCode;
 
+      // Step 3.5: Update vocab manager language
+      if (this.vocabManager) {
+        this.vocabManager.setCurrentLanguage(newLanguageCode);
+      }
+
       // Step 4: Load new dictionary (this is the heavy operation)
       await this.dictionaryManager.loadDictionary();
 

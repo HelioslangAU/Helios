@@ -18,7 +18,7 @@ class PopupManager {
     // Initialize external managers
     this.ankiManager = new AnkiManager();
     this.ankiManager.initialize(this.dictionaryManager);
-    this.pronunciationManager = new PronunciationManager();
+    this.pronunciationManager = new PopupPronunciationManager();
 
     // Initialize internal components
     this.cardManager = new CardManager(this.dictionaryManager, new DefinitionFilter(), this.languageRegistry);
@@ -28,7 +28,10 @@ class PopupManager {
   }
 
   showDictionaryPopup(x, y, character, sentence) {
+    // CRITICAL: Remove ALL existing popups immediately (synchronously)
     this.hidePopup();
+    this.removeAllPopupsFromPage();
+
     this.capturedSentence = sentence;
 
     // Create popup element with correct size from the start
@@ -41,12 +44,14 @@ class PopupManager {
     dictionaryData.frequency = this.frequencyManager?.getFrequency(character);
 
     // Build content
+    const currentLanguage = this.languageRegistry.getCurrentLanguage();
     popup.innerHTML = PopupContentBuilder.createBasicContent(
       character,
       dictionaryData,
       this.vocabManager,
       this.frequencyManager,
-      this.settingsManager.settings
+      this.settingsManager.settings,
+      currentLanguage
     );
 
     // Add to DOM and position
@@ -64,6 +69,11 @@ class PopupManager {
 
     // Remove creating class to enable transitions after initial setup
     popup.classList.remove('creating');
+
+    // Track word lookup for recent vocabulary
+    if (dictionaryData && dictionaryData.matches && dictionaryData.matches.length > 0) {
+      this.vocabManager.trackWordLookup(character, dictionaryData.matches[0]);
+    }
 
     // Setup event handlers
     const managers = {
@@ -96,15 +106,38 @@ class PopupManager {
   }
 
   hidePopup(event) {
-    if (this.popup && event && this.popup.contains(event.target)) {
+    if (!this.popup) return;
+
+    if (event && this.popup.contains(event.target)) {
       return;
     }
-    if (this.popup && (!event || !this.popup.contains(event.target))) {
-      this.settingsManager.onPopupDestroyed();
+
+    // Clear any pending hide timeouts
+    clearTimeout(this.hideTimeout);
+
+    // Immediately hide popup SYNCHRONOUSLY
+    this.settingsManager.onPopupDestroyed();
+
+    // Remove popup IMMEDIATELY (not async)
+    if (this.popup && this.popup.parentNode) {
       this.popup.remove();
-      this.popup = null;
-      this.isMouseOverPopup = false;
     }
+    this.popup = null;
+    this.isMouseOverPopup = false;
+  }
+
+  // Remove ALL popups from the page (nuclear option to prevent stacking)
+  removeAllPopupsFromPage() {
+    const allPopups = document.querySelectorAll('.chinese-lang-extension-popup');
+    allPopups.forEach(popup => {
+      if (popup.parentNode) {
+        popup.remove();
+      }
+    });
+
+    // Also clear our reference
+    this.popup = null;
+    this.isMouseOverPopup = false;
   }
   incrementSessionCounter() {
     if (window.chrome && chrome.storage && chrome.storage.local) {

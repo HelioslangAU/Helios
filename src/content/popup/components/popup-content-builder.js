@@ -8,10 +8,22 @@ class PopupContentBuilder {
     const cleanWord = word.replace(/<[^>]*>/g, '');
     const length = cleanWord.length;
 
-    // Much more aggressive sizing for long words
+    // Progressive sizing for long words to prevent overflow
+    if (length > 18) return 'super-long-word'; // Extreme cases (progressivement, etc.)
+    if (length > 15) return 'extra-long-word';
     if (length > 10) return 'very-long-word';
-    if (length > 5) return 'long-word';
+    if (length > 6) return 'long-word';
     return '';
+  }
+
+  static getLanguageClass(languageCode) {
+    const languageMap = {
+      'zh': 'lang-chinese',
+      'en': 'lang-english',
+      'fr': 'lang-french',
+      'es': 'lang-spanish'
+    };
+    return languageMap[languageCode] || '';
   }
 
   static formatFrequency(frequency) {
@@ -25,16 +37,18 @@ class PopupContentBuilder {
     return 'Rare';
   }
 
-  static createBasicContent(character, dictionaryData, vocabManager, frequencyManager, settings = {}) {
+  static createBasicContent(character, dictionaryData, vocabManager, frequencyManager, settings = {}, languageCode = null) {
     const { matches, isKnown, isIgnored, frequency } = dictionaryData;
     const lengthClass = this.getWordLengthClass(character);
+    const languageClass = languageCode ? this.getLanguageClass(languageCode) : '';
+    const combinedClasses = `${lengthClass} ${languageClass}`.trim();
     const formattedFrequency = this.formatFrequency(frequency);
 
     if (matches.length === 0) {
       return `
         <div class="popup-content">
           <div class="character-container">
-            <div class="character highlight ${lengthClass}">${character}</div>
+            <div class="character highlight ${combinedClasses}">${character}</div>
           </div>
           <div class="definition">Word not found in dictionary</div>
           ${this.createAnkiButton()}
@@ -50,7 +64,7 @@ class PopupContentBuilder {
     return `
       <div class="popup-content">
         <div class="character-container">
-          <div class="character highlight ${lengthClass}">${pinyin ? `<ruby>${character}<rt>${pinyin}</rt></ruby>` : character}</div>
+          <div class="character highlight ${combinedClasses}">${pinyin ? `<ruby>${character}<rt>${pinyin}</rt></ruby>` : character}</div>
           ${pronunciationBtn}
           ${formattedFrequency && showFrequency ? `<div class="frequency">${formattedFrequency}</div>` : ""}
         </div>
@@ -63,9 +77,11 @@ class PopupContentBuilder {
     `;
   }
 
-  static createCardContent(displayCharacter, card, isKnown, isIgnored, frequency, settings = {}) {
+  static createCardContent(displayCharacter, card, isKnown, isIgnored, frequency, settings = {}, languageCode = null) {
     const { pinyin, entries } = card;
     const lengthClass = this.getWordLengthClass(displayCharacter);
+    const languageClass = languageCode ? this.getLanguageClass(languageCode) : '';
+    const combinedClasses = `${lengthClass} ${languageClass}`.trim();
     const formattedFrequency = this.formatFrequency(frequency);
     const definitionsHtml = this.createDefinitionsHtml(entries);
     const pronunciationBtn = this.createPronunciationButton(displayCharacter, pinyin);
@@ -74,7 +90,7 @@ class PopupContentBuilder {
     return `
       <div class="popup-content">
         <div class="character-container">
-          <div class="character highlight ${lengthClass}">${pinyin ? `<ruby>${displayCharacter}<rt>${pinyin}</rt></ruby>` : displayCharacter}</div>
+          <div class="character highlight ${combinedClasses}">${pinyin ? `<ruby>${displayCharacter}<rt>${pinyin}</rt></ruby>` : displayCharacter}</div>
           ${pronunciationBtn}
           ${formattedFrequency && showFrequency ? `<div class="frequency">${formattedFrequency}</div>` : ""}
         </div>
@@ -89,9 +105,11 @@ class PopupContentBuilder {
     `;
   }
 
-  static createCardContentInner(displayCharacter, card, isKnown, isIgnored, frequency, settings = {}) {
+  static createCardContentInner(displayCharacter, card, isKnown, isIgnored, frequency, settings = {}, languageCode = null) {
     const { pinyin, entries } = card;
     const lengthClass = this.getWordLengthClass(displayCharacter);
+    const languageClass = languageCode ? this.getLanguageClass(languageCode) : '';
+    const combinedClasses = `${lengthClass} ${languageClass}`.trim();
     const formattedFrequency = this.formatFrequency(frequency);
     const definitionsHtml = this.createDefinitionsHtml(entries);
     const pronunciationBtn = this.createPronunciationButton(displayCharacter, pinyin, pinyin);
@@ -99,7 +117,7 @@ class PopupContentBuilder {
 
     return `
       <div class="character-container">
-        <div class="character highlight ${lengthClass}"><ruby>${displayCharacter}<rt>${pinyin}</rt></ruby></div>
+        <div class="character highlight ${combinedClasses}"><ruby>${displayCharacter}<rt>${pinyin}</rt></ruby></div>
         ${pronunciationBtn}
         ${formattedFrequency && showFrequency ? `<div class="frequency">${formattedFrequency}</div>` : ""}
       </div>

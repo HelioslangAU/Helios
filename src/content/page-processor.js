@@ -6,7 +6,11 @@ class PageProcessor {
     this.unknownWordElements = new Map();
     this.injectedCSS = false;
     this.asbplayerObservers = new Set();
-    
+
+    // Performance optimization: debouncing
+    this.reprocessTimeout = null;
+    this.isReprocessing = false;
+
     // Initialize processing when DOM is ready
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => this.initializeProcessing());
@@ -269,14 +273,31 @@ class PageProcessor {
   }
 
   reprocessPage() {
-    // Clear existing data
-    this.unknownWordElements.clear();
+    // Debounce reprocessing to prevent excessive calls
+    if (this.reprocessTimeout) {
+      clearTimeout(this.reprocessTimeout);
+    }
 
-    // Reprocess the page
-    this.processPageForUnknownWords();
+    this.reprocessTimeout = setTimeout(() => {
+      // Skip if already reprocessing
+      if (this.isReprocessing) return;
 
-    // Recalculate comprehension
-    this.calculateComprehensionPercentage();
+      this.isReprocessing = true;
+
+      // Use requestAnimationFrame for smooth UI updates
+      requestAnimationFrame(() => {
+        // Clear existing data
+        this.unknownWordElements.clear();
+
+        // Reprocess the page
+        this.processPageForUnknownWords();
+
+        // Recalculate comprehension
+        this.calculateComprehensionPercentage();
+
+        this.isReprocessing = false;
+      });
+    }, 50); // 50ms debounce
   }
 
   analyzeASBPlayerSubtitlesComprehension(subtitlesText) {
@@ -292,9 +313,9 @@ class PageProcessor {
 
   ensureGlobalCSS() {
     if (this.injectedCSS) return;
-    
+
     if (document.getElementById('chinese-extension-styles')) return;
-    
+
     const style = document.createElement('style');
     style.id = 'chinese-extension-styles';
     style.textContent = `
@@ -307,6 +328,12 @@ class PageProcessor {
       }
       .lang-unknown-word:hover {
         background-color: rgba(255, 68, 68, 0.1) !important;
+      }
+      /* NEVER underline words inside popup - absolute priority */
+      .chinese-lang-extension-popup .lang-unknown-word,
+      .chinese-lang-extension-popup * .lang-unknown-word {
+        text-decoration: none !important;
+        background-color: transparent !important;
       }
     `;
     document.head.appendChild(style);
@@ -322,14 +349,18 @@ class PageProcessor {
         acceptNode: (node) => {
           const parent = node.parentElement;
           if (!parent) return NodeFilter.FILTER_REJECT;
+
+          // Don't process script, style, noscript tags
           const tagName = parent.tagName.toLowerCase();
           if (['script', 'style', 'noscript'].includes(tagName)) {
             return NodeFilter.FILTER_REJECT;
           }
-          // Fix: Don't filter out existing processed elements for reprocessing
-          if (parent.classList.contains('chinese-lang-extension-popup')) {
+
+          // Don't process popup content - check if ANY ancestor is the popup
+          if (parent.closest('.chinese-lang-extension-popup')) {
             return NodeFilter.FILTER_REJECT;
           }
+
           return node.textContent.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
         }
       }
@@ -344,6 +375,10 @@ class PageProcessor {
   }
 
   processTextNodeForUnknownWords(textNode) {
+    // Safety check: NEVER process popup content
+    if (textNode.parentElement && textNode.parentElement.closest('.chinese-lang-extension-popup')) {
+      return;
+    }
 
     const text = textNode.textContent;
     if (!text) return;
@@ -391,18 +426,31 @@ class PageProcessor {
   }
 
   updateWordStyling(word, isKnownOrIgnored) {
-    const elements = document.querySelectorAll(`[data-word="${word}"]`);
+    // Normalize word to lowercase for matching
+    const normalizedWord = word.toLowerCase();
+
+    // Find all elements with this word (case-insensitive)
+    const elements = document.querySelectorAll(`[data-word]`);
+    let updatedCount = 0;
+
     elements.forEach(element => {
-      if (isKnownOrIgnored) {
-        // Remove underline for both known and ignored words
-        element.classList.remove('lang-unknown-word');
-      } else {
-        // Add underline only for unknown words (not ignored)
-        if (!this.vocabManager.isWordIgnored(word)) {
-          element.classList.add('lang-unknown-word');
+      const elementWord = element.getAttribute('data-word');
+      if (elementWord && elementWord.toLowerCase() === normalizedWord) {
+        if (isKnownOrIgnored) {
+          // Remove underline for both known and ignored words
+          element.classList.remove('lang-unknown-word');
+          updatedCount++;
+        } else {
+          // Add underline only for unknown words (not ignored)
+          if (!this.vocabManager.isWordIgnored(normalizedWord)) {
+            element.classList.add('lang-unknown-word');
+            updatedCount++;
+          }
         }
       }
     });
+
+    console.log(`Updated ${updatedCount} instances of "${word}" on page`);
   }
 
   observePageChanges() {

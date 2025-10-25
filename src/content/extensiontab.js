@@ -115,9 +115,12 @@ function updateKnownWordsCounter() {
   if (!counter) return;
 
   if (window.chrome && chrome.storage && chrome.storage.local) {
-    chrome.storage.local.get(["chineseExtensionKnownWords"], (result) => {
-      const arr = result.chineseExtensionKnownWords || [];
-      counter.textContent = Array.isArray(arr) ? arr.length : 0;
+    chrome.storage.local.get(["knownWordsByLanguage", "targetLanguage"], (result) => {
+      const currentLanguage = result.targetLanguage || 'en';
+      const knownWordsByLanguage = result.knownWordsByLanguage || {};
+      const knownWords = knownWordsByLanguage[currentLanguage] || [];
+      counter.textContent = Array.isArray(knownWords) ? knownWords.length : 0;
+      console.log(`Known words count for ${currentLanguage}:`, knownWords.length);
     });
   } else {
     // Fallback for testing
@@ -134,24 +137,13 @@ function loadVocabularyList() {
   if (!vocabList) return;
 
   if (window.chrome && chrome.storage && chrome.storage.local) {
-    chrome.storage.local.get(
-      ["chineseExtensionVocabList", "chineseExtensionKnownWords"],
-      (result) => {
-        let vocabItems = result.chineseExtensionVocabList || [];
-        const knownWords = result.chineseExtensionKnownWords || [];
+    chrome.storage.local.get(["targetLanguage"], (result) => {
+      const currentLanguage = result.targetLanguage || 'en';
+      const recentVocabKey = `recentVocab_${currentLanguage}`;
 
-        // If no vocab list exists, create one from known words for demo purposes
-        if (vocabItems.length === 0 && knownWords.length > 0) {
-          vocabItems = knownWords.slice(0, 10).map((word) => ({
-            character: word,
-            word: word,
-            definition: "Definition will be loaded when available",
-            dateAdded: new Date().toISOString(),
-          }));
-
-          // Save this demo list
-          chrome.storage.local.set({ chineseExtensionVocabList: vocabItems });
-        }
+      // Load recent vocabulary for current language
+      chrome.storage.local.get([recentVocabKey], (vocabResult) => {
+        let vocabItems = vocabResult[recentVocabKey] || [];
 
         // Update count
         if (vocabCount) {
@@ -171,23 +163,28 @@ function loadVocabularyList() {
           return;
         }
 
-        // Show recent items (limit to 5 for compact design)
+        // Show recent items (limit to 10 for compact design)
         const maxItems = document.body.offsetWidth < 400 ? 5 : 10;
-        const recentItems = vocabItems.slice(-maxItems).reverse();
+        const recentItems = vocabItems.slice(0, maxItems);
 
-        recentItems.forEach((item, index) => {
+        recentItems.forEach((item) => {
           const vocabItem = document.createElement("div");
           vocabItem.className = "vocab-item";
+
+          // Format definition
+          let definition = "No definition available";
+          if (item.definition && item.definition.english) {
+            definition = item.definition.english;
+          } else if (item.definition && typeof item.definition === 'string') {
+            definition = item.definition;
+          }
+
           vocabItem.innerHTML = `
             <div class="vocab-content">
-              <div class="vocab-word">${item.character || item.word}</div>
-              <div class="vocab-definition">${
-                item.definition || "Definition will be loaded when available"
-              }</div>
+              <div class="vocab-word">${item.word}</div>
+              <div class="vocab-definition">${definition}</div>
             </div>
-            <button class="delete-btn" data-word="${
-              item.character || item.word
-            }">×</button>
+            <button class="delete-btn" data-word="${item.word}">×</button>
           `;
           vocabList.appendChild(vocabItem);
         });
@@ -196,11 +193,11 @@ function loadVocabularyList() {
         vocabList.querySelectorAll(".delete-btn").forEach((btn) => {
           btn.addEventListener("click", (e) => {
             const word = e.target.getAttribute("data-word");
-            removeVocabItem(word);
+            removeRecentVocabItem(word, currentLanguage);
           });
         });
-      }
-    );
+      });
+    });
   } else {
     // Fallback for testing without chrome extension API
     if (vocabList.children.length === 0) {
@@ -286,6 +283,24 @@ function removeVocabItem(word) {
       () => {
         loadVocabularyList();
         console.log(`Removed ${word} from vocabulary list`);
+      }
+    );
+  });
+}
+
+function removeRecentVocabItem(word, language) {
+  if (!window.chrome || !chrome.storage || !chrome.storage.local) return;
+
+  const recentVocabKey = `recentVocab_${language}`;
+  chrome.storage.local.get([recentVocabKey], (result) => {
+    const vocabItems = result[recentVocabKey] || [];
+    const filteredItems = vocabItems.filter((item) => item.word !== word);
+
+    chrome.storage.local.set(
+      { [recentVocabKey]: filteredItems },
+      () => {
+        loadVocabularyList();
+        console.log(`Removed ${word} from recent vocabulary`);
       }
     );
   });
@@ -455,10 +470,13 @@ window.addEventListener("DOMContentLoaded", () => {
   if (window.chrome && chrome.storage && chrome.storage.onChanged) {
     chrome.storage.onChanged.addListener((changes, areaName) => {
       if (areaName === "local") {
-        if (changes.chineseExtensionKnownWords) {
+        // Update for both old and new storage formats
+        if (changes.chineseExtensionKnownWords || changes.knownWordsByLanguage) {
           updateKnownWordsCounter();
         }
-        if (changes.chineseExtensionVocabList) {
+        // Update vocab list for old format or any recent vocab change
+        if (changes.chineseExtensionVocabList ||
+            Object.keys(changes).some(key => key.startsWith('recentVocab_'))) {
           loadVocabularyList();
         }
         if (changes.extensionEnabled) {
@@ -483,12 +501,18 @@ window.addEventListener("DOMContentLoaded", () => {
 // Debug function to check storage state
 function debugStorageState() {
   if (window.chrome && chrome.storage && chrome.storage.local) {
-    chrome.storage.local.get(['chineseExtensionKnownWords', 'chineseExtensionIgnoredWords'], (result) => {
+    chrome.storage.local.get(['chineseExtensionKnownWords', 'chineseExtensionIgnoredWords', 'knownWordsByLanguage', 'ignoredWordsByLanguage', 'targetLanguage'], (result) => {
       console.log('🔍 Storage Debug:');
-      console.log('Known words:', result.chineseExtensionKnownWords || []);
-      console.log('Ignored words:', result.chineseExtensionIgnoredWords || []);
-      console.log('Known words count:', (result.chineseExtensionKnownWords || []).length);
-      console.log('Ignored words count:', (result.chineseExtensionIgnoredWords || []).length);
+      console.log('Current Language:', result.targetLanguage);
+      console.log('---OLD FORMAT---');
+      console.log('Known words (old):', result.chineseExtensionKnownWords || []);
+      console.log('Ignored words (old):', result.chineseExtensionIgnoredWords || []);
+      console.log('---NEW FORMAT---');
+      console.log('Known words by language:', result.knownWordsByLanguage || {});
+      console.log('Ignored words by language:', result.ignoredWordsByLanguage || {});
+      const currentLang = result.targetLanguage || 'en';
+      const knownByLang = result.knownWordsByLanguage || {};
+      console.log(`Current language (${currentLang}) known words:`, knownByLang[currentLang] || []);
     });
   }
 }
