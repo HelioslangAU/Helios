@@ -81,7 +81,6 @@ class CardManager {
       character = character.toLowerCase();
     }
     let matches = this.dictionaryManager.dictionary[character];
-    console.log(matches && matches[0].definition == '');
     if (matches) {
       // Process each match that has an empty definition
       const processedMatches = [];
@@ -95,7 +94,8 @@ class CardManager {
               // Add base form annotation to each definition
               const annotatedDefs = baseFormDefs.map(def => ({
                 ...def,
-                word: `${character} {${baseForm}}`
+                definition: def.definition ? `${def.definition} {${baseForm}}` : `{${baseForm}}`,
+                translation: def.translation ? `${def.translation} {${baseForm}}` : `{${baseForm}}`
               }));
               processedMatches.push(...annotatedDefs);
             }
@@ -110,8 +110,7 @@ class CardManager {
         matches = processedMatches;
       }
     }
-    console.log(matches);
-    console.log('prepareBasicPopupData', character, matches);
+
     return {
       matches,
       isKnown: false, // Will be set by calling code

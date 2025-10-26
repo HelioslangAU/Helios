@@ -119,7 +119,160 @@ class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
     const normalized = this.normalizeWord(word);
     return dictionary[normalized] && dictionary[normalized].length > 0;
   }
+
+    /**
+   * Check if word exists in dictionary, handling gender variations
+   * @param {string} word - Word to check
+   * @param {Object} dictionary - Dictionary object
+   * @returns {string|null} - Found dictionary form or null
+   */
+  findDictionaryForm(word, dictionary) {
+      const normalizedWord = word.toLowerCase().trim();
+      
+      // First check if the word exists as is
+      if (dictionary[normalizedWord] && dictionary[normalizedWord].length > 0) {
+        return normalizedWord;
+      }
+
+      // Check if this is a form mapping to another word
+      if (dictionary[normalizedWord] && dictionary[normalizedWord][0] && 
+          Array.isArray(dictionary[normalizedWord][0][5])) {
+        // Get the base form from the mapping array
+        for (const mapping of dictionary[normalizedWord][0][5]) {
+          if (Array.isArray(mapping) && mapping.length > 0) {
+            const baseForm = mapping[0];
+            if (dictionary[baseForm]) {
+              return baseForm;
+            }
+          }
+        }
+      }
+
+      return null;
+  }
+
+    /**
+   * Process a single term bank file's content
+   * @param {Array} entries - Array of dictionary entries from a term bank
+   * @param {Object} dictionary - The dictionary object to add entries to
+   * @returns {number} - Number of entries processed
+   */
+  processTermBank(bankContent, dictionary) {
+    let processedEntries = 0;
+    
+    if (!Array.isArray(bankContent)) return processedEntries;
+
+    for (const entry of bankContent) {
+      if (!Array.isArray(entry) || entry.length < 6) continue;
+
+      const [word, , grammarInfo, pos, , contentArray] = entry;
+      
+      if (!word) continue;
+
+      const normalizedWord = word.toLowerCase().trim();
+      if (!dictionary[normalizedWord]) {
+        dictionary[normalizedWord] = [];
+      }
+
+      // Process structured content to extract definitions and other info
+      const definitions = [];
+      let morphology = '';
+      let grammar = '';
+
+      if (contentArray && contentArray.length > 0) {
+        for (const content of contentArray) {
+          if (content.type === 'structured-content') {
+            for (const section of content.content) {
+              // Extract grammar information
+              // if (section.content && Array.isArray(section.content)) {
+              //   for (const item of section.content) {
+              //     if (item.data?.content === 'details-entry-Grammar') {
+              //       const grammarContent = item.content.find(c => c.data?.content === 'Grammar-content');
+              //       if (grammarContent) {
+              //         grammar = grammarContent.content || '';
+              //       }
+              //     }
+              //     // if (item.data?.content === 'details-entry-Morphemes') {
+              //     //   const morphContent = item.content.find(c => c.data?.content === 'Morphemes-content');
+              //     //   if (morphContent) {
+              //     //     morphology = morphContent.content || '';
+              //     //   }
+              //     // }
+              //   }
+              // }
+                      // Extract definitions from glosses
+              if (section.data?.content === 'glosses' && Array.isArray(section.content)) {
+                for (const li of section.content) {
+                  if (li.content && Array.isArray(li.content) && li.content[0]) {
+                    const def = li.content[0].content;
+                    if (Array.isArray(def)) {
+                      // Handle array of definition parts
+                      const joinedDef = def
+                        .map(part => {
+                          if (typeof part === 'string') return part.trim();
+                          return '';
+                        })
+                        .filter(Boolean)
+                        .join(' ')
+                        .trim();
+                      if (joinedDef) definitions.push(joinedDef);
+                    } else if (typeof def === 'string') {
+                      // Handle simple string definition
+                      const strDef = def.trim();
+                      if (strDef) definitions.push(strDef);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Only add entry if we have at least a word and some content
+      if (word) {
+        const newEntry = {
+          word: word,
+          partOfSpeech: pos || '',
+          grammar: grammar || grammarInfo || '',
+          morphology: morphology || '',
+          definition: definitions.filter(Boolean).join('; '),
+          translation: definitions.find(def => def && def.trim()) || '',
+          variations: [] // Will store word variations
+        };
+
+        // If this is a non-lemma entry (variation of another word)
+        if (grammarInfo === 'non-lemma' && Array.isArray(entry[5])) {
+          // Add base forms to variations so we can find their definitions
+          for (const mapping of entry[5]) {
+            if (Array.isArray(mapping) && mapping.length > 0) {
+              const baseForm = mapping[0];
+              if (baseForm && !newEntry.variations.includes(baseForm)) {
+                newEntry.variations.push(baseForm);
+              }
+            }
+          }
+        }
+
+        // Check for duplicates before adding
+        const isDuplicate = dictionary[normalizedWord].some(existingEntry => 
+          existingEntry.definition === newEntry.definition &&
+          existingEntry.partOfSpeech === newEntry.partOfSpeech &&
+          existingEntry.grammar === newEntry.grammar
+        );
+
+        if (!isDuplicate) {
+          dictionary[normalizedWord].push(newEntry);
+          processedEntries++;
+        }
+      }
+    }
+
+    return processedEntries;
+  }
 }
+
+
 
 /**
  * English Language Adapter
@@ -278,114 +431,73 @@ class SpanishLanguageAdapter extends SpaceSeparatedLanguageAdapter {
       ],
       wordBoundaryRegex: /\b/,
       sentenceBoundaryRegex: /(?<=[.!?])\s+/,
+      numOfDicts: 60,
     };
     this.setConfig(baseConfig);
   }
+  extractWords(text, dictionary) {
+    const words = [];
+    const wordRegex = new RegExp(`${this.config.wordBoundaryRegex.source}[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]+${this.config.wordBoundaryRegex.source}`, 'g');
+    let match;
+    
+    while ((match = wordRegex.exec(text)) !== null) {
+      const word = match[0]; 
+      const start = match.index;
+      const end = start + word.length;
+      
+      const dictionaryForm = this.findDictionaryForm(word, dictionary);
+      if (dictionaryForm) {
+        words.push({
+          word: word,
+          start: start,
+          end: end,
+          dictionaryForm: dictionaryForm // Store the base form for dictionary lookup
+        });
+      }
+    }
+    return words;
+  }
+  
 
   /**
-   * Parse dictionary text format
-   * @param {string} dictionaryText - Raw dictionary text
+   * Parse JSON dictionary format from multiple term bank files
+   * @param {string} dictionaryText - Raw directory listing content
    * @returns {Object} - Unified dictionary format
    */
   parseDictionary(dictionaryText) {
     try {
-      const lines = dictionaryText.split('\n');
       const dictionary = {};
-      let currentWord = '';
-      let currentEntry = null;
       let processedEntries = 0;
+      let totalBanks = 0;
 
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
-
-        // Check if this is a new word entry (starts with word and POS tag)
-        const wordMatch = line.match(/^(.*?)\s+<(\w+)>/);
-        if (wordMatch) {
-          // Save previous entry if exists
-          if (currentWord && currentEntry) {
-            if (!dictionary[currentWord]) {
-              dictionary[currentWord] = [];
-            }
+      // Check if input is a directory listing
+      if (dictionaryText.includes('term_bank_')) {
+        // Split directory listing into lines
+        const files = dictionaryText.split('\n')
+          .map(line => line.trim())
+          .filter(line => line.startsWith('term_bank_'));
+        
+        // Process each term bank
+        for (const file of files) {
+          try {
+            const filePath = `${this.getDictionaryPath()}${file}`;
+            const bankContent = require(filePath);
             
-            // Check for duplicates before adding
-            const isDuplicate = dictionary[currentWord].some(existingEntry => 
-              existingEntry.translation === currentEntry.translation &&
-              existingEntry.partOfSpeech === currentEntry.partOfSpeech &&
-              existingEntry.definition === currentEntry.definition
-            );
-
-            if (!isDuplicate) {
-              dictionary[currentWord].push(currentEntry);
-              processedEntries++;
+            const entriesProcessed = this.processTermBank(bankContent, dictionary);
+            if (entriesProcessed > 0) {
+              processedEntries += entriesProcessed;
+              totalBanks++;
             }
+          } catch (bankError) {
+            console.error(`Error processing term bank ${file}:`, bankError);
           }
-
-          // Start new entry
-          currentWord = wordMatch[1].toLowerCase().trim();
-          currentEntry = {
-            partOfSpeech: wordMatch[2],
-            translation: '',
-            pronunciation: '',
-            definition: ''
-          };
-
-          // Extract pronunciation if it exists on same line
-          const pronMatch = line.match(/\/\/(.*?)\/\//g);
-          if (pronMatch) {
-            currentEntry.pronunciation = pronMatch.join(' ').replace(/\/\//g, '').trim();
-          }
-
-          // Initialize array if needed
-          if (!dictionary[currentWord]) {
-            dictionary[currentWord] = [];
-          }
-          continue;
         }
 
-        // If we have a current entry, check if this line is translation or definition
-        if (currentEntry) {
-          // Skip pronunciation-only lines
-          if (line.startsWith('//') && line.endsWith('//')) {
-            const pron = line.replace(/\/\//g, '').trim();
-            currentEntry.pronunciation = currentEntry.pronunciation 
-              ? `${currentEntry.pronunciation} ${pron}` 
-              : pron;
-          }
-          // If line doesn't start with parentheses or pronunciation markers, it's a translation
-          else if (!line.startsWith('(') && !line.startsWith('//')) {
-            if (!currentEntry.translation) {
-              currentEntry.translation = line;
-            } else {
-              // Must be definition
-              if (currentEntry.definition) {
-                currentEntry.definition += ' ' + line;
-              } else {
-                currentEntry.definition = line;
-              }
-            }
-          }
-          // If line starts with parentheses, it's part of the definition
-          else if (line.startsWith('(')) {
-            if (currentEntry.definition) {
-              currentEntry.definition += ' ' + line;
-            } else {
-              currentEntry.definition = line;
-            }
-          }
-        }
+        console.log(`Successfully processed ${totalBanks} term banks with ${processedEntries} total entries`);
+      } else {
+        console.error('Invalid dictionary format: Expected directory listing of term bank files');
       }
-
-      // Don't forget to add the last entry
-      if (currentWord && currentEntry) {
-        if (!dictionary[currentWord]) {
-          dictionary[currentWord] = [];
-        }
-        dictionary[currentWord].push(currentEntry);
-        processedEntries++;
-      }
-
-      console.log(`Successfully parsed ${processedEntries} dictionary entries`);
+      
       return dictionary;
     } catch (error) {
       console.error('Error parsing dictionary:', error);
@@ -394,7 +506,7 @@ class SpanishLanguageAdapter extends SpaceSeparatedLanguageAdapter {
   }
 
   getDictionaryPath() {
-    return 'dictionaries/Spanish/eng-spa.dict';
+    return 'dictionaries/Spanish/';
   }
 }
 
@@ -422,6 +534,7 @@ class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
       ],
       wordBoundaryRegex: /\b/,
       sentenceBoundaryRegex: /(?<=[.!?])\s+/,
+      numOfDicts: 27,
     };
     this.setConfig(baseConfig);
     
@@ -441,7 +554,6 @@ class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
   }
 
   getDictionaryPath() {
-    // Return the directory path instead of a single file
     return 'dictionaries/French/';
   }
 
@@ -455,37 +567,6 @@ class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
     
     // First try the word as is
     return normalizedWord;
-  }
-
-  /**
-   * Check if word exists in dictionary, handling gender variations
-   * @param {string} word - Word to check
-   * @param {Object} dictionary - Dictionary object
-   * @returns {string|null} - Found dictionary form or null
-   */
-  findDictionaryForm(word, dictionary) {
-      const normalizedWord = word.toLowerCase().trim();
-      
-      // First check if the word exists as is
-      if (dictionary[normalizedWord] && dictionary[normalizedWord].length > 0) {
-        return normalizedWord;
-      }
-
-      // Check if this is a form mapping to another word
-      if (dictionary[normalizedWord] && dictionary[normalizedWord][0] && 
-          Array.isArray(dictionary[normalizedWord][0][5])) {
-        // Get the base form from the mapping array
-        for (const mapping of dictionary[normalizedWord][0][5]) {
-          if (Array.isArray(mapping) && mapping.length > 0) {
-            const baseForm = mapping[0];
-            if (dictionary[baseForm]) {
-              return baseForm;
-            }
-          }
-        }
-      }
-
-      return null;
   }
 
   /**
@@ -525,126 +606,6 @@ class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
       }
     }
     return words;
-  }
-
-  /**
-   * Process a single term bank file's content
-   * @param {Array} entries - Array of dictionary entries from a term bank
-   * @param {Object} dictionary - The dictionary object to add entries to
-   * @returns {number} - Number of entries processed
-   */
-  processTermBank(bankContent, dictionary) {
-    let processedEntries = 0;
-    
-    if (!Array.isArray(bankContent)) return processedEntries;
-
-    for (const entry of bankContent) {
-      if (!Array.isArray(entry) || entry.length < 6) continue;
-
-      const [word, , grammarInfo, pos, , contentArray] = entry;
-      
-      if (!word) continue;
-
-      const normalizedWord = word.toLowerCase().trim();
-      if (!dictionary[normalizedWord]) {
-        dictionary[normalizedWord] = [];
-      }
-
-      // Process structured content to extract definitions and other info
-      const definitions = [];
-      let morphology = '';
-      let grammar = '';
-
-      if (contentArray && contentArray.length > 0) {
-        for (const content of contentArray) {
-          if (content.type === 'structured-content') {
-            for (const section of content.content) {
-              // Extract grammar information
-              // if (section.content && Array.isArray(section.content)) {
-              //   for (const item of section.content) {
-              //     if (item.data?.content === 'details-entry-Grammar') {
-              //       const grammarContent = item.content.find(c => c.data?.content === 'Grammar-content');
-              //       if (grammarContent) {
-              //         grammar = grammarContent.content || '';
-              //       }
-              //     }
-              //     // if (item.data?.content === 'details-entry-Morphemes') {
-              //     //   const morphContent = item.content.find(c => c.data?.content === 'Morphemes-content');
-              //     //   if (morphContent) {
-              //     //     morphology = morphContent.content || '';
-              //     //   }
-              //     // }
-              //   }
-              // }
-                      // Extract definitions from glosses
-              if (section.data?.content === 'glosses' && Array.isArray(section.content)) {
-                for (const li of section.content) {
-                  if (li.content && Array.isArray(li.content) && li.content[0]) {
-                    const def = li.content[0].content;
-                    if (Array.isArray(def)) {
-                      // Handle array of definition parts
-                      const joinedDef = def
-                        .map(part => {
-                          if (typeof part === 'string') return part.trim();
-                          return '';
-                        })
-                        .filter(Boolean)
-                        .join(' ')
-                        .trim();
-                      if (joinedDef) definitions.push(joinedDef);
-                    } else if (typeof def === 'string') {
-                      // Handle simple string definition
-                      const strDef = def.trim();
-                      if (strDef) definitions.push(strDef);
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-
-      // Only add entry if we have at least a word and some content
-      if (word) {
-        const newEntry = {
-          word: word,
-          partOfSpeech: pos || '',
-          grammar: grammar || grammarInfo || '',
-          morphology: morphology || '',
-          definition: definitions.filter(Boolean).join('; '),
-          translation: definitions.find(def => def && def.trim()) || '',
-          variations: [] // Will store word variations
-        };
-
-        // If this is a non-lemma entry (variation of another word)
-        if (grammarInfo === 'non-lemma' && Array.isArray(entry[5])) {
-          // Add base forms to variations so we can find their definitions
-          for (const mapping of entry[5]) {
-            if (Array.isArray(mapping) && mapping.length > 0) {
-              const baseForm = mapping[0];
-              if (baseForm && !newEntry.variations.includes(baseForm)) {
-                newEntry.variations.push(baseForm);
-              }
-            }
-          }
-        }
-
-        // Check for duplicates before adding
-        const isDuplicate = dictionary[normalizedWord].some(existingEntry => 
-          existingEntry.definition === newEntry.definition &&
-          existingEntry.partOfSpeech === newEntry.partOfSpeech &&
-          existingEntry.grammar === newEntry.grammar
-        );
-
-        if (!isDuplicate) {
-          dictionary[normalizedWord].push(newEntry);
-          processedEntries++;
-        }
-      }
-    }
-
-    return processedEntries;
   }
 
   /**
