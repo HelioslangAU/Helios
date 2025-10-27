@@ -140,6 +140,8 @@ class PopupEventHandler {
     }
     // Update counter via chrome storage listener (will trigger in extension tab)
     this.notifyCounterUpdate();
+    // Update side tab stats
+    this.updateSideTabStats();
   }
 
   static async handleMarkUnknown(character) {
@@ -150,6 +152,8 @@ class PopupEventHandler {
     }
     // Update counter via chrome storage listener (will trigger in extension tab)
     this.notifyCounterUpdate();
+    // Update side tab stats
+    this.updateSideTabStats();
   }
 
   static async handleMarkIgnored(character) {
@@ -160,6 +164,8 @@ class PopupEventHandler {
     }
     // Update counter via chrome storage listener (will trigger in extension tab)
     this.notifyCounterUpdate();
+    // Update side tab stats
+    this.updateSideTabStats();
   }
 
   static async handleAnkiAdd(character, managers) {
@@ -280,5 +286,23 @@ class PopupEventHandler {
     // detect changes to chineseExtensionKnownWords and update the counter
     // This happens because VocabManager.saveKnownWords() triggers storage changes
     console.log("Word status updated - extension tab will auto-update via storage listener");
+  }
+
+  static updateSideTabStats() {
+    // Update side tab stats after marking words
+    if (window.bannerManager && window.pageProcessor && window.vocabManager) {
+      // Small delay to ensure vocab changes are saved first
+      setTimeout(() => {
+        const comprehension = window.pageProcessor.calculateComprehensionPercentage();
+        const knownWords = window.vocabManager.getKnownWordsCount();
+
+        window.bannerManager.updateStats({
+          knownWords: knownWords,
+          comprehension: comprehension
+        });
+
+        console.log("📊 Side tab stats updated - Known words:", knownWords, "Comprehension:", comprehension + "%");
+      }, 100);
+    }
   }
 }

@@ -209,6 +209,10 @@ class BackgroundService {
           await this.handleOnboardingCompleted(message.language, sendResponse);
           break;
 
+        case "openSettings":
+          this.handleOpenSettings(sendResponse);
+          break;
+
         // === VOCABULARY HANDLERS ===
         case "LOOKUP_WORD":
           await this.handleWordLookup(message.word, sendResponse);
@@ -688,6 +692,20 @@ class BackgroundService {
         error: error.message,
         settings: this.extensionSettings,
       });
+    }
+  }
+
+  async handleOpenSettings(sendResponse) {
+    try {
+      if (chrome.runtime && chrome.runtime.openOptionsPage) {
+        chrome.runtime.openOptionsPage();
+        sendResponse({ success: true });
+      } else {
+        sendResponse({ success: false, error: 'openOptionsPage not available' });
+      }
+    } catch (error) {
+      console.error('Error opening settings:', error);
+      sendResponse({ success: false, error: error.message });
     }
   }
 

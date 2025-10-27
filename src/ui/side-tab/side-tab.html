@@ -32,16 +32,6 @@
                 <div class="partial-value" id="partial-known-words">0</div>
             </div>
 
-            <div class="partial-stat-item" data-tooltip="Total Words on Page">
-                <div class="partial-icon page-words-icon">
-                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <div class="partial-value" id="partial-page-words">0</div>
-            </div>
-
             <!-- Pinyin Toggle (Chinese Only) - Compact version for partial view -->
             <button class="partial-stat-item partial-pinyin-item" id="partial-pinyin-btn" data-tooltip="Toggle Pinyin" style="display: none;">
                 <div class="partial-icon pinyin-icon">
@@ -105,32 +95,17 @@
                     </div>
                 </div>
 
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-card-header">
-                            <div class="stat-card-icon known-gradient">
-                                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M22 11.08V12a10 10 0 11-5.93-9.14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                    <path d="M22 4L12 14.01l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
-                            </div>
-                            <div class="stat-card-label">Known Words</div>
+                <div class="stat-card stat-card-full-width">
+                    <div class="stat-card-header">
+                        <div class="stat-card-icon known-gradient">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M22 11.08V12a10 10 0 11-5.93-9.14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M22 4L12 14.01l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
                         </div>
-                        <div class="stat-card-value" id="full-known-words">0</div>
+                        <div class="stat-card-label">Known Words</div>
                     </div>
-
-                    <div class="stat-card">
-                        <div class="stat-card-header">
-                            <div class="stat-card-icon page-gradient">
-                                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                    <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
-                            </div>
-                            <div class="stat-card-label">Total Words</div>
-                        </div>
-                        <div class="stat-card-value" id="full-page-words">0</div>
-                    </div>
+                    <div class="stat-card-value" id="full-known-words">0</div>
                 </div>
             </div>
 
