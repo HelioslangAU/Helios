@@ -24,10 +24,6 @@ class HeliosSideTab {
         this.pinyinCheckbox = document.getElementById('pinyin-toggle-checkbox');
         this.pinyinStatus = document.getElementById('pinyin-status');
 
-        // Pinyin button (partial view)
-        this.partialPinyinBtn = document.getElementById('partial-pinyin-btn');
-        this.partialPinyinLabel = this.partialPinyinBtn?.querySelector('.pinyin-label');
-
         // Debouncing state for pinyin toggle
         this.pinyinToggling = false;
 
@@ -107,14 +103,6 @@ class HeliosSideTab {
             if (e.target !== this.pinyinCheckbox && !e.target.closest('.pinyin-slider')) {
                 this.pinyinCheckbox.checked = !this.pinyinCheckbox.checked;
                 this.handlePinyinToggle(this.pinyinCheckbox.checked);
-            }
-        });
-
-        // Partial view pinyin button
-        this.partialPinyinBtn?.addEventListener('click', () => {
-            if (window.pronunciationManager) {
-                const newState = !window.pronunciationManager.isEnabled();
-                this.handlePinyinToggle(newState);
             }
         });
 
@@ -202,8 +190,6 @@ class HeliosSideTab {
      * @param {Object} stats - { knownWords, comprehension, pageWords }
      */
     updateStats(stats) {
-        console.log('📊 Side tab updating stats:', stats);
-
         // Re-query all elements to ensure fresh references
         this.refreshElementReferences();
 
@@ -221,9 +207,6 @@ class HeliosSideTab {
             this.pageWordsCount = stats.pageWords;
             this.updatePageWords(stats.pageWords);
         }
-
-        // Ensure pinyin button is still visible if it should be
-        this.checkPinyinButtonVisibility();
     }
 
     /**
@@ -242,13 +225,9 @@ class HeliosSideTab {
         this.comprehensionProgress = document.getElementById('comprehension-progress');
 
         // Pinyin elements
-        this.partialPinyinBtn = document.getElementById('partial-pinyin-btn');
-        this.partialPinyinLabel = this.partialPinyinBtn?.querySelector('.pinyin-label');
         this.pinyinContainer = document.getElementById('pinyin-toggle-container');
         this.pinyinCheckbox = document.getElementById('pinyin-toggle-checkbox');
         this.pinyinStatus = document.getElementById('pinyin-status');
-
-        console.log('🔄 Refreshed all element references');
     }
 
     /**
@@ -395,21 +374,6 @@ class HeliosSideTab {
         if (this.pinyinCheckbox) {
             this.pinyinCheckbox.checked = isEnabled;
         }
-
-        // Update partial view button
-        if (this.partialPinyinBtn) {
-            if (isEnabled) {
-                this.partialPinyinBtn.classList.add('active');
-                if (this.partialPinyinLabel) {
-                    this.partialPinyinLabel.textContent = 'ON';
-                }
-            } else {
-                this.partialPinyinBtn.classList.remove('active');
-                if (this.partialPinyinLabel) {
-                    this.partialPinyinLabel.textContent = 'OFF';
-                }
-            }
-        }
     }
 
     /**
@@ -417,15 +381,11 @@ class HeliosSideTab {
      * @param {string} language - Current language code
      */
     updateLanguageFeatures(language) {
-        console.log('Side tab: Updating language features for:', language);
-
         const isChinese = language && (
             language.toLowerCase() === 'zh' ||
             language.toLowerCase() === 'chinese' ||
             language.toLowerCase().includes('chin')
         );
-
-        console.log('Side tab: Is Chinese?', isChinese);
 
         // Show/hide pinyin toggle in full view
         if (this.pinyinContainer) {
@@ -441,138 +401,8 @@ class HeliosSideTab {
                 this.pinyinContainer.style.display = 'none';
             }
         }
-
-        // Show/hide pinyin button in partial view
-        if (this.partialPinyinBtn) {
-            if (isChinese) {
-                this.partialPinyinBtn.style.display = 'flex';
-
-                // Initialize active state based on pronunciation manager
-                if (window.pronunciationManager) {
-                    const isEnabled = window.pronunciationManager.isEnabled();
-                    this.updatePinyinUI(isEnabled);
-                }
-            } else {
-                this.partialPinyinBtn.style.display = 'none';
-            }
-        }
     }
 
-    /**
-     * Check and maintain pinyin button visibility after stats update
-     */
-    checkPinyinButtonVisibility() {
-        if (!window.languageRegistry) return;
-
-        const currentLanguage = window.languageRegistry.getCurrentLanguage();
-        const isChinese = currentLanguage && (
-            currentLanguage.toLowerCase() === 'zh' ||
-            currentLanguage.toLowerCase() === 'chinese' ||
-            currentLanguage.toLowerCase().includes('chin')
-        );
-
-        console.log('🔍 Checking pinyin visibility - Language:', currentLanguage, 'Is Chinese:', isChinese);
-
-        // Re-query elements if reference is lost
-        if (!this.partialPinyinBtn || !document.body.contains(this.partialPinyinBtn)) {
-            this.partialPinyinBtn = document.getElementById('partial-pinyin-btn');
-            this.partialPinyinLabel = this.partialPinyinBtn?.querySelector('.pinyin-label');
-            console.log('🔄 Refreshed partial pinyin button reference:', !!this.partialPinyinBtn);
-        }
-
-        if (!this.pinyinContainer || !document.body.contains(this.pinyinContainer)) {
-            this.pinyinContainer = document.getElementById('pinyin-toggle-container');
-            this.pinyinCheckbox = document.getElementById('pinyin-toggle-checkbox');
-            this.pinyinStatus = document.getElementById('pinyin-status');
-            console.log('🔄 Refreshed full pinyin container reference:', !!this.pinyinContainer);
-        }
-
-        // Ensure correct visibility based on current language
-        if (isChinese) {
-            if (this.partialPinyinBtn) {
-                const currentDisplay = this.partialPinyinBtn.style.display;
-                const computedStyle = window.getComputedStyle(this.partialPinyinBtn);
-                const svgElement = this.partialPinyinBtn.querySelector('svg');
-                const textElements = this.partialPinyinBtn.querySelectorAll('text');
-
-                console.log('📍 Partial pinyin button - Display:', currentDisplay);
-                console.log('📍 Computed visibility:', computedStyle.visibility, 'Opacity:', computedStyle.opacity);
-                console.log('📍 SVG exists:', !!svgElement, 'Text elements:', textElements.length);
-
-                // Check text content
-                if (textElements.length > 0) {
-                    textElements.forEach((text, i) => {
-                        const computedColor = window.getComputedStyle(text).fill;
-                        const computedTextColor = window.getComputedStyle(text).color;
-                        console.log(`📍 Text element ${i}:`, text.textContent, 'Fill attr:', text.getAttribute('fill'), 'Computed fill:', computedColor, 'Computed color:', computedTextColor);
-                    });
-                }
-
-                const iconDiv = this.partialPinyinBtn.querySelector('.partial-icon');
-                if (iconDiv) {
-                    const iconComputedColor = window.getComputedStyle(iconDiv).color;
-                    const svgComputedColor = window.getComputedStyle(svgElement).color;
-                    const iconRect = iconDiv.getBoundingClientRect();
-                    const svgRect = svgElement.getBoundingClientRect();
-                    const buttonRect = this.partialPinyinBtn.getBoundingClientRect();
-
-                    const buttonStyle = window.getComputedStyle(this.partialPinyinBtn);
-                    const iconDivStyle = window.getComputedStyle(iconDiv);
-
-                    console.log('📍 Icon div exists:', !!iconDiv, 'Classes:', iconDiv?.className);
-                    console.log('📍 Icon div color:', iconComputedColor, 'SVG color:', svgComputedColor);
-                    console.log('📏 Button dimensions:', buttonRect.width, 'x', buttonRect.height);
-                    console.log('📏 Icon div dimensions:', iconRect.width, 'x', iconRect.height);
-                    console.log('📏 SVG dimensions:', svgRect.width, 'x', svgRect.height);
-                    console.log('📍 Button position:', buttonRect.top, buttonRect.left);
-                    console.log('📍 Button z-index:', buttonStyle.zIndex, 'Icon z-index:', iconDivStyle.zIndex);
-                    console.log('📍 Button transform:', buttonStyle.transform);
-
-                    // Check if button is in viewport
-                    const inViewport = buttonRect.top >= 0 &&
-                                      buttonRect.left >= 0 &&
-                                      buttonRect.bottom <= window.innerHeight &&
-                                      buttonRect.right <= window.innerWidth;
-                    console.log('📍 Button in viewport:', inViewport);
-
-                    // Check what element is actually at the button's position
-                    const centerX = buttonRect.left + buttonRect.width / 2;
-                    const centerY = buttonRect.top + buttonRect.height / 2;
-                    const elementAtPoint = document.elementFromPoint(centerX, centerY);
-                    console.log('🎯 Element at button center:', elementAtPoint?.tagName, elementAtPoint?.className, elementAtPoint?.id);
-                    console.log('🎯 Is it the button or its child?',
-                        elementAtPoint === this.partialPinyinBtn ||
-                        this.partialPinyinBtn.contains(elementAtPoint));
-                }
-
-                console.log('📍 Button HTML:', this.partialPinyinBtn.outerHTML.substring(0, 300));
-
-                if (currentDisplay === 'none' || currentDisplay === '') {
-                    this.partialPinyinBtn.style.display = 'flex';
-                    console.log('✅ Restored partial pinyin button visibility');
-                }
-
-                // Force visibility and color
-                this.partialPinyinBtn.style.visibility = 'visible';
-                this.partialPinyinBtn.style.opacity = '1';
-
-                // Force the SVG to have correct color
-                if (svgElement) {
-                    svgElement.style.color = 'rgba(168, 85, 247, 1)';
-                    console.log('🎨 Forced SVG color to purple');
-                }
-            }
-
-            if (this.pinyinContainer) {
-                const currentDisplay = this.pinyinContainer.style.display;
-                console.log('📍 Full pinyin container current display:', currentDisplay);
-                if (currentDisplay === 'none' || currentDisplay === '') {
-                    this.pinyinContainer.style.display = 'flex';
-                    console.log('✅ Restored full pinyin container visibility');
-                }
-            }
-        }
-    }
 
     /**
      * Show loading state
