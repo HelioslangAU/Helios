@@ -1,0 +1,178 @@
+<div class="helios-side-tab" id="helios-side-tab" data-state="closed">
+    <!-- Peek Tab (Auto-Hide) -->
+    <div class="side-tab-peek" id="side-tab-peek">
+        <div class="peek-icon">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M15 19l-7-7 7-7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Partial View (Thin Bar) -->
+    <div class="side-tab-partial" id="side-tab-partial">
+
+        <div class="partial-stats">
+            <div class="partial-stat-item" data-tooltip="Page Comprehension">
+                <div class="partial-icon comprehension-icon">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <div class="partial-value" id="partial-comprehension">0%</div>
+            </div>
+
+            <div class="partial-stat-item" data-tooltip="Known Words">
+                <div class="partial-icon words-icon">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <div class="partial-value" id="partial-known-words">0</div>
+            </div>
+
+            <div class="partial-stat-item" data-tooltip="Total Words on Page">
+                <div class="partial-icon page-words-icon">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <div class="partial-value" id="partial-page-words">0</div>
+            </div>
+
+            <!-- Pinyin Toggle (Chinese Only) - Compact version for partial view -->
+            <button class="partial-stat-item partial-pinyin-item" id="partial-pinyin-btn" data-tooltip="Toggle Pinyin" style="display: none;">
+                <div class="partial-icon pinyin-icon">
+                    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <text x="24" y="14" font-size="7" fill="currentColor" text-anchor="middle" font-family="system-ui" opacity="0.9">拼音</text>
+                        <text x="24" y="34" font-size="16" fill="currentColor" text-anchor="middle" font-family="system-ui" font-weight="600">汉</text>
+                    </svg>
+                </div>
+                <div class="partial-value pinyin-label">OFF</div>
+            </button>
+        </div>
+
+        <div class="partial-actions">
+            <button class="partial-action-btn" id="partial-expand-btn" data-tooltip="Expand Panel">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+            <button class="partial-action-btn partial-close-btn" id="partial-close-btn" data-tooltip="Close Panel">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Full View (Expanded Panel) -->
+    <div class="side-tab-full" id="side-tab-full">
+        <div class="full-header">
+            <div class="full-title">
+                <div class="full-logo">Helios</div>
+                <div class="full-subtitle">Language Learning</div>
+            </div>
+            <button class="full-close-btn" id="full-close-btn">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="full-content">
+            <!-- Main Stats -->
+            <div class="stats-section">
+                <div class="section-title">Page Analysis</div>
+
+                <div class="stat-card primary-stat">
+                    <div class="stat-card-header">
+                        <div class="stat-card-icon comprehension-gradient">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <div class="stat-card-label">Comprehension</div>
+                    </div>
+                    <div class="stat-card-value comprehension-value" id="full-comprehension">0%</div>
+                    <div class="stat-card-footer">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="comprehension-progress" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <div class="stat-card-icon known-gradient">
+                                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M22 11.08V12a10 10 0 11-5.93-9.14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M22 4L12 14.01l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </div>
+                            <div class="stat-card-label">Known Words</div>
+                        </div>
+                        <div class="stat-card-value" id="full-known-words">0</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <div class="stat-card-icon page-gradient">
+                                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </div>
+                            <div class="stat-card-label">Total Words</div>
+                        </div>
+                        <div class="stat-card-value" id="full-page-words">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="actions-section">
+                <div class="section-title">Quick Actions</div>
+
+                <button class="action-button settings-button" id="settings-btn">
+                    <div class="action-button-icon">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                            <path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m7.08 7.08l4.24 4.24M1 12h6m6 0h6M4.22 19.78l4.24-4.24m7.08-7.08l4.24-4.24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div class="action-button-content">
+                        <div class="action-button-title">Settings</div>
+                        <div class="action-button-subtitle">Configure extension</div>
+                    </div>
+                </button>
+
+                <!-- Pinyin Toggle Slider (Chinese Only) -->
+                <div class="pinyin-toggle-container" id="pinyin-toggle-container" style="display: none;">
+                    <div class="pinyin-toggle-content">
+                        <div class="pinyin-toggle-icon">
+                            <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <!-- Pinyin text on top -->
+                                <text x="24" y="14" font-size="8" fill="currentColor" text-anchor="middle" font-family="system-ui, -apple-system" opacity="0.9">pīn yīn</text>
+                                <!-- Chinese character 汉 below -->
+                                <text x="24" y="36" font-size="20" fill="currentColor" text-anchor="middle" font-family="system-ui, -apple-system" font-weight="600">汉</text>
+                            </svg>
+                        </div>
+                        <div class="pinyin-toggle-text">
+                            <div class="pinyin-toggle-title">Pinyin</div>
+                            <div class="pinyin-toggle-subtitle" id="pinyin-status">Hidden</div>
+                        </div>
+                    </div>
+                    <label class="pinyin-slider">
+                        <input type="checkbox" id="pinyin-toggle-checkbox">
+                        <span class="pinyin-slider-track"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

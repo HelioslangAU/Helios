@@ -58,7 +58,8 @@
         "src/content/dictionary-manager.js",
         "src/content/content.js",
         "src/content/banner-manager.js",
-        "src/content/banner.js"
+        "src/content/banner.js",
+        "src/content/side-tab.js"
       ],
       "css": ["src/ui/popup/popup.css"],
       "run_at": "document_end"
@@ -98,6 +99,9 @@
         "src/ui/banner/banner.html",
         "src/ui/banner/banner.css",
         "src/content/banner.js",
+        "src/ui/side-tab/side-tab.html",
+        "src/ui/side-tab/side-tab.css",
+        "src/content/side-tab.js",
         "src/ui/sidebar/smart-sidebar.html",
         "src/ui/sidebar/smart-sidebar.css",
         "src/ui/sidebar/smart-sidebar.js",

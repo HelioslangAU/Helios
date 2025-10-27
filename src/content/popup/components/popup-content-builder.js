@@ -29,12 +29,9 @@ class PopupContentBuilder {
   static formatFrequency(frequency) {
     if (!frequency) return null;
 
-    // Convert numeric frequency to readable label
-    if (frequency >= 10000) return 'Very Common';
-    if (frequency >= 5000) return 'Common';
-    if (frequency >= 1000) return 'Frequent';
-    if (frequency >= 500) return 'Uncommon';
-    return 'Rare';
+    // Return with "FREQUENCY: " prefix and numeric value
+    // Format with comma separators for readability
+    return `FREQUENCY: ${frequency.toLocaleString()}`;
   }
 
   static createBasicContent(character, dictionaryData, vocabManager, frequencyManager, settings = {}, languageCode = null) {

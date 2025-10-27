@@ -12,6 +12,7 @@ class PronunciationManager {
     this.pronunciationEnabled = false;
     this.processedElements = new Set();
     this.originalTextNodes = new Map(); // Store original text for restoration
+    this.isToggling = false; // Prevent concurrent toggles
   }
 
   isEnabled() {
@@ -31,14 +32,38 @@ class PronunciationManager {
   }
 
   togglePronunciation() {
+    // Prevent toggling if already in progress
+    if (this.isToggling) {
+      console.log("🔤 Toggle already in progress, ignoring...");
+      return;
+    }
+
+    this.isToggling = true;
     this.pronunciationEnabled = !this.pronunciationEnabled;
     console.log("🔤 Pronunciation toggle:", this.pronunciationEnabled ? "ON" : "OFF");
 
-    if (this.pronunciationEnabled) {
-      this.addPronunciationToPage();
-    } else {
-      this.removePronunciationFromPage();
+    // Pause mutation observer during toggle to prevent race conditions
+    if (this.contentObserver) {
+      this.contentObserver.disconnect();
     }
+
+    try {
+      if (this.pronunciationEnabled) {
+        this.addPronunciationToPage();
+      } else {
+        this.removePronunciationFromPage();
+      }
+    } catch (error) {
+      console.error("🔤 Error during pronunciation toggle:", error);
+    }
+
+    // Resume mutation observer after toggle completes
+    setTimeout(() => {
+      this.isToggling = false;
+      if (this.pronunciationEnabled) {
+        this.observeForDynamicContent();
+      }
+    }, 300);
 
     // Notify sidebar of change
     if (window.sidebarManager) {
@@ -48,34 +73,93 @@ class PronunciationManager {
 
   addPronunciationToPage() {
     console.log("🔤 Adding pronunciation to page...");
+
     // Ensure styles are present for ruby rendering
     this.injectPronunciationCSS && this.injectPronunciationCSS();
 
+    // Clear previous state to ensure clean slate
+    this.processedElements.clear();
+    this.originalTextNodes.clear();
+
     // Get all text nodes that contain target language characters
     const textNodes = this.getAllTargetLanguageTextNodes(document.body);
+    console.log("🔤 Found", textNodes.length, "text nodes to process");
 
+    let processed = 0;
     for (const textNode of textNodes) {
-      this.processTextNodeForPronunciation(textNode);
+      try {
+        // Verify text node is still in the document
+        if (textNode.parentNode && document.contains(textNode)) {
+          this.processTextNodeForPronunciation(textNode);
+          processed++;
+        }
+      } catch (error) {
+        console.warn("🔤 Error processing text node:", error);
+      }
     }
 
-    console.log("🔤 Pronunciation added to", textNodes.length, "text nodes");
+    console.log("🔤 Pronunciation added to", processed, "text nodes");
   }
 
   removePronunciationFromPage() {
     console.log("🔤 Removing pronunciation from page...");
 
-    // Remove all ruby elements and restore original text
+    // Find and remove all wrapper spans
+    const wrappers = document.querySelectorAll("span.helios-pronunciation-wrapper");
+    console.log("🔤 Found", wrappers.length, "wrapper spans to remove");
+
+    wrappers.forEach((wrapper) => {
+      const parent = wrapper.parentNode;
+      if (!parent) return;
+
+      // Extract ONLY the base text (not pronunciation)
+      let baseText = '';
+      const rubyElements = wrapper.querySelectorAll('ruby.helios-pronunciation');
+
+      if (rubyElements.length > 0) {
+        // Get text from each ruby element (excluding rt tags)
+        rubyElements.forEach(ruby => {
+          // Get only the text nodes that are direct children of ruby (not in rt)
+          for (let node of ruby.childNodes) {
+            if (node.nodeType === Node.TEXT_NODE) {
+              baseText += node.textContent;
+            }
+          }
+        });
+      } else {
+        // No ruby elements, just get text content
+        baseText = wrapper.textContent;
+      }
+
+      // Create a single text node with only the base text
+      const textNode = document.createTextNode(baseText);
+
+      // Replace the entire wrapper with the text node
+      parent.replaceChild(textNode, wrapper);
+    });
+
+    // Also remove any standalone ruby elements that might exist
     const rubyElements = document.querySelectorAll("ruby.helios-pronunciation");
     rubyElements.forEach((ruby) => {
       const parent = ruby.parentNode;
-      const originalText = ruby.textContent; // This gets the text without the pronunciation
-      const textNode = document.createTextNode(originalText);
+      if (!parent) return;
+
+      // Extract ONLY base text (not pronunciation from rt tags)
+      let baseText = '';
+      for (let node of ruby.childNodes) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          baseText += node.textContent;
+        }
+      }
+
+      const textNode = document.createTextNode(baseText);
       parent.replaceChild(textNode, ruby);
     });
 
     // Normalize text nodes to merge adjacent ones
     this.normalizeTextNodes(document.body);
 
+    // Clear tracking sets
     this.processedElements.clear();
     this.originalTextNodes.clear();
 
@@ -110,12 +194,18 @@ class PronunciationManager {
           return NodeFilter.FILTER_REJECT;
         }
 
-        if (parent.classList.contains("chinese-lang-extension-popup")) {
+        // Skip if inside popup (check ancestors, not just direct parent)
+        if (parent.closest(".chinese-lang-extension-popup")) {
           return NodeFilter.FILTER_REJECT;
         }
 
-        // Skip if already processed or if it's inside a ruby element
-        if (parent.closest("ruby.helios-pronunciation")) {
+        // Skip if already processed or if it's inside a ruby element or wrapper
+        if (parent.closest("ruby.helios-pronunciation") || parent.closest("span.helios-pronunciation-wrapper")) {
+          return NodeFilter.FILTER_REJECT;
+        }
+
+        // Skip if parent is our side tab
+        if (parent.closest("#helios-side-tab")) {
           return NodeFilter.FILTER_REJECT;
         }
 

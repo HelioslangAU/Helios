@@ -517,34 +517,95 @@ class PageProcessor {
     return null;
   }
 
+  /**
+   * Get base text from element, excluding pronunciation (RT tags)
+   */
+  getBaseText(element) {
+    if (!element) return '';
+
+    let baseText = '';
+    const walker = document.createTreeWalker(
+      element,
+      NodeFilter.SHOW_TEXT,
+      {
+        acceptNode: function(node) {
+          // Skip text nodes inside <rt> tags (pronunciation)
+          if (node.parentElement && node.parentElement.tagName === 'RT') {
+            return NodeFilter.FILTER_REJECT;
+          }
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      },
+      false
+    );
+
+    let node;
+    while (node = walker.nextNode()) {
+      baseText += node.textContent;
+    }
+
+    return baseText;
+  }
+
   checkTextNodeAtPosition(textNode, x, y) {
-    const text = textNode.textContent;
-    if (!text) return null;
+    if (!textNode || !textNode.parentElement) return null;
 
     const adapter = this.languageRegistry.getAdapter();
     if (!adapter) return null;
 
+    // Get the parent element to extract full text context
+    // Look for wrapper span or parent element containing the text
+    let container = textNode.parentElement;
+
+    // If inside a ruby element, go up to the wrapper
+    if (container.tagName === 'RUBY') {
+      container = container.parentElement;
+    }
+
+    // Get base text (excluding pronunciation RT tags)
+    const text = this.getBaseText(container);
+    if (!text) return null;
+
     // For space-separated languages, find complete words, not individual characters
     const words = adapter.extractWords(text, this.dictionaryManager.dictionary);
-    
+
     for (const wordData of words) {
-      const range = document.createRange();
-      range.setStart(textNode, wordData.start);
-      range.setEnd(textNode, wordData.end);
-      
-      const rect = range.getBoundingClientRect();
-      
-      if (x >= rect.left && x <= rect.right && 
-          y >= rect.top && y <= rect.bottom) {
-        return {
-          word: wordData.word,
-          textNode,
-          start: wordData.start,
-          end: wordData.end
-        };
+      // Find the text node(s) that contain this word
+      const allTextNodes = this.getTextNodes(container);
+      let currentOffset = 0;
+
+      for (const node of allTextNodes) {
+        const nodeText = node.textContent;
+        const nodeLength = nodeText.length;
+
+        // Check if this word overlaps with this text node
+        if (wordData.start < currentOffset + nodeLength && wordData.end > currentOffset) {
+          // Calculate local offsets within this text node
+          const localStart = Math.max(0, wordData.start - currentOffset);
+          const localEnd = Math.min(nodeLength, wordData.end - currentOffset);
+
+          const range = document.createRange();
+          range.setStart(node, localStart);
+          range.setEnd(node, localEnd);
+
+          const rect = range.getBoundingClientRect();
+
+          if (x >= rect.left && x <= rect.right &&
+              y >= rect.top && y <= rect.bottom) {
+            // Return the first text node for this word
+            return {
+              word: wordData.word,
+              textNode: node,
+              start: localStart,
+              end: localEnd
+            };
+          }
+        }
+
+        currentOffset += nodeLength;
       }
     }
-    
+
     return null;
   }
 
@@ -576,17 +637,25 @@ class PageProcessor {
     const walker = document.createTreeWalker(
       element,
       NodeFilter.SHOW_TEXT,
-      null,
+      {
+        acceptNode: function(node) {
+          // Skip text nodes inside <rt> tags (pronunciation annotations)
+          if (node.parentElement && node.parentElement.tagName === 'RT') {
+            return NodeFilter.FILTER_REJECT;
+          }
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      },
       false
     );
-    
+
     let node;
     while (node = walker.nextNode()) {
       if (node.textContent.trim()) {
         textNodes.push(node);
       }
     }
-    
+
     return textNodes;
   }
 
