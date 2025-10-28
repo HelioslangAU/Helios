@@ -48,7 +48,7 @@
 
   /* Subtle Apple-style border */
   border: 0.5px solid rgba(255, 255, 255, 0.18);
-  border-radius: 16px;
+  border-radius: 12px;
 
   /* Refined Apple-style shadow - subtle and elegant */
   box-shadow:
@@ -238,15 +238,15 @@
   width: 100%;
 }
 
-/* Frequency Badge - Apple-style Minimal */
+/* Frequency Badge - Pill Shape */
 .frequency {
-  background: rgba(255, 107, 71, 0.12);
-  border: 0.5px solid rgba(255, 107, 71, 0.2);
-  border-radius: 6px;
-  padding: 3px 8px;
+  background: rgba(255, 140, 71, 0.15);
+  border: 0.5px solid rgba(255, 140, 71, 0.3);
+  border-radius: 100px;
+  padding: 4px 10px;
   font-size: 10px;
   font-weight: 600;
-  color: #ff8f47;
+  color: #ff8c47;
   text-align: center;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -367,7 +367,7 @@
 .mark-unknown-btn {
   padding: 7px 14px;
   border: none;
-  border-radius: 7px;
+  border-radius: 10px;
   font-size: 11px;
   font-weight: 600;
   font-family: inherit;
@@ -422,7 +422,7 @@
   height: 30px !important;
   padding: 0 !important;
   border: none;
-  border-radius: 7px;
+  border-radius: 10px;
   font-size: 13px !important;
   font-weight: 700;
   font-family: inherit;
@@ -543,7 +543,7 @@
 /* Navigation Dots - Apple-style Minimal */
 .navigation-dots {
   position: absolute;
-  bottom: 12px;
+  bottom: 16px;
   left: 20px;
   display: flex;
   align-items: center;
@@ -580,7 +580,7 @@
 
 .nav-dot.active {
   background: var(--popup-orange-primary);
-  width: 18px;
+  width: 12px;
   border-radius: 3px;
 }
 
@@ -713,8 +713,8 @@
 }
 
 .chinese-lang-extension-popup.theme-light .frequency {
-  background: rgba(255, 107, 71, 0.08);
-  border: 0.5px solid rgba(255, 107, 71, 0.2);
+  background: rgba(255, 140, 71, 0.12);
+  border: 0.5px solid rgba(255, 140, 71, 0.25);
   color: #d97706;
 }
 
