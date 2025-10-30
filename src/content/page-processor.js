@@ -554,7 +554,6 @@ class PageProcessor {
     if (!adapter) return null;
 
     // Get the parent element to extract full text context
-    // Look for wrapper span or parent element containing the text
     let container = textNode.parentElement;
 
     // If inside a ruby element, go up to the wrapper
@@ -566,21 +565,57 @@ class PageProcessor {
     const text = this.getBaseText(container);
     if (!text) return null;
 
-    // For space-separated languages, find complete words, not individual characters
+    // Check if this is a character-based language (like Chinese, Japanese)
+    const isCharacterBased = adapter.getScanResolution() === 'char';
+
+    // For character-based languages, use character-by-character detection
+    if (isCharacterBased) {
+      const allTextNodes = this.getTextNodes(container);
+      
+      for (const node of allTextNodes) {
+        const nodeText = node.textContent;
+        const range = document.createRange();
+        
+        for (let i = 0; i < nodeText.length; i++) {
+          if (!adapter.isTargetCharacter || !adapter.isTargetCharacter(nodeText[i])) continue;
+          
+          range.setStart(node, i);
+          range.setEnd(node, i + 1);
+          
+          const rect = range.getBoundingClientRect();
+          
+          if (x >= rect.left && x <= rect.right && 
+              y >= rect.top && y <= rect.bottom) {
+            
+            // Try to find longest word starting from this character
+            const wordResult = this.findLongestWordFromPosition(node, i);
+            if (wordResult) return wordResult;
+            
+            // Fall back to single character
+            return { 
+              word: nodeText[i], 
+              textNode: node, 
+              start: i, 
+              end: i + 1 
+            };
+          }
+        }
+      }
+      return null;
+    }
+
+    // For word-based languages, use word boundaries
     const words = adapter.extractWords(text, this.dictionaryManager.dictionary);
+    let currentOffset = 0;
 
     for (const wordData of words) {
-      // Find the text node(s) that contain this word
       const allTextNodes = this.getTextNodes(container);
-      let currentOffset = 0;
 
       for (const node of allTextNodes) {
         const nodeText = node.textContent;
         const nodeLength = nodeText.length;
 
-        // Check if this word overlaps with this text node
         if (wordData.start < currentOffset + nodeLength && wordData.end > currentOffset) {
-          // Calculate local offsets within this text node
           const localStart = Math.max(0, wordData.start - currentOffset);
           const localEnd = Math.min(nodeLength, wordData.end - currentOffset);
 
@@ -592,7 +627,6 @@ class PageProcessor {
 
           if (x >= rect.left && x <= rect.right &&
               y >= rect.top && y <= rect.bottom) {
-            // Return the first text node for this word
             return {
               word: wordData.word,
               textNode: node,
@@ -606,6 +640,33 @@ class PageProcessor {
       }
     }
 
+    return null;
+  }
+
+  findLongestWordFromPosition(textNode, startOffset) {
+    const text = textNode.textContent;
+    const adapter = this.languageRegistry.getAdapter();
+    if (!adapter) return null;
+    
+    // Try to find longest word starting from this position
+    for (let len = Math.min(5, text.length - startOffset); len >= 1; len--) {
+      const candidate = text.substring(startOffset, startOffset + len);
+      
+      // Check if all characters are target language characters
+      const allTargetChars = adapter.isTargetCharacter 
+        ? [...candidate].every(c => adapter.isTargetCharacter(c))
+        : true;
+      
+      if (allTargetChars && this.dictionaryManager.dictionary[candidate]) {
+        return { 
+          word: candidate, 
+          textNode, 
+          start: startOffset, 
+          end: startOffset + len 
+        };
+      }
+    }
+    
     return null;
   }
 

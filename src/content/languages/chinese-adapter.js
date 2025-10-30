@@ -158,6 +158,7 @@ class ChineseLanguageAdapter extends BaseLanguageAdapter {
     return null;
   }
 
+
   /**
    * Get sentence boundary regex for Chinese
    * @returns {RegExp} - Regex for splitting Chinese sentences
