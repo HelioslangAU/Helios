@@ -641,7 +641,6 @@
   background: linear-gradient(135deg, var(--popup-orange-primary), var(--popup-orange-secondary)) !important;
   color: white !important;
   border-radius: 3px !important;
-  padding: 2px 4px !important;
   transition: none !important;
   will-change: auto;
 }
