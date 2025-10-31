@@ -1,0 +1,310 @@
+/* Helios YouTube Sidebar - Minimal Design */
+
+:root {
+  --helios-bg-primary: #0a0a0b;
+  --helios-bg-secondary: #151518;
+  --helios-bg-card: #1a1a1d;
+  --helios-accent-primary: #ff6b47;
+  --helios-accent-secondary: #ff8f47;
+  --helios-accent-gradient: linear-gradient(135deg, #ff6b47 0%, #ff8f47 100%);
+  --helios-text-primary: #f8fafc;
+  --helios-text-secondary: #cbd5e1;
+  --helios-text-muted: #94a3b8;
+  --helios-border: rgba(255, 255, 255, 0.06);
+  --helios-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --helios-shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Main Container */
+.helios-youtube-sidebar {
+  position: fixed;
+  top: 56px;
+  right: 0;
+  width: 420px;
+  height: calc(100vh - 56px);
+  background: var(--helios-bg-primary);
+  display: flex;
+  flex-direction: column;
+  z-index: 2100;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+  color: var(--helios-text-primary);
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.helios-youtube-sidebar.hidden {
+  transform: translateX(100%);
+}
+
+/* Subtitle Section */
+.yt-subtitle-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 24px 20px 20px 20px;
+}
+
+.yt-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--helios-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 16px;
+  padding: 0 4px;
+}
+
+.yt-subtitle-count {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--helios-accent-primary);
+  letter-spacing: -0.01em;
+}
+
+/* Subtitle List */
+.yt-subtitle-list {
+  flex: 1;
+  overflow-y: auto;
+  margin: 0 -4px;
+  padding: 0 4px;
+}
+
+.yt-subtitle-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.yt-subtitle-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.yt-subtitle-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 107, 71, 0.25);
+  border-radius: 3px;
+}
+
+.yt-subtitle-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 107, 71, 0.35);
+}
+
+/* Empty State */
+.yt-subtitle-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  text-align: center;
+}
+
+.empty-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(255, 107, 71, 0.08) 0%, rgba(255, 143, 71, 0.04) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+  color: var(--helios-accent-primary);
+  opacity: 0.6;
+}
+
+.yt-subtitle-empty p {
+  margin: 0 0 8px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--helios-text-secondary);
+}
+
+.yt-subtitle-empty small {
+  font-size: 13px;
+  color: var(--helios-text-muted);
+  line-height: 1.5;
+}
+
+/* Subtitle Item */
+.yt-subtitle-item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px;
+  margin: 8px 0;
+  background: var(--helios-bg-secondary);
+  border: 1px solid var(--helios-border);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.yt-subtitle-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: transparent;
+  border-radius: 14px 0 0 14px;
+  transition: all 0.25s;
+}
+
+.yt-subtitle-item:hover {
+  background: var(--helios-bg-card);
+  border-color: rgba(255, 107, 71, 0.2);
+  transform: translateX(4px) scale(1.01);
+  box-shadow: var(--helios-shadow-sm);
+}
+
+.yt-subtitle-item:hover::before {
+  background: linear-gradient(180deg, var(--helios-accent-primary) 0%, var(--helios-accent-secondary) 100%);
+}
+
+.yt-subtitle-item.active {
+  background: linear-gradient(135deg, rgba(255, 107, 71, 0.12) 0%, rgba(255, 143, 71, 0.06) 100%);
+  border-color: rgba(255, 107, 71, 0.3);
+  box-shadow: 0 4px 20px rgba(255, 107, 71, 0.15);
+}
+
+.yt-subtitle-item.active::before {
+  background: var(--helios-accent-gradient);
+  width: 4px;
+  box-shadow: 0 0 12px rgba(255, 107, 71, 0.6);
+}
+
+.yt-subtitle-timestamp {
+  flex-shrink: 0;
+  min-width: 52px;
+  padding: 6px 10px;
+  background: rgba(255, 107, 71, 0.1);
+  border: 1px solid rgba(255, 107, 71, 0.2);
+  border-radius: 8px;
+  color: var(--helios-accent-primary);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  letter-spacing: 0.03em;
+  text-align: center;
+}
+
+.yt-subtitle-item.active .yt-subtitle-timestamp {
+  background: rgba(255, 107, 71, 0.15);
+  border-color: rgba(255, 107, 71, 0.3);
+}
+
+.yt-subtitle-text {
+  flex: 1;
+  color: var(--helios-text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+  word-break: break-word;
+  font-weight: 500;
+}
+
+.yt-subtitle-item.active .yt-subtitle-text {
+  color: var(--helios-text-primary);
+  font-weight: 600;
+}
+
+/* Video Container Adjustments - Push content to the left when sidebar is active */
+#page-manager.helios-sidebar-active {
+  margin-right: 420px !important;
+  transition: margin-right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#page-manager.helios-sidebar-active.helios-sidebar-hidden {
+  margin-right: 0 !important;
+}
+
+/* Theater mode adjustments */
+ytd-watch-flexy[theater] #page-manager.helios-sidebar-active {
+  margin-right: 420px !important;
+}
+
+ytd-watch-flexy[theater] #page-manager.helios-sidebar-active.helios-sidebar-hidden {
+  margin-right: 0 !important;
+}
+
+/* Force adjust all content containers */
+#page-manager.helios-sidebar-active #primary {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+#page-manager.helios-sidebar-active #secondary {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+/* Adjust ytd-watch-flexy element */
+#page-manager.helios-sidebar-active ytd-watch-flexy {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+/* Adjust player containers */
+#page-manager.helios-sidebar-active #player-container-outer,
+#page-manager.helios-sidebar-active #player-container,
+#page-manager.helios-sidebar-active #player {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+/* Ensure video player resizes correctly */
+#page-manager.helios-sidebar-active .html5-video-player,
+#page-manager.helios-sidebar-active .html5-video-container,
+#page-manager.helios-sidebar-active video {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+/* Animations */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.yt-subtitle-item {
+  animation: slideInRight 0.3s ease-out backwards;
+}
+
+.yt-subtitle-item:nth-child(1) { animation-delay: 0.05s; }
+.yt-subtitle-item:nth-child(2) { animation-delay: 0.08s; }
+.yt-subtitle-item:nth-child(3) { animation-delay: 0.11s; }
+.yt-subtitle-item:nth-child(4) { animation-delay: 0.14s; }
+.yt-subtitle-item:nth-child(5) { animation-delay: 0.17s; }
+
+/* Responsive */
+@media (max-width: 1280px) {
+  .helios-youtube-sidebar {
+    width: 380px;
+  }
+
+  #page-manager.helios-sidebar-active {
+    margin-right: 380px !important;
+  }
+
+  ytd-watch-flexy[theater] #page-manager.helios-sidebar-active {
+    margin-right: 380px !important;
+  }
+}
+
+/* Additional body-level adjustments for maximum compatibility */
+body:has(.helios-youtube-sidebar:not(.hidden)) #page-manager {
+  margin-right: 420px !important;
+}
+
+body:has(.helios-youtube-sidebar:not(.hidden)) ytd-watch-flexy[theater] #page-manager {
+  margin-right: 420px !important;
+}

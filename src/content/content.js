@@ -14,6 +14,8 @@ class ChineseLanguageLearningExtension {
     this.featureToggle = null;
     this.settings = null;
     this.asb = null;
+    this.videoFeature = null;
+    this.youtubeSidebar = null;
     this.languageRegistry = null;
     this.languageSwitchCoordinator = null;
 
@@ -82,6 +84,7 @@ class ChineseLanguageLearningExtension {
     console.log(`✅ Dictionary and resources loaded successfully`);
     this.pageProcessor = new PageProcessor(this.dictionaryManager, this.vocabManager, this.languageRegistry);
     window.pageProcessor = this.pageProcessor;
+    window.dictionaryManager = this.dictionaryManager;
     this.bannerManager = new BannerManager();
     window.bannerManager = this.bannerManager;
     window.vocabManager = this.vocabManager;
@@ -98,6 +101,7 @@ class ChineseLanguageLearningExtension {
       frequencyManager: this.frequencyManager,
       languageRegistry: this.languageRegistry,
     });
+    window.popupManager = this.popup; // Expose for subtitle overlay
     window.highlightManager = this.highlightManager;
 
     // Update language switch coordinator with initialized components
@@ -123,8 +127,36 @@ class ChineseLanguageLearningExtension {
 
     this._registerScanner();
 
-    this.asb = new AsbplayerIntegration(this.pageProcessor);
-    this.asb.start();
+    // Initialize proprietary video player feature
+    if (window.heliosVideoFeature) {
+      try {
+        this.videoFeature = window.heliosVideoFeature;
+        await this.videoFeature.init();
+
+        // Make accessible globally for debugging
+        window.heliosVideo = this.videoFeature;
+
+        console.log("✅ Helios video player initialized");
+
+        // Initialize YouTube-specific sidebar
+        if (window.location.hostname.includes("youtube.com") || window.location.hostname.includes("youtu.be")) {
+          try {
+            this.youtubeSidebar = new YouTubeSidebar();
+            console.log("✅ YouTube sidebar initialized");
+          } catch (error) {
+            console.warn("⚠️ YouTube sidebar failed to initialize", error);
+          }
+        }
+      } catch (error) {
+        console.warn("⚠️ Helios video feature failed to initialize", error);
+      }
+    }
+
+    // Keep ASB player integration as fallback (can be removed later)
+    if (!this.videoFeature && window.location.hostname.includes("youtube.com")) {
+      this.asb = new AsbplayerIntegration(this.pageProcessor);
+      this.asb.start();
+    }
 
     console.log("🔍 Language Learning Extension initialized successfully");
   }
