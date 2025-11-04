@@ -379,9 +379,34 @@ class SubtitleOverlay {
    */
   _setupVocabUpdateListener() {
     document.addEventListener('helios-vocab-updated', () => {
-      // Re-render current subtitles to update underlining
-      if (this.currentSubtitles.length > 0) {
-        this._render();
+      // Update underlining without full re-render to avoid breaking hover/popup state
+      this._updateUnderlining();
+    });
+  }
+
+  /**
+   * Update underlining on existing word spans without re-rendering
+   * This preserves hover states and popups
+   */
+  _updateUnderlining() {
+    if (!this.container || !window.vocabManager || !window.dictionaryManager) return;
+
+    const dictionary = window.dictionaryManager.dictionary || {};
+    const wordSpans = this.container.querySelectorAll('.helios-subtitle-word');
+
+    wordSpans.forEach(wordSpan => {
+      const word = wordSpan.getAttribute('data-helios-word');
+      if (!word) return;
+
+      const cleanWord = word.toLowerCase();
+      const shouldUnderline = dictionary[cleanWord] &&
+                             !window.vocabManager.isWordKnown(cleanWord) &&
+                             !window.vocabManager.isWordIgnored(cleanWord);
+
+      if (shouldUnderline) {
+        wordSpan.classList.add('unknown-word');
+      } else {
+        wordSpan.classList.remove('unknown-word');
       }
     });
   }
@@ -437,43 +462,32 @@ class SubtitleOverlay {
       primarySubtitleEl.className = 'helios-subtitle-text helios-subtitle-primary';
       primarySubtitleEl.setAttribute('data-subtitle-index', subtitle.index);
 
-      // Split text into words and wrap each in a span for hover detection
-      const words = subtitle.text.split(/(\s+)/); // Keep spaces
-      words.forEach(wordText => {
-        if (wordText.trim().length > 0) {
+      // Extract words using language adapter (handles Chinese, English, etc.)
+      const adapter = window.languageRegistry?.getAdapter();
+      const dictionary = window.dictionaryManager?.dictionary || {};
+
+      if (adapter && adapter.extractWords) {
+        // Use language-aware word extraction
+        const extractedWords = adapter.extractWords(subtitle.text, dictionary);
+
+        extractedWords.forEach(({ word, offset }) => {
           // Create word span
           const wordSpan = document.createElement('span');
           wordSpan.className = 'helios-subtitle-word';
-          wordSpan.textContent = wordText;
+          wordSpan.textContent = word;
           wordSpan.style.cursor = 'pointer';
           wordSpan.style.pointerEvents = 'auto';
-          wordSpan.setAttribute('data-helios-word', wordText.trim());
+          wordSpan.setAttribute('data-helios-word', word);
 
           // Mark this element as a subtitle word so we can intercept events
           wordSpan.setAttribute('data-subtitle-word', 'true');
 
           // Check if word is unknown and add styling
           // Only underline if: word is in dictionary, not known, and not ignored
-          const cleanWord = wordText.trim().toLowerCase();
-
-          // Debug: Log first few words to check availability
-          if (this._debugWordCount === undefined) this._debugWordCount = 0;
-          if (this._debugWordCount < 3) {
-            console.log('[Subtitle Overlay] Checking word:', cleanWord, {
-              vocabManager: !!window.vocabManager,
-              dictionaryManager: !!window.dictionaryManager,
-              dictionary: !!window.dictionaryManager?.dictionary,
-              dictionarySize: Object.keys(window.dictionaryManager?.dictionary || {}).length,
-              inDictionary: !!window.dictionaryManager?.dictionary[cleanWord],
-              isKnown: window.vocabManager?.isWordKnown(cleanWord),
-              isIgnored: window.vocabManager?.isWordIgnored(cleanWord)
-            });
-            this._debugWordCount++;
-          }
+          const cleanWord = word.toLowerCase();
 
           if (window.vocabManager &&
-              window.dictionaryManager &&
-              window.dictionaryManager.dictionary[cleanWord] &&
+              dictionary[cleanWord] &&
               !window.vocabManager.isWordKnown(cleanWord) &&
               !window.vocabManager.isWordIgnored(cleanWord)) {
             wordSpan.classList.add('unknown-word');
@@ -497,11 +511,11 @@ class SubtitleOverlay {
           });
 
           primarySubtitleEl.appendChild(wordSpan);
-        } else {
-          // Keep spaces as text nodes
-          primarySubtitleEl.appendChild(document.createTextNode(wordText));
-        }
-      });
+        });
+      } else {
+        // Fallback: display text as-is if no adapter available
+        primarySubtitleEl.textContent = subtitle.text;
+      }
 
       // Make text still selectable for copying
       primarySubtitleEl.style.userSelect = 'text';
