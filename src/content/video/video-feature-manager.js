@@ -133,6 +133,27 @@ class VideoFeatureManager {
         }, 100);
       }
     });
+
+    // Handle track requests from YouTube sidebar for dual subtitles
+    document.addEventListener('helios-youtube-request-tracks', async (e) => {
+      if (this.youtubeLoader && this.youtubeLoader.isYouTubePage()) {
+        try {
+          const tracks = await this.youtubeLoader.getAvailableTracks();
+          document.dispatchEvent(new CustomEvent('helios-youtube-tracks-response', {
+            detail: { tracks }
+          }));
+        } catch (error) {
+          console.error('[Helios Video] Failed to get tracks:', error);
+          document.dispatchEvent(new CustomEvent('helios-youtube-tracks-response', {
+            detail: { tracks: [] }
+          }));
+        }
+      } else {
+        document.dispatchEvent(new CustomEvent('helios-youtube-tracks-response', {
+          detail: { tracks: [] }
+        }));
+      }
+    });
   }
 
   /**

@@ -266,6 +266,9 @@ class VocabManager {
         window.pageProcessor.reprocessPage();
       });
     }
+
+    // Dispatch custom event for video subtitle underlining updates
+    document.dispatchEvent(new CustomEvent('helios-vocab-updated'));
   }
 
   getKnownWordsCount() {

@@ -11,6 +11,19 @@ class YouTubeSidebar {
     this.videoBinding = null;
     this.isVisible = false;
     this.activeIndex = -1;
+    this.layoutObserver = null; // Observer to maintain layout during YouTube navigation
+    this.currentSecondarySubtitles = []; // Store secondary subtitles for sidebar display
+
+    // Settings
+    this.settings = {
+      hotkeysEnabled: true,
+      dualSubtitlesEnabled: false,
+      secondarySubtitleLanguage: null,
+      pauseOnHover: false
+    };
+
+    // Load settings from storage
+    this._loadSettings();
 
     if (this.isYouTubePage()) {
       this._init();
@@ -59,6 +72,26 @@ class YouTubeSidebar {
       // Get elements
       this.listContainer = this.sidebar.querySelector('#yt-subtitle-list');
       this.countElement = this.sidebar.querySelector('#yt-subtitle-count');
+      this.subtitleSection = this.sidebar.querySelector('#yt-subtitle-section');
+      this.settingsSection = this.sidebar.querySelector('#yt-settings-section');
+      this.settingsBtn = this.sidebar.querySelector('#yt-settings-btn');
+      this.closeBtn = this.sidebar.querySelector('#yt-close-btn');
+
+      // Get settings elements
+      this.hotkeysToggle = this.sidebar.querySelector('#yt-hotkeys-toggle');
+      this.dualSubtitlesToggle = this.sidebar.querySelector('#yt-dual-subtitles-toggle');
+      this.secondaryLanguageSelect = this.sidebar.querySelector('#yt-secondary-language-select');
+      this.secondaryLanguageContainer = this.sidebar.querySelector('#yt-secondary-language-container');
+      this.pauseOnHoverToggle = this.sidebar.querySelector('#yt-pause-on-hover-toggle');
+
+      // Setup header button listeners
+      this._setupHeaderButtons();
+
+      // Setup settings listeners
+      this._setupSettingsListeners();
+
+      // Apply loaded settings to UI
+      this._applySettingsToUI();
 
       this.isVisible = true;
       console.log('[Helios YouTube Sidebar] Initialized');
@@ -80,7 +113,17 @@ class YouTubeSidebar {
     // Listen for time updates to highlight current subtitle
     document.addEventListener('helios-video-timeupdate', (e) => {
       const { currentTime, binding } = e.detail;
-      this.videoBinding = binding;
+
+      // If this is a new binding, update overlay settings
+      if (this.videoBinding !== binding) {
+        this.videoBinding = binding;
+
+        // Apply pause on hover setting to the overlay
+        if (this.videoBinding && this.videoBinding.overlay) {
+          this.videoBinding.overlay.setPauseOnHover(this.settings.pauseOnHover);
+        }
+      }
+
       this._updateActiveSubtitle(currentTime);
     });
 
@@ -88,6 +131,325 @@ class YouTubeSidebar {
     document.addEventListener('helios-toggle-subtitle-panel', () => {
       this.toggle();
     });
+
+    // Listen for vocabulary updates to refresh underlining
+    document.addEventListener('helios-vocab-updated', () => {
+      this._renderSubtitleList();
+    });
+
+    // Setup hotkeys
+    this._setupHotkeys();
+  }
+
+  /**
+   * Setup keyboard hotkeys (Migaku-style)
+   */
+  _setupHotkeys() {
+    document.addEventListener('keydown', (e) => {
+      // Only trigger if hotkeys are enabled and we're on YouTube watch page
+      if (!this.settings.hotkeysEnabled || !window.location.pathname.includes('/watch')) {
+        return;
+      }
+
+      // Don't trigger if user is typing in an input field
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+        return;
+      }
+
+      const key = e.key.toLowerCase();
+
+      // A or ← = Previous subtitle
+      if (key === 'a' || key === 'arrowleft') {
+        e.preventDefault();
+        this._jumpToPreviousSubtitle();
+      }
+      // D or → = Next subtitle
+      else if (key === 'd' || key === 'arrowright') {
+        e.preventDefault();
+        this._jumpToNextSubtitle();
+      }
+      // S = Jump to current subtitle start
+      else if (key === 's') {
+        e.preventDefault();
+        this._jumpToCurrentSubtitleStart();
+      }
+      // W = Toggle subtitle visibility (overlay)
+      else if (key === 'w') {
+        e.preventDefault();
+        this._toggleSubtitleOverlay();
+      }
+    });
+  }
+
+  /**
+   * Setup header button listeners
+   */
+  _setupHeaderButtons() {
+    // Settings button - toggle between subtitle and settings view
+    if (this.settingsBtn) {
+      this.settingsBtn.addEventListener('click', () => {
+        this._toggleSettings();
+      });
+    }
+
+    // Close button - hide sidebar
+    if (this.closeBtn) {
+      this.closeBtn.addEventListener('click', () => {
+        this.hide();
+      });
+    }
+  }
+
+  /**
+   * Toggle between subtitle view and settings view
+   */
+  _toggleSettings() {
+    const isShowingSettings = this.settingsSection.style.display !== 'none';
+
+    if (isShowingSettings) {
+      // Switch to subtitle view
+      this.settingsSection.style.display = 'none';
+      this.subtitleSection.style.display = 'flex';
+    } else {
+      // Switch to settings view
+      this.subtitleSection.style.display = 'none';
+      this.settingsSection.style.display = 'flex';
+
+      // Update language dropdown with available tracks
+      this._updateLanguageDropdown();
+    }
+  }
+
+  /**
+   * Update language dropdown with available tracks
+   */
+  async _updateLanguageDropdown() {
+    if (!this.secondaryLanguageSelect) return;
+
+    try {
+      // Request available tracks
+      const tracksPromise = new Promise((resolve) => {
+        const handler = (event) => {
+          document.removeEventListener('helios-youtube-tracks-response', handler);
+          resolve(event.detail.tracks || []);
+        };
+        document.addEventListener('helios-youtube-tracks-response', handler);
+
+        document.dispatchEvent(new CustomEvent('helios-youtube-request-tracks', {
+          detail: { videoId: this._getCurrentVideoId() }
+        }));
+
+        setTimeout(() => {
+          document.removeEventListener('helios-youtube-tracks-response', handler);
+          resolve([]);
+        }, 3000);
+      });
+
+      const tracks = await tracksPromise;
+
+      if (!tracks || tracks.length === 0) {
+        return;
+      }
+
+      // Create a map to store unique language entries
+      // Key: full language code (e.g., "en", "zh-Hans", "zh-Hant")
+      // Value: display name
+      const languageMap = new Map();
+
+      tracks.forEach(track => {
+        const langCode = track.language;
+        const langName = track.languageName || track.language;
+
+        if (langCode && !languageMap.has(langCode)) {
+          // Keep Chinese variants separate
+          if (langCode.startsWith('zh')) {
+            languageMap.set(langCode, langName);
+          } else {
+            // For other languages, use base code but keep full name
+            const baseCode = langCode.split('-')[0];
+            if (!languageMap.has(baseCode)) {
+              languageMap.set(baseCode, this._getLanguageDisplayName(langName, langCode));
+            }
+          }
+        }
+      });
+
+      // Store current selection
+      const currentSelection = this.settings.secondarySubtitleLanguage;
+
+      // Clear existing options (no Auto-detect)
+      this.secondaryLanguageSelect.innerHTML = '';
+
+      // Add available languages sorted alphabetically
+      const sortedLanguages = Array.from(languageMap.entries()).sort((a, b) =>
+        a[1].localeCompare(b[1])
+      );
+
+      sortedLanguages.forEach(([code, name]) => {
+        const option = document.createElement('option');
+        option.value = code;
+        option.textContent = name;
+        this.secondaryLanguageSelect.appendChild(option);
+      });
+
+      // Restore selection if it's still available
+      if (currentSelection && languageMap.has(currentSelection)) {
+        this.secondaryLanguageSelect.value = currentSelection;
+      } else if (sortedLanguages.length > 0) {
+        // Select first language by default
+        this.secondaryLanguageSelect.value = sortedLanguages[0][0];
+        this.settings.secondarySubtitleLanguage = sortedLanguages[0][0];
+      }
+
+      console.log('[Helios YouTube Sidebar] Updated language dropdown with', languageMap.size, 'languages');
+    } catch (error) {
+      console.error('[Helios YouTube Sidebar] Failed to update language dropdown:', error);
+    }
+  }
+
+  /**
+   * Get proper display name for language
+   */
+  _getLanguageDisplayName(youtubeName, langCode) {
+    // Language code to proper name mapping
+    const languageNames = {
+      'en': 'English',
+      'es': 'Spanish',
+      'fr': 'French',
+      'de': 'German',
+      'it': 'Italian',
+      'pt': 'Portuguese',
+      'ru': 'Russian',
+      'ja': 'Japanese',
+      'ko': 'Korean',
+      'zh': 'Chinese',
+      'ar': 'Arabic',
+      'hi': 'Hindi',
+      'nl': 'Dutch',
+      'pl': 'Polish',
+      'sv': 'Swedish',
+      'tr': 'Turkish',
+      'vi': 'Vietnamese',
+      'th': 'Thai',
+      'id': 'Indonesian',
+      'ms': 'Malay',
+      'cs': 'Czech',
+      'da': 'Danish',
+      'fi': 'Finnish',
+      'el': 'Greek',
+      'he': 'Hebrew',
+      'hu': 'Hungarian',
+      'no': 'Norwegian',
+      'ro': 'Romanian',
+      'sk': 'Slovak',
+      'uk': 'Ukrainian'
+    };
+
+    // If YouTube provides a good name, use it (especially for Chinese variants)
+    if (youtubeName && youtubeName.length > 2 && !youtubeName.includes('-')) {
+      return youtubeName;
+    }
+
+    // Otherwise, use our mapping
+    const baseCode = langCode.split('-')[0];
+    return languageNames[baseCode] || youtubeName || langCode;
+  }
+
+  /**
+   * Setup settings UI listeners
+   */
+  _setupSettingsListeners() {
+    // Hotkeys toggle
+    if (this.hotkeysToggle) {
+      this.hotkeysToggle.addEventListener('change', (e) => {
+        this.settings.hotkeysEnabled = e.target.checked;
+        this._saveSettings();
+        console.log(`[Helios YouTube Sidebar] Hotkeys ${e.target.checked ? 'enabled' : 'disabled'}`);
+      });
+    }
+
+    // Dual subtitles toggle
+    if (this.dualSubtitlesToggle) {
+      this.dualSubtitlesToggle.addEventListener('change', (e) => {
+        this.settings.dualSubtitlesEnabled = e.target.checked;
+        this._saveSettings();
+
+        // Show/hide secondary language selector
+        if (this.secondaryLanguageContainer) {
+          this.secondaryLanguageContainer.style.display = e.target.checked ? 'block' : 'none';
+        }
+
+        // Trigger subtitle reload if dual subtitles enabled, clear if disabled
+        if (e.target.checked) {
+          this._loadSecondarySubtitles();
+        } else {
+          // Clear secondary subtitles from both overlay and sidebar
+          this.currentSecondarySubtitles = [];
+          if (this.videoBinding && this.videoBinding.overlay) {
+            this.videoBinding.overlay.clearSecondarySubtitles();
+          }
+          // Re-render sidebar list without secondary subtitles
+          this._renderSubtitleList();
+        }
+
+        console.log(`[Helios YouTube Sidebar] Dual subtitles ${e.target.checked ? 'enabled' : 'disabled'}`);
+      });
+    }
+
+    // Secondary language select
+    if (this.secondaryLanguageSelect) {
+      this.secondaryLanguageSelect.addEventListener('change', (e) => {
+        this.settings.secondarySubtitleLanguage = e.target.value || null;
+        this._saveSettings();
+
+        // Reload secondary subtitles with new language
+        if (this.settings.dualSubtitlesEnabled) {
+          this._loadSecondarySubtitles();
+        }
+
+        console.log(`[Helios YouTube Sidebar] Secondary language set to: ${e.target.value || 'auto'}`);
+      });
+    }
+
+    // Pause on hover toggle
+    if (this.pauseOnHoverToggle) {
+      this.pauseOnHoverToggle.addEventListener('change', (e) => {
+        this.settings.pauseOnHover = e.target.checked;
+        this._saveSettings();
+
+        // Update overlay setting
+        if (this.videoBinding && this.videoBinding.overlay) {
+          this.videoBinding.overlay.setPauseOnHover(e.target.checked);
+        }
+
+        console.log(`[Helios YouTube Sidebar] Pause on hover ${e.target.checked ? 'enabled' : 'disabled'}`);
+      });
+    }
+  }
+
+  /**
+   * Apply loaded settings to UI
+   */
+  _applySettingsToUI() {
+    if (this.hotkeysToggle) {
+      this.hotkeysToggle.checked = this.settings.hotkeysEnabled;
+    }
+
+    if (this.dualSubtitlesToggle) {
+      this.dualSubtitlesToggle.checked = this.settings.dualSubtitlesEnabled;
+    }
+
+    if (this.secondaryLanguageSelect && this.settings.secondarySubtitleLanguage) {
+      this.secondaryLanguageSelect.value = this.settings.secondarySubtitleLanguage;
+    }
+
+    if (this.secondaryLanguageContainer) {
+      this.secondaryLanguageContainer.style.display = this.settings.dualSubtitlesEnabled ? 'block' : 'none';
+    }
+
+    if (this.pauseOnHoverToggle) {
+      this.pauseOnHoverToggle.checked = this.settings.pauseOnHover;
+    }
   }
 
   /**
@@ -110,6 +472,7 @@ class YouTubeSidebar {
 
   /**
    * Adjust video layout to accommodate sidebar
+   * CRITICAL: Always push video, never cover it
    */
   _adjustVideoLayout() {
     // Wait for page-manager to exist (YouTube uses dynamic loading)
@@ -118,7 +481,10 @@ class YouTubeSidebar {
       if (pageManager) {
         pageManager.classList.add('helios-sidebar-active');
         pageManager.classList.remove('helios-sidebar-hidden');
-        console.log('[Helios YouTube Sidebar] Video layout adjusted');
+        console.log('[Helios YouTube Sidebar] Video layout adjusted - sidebar will push video');
+
+        // Setup observer to re-enforce layout on YouTube SPA navigation
+        this._setupLayoutObserver(pageManager);
       } else {
         // Retry after a short delay
         setTimeout(checkAndAdjust, 100);
@@ -128,11 +494,39 @@ class YouTubeSidebar {
   }
 
   /**
+   * Setup MutationObserver to maintain layout during YouTube navigation
+   */
+  _setupLayoutObserver(pageManager) {
+    if (this.layoutObserver) return; // Already setup
+
+    this.layoutObserver = new MutationObserver(() => {
+      // Re-enforce classes when YouTube modifies the DOM
+      if (this.isVisible && !pageManager.classList.contains('helios-sidebar-active')) {
+        pageManager.classList.add('helios-sidebar-active');
+        pageManager.classList.remove('helios-sidebar-hidden');
+        console.log('[Helios YouTube Sidebar] Layout re-enforced after DOM change');
+      }
+    });
+
+    // Observe the entire ytd-app for changes (catches SPA navigation)
+    const ytdApp = document.querySelector('ytd-app');
+    if (ytdApp) {
+      this.layoutObserver.observe(ytdApp, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['class']
+      });
+    }
+  }
+
+  /**
    * Update subtitles in sidebar
    */
   updateSubtitles(entries, track) {
     this.currentSubtitles = entries;
     this.currentTrack = track;
+    this.currentSecondarySubtitles = []; // Reset secondary subtitles
 
     // Update count
     if (this.countElement) {
@@ -141,6 +535,140 @@ class YouTubeSidebar {
 
     // Render subtitle list
     this._renderSubtitleList();
+
+    // Update language dropdown with new video's available languages
+    this._updateLanguageDropdown();
+
+    // Load secondary subtitles if dual subtitles enabled
+    if (this.settings.dualSubtitlesEnabled) {
+      this._loadSecondarySubtitles();
+    }
+  }
+
+  /**
+   * Load secondary subtitles for dual subtitle display
+   */
+  async _loadSecondarySubtitles() {
+    if (!this.videoBinding) {
+      console.warn('[Helios YouTube Sidebar] Cannot load secondary subtitles: no video binding');
+      return;
+    }
+
+    try {
+      // Dispatch event to request available tracks
+      const tracksPromise = new Promise((resolve) => {
+        const handler = (event) => {
+          document.removeEventListener('helios-youtube-tracks-response', handler);
+          resolve(event.detail.tracks || []);
+        };
+        document.addEventListener('helios-youtube-tracks-response', handler);
+
+        // Request tracks
+        document.dispatchEvent(new CustomEvent('helios-youtube-request-tracks', {
+          detail: { videoId: this._getCurrentVideoId() }
+        }));
+
+        // Timeout after 3 seconds
+        setTimeout(() => {
+          document.removeEventListener('helios-youtube-tracks-response', handler);
+          resolve([]);
+        }, 3000);
+      });
+
+      const tracks = await tracksPromise;
+
+      if (!tracks || tracks.length === 0) {
+        console.warn('[Helios YouTube Sidebar] No subtitle tracks available');
+        return;
+      }
+
+      console.log('[Helios YouTube Sidebar] Found', tracks.length, 'available subtitle tracks');
+
+      // Find secondary subtitle track
+      let secondaryTrack = null;
+      const currentTrackUrl = this.currentTrack?.url;
+
+      if (this.settings.secondarySubtitleLanguage) {
+        // User explicitly selected a language - find that language
+        // Prefer a different track than the current one if possible
+        const selectedLang = this.settings.secondarySubtitleLanguage;
+        const matchingTracks = tracks.filter(t => {
+          // Match exact language code or language prefix (e.g., "en" matches "en-US")
+          return t.language === selectedLang ||
+                 t.language?.startsWith(selectedLang + '-') ||
+                 t.language?.split('-')[0] === selectedLang;
+        });
+
+        // Try to find a different track than current
+        secondaryTrack = matchingTracks.find(t => t.url !== currentTrackUrl) || matchingTracks[0];
+
+        if (matchingTracks.length === 0) {
+          console.warn('[Helios YouTube Sidebar] No tracks found for language:', selectedLang);
+        }
+      } else {
+        // Auto-detect: prefer English if available, otherwise first track different from current
+        const currentLang = this.currentTrack?.language;
+
+        // Try English first (but different track)
+        const englishTracks = tracks.filter(t => t.language === 'en' || t.language?.startsWith('en-'));
+        secondaryTrack = englishTracks.find(t => t.url !== currentTrackUrl) || englishTracks[0];
+
+        // If no English or it's the same track, try any other language
+        if (!secondaryTrack || secondaryTrack.url === currentTrackUrl) {
+          secondaryTrack = tracks.find(t => t.url !== currentTrackUrl) || tracks[0];
+        }
+      }
+
+      if (!secondaryTrack || !secondaryTrack.url) {
+        console.warn('[Helios YouTube Sidebar] No suitable secondary track found');
+        return;
+      }
+
+      // Don't load if it's the exact same track
+      if (secondaryTrack.url === currentTrackUrl) {
+        console.warn('[Helios YouTube Sidebar] Secondary track is same as primary, skipping');
+        return;
+      }
+
+      console.log('[Helios YouTube Sidebar] Loading secondary subtitles:', secondaryTrack.languageName);
+
+      // Use the YouTube loader's loadTrack method
+      const youtubeLoader = window.heliosVideoFeature?.youtubeLoader;
+      if (!youtubeLoader) {
+        console.warn('[Helios YouTube Sidebar] YouTube loader not available');
+        return;
+      }
+
+      const secondaryEntries = await youtubeLoader.loadTrack(secondaryTrack.url);
+
+      if (secondaryEntries.length === 0) {
+        console.warn('[Helios YouTube Sidebar] No secondary subtitle entries parsed');
+        return;
+      }
+
+      // Store secondary subtitles for sidebar display
+      this.currentSecondarySubtitles = secondaryEntries;
+
+      // Pass to video binding overlay
+      if (this.videoBinding.overlay) {
+        this.videoBinding.overlay.setSecondarySubtitles(secondaryEntries);
+      }
+
+      // Re-render sidebar list with dual subtitles
+      this._renderSubtitleList();
+
+      console.log(`[Helios YouTube Sidebar] Loaded ${secondaryEntries.length} secondary subtitles`);
+    } catch (error) {
+      console.error('[Helios YouTube Sidebar] Failed to load secondary subtitles:', error);
+    }
+  }
+
+  /**
+   * Get current video ID from URL
+   */
+  _getCurrentVideoId() {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('v');
   }
 
   /**
@@ -179,12 +707,71 @@ class YouTubeSidebar {
       timestamp.className = 'yt-subtitle-timestamp';
       timestamp.textContent = this._formatTime(entry.start);
 
-      const text = document.createElement('div');
-      text.className = 'yt-subtitle-text';
-      text.textContent = entry.text;
+      // Text container (for dual subtitles)
+      const textContainer = document.createElement('div');
+      textContainer.className = 'yt-subtitle-text-container';
+
+      // Primary subtitle text with word-level underlining for unknown words
+      const primaryText = document.createElement('div');
+      primaryText.className = 'yt-subtitle-text yt-subtitle-text-primary';
+
+      // Split text into words and wrap each in a span for unknown word detection
+      const words = entry.text.split(/(\s+)/); // Keep spaces
+      words.forEach(wordText => {
+        if (wordText.trim().length > 0) {
+          const wordSpan = document.createElement('span');
+          wordSpan.className = 'yt-subtitle-word';
+          wordSpan.textContent = wordText;
+
+          // Check if word is unknown and add styling
+          // Only underline if: word is in dictionary, not known, and not ignored
+          const cleanWord = wordText.trim().toLowerCase();
+
+          // Debug: Log first few words to check availability
+          if (this._debugWordCount === undefined) this._debugWordCount = 0;
+          if (this._debugWordCount < 3) {
+            console.log('[YouTube Sidebar] Checking word:', cleanWord, {
+              vocabManager: !!window.vocabManager,
+              dictionaryManager: !!window.dictionaryManager,
+              dictionary: !!window.dictionaryManager?.dictionary,
+              dictionarySize: Object.keys(window.dictionaryManager?.dictionary || {}).length,
+              inDictionary: !!window.dictionaryManager?.dictionary[cleanWord],
+              isKnown: window.vocabManager?.isWordKnown(cleanWord),
+              isIgnored: window.vocabManager?.isWordIgnored(cleanWord)
+            });
+            this._debugWordCount++;
+          }
+
+          if (window.vocabManager &&
+              window.dictionaryManager &&
+              window.dictionaryManager.dictionary[cleanWord] &&
+              !window.vocabManager.isWordKnown(cleanWord) &&
+              !window.vocabManager.isWordIgnored(cleanWord)) {
+            wordSpan.classList.add('unknown-word');
+          }
+
+          primaryText.appendChild(wordSpan);
+        } else {
+          // Keep spaces as text nodes
+          primaryText.appendChild(document.createTextNode(wordText));
+        }
+      });
+
+      textContainer.appendChild(primaryText);
+
+      // Secondary subtitle text (if available)
+      if (this.currentSecondarySubtitles.length > 0) {
+        const matchingSecondary = this._findMatchingSubtitle(entry, this.currentSecondarySubtitles);
+        if (matchingSecondary) {
+          const secondaryText = document.createElement('div');
+          secondaryText.className = 'yt-subtitle-text yt-subtitle-text-secondary';
+          secondaryText.textContent = matchingSecondary.text;
+          textContainer.appendChild(secondaryText);
+        }
+      }
 
       item.appendChild(timestamp);
-      item.appendChild(text);
+      item.appendChild(textContainer);
 
       // Click to seek
       item.addEventListener('click', () => {
@@ -193,6 +780,29 @@ class YouTubeSidebar {
 
       this.listContainer.appendChild(item);
     });
+  }
+
+  /**
+   * Find matching secondary subtitle based on time overlap
+   */
+  _findMatchingSubtitle(primaryEntry, secondarySubtitles) {
+    let bestMatch = null;
+    let maxOverlap = 0;
+
+    for (const secondary of secondarySubtitles) {
+      // Calculate overlap duration
+      const overlapStart = Math.max(primaryEntry.start, secondary.start);
+      const overlapEnd = Math.min(primaryEntry.end, secondary.end);
+      const overlap = Math.max(0, overlapEnd - overlapStart);
+
+      if (overlap > maxOverlap) {
+        maxOverlap = overlap;
+        bestMatch = secondary;
+      }
+    }
+
+    // Only return match if there's significant overlap (at least 50ms)
+    return maxOverlap >= 50 ? bestMatch : null;
   }
 
   /**
@@ -308,9 +918,104 @@ class YouTubeSidebar {
   }
 
   /**
+   * Hotkey: Jump to previous subtitle
+   */
+  _jumpToPreviousSubtitle() {
+    if (!this.videoBinding) return;
+
+    const currentTime = this.videoBinding.videoElement.currentTime * 1000;
+    const subtitleCollection = this.videoBinding.getSubtitles();
+    const previousSubtitle = subtitleCollection.getPreviousSubtitle(currentTime);
+
+    if (previousSubtitle) {
+      this.videoBinding.seekTo(previousSubtitle.start);
+      console.log('[Helios Hotkeys] Jumped to previous subtitle');
+    }
+  }
+
+  /**
+   * Hotkey: Jump to next subtitle
+   */
+  _jumpToNextSubtitle() {
+    if (!this.videoBinding) return;
+
+    const currentTime = this.videoBinding.videoElement.currentTime * 1000;
+    const subtitleCollection = this.videoBinding.getSubtitles();
+    const nextSubtitle = subtitleCollection.getNextSubtitle(currentTime);
+
+    if (nextSubtitle) {
+      this.videoBinding.seekTo(nextSubtitle.start);
+      console.log('[Helios Hotkeys] Jumped to next subtitle');
+    }
+  }
+
+  /**
+   * Hotkey: Jump to current subtitle start
+   */
+  _jumpToCurrentSubtitleStart() {
+    if (!this.videoBinding || this.currentSubtitles.length === 0) return;
+
+    const currentTime = this.videoBinding.videoElement.currentTime * 1000;
+    const activeSubtitle = this.currentSubtitles.find(entry =>
+      currentTime >= entry.start && currentTime <= entry.end
+    );
+
+    if (activeSubtitle) {
+      this.videoBinding.seekTo(activeSubtitle.start);
+      console.log('[Helios Hotkeys] Jumped to current subtitle start');
+    }
+  }
+
+  /**
+   * Hotkey: Toggle subtitle overlay visibility
+   */
+  _toggleSubtitleOverlay() {
+    if (!this.videoBinding || !this.videoBinding.overlay) return;
+
+    const overlay = this.videoBinding.overlay.container;
+    if (overlay) {
+      const isHidden = overlay.style.display === 'none';
+      overlay.style.display = isHidden ? '' : 'none';
+      console.log(`[Helios Hotkeys] Subtitle overlay ${isHidden ? 'shown' : 'hidden'}`);
+    }
+  }
+
+  /**
+   * Load settings from chrome storage
+   */
+  async _loadSettings() {
+    try {
+      const result = await chrome.storage.local.get(['ytSidebarSettings']);
+      if (result.ytSidebarSettings) {
+        this.settings = { ...this.settings, ...result.ytSidebarSettings };
+      }
+    } catch (error) {
+      console.error('[Helios YouTube Sidebar] Failed to load settings:', error);
+    }
+  }
+
+  /**
+   * Save settings to chrome storage
+   */
+  async _saveSettings() {
+    try {
+      await chrome.storage.local.set({ ytSidebarSettings: this.settings });
+      console.log('[Helios YouTube Sidebar] Settings saved');
+    } catch (error) {
+      console.error('[Helios YouTube Sidebar] Failed to save settings:', error);
+    }
+  }
+
+  /**
    * Destroy sidebar
    */
   destroy() {
+    // Disconnect layout observer
+    if (this.layoutObserver) {
+      this.layoutObserver.disconnect();
+      this.layoutObserver = null;
+    }
+
     if (this.sidebar && this.sidebar.parentElement) {
       this.sidebar.parentElement.removeChild(this.sidebar);
     }
