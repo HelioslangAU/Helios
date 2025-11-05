@@ -306,12 +306,29 @@
   border-left-color: rgba(255, 107, 71, 0.6);
 }
 
+/* Word styling in sidebar */
+.yt-subtitle-word {
+  transition: all 0.15s ease;
+  border-radius: 4px;
+  padding: 2px 1px;
+}
+
+.yt-subtitle-word:hover {
+  background: rgba(255, 107, 71, 0.15);
+  color: var(--helios-accent-primary);
+}
+
 /* Unknown word styling in sidebar */
 .yt-subtitle-word.unknown-word {
   text-decoration: underline;
   text-decoration-color: #ff4444;
   text-decoration-thickness: 2px;
   text-underline-offset: 2px;
+}
+
+.yt-subtitle-word.unknown-word:hover {
+  background: rgba(255, 68, 68, 0.2);
+  color: #ff6666;
 }
 
 /* Video Container Adjustments - ALWAYS push content, NEVER cover */

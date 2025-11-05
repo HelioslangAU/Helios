@@ -86,7 +86,6 @@ class YouTubeSidebar {
 
       // Get elements
       this.listContainer = this.sidebar.querySelector('#yt-subtitle-list');
-      this.countElement = this.sidebar.querySelector('#yt-subtitle-count');
       this.subtitleSection = this.sidebar.querySelector('#yt-subtitle-section');
       this.settingsSection = this.sidebar.querySelector('#yt-settings-section');
       this.settingsBtn = this.sidebar.querySelector('#yt-settings-btn');
@@ -164,23 +163,6 @@ class YouTubeSidebar {
           }
         }
       }
-
-      // Resume video if it was paused by hover
-      if (this.videoBinding && this.videoBinding.overlay) {
-        const overlay = this.videoBinding.overlay;
-        if (overlay.pauseOnHover && overlay.pausedByHover) {
-          if (overlay.resumeTimeout) {
-            clearTimeout(overlay.resumeTimeout);
-            overlay.resumeTimeout = null;
-          }
-          setTimeout(() => {
-            if (overlay.videoElement && overlay.videoElement.paused && overlay.pausedByHover) {
-              overlay.videoElement.play();
-              overlay.pausedByHover = false;
-            }
-          }, 100);
-        }
-      }
     });
 
     // Listen for video notifications to display in sidebar
@@ -236,13 +218,13 @@ class YouTubeSidebar {
 
       const key = e.key.toLowerCase();
 
-      // A or ← = Previous subtitle
-      if (key === 'a' || key === 'arrowleft') {
+      // A = Previous subtitle
+      if (key === 'a') {
         e.preventDefault();
         this._jumpToPreviousSubtitle();
       }
-      // D or → = Next subtitle
-      else if (key === 'd' || key === 'arrowright') {
+      // D = Next subtitle
+      else if (key === 'd') {
         e.preventDefault();
         this._jumpToNextSubtitle();
       }
@@ -270,10 +252,20 @@ class YouTubeSidebar {
       });
     }
 
-    // Close button - hide sidebar
+    // Close button - smart behavior:
+    // - If in settings view, go back to subtitle view
+    // - If in subtitle view, close the sidebar
     if (this.closeBtn) {
       this.closeBtn.addEventListener('click', () => {
-        this.hide();
+        const isShowingSettings = this.settingsSection.style.display !== 'none';
+
+        if (isShowingSettings) {
+          // Go back to subtitle view
+          this._toggleSettings();
+        } else {
+          // Close the sidebar
+          this.hide();
+        }
       });
     }
   }
@@ -288,10 +280,28 @@ class YouTubeSidebar {
       // Switch to subtitle view
       this.settingsSection.style.display = 'none';
       this.subtitleSection.style.display = 'flex';
+
+      // Change close button back to X icon
+      this.closeBtn.innerHTML = `
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      `;
+      this.closeBtn.setAttribute('title', 'Close');
     } else {
       // Switch to settings view
       this.subtitleSection.style.display = 'none';
       this.settingsSection.style.display = 'flex';
+
+      // Change close button to back arrow icon (pointing right)
+      this.closeBtn.innerHTML = `
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+          <polyline points="12 5 19 12 12 19"></polyline>
+        </svg>
+      `;
+      this.closeBtn.setAttribute('title', 'Back to subtitles');
 
       // Update language dropdown with available tracks
       this._updateLanguageDropdown();
@@ -606,11 +616,6 @@ class YouTubeSidebar {
     this.currentTrack = track;
     this.currentSecondarySubtitles = []; // Reset secondary subtitles
 
-    // Update count
-    if (this.countElement) {
-      this.countElement.textContent = this.currentSubtitles.length.toString();
-    }
-
     // Render subtitle list
     this._renderSubtitleList();
 
@@ -831,6 +836,11 @@ class YouTubeSidebar {
           const wordSpan = document.createElement('span');
           wordSpan.className = 'yt-subtitle-word';
           wordSpan.textContent = word;
+          wordSpan.style.cursor = 'pointer';
+
+          // Mark as subtitle word for hover-without-shift functionality
+          wordSpan.setAttribute('data-subtitle-word', 'true');
+          wordSpan.setAttribute('data-helios-word', word);
 
           // Check if word is unknown and add styling
           // Only underline if: word is in dictionary, not known, and not ignored
@@ -1023,7 +1033,7 @@ class YouTubeSidebar {
       this.sidebar.classList.add('hidden');
       this.isVisible = false;
 
-      // Remove video layout adjustment completely
+      // Remove video layout adjustment
       const pageManager = document.querySelector('#page-manager');
       if (pageManager) {
         pageManager.classList.remove('helios-sidebar-active');

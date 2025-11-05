@@ -116,18 +116,7 @@ class ChineseLanguageLearningExtension {
       activation: this.activation,
     });
 
-    this.featureToggle = new FeatureToggle({
-      activation: this.activation,
-      textScanner: this.textScanner,
-      bannerManager: this.bannerManager,
-      pageProcessor: this.pageProcessor,
-      popup: this.popup,
-      pronunciationManager: this.pronunciationManager,
-    });
-
-    this._registerScanner();
-
-    // Initialize proprietary video player feature
+    // Initialize proprietary video player feature first (before FeatureToggle)
     if (window.heliosVideoFeature) {
       try {
         this.videoFeature = window.heliosVideoFeature;
@@ -149,6 +138,37 @@ class ChineseLanguageLearningExtension {
         }
       } catch (error) {
         console.warn("⚠️ Helios video feature failed to initialize", error);
+      }
+    }
+
+    // Initialize FeatureToggle with video features
+    this.featureToggle = new FeatureToggle({
+      activation: this.activation,
+      textScanner: this.textScanner,
+      bannerManager: this.bannerManager,
+      pageProcessor: this.pageProcessor,
+      popup: this.popup,
+      pronunciationManager: this.pronunciationManager,
+      videoFeature: this.videoFeature,
+      youtubeSidebar: this.youtubeSidebar,
+    });
+
+    this._registerScanner();
+
+    // Hide video features initially if extension is disabled
+    // (they will be shown by featureToggle.applyInitial if enabled)
+    const currentSettings = await chrome.storage.local.get(['extensionEnabled']);
+    if (currentSettings.extensionEnabled === false) {
+      if (this.youtubeSidebar) {
+        this.youtubeSidebar.hide();
+      }
+      if (this.videoFeature && this.videoFeature.videoDetector) {
+        const bindings = this.videoFeature.videoDetector.getAllBindings();
+        bindings.forEach(binding => {
+          if (binding.overlay && binding.overlay.container) {
+            binding.overlay.container.style.display = 'none';
+          }
+        });
       }
     }
 
