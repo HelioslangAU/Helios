@@ -12,19 +12,44 @@ class VideoUIController {
     this.hasAutoLoaded = false;
 
     // Language code mappings (extension language -> YouTube language codes)
+    // Supports both 2-letter codes (zh, en, es) and full names (chinese, english, spanish)
     this.languageMap = {
+      // Chinese
       'chinese': ['zh-Hans', 'zh-CN', 'zh', 'zh-TW', 'zh-HK'],
+      'zh': ['zh-Hans', 'zh-CN', 'zh', 'zh-TW', 'zh-HK'],
+      // Japanese
       'japanese': ['ja', 'jp'],
+      'ja': ['ja', 'jp'],
+      // Korean
       'korean': ['ko', 'kr'],
+      'ko': ['ko', 'kr'],
+      // Spanish
       'spanish': ['es', 'es-ES', 'es-419'],
+      'es': ['es', 'es-ES', 'es-419'],
+      // French
       'french': ['fr', 'fr-FR'],
+      'fr': ['fr', 'fr-FR'],
+      // German
       'german': ['de', 'de-DE'],
+      'de': ['de', 'de-DE'],
+      // Italian
       'italian': ['it', 'it-IT'],
+      'it': ['it', 'it-IT'],
+      // Portuguese
       'portuguese': ['pt', 'pt-BR', 'pt-PT'],
+      'pt': ['pt', 'pt-BR', 'pt-PT'],
+      // Russian
       'russian': ['ru', 'ru-RU'],
+      'ru': ['ru', 'ru-RU'],
+      // Arabic
       'arabic': ['ar'],
+      'ar': ['ar'],
+      // Hindi
       'hindi': ['hi'],
-      'english': ['en', 'en-US', 'en-GB']
+      'hi': ['hi'],
+      // English
+      'english': ['en', 'en-US', 'en-GB'],
+      'en': ['en', 'en-US', 'en-GB']
     };
   }
 
@@ -38,6 +63,7 @@ class VideoUIController {
     // this._createLoadButton(); // Removed - using YouTube sidebar instead
     this._setupKeyboardShortcuts();
     this._setupAutoLoad();
+    this._setupLanguageChangeListener();
 
     this.isInitialized = true;
 
@@ -76,6 +102,28 @@ class VideoUIController {
   }
 
   /**
+   * Setup listener for language changes to reload subtitles
+   */
+  _setupLanguageChangeListener() {
+    if (!this.youtubeLoader || !this.youtubeLoader.isYouTubePage()) return;
+
+    // Listen for language change from the language registry
+    if (window.languageRegistry) {
+      window.languageRegistry.on('languageChanged', async (newLanguage) => {
+        console.log('[Helios Video] Language changed to:', newLanguage);
+
+        // Reset auto-load flag and reload subtitles with new language
+        this.hasAutoLoaded = false;
+
+        // Small delay to ensure dictionary is loaded
+        setTimeout(() => {
+          this.autoLoadSubtitles();
+        }, 500);
+      });
+    }
+  }
+
+  /**
    * Automatically load subtitles based on target language
    */
   async autoLoadSubtitles() {
@@ -83,9 +131,14 @@ class VideoUIController {
     if (!this.youtubeLoader || !this.youtubeLoader.isYouTubePage()) return;
 
     try {
-      // Get target language from settings
-      const settings = await chrome.storage.sync.get(['targetLanguage']);
-      const targetLanguage = settings.targetLanguage?.toLowerCase() || 'chinese';
+      // Get target language from language registry (already loaded and synced)
+      let targetLanguage = window.languageRegistry?.getCurrentLanguage() || 'zh';
+
+      // Fallback: if language registry not available, read from storage
+      if (!window.languageRegistry) {
+        const settings = await chrome.storage.sync.get(['targetLanguage']);
+        targetLanguage = settings.targetLanguage?.toLowerCase() || 'zh';
+      }
 
       console.log('[Helios Video] Auto-loading subtitles for target language:', targetLanguage);
 
@@ -104,10 +157,15 @@ class VideoUIController {
       if (matchingTrack) {
         this.hasAutoLoaded = true;
         await this._loadYouTubeTrack(matchingTrack);
-        this._showNotification(`Loaded ${matchingTrack.languageName} subtitles`, 'success');
+        // Use display name from language code if languageName is just a code (2-3 chars)
+        const displayName = (matchingTrack.languageName && matchingTrack.languageName.length > 3)
+          ? matchingTrack.languageName
+          : this._getLanguageDisplayName(matchingTrack.language || targetLanguage);
+        this._showNotification(`Loaded ${displayName} subtitles`, 'success');
       } else {
         console.log('[Helios Video] No subtitles found for target language:', targetLanguage);
-        this._showNotification(`No ${targetLanguage} subtitles available`, 'error');
+        const languageName = this._getLanguageDisplayName(targetLanguage);
+        this._showNotification(`No ${languageName} subtitles available`, 'error');
       }
     } catch (error) {
       console.error('[Helios Video] Auto-load failed:', error);
@@ -146,18 +204,46 @@ class VideoUIController {
   }
 
   /**
-   * Show notification to user
+   * Get display name for language code
+   */
+  _getLanguageDisplayName(code) {
+    const languageNames = {
+      'chinese': 'Chinese',
+      'zh': 'Chinese',
+      'japanese': 'Japanese',
+      'ja': 'Japanese',
+      'korean': 'Korean',
+      'ko': 'Korean',
+      'spanish': 'Spanish',
+      'es': 'Spanish',
+      'french': 'French',
+      'fr': 'French',
+      'german': 'German',
+      'de': 'German',
+      'italian': 'Italian',
+      'it': 'Italian',
+      'portuguese': 'Portuguese',
+      'pt': 'Portuguese',
+      'russian': 'Russian',
+      'ru': 'Russian',
+      'arabic': 'Arabic',
+      'ar': 'Arabic',
+      'hindi': 'Hindi',
+      'hi': 'Hindi',
+      'english': 'English',
+      'en': 'English'
+    };
+    return languageNames[code.toLowerCase()] || code;
+  }
+
+  /**
+   * Show notification to user (dispatches event for sidebar to handle)
    */
   _showNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.className = `helios-notification helios-notification-${type}`;
-    notification.textContent = message;
-    document.body.appendChild(notification);
-
-    setTimeout(() => {
-      notification.style.opacity = '0';
-      setTimeout(() => notification.remove(), 300);
-    }, 3000);
+    // Dispatch event for YouTube sidebar to show notification
+    document.dispatchEvent(new CustomEvent('helios-video-notification', {
+      detail: { message, type }
+    }));
   }
 
   /**

@@ -76,6 +76,8 @@ class YouTubeSidebar {
       this.settingsSection = this.sidebar.querySelector('#yt-settings-section');
       this.settingsBtn = this.sidebar.querySelector('#yt-settings-btn');
       this.closeBtn = this.sidebar.querySelector('#yt-close-btn');
+      this.notificationElement = this.sidebar.querySelector('#yt-notification');
+      this.notificationMessage = this.sidebar.querySelector('.yt-notification-message');
 
       // Get settings elements
       this.hotkeysToggle = this.sidebar.querySelector('#yt-hotkeys-toggle');
@@ -136,6 +138,12 @@ class YouTubeSidebar {
     document.addEventListener('helios-vocab-updated', () => {
       // Update underlining without full re-render to avoid jarring refresh
       this._updateUnderlining();
+    });
+
+    // Listen for video notifications to display in sidebar
+    document.addEventListener('helios-video-notification', (e) => {
+      const { message, type } = e.detail;
+      this._showNotification(message, type);
     });
 
     // Setup hotkeys
@@ -673,6 +681,28 @@ class YouTubeSidebar {
   }
 
   /**
+   * Show notification in sidebar
+   */
+  _showNotification(message, type = 'info') {
+    if (!this.notificationElement || !this.notificationMessage) return;
+
+    // Clear any existing timeout
+    if (this.notificationTimeout) {
+      clearTimeout(this.notificationTimeout);
+    }
+
+    // Set message and type
+    this.notificationMessage.textContent = message;
+    this.notificationElement.className = `yt-notification yt-notification-${type}`;
+    this.notificationElement.style.display = 'block';
+
+    // Auto-hide after 3 seconds
+    this.notificationTimeout = setTimeout(() => {
+      this.notificationElement.style.display = 'none';
+    }, 3000);
+  }
+
+  /**
    * Render subtitle list
    */
   _renderSubtitleList() {
@@ -724,7 +754,11 @@ class YouTubeSidebar {
         // Use language-aware word extraction
         const extractedWords = adapter.extractWords(entry.text, dictionary);
 
-        extractedWords.forEach(({ word, offset }) => {
+        // Check if language uses spaces between words (not CJK languages)
+        const currentLang = window.languageRegistry?.getCurrentLanguage();
+        const usesSpaces = currentLang && !['zh', 'ja', 'ko'].includes(currentLang);
+
+        extractedWords.forEach(({ word, offset }, index) => {
           const wordSpan = document.createElement('span');
           wordSpan.className = 'yt-subtitle-word';
           wordSpan.textContent = word;
@@ -741,6 +775,11 @@ class YouTubeSidebar {
           }
 
           primaryText.appendChild(wordSpan);
+
+          // Add space after word (except for last word) for languages that use spaces
+          if (usesSpaces && index < extractedWords.length - 1) {
+            primaryText.appendChild(document.createTextNode(' '));
+          }
         });
       } else {
         // Fallback: display text as-is if no adapter available

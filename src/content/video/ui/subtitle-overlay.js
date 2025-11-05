@@ -13,6 +13,8 @@ class SubtitleOverlay {
     this.offsetMs = 0;
     this.contentPositionOffset = 75; // Distance from bottom like ASB Player
     this.pauseOnHover = false; // Pause video when hovering over subtitle words
+    this.pausedByHover = false; // Track if video is currently paused by hover feature
+    this.resumeTimeout = null; // Timeout for delayed resume
 
     // Dragging state
     this.isDragging = false;
@@ -35,6 +37,7 @@ class SubtitleOverlay {
     this._setupDragging();
     this._setupShiftKeyInterception();
     this._setupVocabUpdateListener();
+    this._setupPopupListener();
   }
 
   /**
@@ -385,6 +388,40 @@ class SubtitleOverlay {
   }
 
   /**
+   * Setup listener for popup hide events to resume video
+   */
+  _setupPopupListener() {
+    // Use a global mousemove listener to detect when mouse leaves both word and popup
+    document.addEventListener('mousemove', (e) => {
+      if (!this.pauseOnHover || !this.pausedByHover) return;
+
+      // Check if mouse is over popup or subtitle word
+      const target = e.target;
+      const isOverPopup = target && target.closest('.chinese-lang-extension-popup');
+      const isOverSubtitleWord = target && target.closest('.helios-subtitle-word');
+
+      // If not over either, resume video after a short delay
+      if (!isOverPopup && !isOverSubtitleWord) {
+        if (!this.resumeTimeout) {
+          this.resumeTimeout = setTimeout(() => {
+            if (this.videoElement && this.videoElement.paused && this.pausedByHover) {
+              this.videoElement.play();
+              this.pausedByHover = false;
+            }
+            this.resumeTimeout = null;
+          }, 300);
+        }
+      } else {
+        // Cancel resume if mouse moves back over popup or word
+        if (this.resumeTimeout) {
+          clearTimeout(this.resumeTimeout);
+          this.resumeTimeout = null;
+        }
+      }
+    });
+  }
+
+  /**
    * Update underlining on existing word spans without re-rendering
    * This preserves hover states and popups
    */
@@ -409,6 +446,20 @@ class SubtitleOverlay {
         wordSpan.classList.remove('unknown-word');
       }
     });
+  }
+
+  /**
+   * Check if the popup is currently visible
+   * @returns {boolean}
+   */
+  _isPopupVisible() {
+    // Check if popup manager exists and has an active popup
+    if (window.popupManager && window.popupManager.popup) {
+      const popup = window.popupManager.popup;
+      // Check if popup exists in DOM and is visible
+      return popup && popup.parentElement && popup.style.display !== 'none';
+    }
+    return false;
   }
 
   /**
@@ -470,7 +521,11 @@ class SubtitleOverlay {
         // Use language-aware word extraction
         const extractedWords = adapter.extractWords(subtitle.text, dictionary);
 
-        extractedWords.forEach(({ word, offset }) => {
+        // Check if language uses spaces between words (not CJK languages)
+        const currentLang = window.languageRegistry?.getCurrentLanguage();
+        const usesSpaces = currentLang && !['zh', 'ja', 'ko'].includes(currentLang);
+
+        extractedWords.forEach(({ word, offset }, index) => {
           // Create word span
           const wordSpan = document.createElement('span');
           wordSpan.className = 'helios-subtitle-word';
@@ -496,21 +551,39 @@ class SubtitleOverlay {
           // Add pause on hover listeners
           wordSpan.addEventListener('mouseenter', () => {
             if (this.pauseOnHover && this.videoElement && !this.videoElement.paused) {
+              // Cancel any pending resume
+              if (this.resumeTimeout) {
+                clearTimeout(this.resumeTimeout);
+                this.resumeTimeout = null;
+              }
+
               this.videoElement.pause();
-              // Mark that we paused the video
-              wordSpan.setAttribute('data-paused-by-hover', 'true');
+              this.pausedByHover = true;
             }
           });
 
           wordSpan.addEventListener('mouseleave', () => {
-            if (this.pauseOnHover && this.videoElement && this.videoElement.paused && wordSpan.getAttribute('data-paused-by-hover') === 'true') {
-              this.videoElement.play();
-              // Clear the marker
-              wordSpan.removeAttribute('data-paused-by-hover');
+            if (this.pauseOnHover && this.pausedByHover) {
+              // Delay resume to allow user to move mouse to popup
+              this.resumeTimeout = setTimeout(() => {
+                // Only resume if popup is not visible
+                if (!this._isPopupVisible()) {
+                  if (this.videoElement && this.videoElement.paused) {
+                    this.videoElement.play();
+                  }
+                  this.pausedByHover = false;
+                }
+                this.resumeTimeout = null;
+              }, 200); // 200ms delay allows smooth transition to popup
             }
           });
 
           primarySubtitleEl.appendChild(wordSpan);
+
+          // Add space after word (except for last word) for languages that use spaces
+          if (usesSpaces && index < extractedWords.length - 1) {
+            primarySubtitleEl.appendChild(document.createTextNode(' '));
+          }
         });
       } else {
         // Fallback: display text as-is if no adapter available
@@ -642,6 +715,10 @@ class SubtitleOverlay {
     if (this.scrollTimeout) {
       clearTimeout(this.scrollTimeout);
       this.scrollTimeout = null;
+    }
+    if (this.resumeTimeout) {
+      clearTimeout(this.resumeTimeout);
+      this.resumeTimeout = null;
     }
 
     // Remove from DOM
