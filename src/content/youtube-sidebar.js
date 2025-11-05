@@ -39,13 +39,28 @@ class YouTubeSidebar {
   }
 
   /**
+   * Check if current page is a YouTube watch page
+   */
+  isWatchPage() {
+    return window.location.pathname === '/watch' && window.location.search.includes('v=');
+  }
+
+  /**
    * Initialize sidebar
    */
   async _init() {
     await this._loadSidebar();
     this._setupEventListeners();
-    this._enableTheaterMode();
-    this._adjustVideoLayout();
+    this._setupNavigationListener();
+
+    // Only show sidebar and adjust layout if on watch page
+    if (this.isWatchPage()) {
+      this._enableTheaterMode();
+      this._adjustVideoLayout();
+      this.show();
+    } else {
+      this.hide();
+    }
   }
 
   /**
@@ -95,7 +110,7 @@ class YouTubeSidebar {
       // Apply loaded settings to UI
       this._applySettingsToUI();
 
-      this.isVisible = true;
+      // Don't set isVisible = true here, let _init() handle it based on page type
       console.log('[Helios YouTube Sidebar] Initialized');
     } catch (error) {
       console.error('[Helios YouTube Sidebar] Failed to load:', error);
@@ -148,6 +163,32 @@ class YouTubeSidebar {
 
     // Setup hotkeys
     this._setupHotkeys();
+  }
+
+  /**
+   * Setup navigation listener to show/hide sidebar based on page type
+   */
+  _setupNavigationListener() {
+    let lastUrl = window.location.href;
+
+    // Check URL changes periodically (YouTube is a SPA)
+    setInterval(() => {
+      if (window.location.href !== lastUrl) {
+        lastUrl = window.location.href;
+
+        // Show sidebar only on watch pages
+        if (this.isWatchPage()) {
+          this.show();
+          // Re-enable theater mode and adjust layout when navigating to watch page
+          setTimeout(() => {
+            this._enableTheaterMode();
+            this._adjustVideoLayout();
+          }, 100);
+        } else {
+          this.hide();
+        }
+      }
+    }, 500);
   }
 
   /**
@@ -954,10 +995,11 @@ class YouTubeSidebar {
       this.sidebar.classList.add('hidden');
       this.isVisible = false;
 
-      // Remove video layout adjustment
+      // Remove video layout adjustment completely
       const pageManager = document.querySelector('#page-manager');
       if (pageManager) {
-        pageManager.classList.add('helios-sidebar-hidden');
+        pageManager.classList.remove('helios-sidebar-active');
+        pageManager.classList.remove('helios-sidebar-hidden');
       }
     }
   }
