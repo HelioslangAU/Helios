@@ -153,6 +153,34 @@ class YouTubeSidebar {
     document.addEventListener('helios-vocab-updated', () => {
       // Update underlining without full re-render to avoid jarring refresh
       this._updateUnderlining();
+
+      // Clean up popup state to allow next word interaction
+      if (window.popupManager && window.popupManager.popup) {
+        const popup = window.popupManager.popup;
+        if (popup && popup.parentElement) {
+          popup.style.display = 'none';
+          if (popup.parentElement) {
+            popup.parentElement.removeChild(popup);
+          }
+        }
+      }
+
+      // Resume video if it was paused by hover
+      if (this.videoBinding && this.videoBinding.overlay) {
+        const overlay = this.videoBinding.overlay;
+        if (overlay.pauseOnHover && overlay.pausedByHover) {
+          if (overlay.resumeTimeout) {
+            clearTimeout(overlay.resumeTimeout);
+            overlay.resumeTimeout = null;
+          }
+          setTimeout(() => {
+            if (overlay.videoElement && overlay.videoElement.paused && overlay.pausedByHover) {
+              overlay.videoElement.play();
+              overlay.pausedByHover = false;
+            }
+          }, 100);
+        }
+      }
     });
 
     // Listen for video notifications to display in sidebar
