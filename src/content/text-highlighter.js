@@ -5,6 +5,7 @@ class HighlightManager {
   }
 
   highlightLookupText(node, start, end) {
+    // Remove old highlight and reset state immediately
     this.removeLookupHighlight();
 
     if (!node || start === end || !node.parentNode) return;
@@ -21,12 +22,18 @@ class HighlightManager {
     const afterNode = document.createTextNode(after);
 
     const parent = node.parentNode;
-    parent.insertBefore(beforeNode, node);
-    parent.insertBefore(highlightSpan, node);
-    parent.insertBefore(afterNode, node);
+
+    // Use DocumentFragment for smoother DOM updates
+    const fragment = document.createDocumentFragment();
+    fragment.appendChild(beforeNode);
+    fragment.appendChild(highlightSpan);
+    fragment.appendChild(afterNode);
+
+    parent.insertBefore(fragment, node);
     parent.removeChild(node);
 
     this.currentHighlight = highlightSpan;
+    this.isMouseOverHighlight = true; // Set immediately when creating highlight
 
     // Add mouse events to the highlight
     highlightSpan.addEventListener('mouseenter', () => {
@@ -35,6 +42,11 @@ class HighlightManager {
 
     highlightSpan.addEventListener('mouseleave', () => {
       this.isMouseOverHighlight = false;
+      // Trigger hide check when leaving highlighted word
+      // If mouse enters popup within 150ms, popup stays (isMouseOverPopup will be true)
+      if (window.popupManager) {
+        window.popupManager.scheduleHidePopup();
+      }
     });
   }
 
@@ -47,5 +59,7 @@ class HighlightManager {
       parent.normalize();
       this.currentHighlight = null;
     }
+    // Reset the mouse tracking flag when highlight is removed
+    this.isMouseOverHighlight = false;
   }
 }

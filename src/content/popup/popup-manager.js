@@ -9,25 +9,28 @@ class PopupManager {
     this.vocabManager = vocabManager;
     this.frequencyManager = frequencyManager;
     this.languageRegistry = languageRegistry;
-    this.popup = null;
-    this.isMouseOverPopup = false;
-    this.isMouseOverHighlight = false;
-    this.hideTimeout = null;
-    this.capturedSentence = null;
 
-    // Initialize external managers
+    // Popup state
+    this.popup = null;
+    this.capturedSentence = null;
+    this.hideTimeout = null;
+
+    // Mouse tracking flags
+    this.isMouseOverPopup = false;
+    this.isSubtitleWordPopup = false; // Track if popup is for subtitle word
+
+    // Initialize managers
     this.ankiManager = new AnkiManager();
     this.ankiManager.initialize(this.dictionaryManager);
     this.pronunciationManager = new PopupPronunciationManager();
-
-    // Initialize internal components
     this.cardManager = new CardManager(this.dictionaryManager, new DefinitionFilter(), this.languageRegistry);
-
-    // Initialize popup settings manager
     this.settingsManager = new PopupSettingsManager();
   }
 
   showDictionaryPopup(x, y, character, sentence) {
+    // Clear any pending hide timers immediately
+    clearTimeout(this.hideTimeout);
+
     // CRITICAL: Remove ALL existing popups immediately (synchronously)
     this.hidePopup();
     this.removeAllPopupsFromPage();
@@ -92,41 +95,40 @@ class PopupManager {
   scheduleHidePopup() {
     clearTimeout(this.hideTimeout);
 
-    // Check if persistent mode is enabled
-    if (this.settingsManager.shouldPreventAutoHide()) {
-      return; // Don't auto-hide in persistent mode
-    }
-
-    this.hideTimeout = setTimeout(() => {
-      if (!this.isMouseOverPopup && !this.isMouseOverHighlight) {
-        this.hidePopup();
-        this.highlightManager.removeLookupHighlight();
-      }
-    }, 50);
-  }
-
-  hidePopup(event) {
-    if (!this.popup) return;
-
-    if (event && this.popup.contains(event.target)) {
+    // Don't auto-hide in persistent mode (unless this is a subtitle word popup)
+    if (!this.isSubtitleWordPopup && this.settingsManager.shouldPreventAutoHide()) {
       return;
     }
 
-    // Clear any pending hide timeouts
-    clearTimeout(this.hideTimeout);
-
-    // Immediately hide popup SYNCHRONOUSLY
-    this.settingsManager.onPopupDestroyed();
-
-    // Remove popup IMMEDIATELY (not async)
-    if (this.popup && this.popup.parentNode) {
-      this.popup.remove();
-    }
-    this.popup = null;
-    this.isMouseOverPopup = false;
+    // Hide popup after a short delay when mouse leaves both word and popup
+    // 100ms is enough time for mouse travel while feeling more responsive
+    this.hideTimeout = setTimeout(() => {
+      // For both subtitle words and regular words, only hide if mouse is not over popup or highlight
+      if (!this.isMouseOverPopup && !this.highlightManager.isMouseOverHighlight) {
+        this.hidePopup();
+        this.highlightManager.removeLookupHighlight();
+      }
+    }, 100);
   }
 
-  // Remove ALL popups from the page (nuclear option to prevent stacking)
+  hidePopup(event) {
+    if (!this.popup) {
+      return;
+    }
+    if (event?.target && this.popup.contains(event.target)) {
+      return;
+    }
+
+    clearTimeout(this.hideTimeout);
+    this.settingsManager.onPopupDestroyed();
+
+    if (this.popup?.parentNode) {
+      this.popup.remove();
+    }
+
+    this._resetState();
+  }
+
   removeAllPopupsFromPage() {
     const allPopups = document.querySelectorAll('.chinese-lang-extension-popup');
     allPopups.forEach(popup => {
@@ -134,10 +136,16 @@ class PopupManager {
         popup.remove();
       }
     });
+    this._resetState();
+  }
 
-    // Also clear our reference
+  _resetState() {
     this.popup = null;
     this.isMouseOverPopup = false;
+    this.isSubtitleWordPopup = false; // Reset subtitle word flag
+    // Clear any pending timers
+    clearTimeout(this.hideTimeout);
+    this.hideTimeout = null;
   }
   incrementSessionCounter() {
     if (window.chrome && chrome.storage && chrome.storage.local) {

@@ -1,0 +1,193 @@
+/**
+ * Manages subtitle overlay display on top of video elements
+ */
+class SubtitleOverlay {
+  constructor(videoElement) {
+    this.videoElement = videoElement;
+    this.container = null;
+    this.currentSubtitles = [];
+    this.isFullscreen = false;
+    this.offsetMs = 0;
+
+    this._init();
+    this._setupFullscreenListener();
+  }
+
+  /**
+   * Initialize overlay container
+   */
+  _init() {
+    this.container = document.createElement('div');
+    this.container.className = 'helios-subtitle-overlay';
+    this.container.setAttribute('data-helios-subtitle-overlay', 'true');
+
+    // Insert into DOM first
+    this._insertIntoDOM();
+
+    // Position relative to video
+    this._updatePosition();
+
+    console.log('[Helios Subtitle Overlay] Initialized overlay for video:', this.videoElement);
+  }
+
+  /**
+   * Insert overlay into appropriate container
+   */
+  _insertIntoDOM() {
+    // Always append to body for maximum compatibility
+    document.body.appendChild(this.container);
+    console.log('[Helios Subtitle Overlay] Added overlay to DOM');
+  }
+
+  /**
+   * Update overlay position based on video element
+   */
+  _updatePosition() {
+    const rect = this.videoElement.getBoundingClientRect();
+
+    this.container.style.position = 'fixed'; // Use fixed positioning
+    this.container.style.left = `${rect.left + rect.width / 2}px`;
+    this.container.style.bottom = '100px'; // Fixed distance from bottom
+    this.container.style.transform = 'translateX(-50%)';
+    this.container.style.zIndex = '2147483647';
+    this.container.style.pointerEvents = 'none';
+
+    console.log('[Helios Subtitle Overlay] Position updated:', {
+      left: this.container.style.left,
+      bottom: this.container.style.bottom
+    });
+  }
+
+  /**
+   * Setup fullscreen change listener
+   */
+  _setupFullscreenListener() {
+    const fullscreenHandler = () => {
+      this.isFullscreen = !!(
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement
+      );
+
+      this._updateFullscreenState();
+    };
+
+    document.addEventListener('fullscreenchange', fullscreenHandler);
+    document.addEventListener('webkitfullscreenchange', fullscreenHandler);
+    document.addEventListener('mozfullscreenchange', fullscreenHandler);
+  }
+
+  /**
+   * Update overlay styling for fullscreen mode
+   */
+  _updateFullscreenState() {
+    if (this.isFullscreen) {
+      this.container.classList.add('helios-subtitle-overlay-fullscreen');
+
+      // In fullscreen, use fixed positioning
+      this.container.style.position = 'fixed';
+      this.container.style.left = '50%';
+      this.container.style.bottom = '80px';
+      this.container.style.top = 'auto';
+      this.container.style.transform = 'translateX(-50%)';
+    } else {
+      this.container.classList.remove('helios-subtitle-overlay-fullscreen');
+      this._updatePosition();
+    }
+  }
+
+  /**
+   * Display subtitles
+   * @param {SubtitleEntry[]} subtitles - Subtitles to display
+   */
+  show(subtitles) {
+    this.currentSubtitles = subtitles;
+    this._render();
+    console.log('[Helios Subtitle Overlay] Showing subtitles:', subtitles.length, subtitles.map(s => s.text));
+  }
+
+  /**
+   * Render current subtitles to DOM
+   */
+  _render() {
+    // Clear existing content
+    this.container.innerHTML = '';
+
+    if (this.currentSubtitles.length === 0) {
+      console.log('[Helios Subtitle Overlay] No subtitles to render');
+      return;
+    }
+
+    console.log('[Helios Subtitle Overlay] Rendering', this.currentSubtitles.length, 'subtitles');
+
+    // Create subtitle elements
+    this.currentSubtitles.forEach((subtitle, index) => {
+      const subtitleEl = document.createElement('div');
+      subtitleEl.className = 'helios-subtitle-text';
+      subtitleEl.setAttribute('data-subtitle-index', subtitle.index);
+      subtitleEl.textContent = subtitle.text;
+
+      // Make text selectable
+      subtitleEl.style.userSelect = 'text';
+      subtitleEl.style.cursor = 'text';
+      subtitleEl.style.pointerEvents = 'auto';
+
+      // Add click handler for word lookup
+      subtitleEl.addEventListener('mouseup', (e) => {
+        this._handleSubtitleClick(e, subtitle);
+      });
+
+      this.container.appendChild(subtitleEl);
+    });
+
+    console.log('[Helios Subtitle Overlay] Rendered to container:', this.container);
+  }
+
+  /**
+   * Handle subtitle text interaction
+   * @param {MouseEvent} event
+   * @param {SubtitleEntry} subtitle
+   */
+  _handleSubtitleClick(event, subtitle) {
+    const selection = window.getSelection();
+    const selectedText = selection.toString().trim();
+
+    if (selectedText) {
+      // Trigger word lookup (integrate with existing lookup system)
+      const customEvent = new CustomEvent('helios-subtitle-selection', {
+        detail: {
+          text: selectedText,
+          subtitle: subtitle,
+          position: { x: event.clientX, y: event.clientY }
+        }
+      });
+      document.dispatchEvent(customEvent);
+    }
+  }
+
+  /**
+   * Clear displayed subtitles
+   */
+  clear() {
+    this.currentSubtitles = [];
+    this.container.innerHTML = '';
+  }
+
+  /**
+   * Apply time offset to subtitle display
+   * @param {number} offsetMs - Offset in milliseconds
+   */
+  setOffset(offsetMs) {
+    this.offsetMs = offsetMs;
+  }
+
+  /**
+   * Destroy overlay and cleanup
+   */
+  destroy() {
+    if (this.container && this.container.parentElement) {
+      this.container.parentElement.removeChild(this.container);
+    }
+    this.container = null;
+  }
+}

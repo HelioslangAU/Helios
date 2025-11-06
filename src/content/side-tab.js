@@ -18,6 +18,7 @@ class HeliosSideTab {
         this.partialCloseBtn = document.getElementById('partial-close-btn');
         this.closeBtn = document.getElementById('full-close-btn');
         this.settingsBtn = document.getElementById('settings-btn');
+        this.youtubeSubtitlesBtn = document.getElementById('youtube-subtitles-btn');
 
         // Pinyin controls (full view)
         this.pinyinContainer = document.getElementById('pinyin-toggle-container');
@@ -45,6 +46,7 @@ class HeliosSideTab {
 
         this.initEventListeners();
         this.loadState();
+        this.updateYouTubeFeatures();
     }
 
     /**
@@ -91,6 +93,11 @@ class HeliosSideTab {
         // Settings button
         this.settingsBtn?.addEventListener('click', () => {
             this.handleSettings();
+        });
+
+        // YouTube Subtitles button (full view)
+        this.youtubeSubtitlesBtn?.addEventListener('click', () => {
+            this.handleYouTubeSubtitles();
         });
 
         // Pinyin toggle checkbox (Chinese only)
@@ -401,6 +408,36 @@ class HeliosSideTab {
                 this.pinyinContainer.style.display = 'none';
             }
         }
+    }
+
+    /**
+     * Check if current page is YouTube
+     * @returns {boolean}
+     */
+    isYouTubePage() {
+        return window.location.hostname.includes('youtube.com') ||
+               window.location.hostname.includes('youtu.be');
+    }
+
+    /**
+     * Update YouTube-specific features
+     */
+    updateYouTubeFeatures() {
+        const isYouTube = this.isYouTubePage();
+
+        // Show/hide YouTube subtitles button in full view
+        if (this.youtubeSubtitlesBtn) {
+            this.youtubeSubtitlesBtn.style.display = isYouTube ? 'flex' : 'none';
+        }
+    }
+
+    /**
+     * Handle YouTube Subtitles button click
+     */
+    handleYouTubeSubtitles() {
+        // Dispatch event to toggle YouTube sidebar
+        document.dispatchEvent(new CustomEvent('helios-toggle-subtitle-panel'));
+        console.log('[Helios Side Tab] Toggling YouTube subtitle panel');
     }
 
 

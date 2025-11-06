@@ -1,6 +1,6 @@
 // constructor: add bannerManager and store it
 class FeatureToggle {
-  constructor({ activation, textScanner, pageProcessor, popup, sidebarManager, pinyinManager, bannerManager }) {
+  constructor({ activation, textScanner, pageProcessor, popup, sidebarManager, pinyinManager, bannerManager, videoFeature, youtubeSidebar }) {
     this.activation = activation;
     this.textScanner = textScanner;
     this.pageProcessor = pageProcessor;
@@ -8,6 +8,8 @@ class FeatureToggle {
     this.sidebarManager = sidebarManager;
     this.pinyinManager = pinyinManager;
     this.bannerManager = bannerManager;
+    this.videoFeature = videoFeature;
+    this.youtubeSidebar = youtubeSidebar;
     this.extensionEnabled = true;
     this.autoHighlight = true;
   }
@@ -34,6 +36,21 @@ class FeatureToggle {
     }
     this.sidebarManager && this.sidebarManager.showSidebar && this.sidebarManager.showSidebar();
     this.bannerManager && this.bannerManager.showBanner && this.bannerManager.showBanner();
+
+    // Re-enable video features if on YouTube
+    if (this.youtubeSidebar && this.youtubeSidebar.isWatchPage && this.youtubeSidebar.isWatchPage()) {
+      this.youtubeSidebar.show();
+    }
+
+    // Show video overlays
+    if (this.videoFeature && this.videoFeature.videoDetector) {
+      const bindings = this.videoFeature.videoDetector.getAllBindings();
+      bindings.forEach(binding => {
+        if (binding.overlay && binding.overlay.container) {
+          binding.overlay.container.style.display = '';
+        }
+      });
+    }
   }
 
   disable() {
@@ -43,5 +60,20 @@ class FeatureToggle {
     this.sidebarManager && this.sidebarManager.hideSidebar && this.sidebarManager.hideSidebar();
     this.pinyinManager && this.pinyinManager.destroy && this.pinyinManager.destroy();
     this.bannerManager && this.bannerManager.hideBanner && this.bannerManager.hideBanner();
+
+    // Disable video features
+    if (this.youtubeSidebar && this.youtubeSidebar.hide) {
+      this.youtubeSidebar.hide();
+    }
+
+    // Hide all video overlays
+    if (this.videoFeature && this.videoFeature.videoDetector) {
+      const bindings = this.videoFeature.videoDetector.getAllBindings();
+      bindings.forEach(binding => {
+        if (binding.overlay && binding.overlay.container) {
+          binding.overlay.container.style.display = 'none';
+        }
+      });
+    }
   }
 }

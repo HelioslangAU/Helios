@@ -56,12 +56,28 @@
         "src/content/page-processor.js",
         "src/content/vocab-manager.js",
         "src/content/dictionary-manager.js",
+        "src/content/video/models/subtitle-entry.js",
+        "src/content/video/models/subtitle-collection.js",
+        "src/content/video/parsers/srt-parser.js",
+        "src/content/video/parsers/vtt-parser.js",
+        "src/content/video/parsers/subtitle-parser.js",
+        "src/content/video/ui/subtitle-overlay.js",
+        "src/content/video/ui/subtitle-list-panel.js",
+        "src/content/video/ui/subtitle-selector-modal.js",
+        "src/content/video/core/video-binding.js",
+        "src/content/video/core/video-detector.js",
+        "src/content/video/loaders/subtitle-file-loader.js",
+        "src/content/video/loaders/youtube-subtitle-loader.js",
+        "src/content/video/controllers/subtitle-panel-controller.js",
+        "src/content/video/controllers/video-ui-controller.js",
+        "src/content/video/video-feature-manager.js",
+        "src/content/youtube-sidebar.js",
         "src/content/content.js",
         "src/content/banner-manager.js",
         "src/content/banner.js",
         "src/content/side-tab.js"
       ],
-      "css": ["src/ui/popup/popup.css"],
+      "css": ["src/ui/popup/popup.css", "src/ui/video/video-styles.css", "src/ui/video/subtitle-selector.css"],
       "run_at": "document_end"
     }
   ],
@@ -111,8 +127,12 @@
         "src/content/onboarding/first-run-detector.js",
         "src/content/onboarding/onboarding-controller.js",
         "src/content/components/language-selector/language-selector.js",
-        "src/content/components/language-selector/language-selector.css"
-
+        "src/content/components/language-selector/language-selector.css",
+        "src/ui/video/video-styles.css",
+        "src/ui/video/subtitle-selector.css",
+        "src/content/video/youtube/youtube-page-script.js",
+        "src/ui/youtube-sidebar/youtube-sidebar.html",
+        "src/ui/youtube-sidebar/youtube-sidebar.css"
       ],
       "matches": ["<all_urls>"]
     }

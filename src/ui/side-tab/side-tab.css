@@ -776,6 +776,19 @@
     background: linear-gradient(135deg, rgba(255, 107, 71, 0.35), rgba(255, 143, 71, 0.28));
 }
 
+/* YouTube Subtitles button styling */
+.youtube-subtitles-button .action-button-icon {
+    background: linear-gradient(135deg, rgba(255, 107, 71, 0.25), rgba(255, 143, 71, 0.20));
+}
+
+.youtube-subtitles-button .action-button-icon svg {
+    color: rgba(255, 143, 71, 1);
+}
+
+.youtube-subtitles-button:hover .action-button-icon {
+    background: linear-gradient(135deg, rgba(255, 107, 71, 0.35), rgba(255, 143, 71, 0.28));
+}
+
 /* Pinyin Toggle Slider (Chinese only) - matches action button style exactly */
 .pinyin-toggle-container {
     display: flex;

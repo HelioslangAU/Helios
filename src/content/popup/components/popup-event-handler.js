@@ -31,6 +31,10 @@ class PopupEventHandler {
 
     popup.addEventListener("mouseleave", () => {
       managers.popupManager.isMouseOverPopup = false;
+      // Trigger hide check when leaving popup
+      // For subtitle words: hide when leaving popup
+      // For regular words: if mouse enters subtitle word within 150ms, popup stays (isMouseOverHighlight will be true)
+      managers.popupManager.scheduleHidePopup();
     });
   }
 
