@@ -549,6 +549,7 @@ class PageProcessor {
 
   checkTextNodeAtPosition(textNode, x, y) {
     if (!textNode || !textNode.parentElement) return null;
+    //console.log('checkTextNodeAtPosition', textNode, x, y);
 
     const adapter = this.languageRegistry.getAdapter();
     if (!adapter) return null;

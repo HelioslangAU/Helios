@@ -374,12 +374,13 @@ class AnkiManager {
   }
 
   // Update Anki statistics
+  // Note: ankiCardsCreated is updated by the background script to avoid double counting
   updateAnkiStatistics(success) {
     try {
       if (chrome.storage?.local) {
         chrome.storage.local.get(
           [
-            "ankiCardsCreated",
+            "ankiCardsCreated", // Read current value but don't increment (background script handles this)
             "ankiCardsToday",
             "ankiSuccessCount",
             "ankiTotalAttempts",
@@ -389,6 +390,7 @@ class AnkiManager {
             const today = new Date().toDateString();
             const lastReset = result.lastAnkiResetDate || "";
 
+            // Don't modify ankiCardsCreated - background script handles this
             let cardsCreated = result.ankiCardsCreated || 0;
             let cardsToday = result.ankiCardsToday || 0;
             let successCount = result.ankiSuccessCount || 0;
@@ -399,10 +401,10 @@ class AnkiManager {
               cardsToday = 0;
             }
 
-            // Update counters
+            // Update counters (except ankiCardsCreated which is handled by background script)
             totalAttempts++;
             if (success) {
-              cardsCreated++;
+              // Don't increment cardsCreated here - background script already did
               cardsToday++;
               successCount++;
             }
@@ -413,7 +415,7 @@ class AnkiManager {
                 : 100;
 
             chrome.storage.local.set({
-              ankiCardsCreated: cardsCreated,
+              // Don't set ankiCardsCreated - background script handles this
               ankiCardsToday: cardsToday,
               ankiSuccessCount: successCount,
               ankiTotalAttempts: totalAttempts,

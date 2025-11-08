@@ -1,23 +1,11 @@
 class VocabManager {
   constructor() {
-    // Support per-language known words
-    // Format: { 'zh': Set(), 'en': Set(), 'fr': Set(), 'es': Set() }
-    this.knownWordsByLanguage = {
-      'zh': new Set(),
-      'en': new Set(),
-      'fr': new Set(),
-      'es': new Set()
-    };
-    this.ignoredWordsByLanguage = {
-      'zh': new Set(),
-      'en': new Set(),
-      'fr': new Set(),
-      'es': new Set()
-    };
+    // Support per-language known words - dynamically created as needed
+    // Format: { 'zh': Set(), 'en': Set(), 'fr': Set(), ... }
+    this.knownWordsByLanguage = {};
+    this.ignoredWordsByLanguage = {};
 
-    // Deprecated: Keep for backward compatibility during migration
-    this.knownWords = new Set();
-    this.ignoredWords = new Set();
+    // Deprecated sets removed - using per-language structure only
 
     // Current language for operations
     this.currentLanguage = 'zh';
@@ -29,11 +17,31 @@ class VocabManager {
   }
 
   getCurrentLanguageKnownWords() {
-    return this.knownWordsByLanguage[this.currentLanguage] || new Set();
+    // Create set for current language if it doesn't exist (lazy initialization)
+    if (!this.knownWordsByLanguage[this.currentLanguage]) {
+      this.knownWordsByLanguage[this.currentLanguage] = new Set();
+    }
+    return this.knownWordsByLanguage[this.currentLanguage];
   }
 
   getCurrentLanguageIgnoredWords() {
-    return this.ignoredWordsByLanguage[this.currentLanguage] || new Set();
+    // Create set for current language if it doesn't exist (lazy initialization)
+    if (!this.ignoredWordsByLanguage[this.currentLanguage]) {
+      this.ignoredWordsByLanguage[this.currentLanguage] = new Set();
+    }
+    return this.ignoredWordsByLanguage[this.currentLanguage];
+  }
+
+  /**
+   * Normalize word to lowercase for consistent storage and lookup
+   * @param {string} word - Word to normalize
+   * @returns {string} Normalized word in lowercase
+   */
+  normalizeWord(word) {
+    if (!word || typeof word !== 'string') {
+      return word;
+    }
+    return word.toLowerCase();
   }
 
   async loadKnownWords() {
@@ -55,14 +63,22 @@ class VocabManager {
       // Load new format if available
       if (newResult.knownWordsByLanguage) {
         Object.keys(newResult.knownWordsByLanguage).forEach(lang => {
-          this.knownWordsByLanguage[lang] = new Set(newResult.knownWordsByLanguage[lang]);
+          // Normalize words when loading to ensure consistency
+          const normalizedWords = newResult.knownWordsByLanguage[lang]
+            .map(word => this.normalizeWord(word))
+            .filter(word => word); // Filter out invalid words
+          this.knownWordsByLanguage[lang] = new Set(normalizedWords);
         });
         console.log('Known words loaded (per-language format):', this.knownWordsByLanguage);
       }
 
       if (newResult.ignoredWordsByLanguage) {
         Object.keys(newResult.ignoredWordsByLanguage).forEach(lang => {
-          this.ignoredWordsByLanguage[lang] = new Set(newResult.ignoredWordsByLanguage[lang]);
+          // Normalize words when loading to ensure consistency
+          const normalizedWords = newResult.ignoredWordsByLanguage[lang]
+            .map(word => this.normalizeWord(word))
+            .filter(word => word); // Filter out invalid words
+          this.ignoredWordsByLanguage[lang] = new Set(normalizedWords);
         });
         console.log('Ignored words loaded (per-language format):', this.ignoredWordsByLanguage);
       }
@@ -71,15 +87,21 @@ class VocabManager {
       // Migrate to CURRENT language (not hardcoded to 'zh')
       if (oldResult.chineseExtensionKnownWords && !newResult.knownWordsByLanguage) {
         console.log(`Migrating old known words to ${this.currentLanguage} language...`);
-        this.knownWordsByLanguage[this.currentLanguage] = new Set(oldResult.chineseExtensionKnownWords);
-        this.knownWords = new Set(oldResult.chineseExtensionKnownWords); // Keep for compatibility
+        // Normalize words during migration
+        const normalizedWords = oldResult.chineseExtensionKnownWords
+          .map(word => this.normalizeWord(word))
+          .filter(word => word);
+        this.knownWordsByLanguage[this.currentLanguage] = new Set(normalizedWords);
         await this.saveKnownWords(); // Save in new format
       }
 
       if (oldResult.chineseExtensionIgnoredWords && !newResult.ignoredWordsByLanguage) {
         console.log(`Migrating old ignored words to ${this.currentLanguage} language...`);
-        this.ignoredWordsByLanguage[this.currentLanguage] = new Set(oldResult.chineseExtensionIgnoredWords);
-        this.ignoredWords = new Set(oldResult.chineseExtensionIgnoredWords); // Keep for compatibility
+        // Normalize words during migration
+        const normalizedWords = oldResult.chineseExtensionIgnoredWords
+          .map(word => this.normalizeWord(word))
+          .filter(word => word);
+        this.ignoredWordsByLanguage[this.currentLanguage] = new Set(normalizedWords);
         await this.saveKnownWords(); // Save in new format
       }
 
@@ -103,13 +125,17 @@ class VocabManager {
         ignoredWordsObj[lang] = [...this.ignoredWordsByLanguage[lang]];
       });
 
+      // Get current language words for backward compatibility (fallback to 'zh' if current language doesn't exist)
+      const currentKnownWords = this.knownWordsByLanguage[this.currentLanguage] || this.knownWordsByLanguage['zh'] || new Set();
+      const currentIgnoredWords = this.ignoredWordsByLanguage[this.currentLanguage] || this.ignoredWordsByLanguage['zh'] || new Set();
+
       await chrome.storage.local.set({
         knownWordsByLanguage: knownWordsObj,
         ignoredWordsByLanguage: ignoredWordsObj,
         // Keep old format for backward compatibility
-        // Save current language words to old format (or Chinese if current is Chinese)
-        chineseExtensionKnownWords: [...(this.knownWordsByLanguage[this.currentLanguage] || this.knownWordsByLanguage.zh || [])],
-        chineseExtensionIgnoredWords: [...(this.ignoredWordsByLanguage[this.currentLanguage] || this.ignoredWordsByLanguage.zh || [])]
+        // Save current language words to old format
+        chineseExtensionKnownWords: [...currentKnownWords],
+        chineseExtensionIgnoredWords: [...currentIgnoredWords]
       });
       console.log(`Known words saved to extension storage (per-language). Current language: ${this.currentLanguage}`);
     } catch (error) {
@@ -118,9 +144,12 @@ class VocabManager {
   }
 
   async clearKnownWords() {
-    this.knownWords.clear();
+    // Clear current language words
+    this.getCurrentLanguageKnownWords().clear();
+    this.getCurrentLanguageIgnoredWords().clear();
     try {
       await chrome.storage.local.set({ chineseExtensionKnownWords: [], chineseExtensionIgnoredWords: [] });
+      await this.saveKnownWords(); // Save the cleared state
       console.log('Known words cleared in extension storage');
     } catch (error) {
       console.warn('Could not clear known words:', error);
@@ -129,15 +158,16 @@ class VocabManager {
 
   exportKnownWordsToFile() {
     const data = {
-      knownWords: [...this.knownWords],
-      exportDate: new Date().toISOString()
+      knownWords: [...this.getCurrentLanguageKnownWords()],
+      exportDate: new Date().toISOString(),
+      language: this.currentLanguage
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
 
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'chinese-known-words.json';
+    a.download = `known-words-${this.currentLanguage}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -147,8 +177,9 @@ class VocabManager {
   // Export known words as a JSON string (for programmatic use)
   exportKnownWordsAsJson() {
     const data = {
-      knownWords: [...this.knownWords],
-      exportDate: new Date().toISOString()
+      knownWords: [...this.getCurrentLanguageKnownWords()],
+      exportDate: new Date().toISOString(),
+      language: this.currentLanguage
     };
     return JSON.stringify(data, null, 2);
   }
@@ -159,7 +190,15 @@ class VocabManager {
       const data = JSON.parse(text);
       
       if (data.knownWords && Array.isArray(data.knownWords)) {
-        this.knownWords = new Set(data.knownWords);
+        // Normalize words when importing
+        const normalizedWords = data.knownWords
+          .map(word => this.normalizeWord(word))
+          .filter(word => word); // Filter out invalid words
+        // Add to current language
+        const currentSet = this.getCurrentLanguageKnownWords();
+        normalizedWords.forEach(word => {
+          currentSet.add(word);
+        });
         await this.saveKnownWords();
         console.log('Known words imported successfully');
         return true;
@@ -177,7 +216,15 @@ class VocabManager {
     try {
       const data = JSON.parse(jsonString);
       if (data.knownWords && Array.isArray(data.knownWords)) {
-        this.knownWords = new Set([...this.knownWords, ...data.knownWords]);
+        // Normalize words when importing
+        const normalizedWords = data.knownWords
+          .map(word => this.normalizeWord(word))
+          .filter(word => word); // Filter out invalid words
+        // Merge with existing words
+        const currentSet = this.getCurrentLanguageKnownWords();
+        normalizedWords.forEach(word => {
+          currentSet.add(word);
+        });
         await this.saveKnownWords();
         console.log('Known words imported from JSON');
         return true;
@@ -190,49 +237,59 @@ class VocabManager {
   }
 
   async markWordAsKnown(word) {
-    this.getCurrentLanguageKnownWords().add(word);
-    this.knownWords.add(word); // Keep for backward compatibility
+    const normalizedWord = this.normalizeWord(word);
+    if (!normalizedWord) return;
+    this.getCurrentLanguageKnownWords().add(normalizedWord);
     await this.saveKnownWords();
-    console.log(`Marked word as known (${this.currentLanguage}):`, word);
+    console.log(`Marked word as known (${this.currentLanguage}):`, normalizedWord);
     this.notifySidebarUpdate();
   }
 
   async markWordAsUnknown(word) {
-    this.getCurrentLanguageKnownWords().delete(word);
-    this.knownWords.delete(word); // Keep for backward compatibility
+    const normalizedWord = this.normalizeWord(word);
+    if (!normalizedWord) return;
+    this.getCurrentLanguageKnownWords().delete(normalizedWord);
     await this.saveKnownWords();
-    console.log(`Marked word as unknown (${this.currentLanguage}):`, word);
+    console.log(`Marked word as unknown (${this.currentLanguage}):`, normalizedWord);
     this.notifySidebarUpdate();
   }
 
   async markWordAsIgnored(word) {
-    this.getCurrentLanguageIgnoredWords().add(word);
-    this.ignoredWords.add(word); // Keep for backward compatibility
+    const normalizedWord = this.normalizeWord(word);
+    if (!normalizedWord) return;
+    this.getCurrentLanguageIgnoredWords().add(normalizedWord);
     await this.saveKnownWords();
-    console.log(`Marked word as ignored (${this.currentLanguage}):`, word);
+    console.log(`Marked word as ignored (${this.currentLanguage}):`, normalizedWord);
   }
 
   async markWordAsUnignored(word) {
-    this.getCurrentLanguageIgnoredWords().delete(word);
-    this.ignoredWords.delete(word); // Keep for backward compatibility
+    const normalizedWord = this.normalizeWord(word);
+    if (!normalizedWord) return;
+    this.getCurrentLanguageIgnoredWords().delete(normalizedWord);
     await this.saveKnownWords();
-    console.log(`Marked word as unignored (${this.currentLanguage}):`, word);
+    console.log(`Marked word as unignored (${this.currentLanguage}):`, normalizedWord);
   }
 
   isWordKnown(word) {
-    return this.getCurrentLanguageKnownWords().has(word);
+    const normalizedWord = this.normalizeWord(word);
+    if (!normalizedWord) return false;
+    return this.getCurrentLanguageKnownWords().has(normalizedWord);
   }
 
   isWordIgnored(word) {
-    return this.getCurrentLanguageIgnoredWords().has(word);
+    const normalizedWord = this.normalizeWord(word);
+    if (!normalizedWord) return false;
+    return this.getCurrentLanguageIgnoredWords().has(normalizedWord);
   }
 
   // Batch operations for better performance
   async markMultipleWordsAsKnown(words) {
     const currentSet = this.getCurrentLanguageKnownWords();
     words.forEach(word => {
-      currentSet.add(word);
-      this.knownWords.add(word); // Keep for backward compatibility
+      const normalizedWord = this.normalizeWord(word);
+      if (normalizedWord) {
+        currentSet.add(normalizedWord);
+      }
     });
     await this.saveKnownWords();
     console.log(`Marked multiple words as known (${this.currentLanguage}):`, words);
@@ -242,8 +299,10 @@ class VocabManager {
   async markMultipleWordsAsUnknown(words) {
     const currentSet = this.getCurrentLanguageKnownWords();
     words.forEach(word => {
-      currentSet.delete(word);
-      this.knownWords.delete(word); // Keep for backward compatibility
+      const normalizedWord = this.normalizeWord(word);
+      if (normalizedWord) {
+        currentSet.delete(normalizedWord);
+      }
     });
     await this.saveKnownWords();
     console.log(`Marked multiple words as unknown (${this.currentLanguage}):`, words);
@@ -282,8 +341,6 @@ class VocabManager {
   async clearAllKnownWords() {
     this.getCurrentLanguageKnownWords().clear();
     this.getCurrentLanguageIgnoredWords().clear();
-    this.knownWords.clear(); // Keep for backward compatibility
-    this.ignoredWords.clear(); // Keep for backward compatibility
     await this.saveKnownWords();
     console.log(`All known words cleared for language: ${this.currentLanguage}`);
   }
@@ -305,14 +362,18 @@ class VocabManager {
   trackWordLookup(word, definition = null) {
     if (!word) return;
 
+    // Normalize word for consistent tracking
+    const normalizedWord = this.normalizeWord(word);
+    if (!normalizedWord) return;
+
     // Non-blocking: don't await, just fire and forget
     const storageKey = `recentVocab_${this.currentLanguage}`;
 
     chrome.storage.local.get([storageKey], (result) => {
       let recentWords = result[storageKey] || [];
 
-      // Remove if already exists (to move to front)
-      recentWords = recentWords.filter(item => item.word !== word);
+      // Remove if already exists (to move to front) - compare normalized
+      recentWords = recentWords.filter(item => this.normalizeWord(item.word) !== normalizedWord);
 
       // Extract definition from various dictionary formats
       let definitionText = null;
@@ -345,9 +406,9 @@ class VocabManager {
         }
       }
 
-      // Add to front
+      // Add to front (store normalized word)
       recentWords.unshift({
-        word: word,
+        word: normalizedWord,
         definition: definitionText,
         timestamp: Date.now(),
         language: this.currentLanguage
@@ -357,7 +418,7 @@ class VocabManager {
       recentWords = recentWords.slice(0, 20);
 
       chrome.storage.local.set({ [storageKey]: recentWords }, () => {
-        console.log(`✅ Tracked word lookup: ${word} (${this.currentLanguage}) - Def: "${definitionText}" - Total: ${recentWords.length}`);
+        console.log(`✅ Tracked word lookup: ${normalizedWord} (${this.currentLanguage}) - Def: "${definitionText}" - Total: ${recentWords.length}`);
       });
     });
   }
