@@ -1052,15 +1052,23 @@ class YouTubeSidebar {
           }
 
           // Add pause-on-hover functionality for sidebar words
+          // Track whether we paused the video (to avoid resuming already paused video)
+          let wasPlayingBeforeHover = false;
+
           wordSpan.addEventListener('mouseenter', () => {
             if (this.settings.pauseOnHover && this.videoBinding && this.videoBinding.videoElement) {
-              this.videoBinding.videoElement.pause();
+              const video = this.videoBinding.videoElement;
+              wasPlayingBeforeHover = !video.paused;
+              if (wasPlayingBeforeHover) {
+                video.pause();
+              }
             }
           });
 
           wordSpan.addEventListener('mouseleave', () => {
-            if (this.settings.pauseOnHover && this.videoBinding && this.videoBinding.videoElement) {
+            if (this.settings.pauseOnHover && this.videoBinding && this.videoBinding.videoElement && wasPlayingBeforeHover) {
               this.videoBinding.videoElement.play();
+              wasPlayingBeforeHover = false;
             }
           });
 
