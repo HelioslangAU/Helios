@@ -16,6 +16,13 @@ class YouTubeSidebar {
     this.resizeObserver = null; // Observer to sync sidebar height with video player
     this.resizeHandler = null; // Window resize handler for cleanup
 
+    // Scroll detection for preventing auto-scroll during user interaction
+    this.userIsScrollingPage = false; // Flag to track if user is scrolling the main page
+    this.userIsScrollingSidebar = false; // Flag to track if user is manually scrolling the sidebar
+    this.pageScrollTimeout = null; // Timeout reference to reset page scroll flag
+    this.sidebarScrollTimeout = null; // Timeout reference to reset sidebar scroll flag
+    this.isAutoScrolling = false; // Flag to prevent detecting auto-scroll as user scroll
+
     // Settings
     this.settings = {
       hotkeysEnabled: true,
@@ -185,6 +192,9 @@ class YouTubeSidebar {
 
     // Setup hotkeys
     this._setupHotkeys();
+
+    // Setup scroll detection to prevent auto-scroll during user page scrolling
+    this._setupScrollDetection();
   }
 
   /**
@@ -212,6 +222,64 @@ class YouTubeSidebar {
         }
       }
     }, 500);
+  }
+
+  /**
+   * Setup scroll detection to prevent auto-scroll when user is scrolling
+   */
+  _setupScrollDetection() {
+    // Listen for window scroll events (main YouTube page scrolling)
+    const handlePageScroll = () => {
+      // Set flag to true when user scrolls the page
+      this.userIsScrollingPage = true;
+
+      // Clear existing timeout
+      if (this.pageScrollTimeout) {
+        clearTimeout(this.pageScrollTimeout);
+      }
+
+      // Reset flag after 1.5 seconds of no scrolling (more responsive)
+      this.pageScrollTimeout = setTimeout(() => {
+        this.userIsScrollingPage = false;
+      }, 1500);
+    };
+
+    window.addEventListener('scroll', handlePageScroll, { passive: true });
+
+    // Listen for sidebar container scroll events (user manually scrolling subtitles)
+    const handleSidebarScroll = () => {
+      // Don't count auto-scroll as user scroll
+      if (this.isAutoScrolling) {
+        return;
+      }
+
+      // Set flag to true when user manually scrolls the sidebar
+      this.userIsScrollingSidebar = true;
+
+      // Clear existing timeout
+      if (this.sidebarScrollTimeout) {
+        clearTimeout(this.sidebarScrollTimeout);
+      }
+
+      // Reset flag after 2 seconds of no scrolling
+      this.sidebarScrollTimeout = setTimeout(() => {
+        this.userIsScrollingSidebar = false;
+      }, 2000);
+    };
+
+    // Add sidebar scroll listener when listContainer is available
+    // This will be called after _loadSidebar completes
+    if (this.listContainer) {
+      this.listContainer.addEventListener('scroll', handleSidebarScroll, { passive: true });
+    } else {
+      // Wait for listContainer to be ready
+      const checkListContainer = setInterval(() => {
+        if (this.listContainer) {
+          clearInterval(checkListContainer);
+          this.listContainer.addEventListener('scroll', handleSidebarScroll, { passive: true });
+        }
+      }, 100);
+    }
   }
 
   /**
@@ -1064,11 +1132,48 @@ class YouTubeSidebar {
     items.forEach((item, index) => {
       if (index === newIndex) {
         item.classList.add('active');
-        // Scroll into view
-        item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Only auto-scroll if user is NOT scrolling (page or sidebar)
+        if (!this.userIsScrollingPage && !this.userIsScrollingSidebar) {
+          // Manually center the subtitle for consistent behavior
+          this._scrollSubtitleToCenter(item);
+        }
       } else {
         item.classList.remove('active');
       }
+    });
+  }
+
+  /**
+   * Scroll a subtitle item to the center of the list container
+   * This ensures consistent centering behavior on every subtitle change
+   */
+  _scrollSubtitleToCenter(item) {
+    if (!this.listContainer || !item) return;
+
+    // Set auto-scrolling flag to prevent detecting this as user scroll
+    this.isAutoScrolling = true;
+
+    // Use requestAnimationFrame for smoother, more responsive scrolling
+    requestAnimationFrame(() => {
+      const containerRect = this.listContainer.getBoundingClientRect();
+      const itemRect = item.getBoundingClientRect();
+
+      // Calculate the scroll position needed to center the item
+      const containerCenter = containerRect.height / 2;
+      const itemCenter = itemRect.height / 2;
+      const scrollOffset = (itemRect.top - containerRect.top) - containerCenter + itemCenter;
+
+      // Smooth scroll to the calculated position
+      this.listContainer.scrollBy({
+        top: scrollOffset,
+        behavior: 'smooth'
+      });
+
+      // Reset auto-scrolling flag after animation completes
+      // Smooth scroll typically takes ~300-500ms
+      setTimeout(() => {
+        this.isAutoScrolling = false;
+      }, 600);
     });
   }
 
@@ -1260,6 +1365,17 @@ class YouTubeSidebar {
     if (this.resizeHandler) {
       window.removeEventListener('resize', this.resizeHandler);
       this.resizeHandler = null;
+    }
+
+    // Clear scroll detection timeouts
+    if (this.pageScrollTimeout) {
+      clearTimeout(this.pageScrollTimeout);
+      this.pageScrollTimeout = null;
+    }
+
+    if (this.sidebarScrollTimeout) {
+      clearTimeout(this.sidebarScrollTimeout);
+      this.sidebarScrollTimeout = null;
     }
 
     if (this.sidebar && this.sidebar.parentElement) {
