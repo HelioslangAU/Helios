@@ -17,18 +17,18 @@
 
 /* Main Container */
 .helios-youtube-sidebar {
-  position: fixed;
-  top: 56px;
-  right: 0;
-  width: 420px;
-  height: calc(100vh - 56px);
+  position: absolute !important;
+  top: 0 !important;
+  right: -420px !important; /* Position in the margin area created by page-manager */
+  width: 420px !important;
+  height: 600px !important; /* Default, will be dynamically adjusted */
   background: var(--helios-bg-primary);
   display: flex;
   flex-direction: column;
-  z-index: 2100;
+  z-index: 2100 !important;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
   color: var(--helios-text-primary);
-  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), top 0.3s cubic-bezier(0.4, 0, 0.2, 1), height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
 }
 
@@ -338,6 +338,7 @@
 #page-manager.helios-sidebar-active {
   margin-right: 420px !important;
   transition: margin-right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative !important; /* Required for absolute positioning of sidebar */
 }
 
 #page-manager.helios-sidebar-active.helios-sidebar-hidden {
@@ -347,6 +348,7 @@
 /* Theater mode adjustments - stronger specificity */
 ytd-watch-flexy[theater] #page-manager.helios-sidebar-active {
   margin-right: 420px !important;
+  position: relative !important;
 }
 
 ytd-watch-flexy[theater] #page-manager.helios-sidebar-active.helios-sidebar-hidden {
@@ -356,15 +358,18 @@ ytd-watch-flexy[theater] #page-manager.helios-sidebar-active.helios-sidebar-hidd
 /* Fullscreen mode adjustments */
 ytd-watch-flexy[fullscreen] #page-manager.helios-sidebar-active {
   margin-right: 420px !important;
+  position: relative !important;
 }
 
 /* Double-enforce with body selector for maximum priority */
 body #page-manager.helios-sidebar-active {
   margin-right: 420px !important;
+  position: relative !important;
 }
 
 body ytd-watch-flexy[theater] #page-manager.helios-sidebar-active {
   margin-right: 420px !important;
+  position: relative !important;
 }
 
 /* Force adjust all content containers */
@@ -430,10 +435,12 @@ body ytd-watch-flexy[theater] #page-manager.helios-sidebar-active {
 
   #page-manager.helios-sidebar-active {
     margin-right: 380px !important;
+    position: relative !important;
   }
 
   ytd-watch-flexy[theater] #page-manager.helios-sidebar-active {
     margin-right: 380px !important;
+    position: relative !important;
   }
 }
 
@@ -441,20 +448,24 @@ body ytd-watch-flexy[theater] #page-manager.helios-sidebar-active {
 /* This provides an extra layer of enforcement */
 body:has(.helios-youtube-sidebar:not(.hidden)) #page-manager {
   margin-right: 420px !important;
+  position: relative !important;
 }
 
 body:has(.helios-youtube-sidebar:not(.hidden)) ytd-watch-flexy[theater] #page-manager {
   margin-right: 420px !important;
+  position: relative !important;
 }
 
 /* Fallback: Force margin using attribute selector directly on html */
 html:has(.helios-youtube-sidebar:not(.hidden)) #page-manager {
   margin-right: 420px !important;
+  position: relative !important;
 }
 
 /* Nuclear option: Apply to all watch pages when sidebar exists */
 ytd-app:has(.helios-youtube-sidebar:not(.hidden)) #page-manager {
   margin-right: 420px !important;
+  position: relative !important;
 }
 
 /* Settings Styles */

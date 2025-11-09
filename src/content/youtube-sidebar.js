@@ -13,6 +13,8 @@ class YouTubeSidebar {
     this.activeIndex = -1;
     this.layoutObserver = null; // Observer to maintain layout during YouTube navigation
     this.currentSecondarySubtitles = []; // Store secondary subtitles for sidebar display
+    this.resizeObserver = null; // Observer to sync sidebar height with video player
+    this.resizeHandler = null; // Window resize handler for cleanup
 
     // Settings
     this.settings = {
@@ -58,6 +60,8 @@ class YouTubeSidebar {
       this._enableTheaterMode();
       this._adjustVideoLayout();
       this.show();
+      // Sync sidebar height with video player
+      setTimeout(() => this._syncSidebarToVideoHeight(), 500);
     } else {
       this.hide();
     }
@@ -81,8 +85,16 @@ class YouTubeSidebar {
       link.href = chrome.runtime.getURL('src/ui/youtube-sidebar/youtube-sidebar.css');
       document.head.appendChild(link);
 
-      // Add to page
-      document.body.appendChild(this.sidebar);
+      // Wait for page-manager and inject sidebar into it
+      const injectSidebar = () => {
+        const pageManager = document.querySelector('#page-manager');
+        if (pageManager) {
+          pageManager.appendChild(this.sidebar);
+        } else {
+          setTimeout(injectSidebar, 100);
+        }
+      };
+      injectSidebar();
 
       // Get elements
       this.listContainer = this.sidebar.querySelector('#yt-subtitle-list');
@@ -193,12 +205,83 @@ class YouTubeSidebar {
           setTimeout(() => {
             this._enableTheaterMode();
             this._adjustVideoLayout();
+            this._syncSidebarToVideoHeight();
           }, 100);
         } else {
           this.hide();
         }
       }
     }, 500);
+  }
+
+  /**
+   * Sync sidebar height and position to match video player
+   * Makes the sidebar feel integrated into YouTube instead of an overlay
+   */
+  _syncSidebarToVideoHeight() {
+    if (!this.sidebar) return;
+
+    const syncHeight = () => {
+      // Find the video player container and page-manager
+      const videoPlayer = document.querySelector('.html5-video-player');
+      const pageManager = document.querySelector('#page-manager');
+
+      // Try different containers in order of preference
+      const ytdWatchFlexy = document.querySelector('ytd-watch-flexy');
+      const playerContainer = document.querySelector('#player-container');
+      const playerContainerOuter = document.querySelector('#player-container-outer');
+
+      if (!videoPlayer || !pageManager) {
+        // Retry after a short delay if not found
+        setTimeout(syncHeight, 100);
+        return;
+      }
+
+      const playerRect = videoPlayer.getBoundingClientRect();
+
+      // Set sidebar height to match video player height EXACTLY
+      this.sidebar.style.setProperty('height', `${playerRect.height}px`, 'important');
+
+      // Calculate position using getBoundingClientRect (actual visual position)
+      // Since sidebar is absolutely positioned within page-manager, we need the
+      // visual offset of the video relative to page-manager
+      const pageManagerRect = pageManager.getBoundingClientRect();
+      const topRelativeToPageManager = playerRect.top - pageManagerRect.top;
+
+      this.sidebar.style.setProperty('top', `${topRelativeToPageManager}px`, 'important');
+
+      console.log(`[Helios YouTube Sidebar] Sync complete - Height: ${playerRect.height}px, Top: ${topRelativeToPageManager}px, Video top: ${playerRect.top}px, PageManager top: ${pageManagerRect.top}px`);
+    };
+
+    // Initial sync
+    syncHeight();
+
+    // Setup ResizeObserver to keep sidebar synced when video player resizes
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+    }
+
+    const videoPlayer = document.querySelector('.html5-video-player');
+    if (videoPlayer) {
+      this.resizeObserver = new ResizeObserver(() => {
+        syncHeight();
+      });
+
+      this.resizeObserver.observe(videoPlayer);
+
+      // Also observe the player container for theater mode changes
+      const playerContainer = document.querySelector('#player-container');
+      if (playerContainer) {
+        this.resizeObserver.observe(playerContainer);
+      }
+    }
+
+    // Only sync on window resize, NOT on scroll
+    const resizeHandler = () => syncHeight();
+    window.addEventListener('resize', resizeHandler);
+
+    // Store handler for cleanup
+    this.resizeHandler = resizeHandler;
   }
 
   /**
@@ -569,6 +652,12 @@ class YouTubeSidebar {
       if (pageManager) {
         pageManager.classList.add('helios-sidebar-active');
         pageManager.classList.remove('helios-sidebar-hidden');
+
+        // Also directly set the margin and position to ensure it applies
+        pageManager.style.marginRight = '420px';
+        pageManager.style.position = 'relative';
+        pageManager.style.transition = 'margin-right 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+
         console.log('[Helios YouTube Sidebar] Video layout adjusted - sidebar will push video');
 
         // Setup observer to re-enforce layout on YouTube SPA navigation
@@ -588,10 +677,12 @@ class YouTubeSidebar {
     if (this.layoutObserver) return; // Already setup
 
     this.layoutObserver = new MutationObserver(() => {
-      // Re-enforce classes when YouTube modifies the DOM
+      // Re-enforce classes and styles when YouTube modifies the DOM
       if (this.isVisible && !pageManager.classList.contains('helios-sidebar-active')) {
         pageManager.classList.add('helios-sidebar-active');
         pageManager.classList.remove('helios-sidebar-hidden');
+        pageManager.style.marginRight = '420px';
+        pageManager.style.position = 'relative';
         console.log('[Helios YouTube Sidebar] Layout re-enforced after DOM change');
       }
     });
@@ -1021,7 +1112,12 @@ class YouTubeSidebar {
       if (pageManager) {
         pageManager.classList.add('helios-sidebar-active');
         pageManager.classList.remove('helios-sidebar-hidden');
+        pageManager.style.marginRight = '420px';
+        pageManager.style.position = 'relative';
       }
+
+      // Sync sidebar height with video player
+      setTimeout(() => this._syncSidebarToVideoHeight(), 100);
     }
   }
 
@@ -1038,6 +1134,8 @@ class YouTubeSidebar {
       if (pageManager) {
         pageManager.classList.remove('helios-sidebar-active');
         pageManager.classList.remove('helios-sidebar-hidden');
+        pageManager.style.marginRight = '0';
+        pageManager.style.position = '';
       }
     }
   }
@@ -1152,6 +1250,18 @@ class YouTubeSidebar {
       this.layoutObserver = null;
     }
 
+    // Disconnect resize observer
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
+    }
+
+    // Remove resize handler
+    if (this.resizeHandler) {
+      window.removeEventListener('resize', this.resizeHandler);
+      this.resizeHandler = null;
+    }
+
     if (this.sidebar && this.sidebar.parentElement) {
       this.sidebar.parentElement.removeChild(this.sidebar);
     }
@@ -1162,6 +1272,8 @@ class YouTubeSidebar {
     if (pageManager) {
       pageManager.classList.remove('helios-sidebar-active');
       pageManager.classList.remove('helios-sidebar-hidden');
+      pageManager.style.marginRight = '0';
+      pageManager.style.position = '';
     }
   }
 }
