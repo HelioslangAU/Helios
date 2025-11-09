@@ -82,17 +82,43 @@ class ChineseLanguageLearningExtension {
     ]);
 
     console.log(`✅ Dictionary and resources loaded successfully`);
+
+    // Load extension enabled state EARLY before creating UI components
+    // This prevents them from auto-showing if extension is disabled
+    const currentSettings = await chrome.storage.local.get([
+      'extensionEnabled',
+      'activationKey',
+      'autoHighlight'
+    ]);
+    const isExtensionEnabled = currentSettings.extensionEnabled !== false; // default to true
+
+    console.log(`🔍 Extension enabled state: ${isExtensionEnabled}`, currentSettings);
+
     this.pageProcessor = new PageProcessor(this.dictionaryManager, this.vocabManager, this.languageRegistry);
     window.pageProcessor = this.pageProcessor;
     window.dictionaryManager = this.dictionaryManager;
-    this.bannerManager = new BannerManager();
-    window.bannerManager = this.bannerManager;
+
+    // Only create banner if extension is enabled (prevents unwanted page processing)
+    if (isExtensionEnabled) {
+      this.bannerManager = new BannerManager();
+      window.bannerManager = this.bannerManager;
+    } else {
+      this.bannerManager = null;
+      console.log('⏸️ Banner not created (extension disabled)');
+    }
+
     window.vocabManager = this.vocabManager;
     window.languageRegistry = this.languageRegistry;
 
     this.pronunciationManager = new PronunciationManager(this.dictionaryManager, this.pageProcessor, this.languageRegistry);
     window.pronunciationManager = this.pronunciationManager;
-    this.pronunciationManager.observeForDynamicContent();
+
+    // Only start observing if extension is enabled
+    if (isExtensionEnabled) {
+      this.pronunciationManager.observeForDynamicContent();
+    } else {
+      console.log('⏸️ Pronunciation observer not started (extension disabled)');
+    }
 
     this.popup = new MultiCardPopupManager({
       highlightManager: this.highlightManager,
@@ -116,25 +142,34 @@ class ChineseLanguageLearningExtension {
       activation: this.activation,
     });
 
-    // Initialize proprietary video player feature first (before FeatureToggle)
+    // Initialize proprietary video player feature (but don't start if disabled)
+    // (currentSettings already loaded above)
     if (window.heliosVideoFeature) {
       try {
         this.videoFeature = window.heliosVideoFeature;
-        await this.videoFeature.init();
+
+        // Only start video detection if extension is enabled
+        if (isExtensionEnabled) {
+          await this.videoFeature.init();
+          console.log("✅ Helios video player initialized");
+        } else {
+          console.log("⏸️ Helios video player not started (extension disabled)");
+        }
 
         // Make accessible globally for debugging
         window.heliosVideo = this.videoFeature;
 
-        console.log("✅ Helios video player initialized");
-
-        // Initialize YouTube-specific sidebar
-        if (window.location.hostname.includes("youtube.com") || window.location.hostname.includes("youtu.be")) {
+        // Initialize YouTube-specific sidebar only if extension is enabled
+        if (isExtensionEnabled && (window.location.hostname.includes("youtube.com") || window.location.hostname.includes("youtu.be"))) {
           try {
             this.youtubeSidebar = new YouTubeSidebar();
             console.log("✅ YouTube sidebar initialized");
           } catch (error) {
             console.warn("⚠️ YouTube sidebar failed to initialize", error);
           }
+        } else if (!isExtensionEnabled && (window.location.hostname.includes("youtube.com") || window.location.hostname.includes("youtu.be"))) {
+          this.youtubeSidebar = null;
+          console.log("⏸️ YouTube sidebar not created (extension disabled)");
         }
       } catch (error) {
         console.warn("⚠️ Helios video feature failed to initialize", error);
@@ -151,25 +186,15 @@ class ChineseLanguageLearningExtension {
       pronunciationManager: this.pronunciationManager,
       videoFeature: this.videoFeature,
       youtubeSidebar: this.youtubeSidebar,
+      parentExtension: this, // Pass reference to parent for updating references
     });
 
-    this._registerScanner();
+    // Apply initial settings (currentSettings already loaded above)
+    this.featureToggle.applyInitial(currentSettings);
 
-    // Hide video features initially if extension is disabled
-    // (they will be shown by featureToggle.applyInitial if enabled)
-    const currentSettings = await chrome.storage.local.get(['extensionEnabled']);
-    if (currentSettings.extensionEnabled === false) {
-      if (this.youtubeSidebar) {
-        this.youtubeSidebar.hide();
-      }
-      if (this.videoFeature && this.videoFeature.videoDetector) {
-        const bindings = this.videoFeature.videoDetector.getAllBindings();
-        bindings.forEach(binding => {
-          if (binding.overlay && binding.overlay.container) {
-            binding.overlay.container.style.display = 'none';
-          }
-        });
-      }
+    // Register scanner only if extension is enabled
+    if (isExtensionEnabled) {
+      this._registerScanner();
     }
 
     // Keep ASB player integration as fallback (can be removed later)
