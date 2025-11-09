@@ -24,6 +24,33 @@ class PageProcessor {
     this.processPageForUnknownWords();
     // Set up observer for dynamic changes
     //this.observePageChanges();
+    
+    // Listen for subtitle loaded events to recalculate comprehension
+    this.setupSubtitleEventListeners();
+  }
+
+  /**
+   * Setup event listeners for video subtitle events
+   */
+  setupSubtitleEventListeners() {
+    // Listen for when subtitles are loaded (only fires once when subtitles are first loaded)
+    document.addEventListener('helios-subtitles-loaded', () => {
+      // Recalculate comprehension when subtitles are loaded
+      setTimeout(() => {
+        this.calculateComprehensionPercentage();
+        // Notify sidebar after calculation
+        this.notifySidebarUpdate();
+        console.log('📊 Comprehension recalculated after subtitle load');
+      }, 100);
+    });
+
+    // Note: We do NOT listen to 'helios-video-timeupdate' because:
+    // 1. It fires every 100ms (every video tick)
+    // 2. Subtitle text doesn't change - it's the full subtitle file
+    // 3. Comprehension should only update when:
+    //    - Subtitles are loaded
+    //    - Vocabulary changes (word marked as known/unknown)
+    //    - Page content changes
   }
 
   // Extract a sentence around a word from a given text node's container
@@ -121,6 +148,8 @@ class PageProcessor {
       // Calculate comprehension immediately after visible content is processed
       // This gives quick feedback to banner/stats even before full page is done
       this.calculateComprehensionPercentage();
+      // Notify sidebar after calculation
+      this.notifySidebarUpdate();
     }
 
     // Process hidden nodes in background batches
@@ -128,11 +157,15 @@ class PageProcessor {
       this.processBatchedTextNodes(hiddenNodes, () => {
         // Recalculate comprehension after all processing is complete
         this.calculateComprehensionPercentage();
+        // Notify sidebar after calculation
+        this.notifySidebarUpdate();
         console.log(`📊 Full page comprehension calculated`);
       });
     } else if (visibleNodes.length === 0) {
       // If there are no nodes at all, still calculate
       this.calculateComprehensionPercentage();
+      // Notify sidebar after calculation
+      this.notifySidebarUpdate();
     }
   }
 
@@ -224,8 +257,78 @@ class PageProcessor {
     }
   }
 
+  /**
+   * Check if video subtitles are active and get all subtitle text
+   * @returns {string|null} - All subtitle text if video is active, null otherwise
+   */
+  getVideoSubtitleText() {
+    // Check if video feature is available and initialized
+    if (!window.heliosVideoFeature || !window.heliosVideoFeature.isInitialized) {
+      return null;
+    }
+
+    // Get the primary video binding
+    const binding = window.heliosVideoFeature.getPrimaryBinding();
+    if (!binding) {
+      return null;
+    }
+
+    // Check if subtitles are loaded
+    const subtitleCollection = binding.getSubtitles();
+    if (!subtitleCollection || subtitleCollection.isEmpty()) {
+      return null;
+    }
+
+    // Get all subtitle entries and combine their text
+    const entries = subtitleCollection.getAll();
+    if (entries.length === 0) {
+      return null;
+    }
+
+    // Combine all subtitle text
+    const allSubtitleText = entries.map(entry => entry.text).join(' ');
+    //console.log(allSubtitleText);
+    return allSubtitleText;
+  }
+
+  /**
+   * Calculate comprehension percentage from subtitle text
+   * @param {string} subtitleText - Combined subtitle text
+   * @returns {number} - Comprehension percentage
+   */
+  calculateSubtitleComprehension(subtitleText) {
+    if (!subtitleText || !subtitleText.trim()) {
+      return 100; // If no text, consider comprehension 100%
+    }
+
+    const adapter = this.languageRegistry.getAdapter();
+    const words = adapter ? adapter.extractWords(subtitleText, this.dictionaryManager.dictionary) : [];
+    
+    let totalWords = words.length;
+    let knownWords = words.filter(({ word }) => this.vocabManager.isWordKnown(word)).length;
+
+    // Store totals for sidebar access
+    this.lastTotalWords = totalWords;
+    this.lastKnownWords = knownWords;
+
+    if (totalWords === 0) return 100; // If no words, consider comprehension 100%
+    console.log(`Subtitle comprehension: ${knownWords} / ${totalWords} = ${Math.round((knownWords / totalWords) * 100)}%`);
+    return Math.round((knownWords / totalWords) * 100);
+  }
+
   calculateComprehensionPercentage() {
-    // Get all text nodes in the body
+    // First, check if video subtitles are active
+    const subtitleText = this.getVideoSubtitleText();
+    
+    if (subtitleText !== null) {
+      // Video subtitles are active - calculate based on subtitle text only
+      const percentage = this.calculateSubtitleComprehension(subtitleText);
+      // NOTE: Do NOT call notifySidebarUpdate() here - let the caller decide when to notify
+      // This prevents circular calls with refreshData()
+      return percentage;
+    }
+
+    // No video subtitles - calculate normally from page text
     const textNodes = this.getAllTextNodes(document.body);
     let totalWords = 0;
     let knownWords = 0;
@@ -248,8 +351,8 @@ class PageProcessor {
     if (totalWords === 0) return 100; // If no words, consider comprehension 100%
     const percentage = Math.round((knownWords / totalWords) * 100);
 
-    // Notify sidebar of updated data
-    this.notifySidebarUpdate();
+    // NOTE: Do NOT call notifySidebarUpdate() here - let the caller decide when to notify
+    // This prevents circular calls with refreshData()
 
     return percentage;
   }
@@ -263,11 +366,11 @@ class PageProcessor {
   }
 
   notifySidebarUpdate() {
-    // Notify sidebar manager of data changes
-    if (window.sidebarManager && window.sidebarManager.refreshData) {
+    // Notify banner manager (which manages the side tab) of data changes
+    if (window.bannerManager && window.bannerManager.refreshData) {
       // Use a small delay to ensure all processing is complete
       setTimeout(() => {
-        window.sidebarManager.refreshData();
+        window.bannerManager.refreshData();
       }, 100);
     }
   }
@@ -456,6 +559,12 @@ class PageProcessor {
     });
 
     console.log(`Updated ${updatedCount} instances of "${word}" on page`);
+    
+    // Recalculate comprehension after word status change
+    // This ensures comprehension updates immediately when words are marked as known/ignored
+    setTimeout(() => {
+      this.calculateComprehensionPercentage();
+    }, 50);
   }
 
   observePageChanges() {

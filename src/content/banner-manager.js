@@ -80,18 +80,36 @@ class BannerManager {
     }
 
     /**
-     * Calculate total words on the page
+     * Calculate total words on the page or in video subtitles
+     * If video subtitles are active, returns subtitle word count
+     * Otherwise, returns page word count
      * @returns {number}
      */
     calculatePageWordsCount() {
         try {
+            // First, check if video subtitles are active
+            const subtitleText = this.getVideoSubtitleText();
+            
+            if (subtitleText !== null) {
+                // Video subtitles are active - calculate words from subtitle text
+                const adapter = window.languageRegistry?.getAdapter();
+                if (adapter) {
+                    const words = adapter.extractWords(subtitleText, window.dictionaryManager?.dictionary || {});
+                    return words.length;
+                }
+                return 0;
+            }
+
+            // No video subtitles - calculate from page text
             const textNodes = this.getAllTextNodes(document.body);
             let totalWords = 0;
 
             for (const textNode of textNodes) {
-                const adapter = window.languageRegistry.getAdapter();
-                const words = adapter.extractWords(textNode.textContent, window.dictionaryManager.dictionary);
-                totalWords += words.length;
+                const adapter = window.languageRegistry?.getAdapter();
+                if (adapter) {
+                    const words = adapter.extractWords(textNode.textContent, window.dictionaryManager?.dictionary || {});
+                    totalWords += words.length;
+                }
             }
 
             return totalWords;
@@ -99,6 +117,39 @@ class BannerManager {
             console.warn('Failed to calculate page words count:', e);
             return 0;
         }
+    }
+
+    /**
+     * Get video subtitle text (helper method)
+     * @returns {string|null}
+     */
+    getVideoSubtitleText() {
+        // Check if video feature is available and initialized
+        if (!window.heliosVideoFeature || !window.heliosVideoFeature.isInitialized) {
+            return null;
+        }
+
+        // Get the primary video binding
+        const binding = window.heliosVideoFeature.getPrimaryBinding();
+        if (!binding) {
+            return null;
+        }
+
+        // Check if subtitles are loaded
+        const subtitleCollection = binding.getSubtitles();
+        if (!subtitleCollection || subtitleCollection.isEmpty()) {
+            return null;
+        }
+
+        // Get all subtitle entries and combine their text
+        const entries = subtitleCollection.getAll();
+        if (entries.length === 0) {
+            return null;
+        }
+
+        // Combine all subtitle text
+        const allSubtitleText = entries.map(entry => entry.text).join(' ');
+        return allSubtitleText;
     }
 
     /**
@@ -168,6 +219,73 @@ class BannerManager {
     updatePageWords(pageWords) {
         if (!this.sideTabInstance) return;
         this.sideTabInstance.updateStats({ pageWords });
+    }
+
+    /**
+     * Refresh all data - recalculate comprehension, page words, and known words
+     * This method is called when data changes and the sidebar needs to be updated
+     * Uses debouncing to prevent excessive calls
+     */
+    refreshData() {
+        if (!this.sideTabInstance) return;
+
+        // Debounce to prevent excessive updates
+        if (this.refreshTimeout) {
+            clearTimeout(this.refreshTimeout);
+        }
+
+        this.refreshTimeout = setTimeout(() => {
+            try {
+                // Recalculate comprehension and page words
+                const comprehension = window.pageProcessor?.calculateComprehensionPercentage() || 0;
+                const pageWords = this.calculatePageWordsCount();
+                const knownWords = window.vocabManager?.getKnownWordsCount() || 0;
+
+                // Update all stats
+                this.updateStats({
+                    knownWords: knownWords,
+                    comprehension: comprehension,
+                    pageWords: pageWords
+                });
+
+                console.log('📊 Sidebar data refreshed - Comprehension:', comprehension + '%', 'Known Words:', knownWords, 'Page Words:', pageWords);
+            } catch (error) {
+                console.error('Error refreshing sidebar data:', error);
+            }
+            this.refreshTimeout = null;
+        }, 300); // 300ms debounce - prevents updates more frequent than every 300ms
+    }
+
+    /**
+     * Called when vocabulary is updated (word marked as known/unknown)
+     * This is an alias for refreshData() for backwards compatibility
+     */
+    onVocabUpdate() {
+        this.refreshData();
+    }
+
+    /**
+     * Called when pronunciation toggle is changed
+     * Updates the pinyin UI state in the side tab
+     * @param {boolean} enabled - Whether pronunciation is enabled
+     */
+    onPronunciationToggle(enabled) {
+        if (!this.sideTabInstance) return;
+        
+        // Update pinyin UI state in the side tab
+        this.sideTabInstance.updatePinyinUI(enabled);
+    }
+
+    /**
+     * Called when pinyin toggle is changed
+     * Updates the pinyin UI state in the side tab
+     * @param {boolean} enabled - Whether pinyin is enabled
+     */
+    onPinyinToggle(enabled) {
+        if (!this.sideTabInstance) return;
+        
+        // Update pinyin UI state in the side tab
+        this.sideTabInstance.updatePinyinUI(enabled);
     }
 
     hideBanner() {

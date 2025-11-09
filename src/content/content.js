@@ -102,6 +102,7 @@ class ChineseLanguageLearningExtension {
     if (isExtensionEnabled) {
       this.bannerManager = new BannerManager();
       window.bannerManager = this.bannerManager;
+      window.sidebarManager = this.bannerManager;
     } else {
       this.bannerManager = null;
       console.log('⏸️ Banner not created (extension disabled)');
