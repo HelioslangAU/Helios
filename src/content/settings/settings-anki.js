@@ -7,20 +7,69 @@ class HeliosSettingsAnki {
     this.availableNoteTypes = [];
     this.currentNoteTypeFields = [];
     this.autoMappingApplied = false;
+    this.currentLanguage = 'zh'; // Will be updated from settings
+  }
 
-    // Available data types for field mapping
-    this.availableDataTypes = [
-      { value: "", label: "Not mapped" },
-      { value: "expressionRubyTxt", label: "Expression (with ruby Text Pinyin)" },
-      { value: "expression", label: "Expression (对)" },
-      { value: "reading", label: "Reading (duì)" },
-      { value: "meaning", label: "Meaning (right; correct)" },
-      { value: "sentence", label: "Sentence (这个答案是对的)" },
-      { value: "traditional", label: "Traditional (對)" },
-      { value: "simplified", label: "Simplified (对)" },
-      { value: "source", label: "Source URL" },
-      { value: "frequency", label: "Frequency Rank" },
-    ];
+  // Get language-specific field options
+  getAvailableDataTypes() {
+    const language = this.manager.settings.targetLanguage || 'zh';
+
+    if (language === 'zh') {
+      // Chinese-specific fields
+      return [
+        { value: "", label: "Not mapped" },
+        { value: "expression", label: "Expression (对)" },
+        { value: "expressionRubyTxt", label: "Expression with Ruby Pinyin (对[dui4;])" },
+        { value: "reading", label: "Reading (dui4)" },
+        { value: "traditional", label: "Traditional (對)" },
+        { value: "simplified", label: "Simplified (对)" },
+        { value: "meaning", label: "Meaning (right; correct)" },
+        { value: "sentence", label: "Sentence (这个答案是对的)" },
+        { value: "source", label: "Source URL" },
+        { value: "frequency", label: "Frequency Rank (129)" },
+      ];
+    } else if (language === 'fr') {
+      // French-specific fields
+      return [
+        { value: "", label: "Not mapped" },
+        { value: "expression", label: "Word (précis)" },
+        { value: "reading", label: "Pronunciation (/pʁesi/)" },
+        { value: "meaning", label: "Meaning (accurate; exact)" },
+        { value: "sentence", label: "Sentence (Cette mesure est très précise)" },
+        { value: "source", label: "Source URL" },
+      ];
+    } else if (language === 'es') {
+      // Spanish-specific fields
+      return [
+        { value: "", label: "Not mapped" },
+        { value: "expression", label: "Word (preciso)" },
+        { value: "reading", label: "Pronunciation (/pɾeˈθiso/)" },
+        { value: "meaning", label: "Meaning (precise; accurate)" },
+        { value: "sentence", label: "Sentence (Es necesario ser preciso)" },
+        { value: "source", label: "Source URL" },
+      ];
+    } else if (language === 'en') {
+      // English-specific fields
+      return [
+        { value: "", label: "Not mapped" },
+        { value: "expression", label: "Word (precise)" },
+        { value: "reading", label: "Pronunciation (/prɪˈsaɪs/)" },
+        { value: "meaning", label: "Meaning (exact; accurate)" },
+        { value: "sentence", label: "Sentence (The measurements must be precise)" },
+        { value: "source", label: "Source URL" },
+      ];
+    } else {
+      // Generic fallback
+      return [
+        { value: "", label: "Not mapped" },
+        { value: "expression", label: "Word" },
+        { value: "reading", label: "Pronunciation" },
+        { value: "meaning", label: "Meaning" },
+        { value: "sentence", label: "Sentence" },
+        { value: "source", label: "Source URL" },
+        { value: "frequency", label: "Frequency Rank" },
+      ];
+    }
   }
 
   // Initialize Anki integration
@@ -335,7 +384,7 @@ class HeliosSettingsAnki {
 
   // Generate options for data type dropdown
   generateDataTypeOptions(selectedValue = "") {
-    return this.availableDataTypes
+    return this.getAvailableDataTypes()
       .map(
         (dataType) => `
         <option value="${dataType.value}" ${
@@ -348,20 +397,50 @@ class HeliosSettingsAnki {
       .join("");
   }
 
-  // Get preview data for a data type
+  // Get preview data for a data type (language-aware)
   getPreviewData(dataType) {
-    const previews = {
-      "": "—",
-      expression: "对",
-      reading: "duì",
-      meaning: "right; correct",
-      sentence: "这个答案是对的。",
-      traditional: "對",
-      simplified: "对",
-      source: "https://example.com",
-      frequency: "129",
+    const language = this.manager.settings.targetLanguage || 'zh';
+
+    const previewsByLanguage = {
+      zh: {
+        "": "—",
+        expression: "对",
+        expressionRubyTxt: "对[dui4;]",
+        reading: "dui4",
+        meaning: "right; correct",
+        sentence: "这个答案是对的",
+        traditional: "對",
+        simplified: "对",
+        source: "https://example.com",
+        frequency: "129",
+      },
+      fr: {
+        "": "—",
+        expression: "précis",
+        reading: "/pʁesi/",
+        meaning: "accurate; exact",
+        sentence: "Cette mesure est très précise",
+        source: "https://example.com",
+      },
+      es: {
+        "": "—",
+        expression: "preciso",
+        reading: "/pɾeˈθiso/",
+        meaning: "precise; accurate",
+        sentence: "Es necesario ser preciso",
+        source: "https://example.com",
+      },
+      en: {
+        "": "—",
+        expression: "precise",
+        reading: "/prɪˈsaɪs/",
+        meaning: "exact; accurate",
+        sentence: "The measurements must be precise",
+        source: "https://example.com",
+      },
     };
 
+    const previews = previewsByLanguage[language] || previewsByLanguage['zh'];
     return previews[dataType] || "—";
   }
 

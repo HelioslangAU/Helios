@@ -31,6 +31,10 @@ class PopupEventHandler {
 
     popup.addEventListener("mouseleave", () => {
       managers.popupManager.isMouseOverPopup = false;
+      // Trigger hide check when leaving popup
+      // For subtitle words: hide when leaving popup
+      // For regular words: if mouse enters subtitle word within 150ms, popup stays (isMouseOverHighlight will be true)
+      managers.popupManager.scheduleHidePopup();
     });
   }
 
@@ -140,6 +144,8 @@ class PopupEventHandler {
     }
     // Update counter via chrome storage listener (will trigger in extension tab)
     this.notifyCounterUpdate();
+    // Update side tab stats
+    this.updateSideTabStats();
   }
 
   static async handleMarkUnknown(character) {
@@ -150,6 +156,8 @@ class PopupEventHandler {
     }
     // Update counter via chrome storage listener (will trigger in extension tab)
     this.notifyCounterUpdate();
+    // Update side tab stats
+    this.updateSideTabStats();
   }
 
   static async handleMarkIgnored(character) {
@@ -160,18 +168,28 @@ class PopupEventHandler {
     }
     // Update counter via chrome storage listener (will trigger in extension tab)
     this.notifyCounterUpdate();
+    // Update side tab stats
+    this.updateSideTabStats();
   }
 
   static async handleAnkiAdd(character, managers) {
     const { dictionaryManager, ankiManager, frequencyManager } = managers;
     const matches = dictionaryManager.dictionary[character] || [];
+    const firstMatch = matches.length > 0 ? matches[0] : {};
+
+    // Get current language
+    const currentLanguage = window.languageRegistry?.getCurrentLanguage() || 'zh';
+
     const wordData = {
       character: character,
-      pinyin: matches.length > 0 ? matches[0].pinyin : '',
-      definition: matches.length > 0 ? matches[0].definition : 'No definition',
+      language: currentLanguage, // Add language
+      // Use pinyin for Chinese, pronunciation for other languages
+      pinyin: firstMatch.pinyin || firstMatch.pronunciation || '',
+      definition: firstMatch.definition || 'No definition',
       sentence: managers.popupManager.capturedSentence,
-      traditional: matches.length > 0 ? matches[0].traditional : character,
-      simplified: matches.length > 0 ? matches[0].simplified : character,
+      // Traditional/simplified only exist for Chinese, fallback to character
+      traditional: firstMatch.traditional || character,
+      simplified: firstMatch.simplified || character,
     };
 
     const ankiBtn = managers.popupManager.popup.querySelector(".anki-btn");
@@ -184,13 +202,21 @@ class PopupEventHandler {
       ? currentCard.character
       : managers.popupManager.originalCharacter;
 
+    const firstEntry = currentCard.entries[0] || {};
+
+    // Get current language
+    const currentLanguage = window.languageRegistry?.getCurrentLanguage() || 'zh';
+
     const wordData = {
       character: displayCharacter,
-      pinyin: currentCard.pinyin,
+      language: currentLanguage, // Add language
+      // Use pinyin for Chinese, pronunciation for other languages
+      pinyin: currentCard.pinyin || firstEntry.pronunciation || '',
       definition: currentCard.entries.map(e => e.definition).join('; '),
       sentence: managers.popupManager.capturedSentence,
-      traditional: currentCard.entries[0].traditional,
-      simplified: currentCard.entries[0].simplified,
+      // Traditional/simplified only exist for Chinese, fallback to character
+      traditional: firstEntry.traditional || displayCharacter,
+      simplified: firstEntry.simplified || displayCharacter,
     };
 
     const ankiBtn = managers.popupManager.popup.querySelector(".anki-btn");
@@ -264,5 +290,23 @@ class PopupEventHandler {
     // detect changes to chineseExtensionKnownWords and update the counter
     // This happens because VocabManager.saveKnownWords() triggers storage changes
     console.log("Word status updated - extension tab will auto-update via storage listener");
+  }
+
+  static updateSideTabStats() {
+    // Update side tab stats after marking words
+    if (window.bannerManager && window.pageProcessor && window.vocabManager) {
+      // Small delay to ensure vocab changes are saved first
+      setTimeout(() => {
+        const comprehension = window.pageProcessor.calculateComprehensionPercentage();
+        const knownWords = window.vocabManager.getKnownWordsCount();
+
+        window.bannerManager.updateStats({
+          knownWords: knownWords,
+          comprehension: comprehension
+        });
+
+        console.log("📊 Side tab stats updated - Known words:", knownWords, "Comprehension:", comprehension + "%");
+      }, 100);
+    }
   }
 }

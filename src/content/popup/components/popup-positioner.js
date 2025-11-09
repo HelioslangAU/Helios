@@ -14,9 +14,27 @@ class PopupPositioner {
 
     const highlightRect = highlight.getBoundingClientRect();
 
-    // Always position popup below the highlighted text
-    popup.style.top = `${highlightRect.bottom}px`;
-    popup.style.bottom = 'auto';
+    // Determine vertical position - prefer below, but position above if it goes off-screen
+    let posY = highlightRect.bottom;
+    const spaceBelow = window.innerHeight - highlightRect.bottom;
+    const spaceAbove = highlightRect.top;
+
+    // If popup would go off bottom of screen and there's more space above
+    if (posY + popupRect.height > window.innerHeight && spaceAbove > spaceBelow) {
+      // Position above the word
+      posY = highlightRect.top - popupRect.height;
+      popup.style.top = `${Math.max(10, posY)}px`;
+      popup.style.bottom = 'auto';
+    } else {
+      // Position below the word (default)
+      popup.style.top = `${posY}px`;
+      popup.style.bottom = 'auto';
+
+      // If still goes off screen, clamp to viewport
+      if (posY + popupRect.height > window.innerHeight) {
+        popup.style.top = `${window.innerHeight - popupRect.height - 10}px`;
+      }
+    }
 
     // Determine horizontal position
     let posX = highlightRect.left;

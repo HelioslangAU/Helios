@@ -9,59 +9,77 @@ class LookupController {
     this.hideTimeout = null;
     this.currentWord = null;
     this.lastPointerEvent = null;
+    this.isCurrentWordSubtitle = false; // Track if current word is from subtitle
   }
 
   onPointerMove = (event) => {
-    if (!this.activation.isActive()) return;
+    // Video subtitle words (data-subtitle-word="true") don't require shift key
+    const isSubtitleWord = event.target?.getAttribute('data-subtitle-word') === 'true';
+
+    // Skip if not activated and not on a subtitle word
+    if (!isSubtitleWord && !this.activation.isActive()) return;
+
+    // Skip if mouse is over popup
+    if (this.popup?.isMouseOverPopup) return;
 
     this.lastPointerEvent = event;
 
-    if (this.popup && this.popup.isMouseOverPopup) return;
-
     const characterInfo = this.pageProcessor.getCharacterAtPosition(event);
-    if (characterInfo && characterInfo.word) {
-      clearTimeout(this.hideTimeout);
 
-      if (
-        this.currentWord === characterInfo.word &&
-        this.highlightManager.currentHighlight &&
-        this.highlightManager.currentHighlight.textContent === characterInfo.word
-      ) {
+    if (characterInfo?.word) {
+      // Skip if already showing this exact word (prevent unnecessary re-renders)
+      if (this.currentWord === characterInfo.word &&
+          this.highlightManager.currentHighlight?.textContent === characterInfo.word) {
         return;
       }
 
+      // Cancel any pending operations immediately
+      clearTimeout(this.hoverTimeout);
+      clearTimeout(this.hideTimeout);
+
+      // Remove old highlight
       this.highlightManager.removeLookupHighlight();
 
+      // Re-check position after removing old highlight (DOM might have changed)
       const newCharacterInfo = this.pageProcessor.getCharacterAtPosition(event);
       if (!newCharacterInfo) {
         this.popup.scheduleHidePopup?.();
+        this.currentWord = null;
+        this.isCurrentWordSubtitle = false;
         return;
       }
 
-      clearTimeout(this.hoverTimeout);
-      this.hoverTimeout = setTimeout(() => {
-        const sentence = this.pageProcessor.getSentenceContextFromNode(
-          newCharacterInfo.textNode,
-          newCharacterInfo.word
-        );
+      // Get context
+      const sentence = this.pageProcessor.getSentenceContextFromNode(
+        newCharacterInfo.textNode,
+        newCharacterInfo.word
+      );
 
-        this.highlightManager.highlightLookupText(
-          newCharacterInfo.textNode,
-          newCharacterInfo.start,
-          newCharacterInfo.end
-        );
+      // Create highlight
+      this.highlightManager.highlightLookupText(
+        newCharacterInfo.textNode,
+        newCharacterInfo.start,
+        newCharacterInfo.end
+      );
 
-        this.popup.showDictionaryPopup(
-          this.highlightManager.currentHighlight.getBoundingClientRect().left,
-          this.highlightManager.currentHighlight.getBoundingClientRect().bottom,
-          newCharacterInfo.word,
-          sentence
-        );
-      }, 10);
+      // Show popup only if highlight was successfully created
+      if (this.highlightManager.currentHighlight) {
+        const rect = this.highlightManager.currentHighlight.getBoundingClientRect();
+        this.popup.showDictionaryPopup(rect.left, rect.bottom, newCharacterInfo.word, sentence);
+        // Set subtitle word flag AFTER showing popup (showDictionaryPopup resets it)
+        this.popup.isSubtitleWordPopup = isSubtitleWord;
+      }
 
       this.currentWord = newCharacterInfo.word;
+      this.isCurrentWordSubtitle = isSubtitleWord; // Track subtitle word status
     } else {
-      this.popup.scheduleHidePopup?.();
+      // Mouse moved off word - schedule hide
+      // Subtitle words will always hide regardless of persistence setting
+      if (this.currentWord !== null) {
+        this.popup.scheduleHidePopup?.();
+      }
+      this.currentWord = null;
+      this.isCurrentWordSubtitle = false;
     }
   };
 

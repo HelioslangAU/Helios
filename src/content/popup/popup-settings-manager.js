@@ -26,11 +26,9 @@ class PopupSettingsManager {
           popupTheme: result.popupTheme || 'dark',
           popupFontSize: result.popupFontSize || 'medium',
           showFrequency: result.showFrequency !== false,
-          persistentPopup: result.persistentPopup !== false,
+          persistentPopup: result.persistentPopup !== false, // Default to ON
           autoCloseDelay: result.autoCloseDelay || 0
         };
-
-        console.log('🎨 Popup settings loaded:', this.settings);
       }
     } catch (error) {
       console.error('Error loading popup settings:', error);

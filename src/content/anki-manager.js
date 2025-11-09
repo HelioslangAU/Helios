@@ -82,8 +82,12 @@ class AnkiManager {
 
   // Extract word data from character and context
   extractWordData(character) {
+    // Get current language from registry
+    const currentLanguage = window.languageRegistry?.getCurrentLanguage() || 'zh';
+
     const wordData = {
       character: character,
+      language: currentLanguage, // Add language to wordData
       timestamp: new Date().toISOString(),
       url: window.location.href,
     };
@@ -93,11 +97,13 @@ class AnkiManager {
       const matches = this.dictionaryManager.dictionary[character];
       if (matches && matches.length > 0) {
         const match = matches[0];
+        // Traditional/simplified only exist for Chinese
         wordData.traditional = match.traditional || character;
         wordData.simplified = match.simplified || character;
-        wordData.pinyin = match.pinyin || match.reading || "";
+        // Use pinyin for Chinese, pronunciation for other languages
+        wordData.pinyin = match.pinyin || match.pronunciation || match.reading || "";
         wordData.definition = match.definition || match.meaning || "";
-        wordData.frequency = match.frequency;
+        wordData.frequency = match.frequency || match.frq || "";
       }
     }
 
@@ -368,12 +374,13 @@ class AnkiManager {
   }
 
   // Update Anki statistics
+  // Note: ankiCardsCreated is updated by the background script to avoid double counting
   updateAnkiStatistics(success) {
     try {
       if (chrome.storage?.local) {
         chrome.storage.local.get(
           [
-            "ankiCardsCreated",
+            "ankiCardsCreated", // Read current value but don't increment (background script handles this)
             "ankiCardsToday",
             "ankiSuccessCount",
             "ankiTotalAttempts",
@@ -383,6 +390,7 @@ class AnkiManager {
             const today = new Date().toDateString();
             const lastReset = result.lastAnkiResetDate || "";
 
+            // Don't modify ankiCardsCreated - background script handles this
             let cardsCreated = result.ankiCardsCreated || 0;
             let cardsToday = result.ankiCardsToday || 0;
             let successCount = result.ankiSuccessCount || 0;
@@ -393,10 +401,10 @@ class AnkiManager {
               cardsToday = 0;
             }
 
-            // Update counters
+            // Update counters (except ankiCardsCreated which is handled by background script)
             totalAttempts++;
             if (success) {
-              cardsCreated++;
+              // Don't increment cardsCreated here - background script already did
               cardsToday++;
               successCount++;
             }
@@ -407,7 +415,7 @@ class AnkiManager {
                 : 100;
 
             chrome.storage.local.set({
-              ankiCardsCreated: cardsCreated,
+              // Don't set ankiCardsCreated - background script handles this
               ankiCardsToday: cardsToday,
               ankiSuccessCount: successCount,
               ankiTotalAttempts: totalAttempts,

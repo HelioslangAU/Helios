@@ -1,110 +1,61 @@
 class DictionaryManager {
-  constructor() {
+  constructor(languageRegistry) {
     this.dictionary = {};
+    this.languageRegistry = languageRegistry;
   }
 
   async loadDictionary() {
     try {
-      // File paths are centralized in src/config/paths.js
-      const dictionaryUrl = window.PATHS ? window.PATHS.getChromeURL('CEDICT') : chrome.runtime.getURL('cedict_ts.u8');
-      const response = await fetch(dictionaryUrl);
-      const text = await response.text();
-      this.parseCEDICT(text);
-      console.log('CC-CEDICT loaded with', Object.keys(this.dictionary).length, 'entries');
-    } catch (error) {
-      console.warn('Could not load CC-CEDICT file:', error);
-    }
-  }
+      const adapter = this.languageRegistry.getAdapter();
+      if (!adapter) {
+        console.warn('No language adapter available for dictionary loading');
+        return;
+      }
 
-  parseCEDICT(cedictText) {
-    const lines = cedictText.split('\n');
-    let processedEntries = 0;
-
-    for (const line of lines) {
-      if (line.startsWith('#') || !line.trim()) continue;
-
-      const match = line.match(/^(.+?)\s+(.+?)\s+\[([^\]]+)\]\s+\/(.+)\/\s*$/);
-      if (!match) continue;
-
-      const [, traditional, simplified, pinyin, definitions] = match;
-
-      // Split the pinyin by spaces to get individual syllables
-      const syllables = pinyin.split(' ')
-    
-      // Convert each syllable to accented pinyin
-      const accentedSyllables = syllables.map(syllable => decode_pinyin_syllable(syllable))
-    
-      // Join them back together
-      const newpinyin = accentedSyllables.join('')
-
-      const entryData = {
-        traditional: traditional.trim(),
-        simplified: simplified.trim(),
-        pinyin: newpinyin.trim(),
-        definition: definitions.split('/').filter(def => def.trim()).join('; '),
-      };
-
-      const tradKey = traditional.trim();
-      const simpKey = simplified.trim();
-
-
-
-      if (tradKey === simpKey) {
-        if (!this.dictionary[tradKey]) this.dictionary[tradKey] = [];
-        this.dictionary[tradKey].push({ ...entryData, character: tradKey });
+      // Get dictionary path from adapter
+      const dictionaryPath = adapter.getDictionaryPath();
+      
+      if (dictionaryPath.endsWith('/')) {
+        // Handle French dictionary with multiple term bank files
+        const baseUrl = chrome.runtime.getURL(dictionaryPath);
+        const dictionary = {};
+        
+        // Load and process each term bank file
+        for (let i = 1; i <= adapter.getConfig().numOfDicts; i++) {
+          const fileName = `term_bank_${i}.json`;
+          const response = await fetch(`${baseUrl}${fileName}`);
+          const bankContent = await response.json();
+          
+          // Merge entries from this bank into main dictionary
+          Object.assign(dictionary, adapter.processTermBank(bankContent, dictionary));
+          console.log(`Loaded term bank ${i} of ${adapter.getConfig().numOfDicts}`);
+        }
+        
+        this.dictionary = dictionary;
       } else {
-        [tradKey, simpKey].forEach(key => {
-          if (!this.dictionary[key]) this.dictionary[key] = [];
-          this.dictionary[key].push({ ...entryData, character: key });
-        });
+        // Handle other languages with single dictionary file
+        const dictionaryUrl = chrome.runtime.getURL(dictionaryPath);
+        const response = await fetch(dictionaryUrl);
+        const text = await response.text();
+        this.dictionary = adapter.parseDictionary(text);
       }
 
-      processedEntries++;
+      console.log(`Dictionary loaded with ${Object.keys(this.dictionary).length} entries for ${adapter.getDisplayName()}`);
+    } catch (error) {
+      console.warn('Could not load dictionary file:', error);
     }
-    console.log(`Successfully processed ${processedEntries} CC-CEDICT entries`);
   }
 
+  // Legacy method - now handled by language adapters
+  parseCEDICT(cedictText) {
+    console.warn('parseCEDICT is deprecated. Use language adapters instead.');
+    return {};
+  }
+
+  // Legacy function - now handled by ChineseLanguageAdapter
+  // This function is kept for backward compatibility but should not be used
+  static decode_pinyin_syllable(syllable) {
+    console.warn('decode_pinyin_syllable is deprecated. Use ChineseLanguageAdapter instead.');
+    return syllable;
+  }
 }
-
-function decode_pinyin_syllable(syllable) {
-      const replacements = {
-          'a': ['ā', 'á', 'ǎ', 'à'],
-          'e': ['ē', 'é', 'ě', 'è'],
-          'u': ['ū', 'ú', 'ǔ', 'ù'],
-          'i': ['ī', 'í', 'ǐ', 'ì'],
-          'o': ['ō', 'ó', 'ǒ', 'ò'],
-          'ü': ['ǖ', 'ǘ', 'ǚ', 'ǜ'],
-      }
-
-      const medials = ['i', 'u', 'ü']
-
-      if (syllable.length < 1) {
-          return syllable
-      }
-
-      const tone_idx = parseInt(syllable[syllable.length - 1])
-
-      if (isNaN(tone_idx) || tone_idx < 1 || tone_idx > 5) {
-          return syllable
-      }
-
-      const ret = syllable.replace(/u:/g, 'ü').replace(/v/g, 'ü')
-
-      if (tone_idx == 5) {
-          return ret.slice(0, -1)
-      }
-
-      for (let i = 0; i < ret.length; i++) {
-          const c1 = ret[i]
-          const c2 = ret[i + 1]
-
-          if (medials.includes(c1) && replacements[c2]) {
-              return ret.slice(0, i + 1) + replacements[c2][tone_idx - 1] + ret.slice(i + 2, -1)
-          }
-          if (replacements[c1]) {
-              return ret.slice(0, i) + replacements[c1][tone_idx - 1] + ret.slice(i + 1, -1)
-          }
-      }
-
-      return syllable
-  }

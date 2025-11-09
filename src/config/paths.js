@@ -17,6 +17,7 @@ class PathsConfig {
     this.ICONS = 'icons/';
     this.FREQ_DICT = 'freq-dict/';
     this.BANNER = 'src/ui/banner/';
+    this.SIDE_TAB = 'src/ui/side-tab/';
     this.SIDEBAR = 'src/ui/sidebar/';
     this.POPUP = 'src/ui/popup/';
     this.TAB = 'src/ui/tab/';
@@ -49,6 +50,7 @@ class PathsConfig {
       POPUP: 'src/ui/popup/popup.css',
       HELIOS_SETTINGS: 'src/ui/settings/helios-settings.css',
       BANNER: 'src/ui/banner/banner.css',
+      SIDE_TAB: 'src/ui/side-tab/side-tab.css',
       SIDEBAR: 'src/ui/sidebar/smart-sidebar.css'
     };
 
@@ -57,6 +59,7 @@ class PathsConfig {
       EXTENSION_TAB: 'src/ui/tab/extensiontab.html',
       HELIOS_SETTINGS: 'src/ui/settings/helios-settings.html',
       BANNER: 'src/ui/banner/banner.html',
+      SIDE_TAB: 'src/ui/side-tab/side-tab.html',
       SIDEBAR: 'src/ui/sidebar/smart-sidebar.html',
       GENERAL_SETTINGS: 'src/ui/settings/general-settings.html',
       ANKI_SETTINGS: 'src/ui/settings/anki-settings.html',
@@ -79,6 +82,7 @@ class PathsConfig {
       VOCAB_MANAGER: 'src/content/vocab-manager.js',
       EXTENSION_TAB: 'src/content/extensiontab.js',
       BANNER: 'src/content/banner.js',
+      SIDE_TAB: 'src/content/side-tab.js',
       SIDEBAR: 'src/ui/sidebar/smart-sidebar.js'
     };
 
@@ -125,6 +129,9 @@ class PathsConfig {
       'src/ui/banner/banner.html',
       'src/ui/banner/banner.css',
       'src/content/banner.js',
+      'src/ui/side-tab/side-tab.html',
+      'src/ui/side-tab/side-tab.css',
+      'src/content/side-tab.js',
       'src/ui/sidebar/smart-sidebar.html',
       'src/ui/sidebar/smart-sidebar.css',
       'src/ui/sidebar/smart-sidebar.js'

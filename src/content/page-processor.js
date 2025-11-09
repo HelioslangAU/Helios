@@ -1,10 +1,56 @@
 class PageProcessor {
-  constructor(dictionaryManager, vocabManager, unknownWordElements) {
+  constructor(dictionaryManager, vocabManager, languageRegistry, unknownWordElements) {
     this.dictionaryManager = dictionaryManager;
     this.vocabManager = vocabManager;
+    this.languageRegistry = languageRegistry;
     this.unknownWordElements = new Map();
     this.injectedCSS = false;
     this.asbplayerObservers = new Set();
+
+    // Performance optimization: debouncing
+    this.reprocessTimeout = null;
+    this.isReprocessing = false;
+
+    // Initialize processing when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => this.initializeProcessing());
+    } else {
+      this.initializeProcessing();
+    }
+  }
+
+  initializeProcessing() {
+    // Process the page initially
+    this.processPageForUnknownWords();
+    // Set up observer for dynamic changes
+    //this.observePageChanges();
+    
+    // Listen for subtitle loaded events to recalculate comprehension
+    this.setupSubtitleEventListeners();
+  }
+
+  /**
+   * Setup event listeners for video subtitle events
+   */
+  setupSubtitleEventListeners() {
+    // Listen for when subtitles are loaded (only fires once when subtitles are first loaded)
+    document.addEventListener('helios-subtitles-loaded', () => {
+      // Recalculate comprehension when subtitles are loaded
+      setTimeout(() => {
+        this.calculateComprehensionPercentage();
+        // Notify sidebar after calculation
+        this.notifySidebarUpdate();
+        console.log('📊 Comprehension recalculated after subtitle load');
+      }, 100);
+    });
+
+    // Note: We do NOT listen to 'helios-video-timeupdate' because:
+    // 1. It fires every 100ms (every video tick)
+    // 2. Subtitle text doesn't change - it's the full subtitle file
+    // 3. Comprehension should only update when:
+    //    - Subtitles are loaded
+    //    - Vocabulary changes (word marked as known/unknown)
+    //    - Page content changes
   }
 
   // Extract a sentence around a word from a given text node's container
@@ -23,7 +69,9 @@ class PageProcessor {
     if (!container) return word;
 
     const fullText = container.textContent || '';
-    const sentences = fullText.split(/(?<=[.!?。！？\n])/);
+    const adapter = this.languageRegistry.getAdapter();
+    const sentenceBoundary = adapter ? adapter.getSentenceBoundary() : /(?<=[.!?。！？\n])/;
+    const sentences = fullText.split(sentenceBoundary);
     for (const sentence of sentences) {
       if (sentence.includes(word)) {
         const trimmed = sentence.trim();
@@ -36,8 +84,9 @@ class PageProcessor {
   // Heuristics to detect likely subtitle containers (e.g., asbplayer)
   isLikelySubtitleElement(element) {
     const text = element.textContent || "";
-    const hasChinese = /[\u4e00-\u9fff\u3400-\u4dbf]/.test(text);
-    if (hasChinese) return true;
+    const adapter = this.languageRegistry.getAdapter();
+    const hasTargetLanguage = adapter ? adapter.containsTargetLanguage(text) : false;
+    if (hasTargetLanguage) return true;
     const attributeText = [
       element.className,
       element.id,
@@ -76,22 +125,218 @@ class PageProcessor {
     this.ensureGlobalCSS();
     const textNodes = this.getAllTextNodes(document.body);
 
-    for (const textNode of textNodes) {
-      this.processTextNodeForUnknownWords(textNode);
+    console.log(`⚡ Processing ${textNodes.length} text nodes...`);
+
+    // Prioritize visible content for faster perceived performance
+    const { visibleNodes, hiddenNodes } = this.partitionTextNodesByVisibility(textNodes);
+
+    console.log(`📊 ${visibleNodes.length} visible, ${hiddenNodes.length} hidden nodes`);
+
+    // INSTANT PROCESSING: Process visible nodes synchronously for immediate feedback
+    // Then batch process remaining hidden nodes in background
+    if (visibleNodes.length > 0) {
+      const start = Date.now();
+      visibleNodes.forEach(node => {
+        try {
+          this.processTextNodeForUnknownWords(node);
+        } catch (e) {
+          console.warn('Error processing visible node:', e);
+        }
+      });
+      console.log(`✅ Visible nodes processed in ${Date.now() - start}ms`);
+
+      // Calculate comprehension immediately after visible content is processed
+      // This gives quick feedback to banner/stats even before full page is done
+      this.calculateComprehensionPercentage();
+      // Notify sidebar after calculation
+      this.notifySidebarUpdate();
     }
 
-    console.log('Page processed for unknown words');
+    // Process hidden nodes in background batches
+    if (hiddenNodes.length > 0) {
+      this.processBatchedTextNodes(hiddenNodes, () => {
+        // Recalculate comprehension after all processing is complete
+        this.calculateComprehensionPercentage();
+        // Notify sidebar after calculation
+        this.notifySidebarUpdate();
+        console.log(`📊 Full page comprehension calculated`);
+      });
+    } else if (visibleNodes.length === 0) {
+      // If there are no nodes at all, still calculate
+      this.calculateComprehensionPercentage();
+      // Notify sidebar after calculation
+      this.notifySidebarUpdate();
+    }
+  }
+
+  /**
+   * Partition text nodes into visible and hidden for prioritized processing
+   * @param {Array} textNodes - All text nodes
+   * @returns {Object} - {visibleNodes, hiddenNodes}
+   */
+  partitionTextNodesByVisibility(textNodes) {
+    const visibleNodes = [];
+    const hiddenNodes = [];
+
+    for (const node of textNodes) {
+      const element = node.parentElement;
+      if (!element) continue;
+
+      // Quick visibility check
+      const rect = element.getBoundingClientRect();
+      const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
+
+      if (isVisible) {
+        visibleNodes.push(node);
+      } else {
+        hiddenNodes.push(node);
+      }
+    }
+
+    return { visibleNodes, hiddenNodes };
+  }
+
+  /**
+   * Process text nodes in batches using requestIdleCallback for better performance
+   * @param {Array} textNodes - Array of text nodes to process
+   * @param {Function} onComplete - Callback when processing is complete
+   */
+  processBatchedTextNodes(textNodes, onComplete = null) {
+    if (textNodes.length === 0) {
+      if (onComplete) onComplete();
+      return;
+    }
+
+    const BATCH_SIZE = 100; // Process 100 nodes at a time (increased for speed)
+    let currentIndex = 0;
+    const startTime = Date.now();
+
+    const processBatch = (deadline) => {
+      // Process nodes while we have idle time
+      while (currentIndex < textNodes.length && (deadline.timeRemaining() > 0 || deadline.didTimeout)) {
+        const batchEnd = Math.min(currentIndex + BATCH_SIZE, textNodes.length);
+
+        for (let i = currentIndex; i < batchEnd; i++) {
+          try {
+            this.processTextNodeForUnknownWords(textNodes[i]);
+          } catch (error) {
+            // Skip problematic nodes
+            console.warn('Error processing text node:', error);
+          }
+        }
+
+        currentIndex = batchEnd;
+
+        // Break if we've processed a batch
+        if (currentIndex % BATCH_SIZE === 0) {
+          break;
+        }
+      }
+
+      // If there are more nodes, schedule next batch
+      if (currentIndex < textNodes.length) {
+        if (window.requestIdleCallback) {
+          window.requestIdleCallback(processBatch, { timeout: 1000 });
+        } else {
+          // Fallback for browsers without requestIdleCallback
+          setTimeout(() => processBatch({ timeRemaining: () => 50, didTimeout: false }), 0);
+        }
+      } else {
+        const elapsed = Date.now() - startTime;
+        console.log(`✅ Batch complete: ${textNodes.length} nodes in ${elapsed}ms`);
+        if (onComplete) onComplete();
+      }
+    };
+
+    // Start processing
+    if (window.requestIdleCallback) {
+      window.requestIdleCallback(processBatch, { timeout: 1000 });
+    } else {
+      // Fallback for browsers without requestIdleCallback
+      setTimeout(() => processBatch({ timeRemaining: () => 50, didTimeout: false }), 0);
+    }
+  }
+
+  /**
+   * Check if video subtitles are active and get all subtitle text
+   * @returns {string|null} - All subtitle text if video is active, null otherwise
+   */
+  getVideoSubtitleText() {
+    // Check if video feature is available and initialized
+    if (!window.heliosVideoFeature || !window.heliosVideoFeature.isInitialized) {
+      return null;
+    }
+
+    // Get the primary video binding
+    const binding = window.heliosVideoFeature.getPrimaryBinding();
+    if (!binding) {
+      return null;
+    }
+
+    // Check if subtitles are loaded
+    const subtitleCollection = binding.getSubtitles();
+    if (!subtitleCollection || subtitleCollection.isEmpty()) {
+      return null;
+    }
+
+    // Get all subtitle entries and combine their text
+    const entries = subtitleCollection.getAll();
+    if (entries.length === 0) {
+      return null;
+    }
+
+    // Combine all subtitle text
+    const allSubtitleText = entries.map(entry => entry.text).join(' ');
+    //console.log(allSubtitleText);
+    return allSubtitleText;
+  }
+
+  /**
+   * Calculate comprehension percentage from subtitle text
+   * @param {string} subtitleText - Combined subtitle text
+   * @returns {number} - Comprehension percentage
+   */
+  calculateSubtitleComprehension(subtitleText) {
+    if (!subtitleText || !subtitleText.trim()) {
+      return 100; // If no text, consider comprehension 100%
+    }
+
+    const adapter = this.languageRegistry.getAdapter();
+    const words = adapter ? adapter.extractWords(subtitleText, this.dictionaryManager.dictionary) : [];
+    
+    let totalWords = words.length;
+    let knownWords = words.filter(({ word }) => this.vocabManager.isWordKnown(word)).length;
+
+    // Store totals for sidebar access
+    this.lastTotalWords = totalWords;
+    this.lastKnownWords = knownWords;
+
+    if (totalWords === 0) return 100; // If no words, consider comprehension 100%
+    console.log(`Subtitle comprehension: ${knownWords} / ${totalWords} = ${Math.round((knownWords / totalWords) * 100)}%`);
+    return Math.round((knownWords / totalWords) * 100);
   }
 
   calculateComprehensionPercentage() {
-    // Get all text nodes in the body
+    // First, check if video subtitles are active
+    const subtitleText = this.getVideoSubtitleText();
+    
+    if (subtitleText !== null) {
+      // Video subtitles are active - calculate based on subtitle text only
+      const percentage = this.calculateSubtitleComprehension(subtitleText);
+      // NOTE: Do NOT call notifySidebarUpdate() here - let the caller decide when to notify
+      // This prevents circular calls with refreshData()
+      return percentage;
+    }
+
+    // No video subtitles - calculate normally from page text
     const textNodes = this.getAllTextNodes(document.body);
     let totalWords = 0;
     let knownWords = 0;
 
     for (const textNode of textNodes) {
-        const chineseWords = this.extractChineseWords(textNode.textContent);
-        for (const { word } of chineseWords) {
+        const adapter = this.languageRegistry.getAdapter();
+        const words = adapter ? adapter.extractWords(textNode.textContent, this.dictionaryManager.dictionary) : [];
+        for (const { word } of words) {
             totalWords++;
             if (this.vocabManager.isWordKnown(word)) {
                 knownWords++;
@@ -106,8 +351,8 @@ class PageProcessor {
     if (totalWords === 0) return 100; // If no words, consider comprehension 100%
     const percentage = Math.round((knownWords / totalWords) * 100);
 
-    // Notify sidebar of updated data
-    this.notifySidebarUpdate();
+    // NOTE: Do NOT call notifySidebarUpdate() here - let the caller decide when to notify
+    // This prevents circular calls with refreshData()
 
     return percentage;
   }
@@ -121,31 +366,49 @@ class PageProcessor {
   }
 
   notifySidebarUpdate() {
-    // Notify sidebar manager of data changes
-    if (window.sidebarManager && window.sidebarManager.refreshData) {
+    // Notify banner manager (which manages the side tab) of data changes
+    if (window.bannerManager && window.bannerManager.refreshData) {
       // Use a small delay to ensure all processing is complete
       setTimeout(() => {
-        window.sidebarManager.refreshData();
+        window.bannerManager.refreshData();
       }, 100);
     }
   }
 
   reprocessPage() {
-    // Clear existing data
-    this.unknownWordElements.clear();
+    // Debounce reprocessing to prevent excessive calls
+    if (this.reprocessTimeout) {
+      clearTimeout(this.reprocessTimeout);
+    }
 
-    // Reprocess the page
-    this.processPageForUnknownWords();
+    this.reprocessTimeout = setTimeout(() => {
+      // Skip if already reprocessing
+      if (this.isReprocessing) return;
 
-    // Recalculate comprehension
-    this.calculateComprehensionPercentage();
+      this.isReprocessing = true;
+
+      // Use requestAnimationFrame for smooth UI updates
+      requestAnimationFrame(() => {
+        // Clear existing data
+        this.unknownWordElements.clear();
+
+        // Reprocess the page
+        this.processPageForUnknownWords();
+
+        // Recalculate comprehension
+        this.calculateComprehensionPercentage();
+
+        this.isReprocessing = false;
+      });
+    }, 50); // 50ms debounce
   }
 
   analyzeASBPlayerSubtitlesComprehension(subtitlesText) {
   // subtitlesText: string containing all subtitles for the video
-  const chineseWords = this.extractChineseWords(subtitlesText);
-  let totalWords = chineseWords.length;
-  let knownWords = chineseWords.filter(({ word }) => this.vocabManager.isWordKnown(word)).length;
+  const adapter = this.languageRegistry.getAdapter();
+  const words = adapter ? adapter.extractWords(subtitlesText, this.dictionaryManager.dictionary) : [];
+  let totalWords = words.length;
+  let knownWords = words.filter(({ word }) => this.vocabManager.isWordKnown(word)).length;
   if (totalWords === 0) return 100;
   return Math.round((knownWords / totalWords) * 100);
 }
@@ -153,21 +416,27 @@ class PageProcessor {
 
   ensureGlobalCSS() {
     if (this.injectedCSS) return;
-    
+
     if (document.getElementById('chinese-extension-styles')) return;
-    
+
     const style = document.createElement('style');
     style.id = 'chinese-extension-styles';
     style.textContent = `
-      .chinese-unknown-word {
+      .lang-unknown-word {
         text-decoration: underline !important;
         text-decoration-color: #ff4444 !important;
         text-decoration-thickness: 2px !important;
         text-underline-offset: 2px !important;
         cursor: help !important;
       }
-      .chinese-unknown-word:hover {
+      .lang-unknown-word:hover {
         background-color: rgba(255, 68, 68, 0.1) !important;
+      }
+      /* NEVER underline words inside popup - absolute priority */
+      .chinese-lang-extension-popup .lang-unknown-word,
+      .chinese-lang-extension-popup * .lang-unknown-word {
+        text-decoration: none !important;
+        background-color: transparent !important;
       }
     `;
     document.head.appendChild(style);
@@ -183,14 +452,18 @@ class PageProcessor {
         acceptNode: (node) => {
           const parent = node.parentElement;
           if (!parent) return NodeFilter.FILTER_REJECT;
+
+          // Don't process script, style, noscript tags
           const tagName = parent.tagName.toLowerCase();
           if (['script', 'style', 'noscript'].includes(tagName)) {
             return NodeFilter.FILTER_REJECT;
           }
-          // Fix: Don't filter out existing processed elements for reprocessing
-          if (parent.classList.contains('chinese-lang-extension-popup')) {
+
+          // Don't process popup content - check if ANY ancestor is the popup
+          if (parent.closest('.chinese-lang-extension-popup')) {
             return NodeFilter.FILTER_REJECT;
           }
+
           return node.textContent.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
         }
       }
@@ -205,16 +478,22 @@ class PageProcessor {
   }
 
   processTextNodeForUnknownWords(textNode) {
+    // Safety check: NEVER process popup content
+    if (textNode.parentElement && textNode.parentElement.closest('.chinese-lang-extension-popup')) {
+      return;
+    }
+
     const text = textNode.textContent;
     if (!text) return;
 
-    const chineseWords = this.extractChineseWords(text);
-    if (chineseWords.length === 0) return;
+    const adapter = this.languageRegistry.getAdapter();
+    const words = adapter ? adapter.extractWords(text, this.dictionaryManager.dictionary) : [];
+    if (words.length === 0) return;
 
     const fragment = document.createDocumentFragment();
     let lastIndex = 0;
 
-    chineseWords.forEach(({ word, start, end }) => {
+    words.forEach(({ word, start, end }) => {
       if (start > lastIndex) {
         fragment.appendChild(document.createTextNode(text.slice(lastIndex, start)));
       }
@@ -222,9 +501,13 @@ class PageProcessor {
       span.textContent = word;
       span.setAttribute('data-word', word); // Always add data-word
 
-      if (!this.vocabManager.isWordKnown(word) && this.dictionaryManager.dictionary[word] && !this.vocabManager.isWordIgnored(word)) {
-        span.className = 'chinese-unknown-word';
-        this.unknownWordElements.set(word, span);
+      // Convert word to lowercase for dictionary lookup while preserving display
+      const lowercaseWord = word.toLowerCase();
+      if (!this.vocabManager.isWordKnown(lowercaseWord) && 
+          this.dictionaryManager.dictionary[lowercaseWord] && 
+          !this.vocabManager.isWordIgnored(lowercaseWord)) {
+        span.className = 'lang-unknown-word';
+        this.unknownWordElements.set(lowercaseWord, span);
       }
 
       fragment.appendChild(span);
@@ -235,66 +518,53 @@ class PageProcessor {
       fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
     }
 
+    // Safety check: node might have been removed from DOM during async processing
+    if (!textNode.parentNode) {
+      return;
+    }
+
     textNode.parentNode.replaceChild(fragment, textNode);
   }
 
+  // Legacy method - now handled by language adapters
   extractChineseWords(text) {
-    const words = [];
-    let i = 0;
-
-    while (i < text.length) {
-      if (this.isChineseCharacter(text[i])) {
-        let longestWord = null;
-        let longestLength = 0;
-
-        for (let len = Math.min(5, text.length - i); len >= 1; len--) {
-          const candidate = text.substring(i, i + len);
-          if ([...candidate].every(c => this.isChineseCharacter(c)) && this.dictionaryManager.dictionary[candidate]) {
-            if (len > longestLength) {
-              longestWord = candidate;
-              longestLength = len;
-            }
-          }
-        }
-
-        if (longestWord) {
-          words.push({
-            word: longestWord,
-            start: i,
-            end: i + longestLength
-          });
-          i += longestLength;
-        } else {
-          if (this.dictionaryManager.dictionary[text[i]]) {
-            words.push({
-              word: text[i],
-              start: i,
-              end: i + 1
-            });
-          }
-          i++;
-        }
-      } else {
-        i++;
-      }
-    }
-
-    return words;
+    console.warn('extractChineseWords is deprecated. Use language adapters instead.');
+    const adapter = this.languageRegistry.getAdapter();
+    return adapter ? adapter.extractWords(text, this.dictionaryManager.dictionary) : [];
   }
 
   updateWordStyling(word, isKnownOrIgnored) {
-    const elements = document.querySelectorAll(`[data-word="${word}"]`);
+    // Normalize word to lowercase for matching
+    const normalizedWord = word.toLowerCase();
+
+    // Find all elements with this word (case-insensitive)
+    const elements = document.querySelectorAll(`[data-word]`);
+    let updatedCount = 0;
+
     elements.forEach(element => {
-      if (isKnownOrIgnored) {
-        // Remove underline for both known and ignored words
-        element.classList.remove('chinese-unknown-word');
-      } else {
-        // Add underline only for unknown words (not ignored)
-        if (!this.vocabManager.isWordIgnored(word)) {
-          element.classList.add('chinese-unknown-word');
+      const elementWord = element.getAttribute('data-word');
+      if (elementWord && elementWord.toLowerCase() === normalizedWord) {
+        if (isKnownOrIgnored) {
+          // Remove underline for both known and ignored words
+          element.classList.remove('lang-unknown-word');
+          updatedCount++;
+        } else {
+          // Add underline only for unknown words (not ignored)
+          if (!this.vocabManager.isWordIgnored(normalizedWord)) {
+            element.classList.add('lang-unknown-word');
+            updatedCount++;
+          }
         }
       }
     });
+
+    console.log(`Updated ${updatedCount} instances of "${word}" on page`);
+    
+    // Recalculate comprehension after word status change
+    // This ensures comprehension updates immediately when words are marked as known/ignored
+    setTimeout(() => {
+      this.calculateComprehensionPercentage();
+    }, 50);
   }
 
   observePageChanges() {
@@ -323,12 +593,11 @@ class PageProcessor {
     });
   }
 
+  // Legacy method - now handled by language adapters
   isChineseCharacter(char) {
-    if (!char) return false;
-    const code = char.charCodeAt(0);
-    return (code >= 0x4E00 && code <= 0x9FFF) ||
-           (code >= 0x3400 && code <= 0x4DBF) ||
-           (code >= 0x20000 && code <= 0x2A6DF);
+    console.warn('isChineseCharacter is deprecated. Use language adapters instead.');
+    const adapter = this.languageRegistry.getAdapter();
+    return adapter ? adapter.isTargetCharacter(char) : false;
   }
 
   getCharacterAtPosition(event) {
@@ -357,31 +626,153 @@ class PageProcessor {
     return null;
   }
 
+  /**
+   * Get base text from element, excluding pronunciation (RT tags)
+   */
+  getBaseText(element) {
+    if (!element) return '';
+
+    let baseText = '';
+    const walker = document.createTreeWalker(
+      element,
+      NodeFilter.SHOW_TEXT,
+      {
+        acceptNode: function(node) {
+          // Skip text nodes inside <rt> tags (pronunciation)
+          if (node.parentElement && node.parentElement.tagName === 'RT') {
+            return NodeFilter.FILTER_REJECT;
+          }
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      },
+      false
+    );
+
+    let node;
+    while (node = walker.nextNode()) {
+      baseText += node.textContent;
+    }
+
+    return baseText;
+  }
+
   checkTextNodeAtPosition(textNode, x, y) {
-    const text = textNode.textContent;
+    if (!textNode || !textNode.parentElement) return null;
+    //console.log('checkTextNodeAtPosition', textNode, x, y);
+
+    const adapter = this.languageRegistry.getAdapter();
+    if (!adapter) return null;
+
+    // Get the parent element to extract full text context
+    let container = textNode.parentElement;
+
+    // If inside a ruby element, go up to the wrapper
+    if (container.tagName === 'RUBY') {
+      container = container.parentElement;
+    }
+
+    // Get base text (excluding pronunciation RT tags)
+    const text = this.getBaseText(container);
     if (!text) return null;
 
-    const range = document.createRange();
+    // Check if this is a character-based language (like Chinese, Japanese)
+    const isCharacterBased = adapter.getScanResolution() === 'char';
+
+    // For character-based languages, use character-by-character detection
+    if (isCharacterBased) {
+      const allTextNodes = this.getTextNodes(container);
+      
+      for (const node of allTextNodes) {
+        const nodeText = node.textContent;
+        const range = document.createRange();
+        
+        for (let i = 0; i < nodeText.length; i++) {
+          if (!adapter.isTargetCharacter || !adapter.isTargetCharacter(nodeText[i])) continue;
+          
+          range.setStart(node, i);
+          range.setEnd(node, i + 1);
+          
+          const rect = range.getBoundingClientRect();
+          
+          if (x >= rect.left && x <= rect.right && 
+              y >= rect.top && y <= rect.bottom) {
+            
+            // Try to find longest word starting from this character
+            const wordResult = this.findLongestWordFromPosition(node, i);
+            if (wordResult) return wordResult;
+            
+            // Fall back to single character
+            return { 
+              word: nodeText[i], 
+              textNode: node, 
+              start: i, 
+              end: i + 1 
+            };
+          }
+        }
+      }
+      return null;
+    }
+
+    // For word-based languages, use word boundaries
+    const words = adapter.extractWords(text, this.dictionaryManager.dictionary);
+    let currentOffset = 0;
+
+    for (const wordData of words) {
+      const allTextNodes = this.getTextNodes(container);
+
+      for (const node of allTextNodes) {
+        const nodeText = node.textContent;
+        const nodeLength = nodeText.length;
+
+        if (wordData.start < currentOffset + nodeLength && wordData.end > currentOffset) {
+          const localStart = Math.max(0, wordData.start - currentOffset);
+          const localEnd = Math.min(nodeLength, wordData.end - currentOffset);
+
+          const range = document.createRange();
+          range.setStart(node, localStart);
+          range.setEnd(node, localEnd);
+
+          const rect = range.getBoundingClientRect();
+
+          if (x >= rect.left && x <= rect.right &&
+              y >= rect.top && y <= rect.bottom) {
+            return {
+              word: wordData.word,
+              textNode: node,
+              start: localStart,
+              end: localEnd
+            };
+          }
+        }
+
+        currentOffset += nodeLength;
+      }
+    }
+
+    return null;
+  }
+
+  findLongestWordFromPosition(textNode, startOffset) {
+    const text = textNode.textContent;
+    const adapter = this.languageRegistry.getAdapter();
+    if (!adapter) return null;
     
-    for (let i = 0; i < text.length; i++) {
-      if (!this.isChineseCharacter(text[i])) continue;
+    // Try to find longest word starting from this position
+    for (let len = Math.min(5, text.length - startOffset); len >= 1; len--) {
+      const candidate = text.substring(startOffset, startOffset + len);
       
-      range.setStart(textNode, i);
-      range.setEnd(textNode, i + 1);
+      // Check if all characters are target language characters
+      const allTargetChars = adapter.isTargetCharacter 
+        ? [...candidate].every(c => adapter.isTargetCharacter(c))
+        : true;
       
-      const rect = range.getBoundingClientRect();
-      
-      if (x >= rect.left && x <= rect.right && 
-          y >= rect.top && y <= rect.bottom) {
-        
-        const wordResult = this.findLongestWord(textNode, i);
-        if (wordResult) return wordResult;
-        
+      if (allTargetChars && this.dictionaryManager.dictionary[candidate]) {
         return { 
-          word: text[i], 
+          word: candidate, 
           textNode, 
-          start: i, 
-          end: i + 1 
+          start: startOffset, 
+          end: startOffset + len 
         };
       }
     }
@@ -391,20 +782,21 @@ class PageProcessor {
 
   findLongestWord(textNode, startOffset) {
     const text = textNode.textContent;
+    const adapter = this.languageRegistry.getAdapter();
+    if (!adapter) return null;
+
+    // Use adapter's extractWords method to find all words
+    const words = adapter.extractWords(text, this.dictionaryManager.dictionary);
     
-    for (let len = 5; len >= 1; len--) {
-      if (startOffset + len <= text.length) {
-        const candidate = text.substring(startOffset, startOffset + len);
-        
-        if ([...candidate].every(c => this.isChineseCharacter(c)) &&
-            this.dictionaryManager.dictionary[candidate]) {
-          return { 
-            word: candidate, 
-            textNode, 
-            start: startOffset, 
-            end: startOffset + len 
-          };
-        }
+    // Find the word that contains the startOffset position
+    for (const wordData of words) {
+      if (startOffset >= wordData.start && startOffset < wordData.end) {
+        return {
+          word: wordData.word,
+          textNode,
+          start: wordData.start,
+          end: wordData.end
+        };
       }
     }
     
@@ -416,17 +808,25 @@ class PageProcessor {
     const walker = document.createTreeWalker(
       element,
       NodeFilter.SHOW_TEXT,
-      null,
+      {
+        acceptNode: function(node) {
+          // Skip text nodes inside <rt> tags (pronunciation annotations)
+          if (node.parentElement && node.parentElement.tagName === 'RT') {
+            return NodeFilter.FILTER_REJECT;
+          }
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      },
       false
     );
-    
+
     let node;
     while (node = walker.nextNode()) {
       if (node.textContent.trim()) {
         textNodes.push(node);
       }
     }
-    
+
     return textNodes;
   }
 
@@ -457,19 +857,22 @@ class PageProcessor {
     let { offsetNode: textNode, offset } = caret;
     if (textNode.nodeType !== Node.TEXT_NODE) return null;
 
-    for (let len = 5; len >= 1; len--) {
-      if (offset + len <= textNode.textContent.length) {
-        const candidate = textNode.textContent.substring(offset, offset + len);
-        if ([...candidate].every(c => this.isChineseCharacter(c)) &&
-            this.dictionaryManager.dictionary[candidate]) {
-          return { word: candidate, textNode, start: offset, end: offset + len };
-        }
-      }
-    }
+    const adapter = this.languageRegistry.getAdapter();
+    if (!adapter) return null;
 
-    const text = textNode.textContent;
-    if (this.isChineseCharacter(text[offset])) {
-      return { word: text[offset], textNode, start: offset, end: offset + 1 };
+    // Use adapter's extractWords method to find all words
+    const words = adapter.extractWords(textNode.textContent, this.dictionaryManager.dictionary);
+    
+    // Find the word that contains the offset position
+    for (const wordData of words) {
+      if (offset >= wordData.start && offset < wordData.end) {
+        return {
+          word: wordData.word,
+          textNode,
+          start: wordData.start,
+          end: wordData.end
+        };
+      }
     }
 
     return null;
@@ -571,8 +974,8 @@ class PageProcessor {
   // Remove unknown word styling and clear tracked elements
   clearUnknownWordHighlights() {
     try {
-      document.querySelectorAll('.chinese-unknown-word').forEach((el) => {
-        el.classList.remove('chinese-unknown-word');
+      document.querySelectorAll('.lang-unknown-word').forEach((el) => {
+        el.classList.remove('lang-unknown-word');
       });
       this.unknownWordElements?.clear?.();
     } catch (_) {}

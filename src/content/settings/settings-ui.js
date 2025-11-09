@@ -84,6 +84,31 @@ class HeliosSettingsUI {
       });
     }
 
+    // Target language change
+    const targetLanguage = document.getElementById("target-language");
+    if (targetLanguage) {
+      targetLanguage.addEventListener("change", (e) => {
+        console.log("Target language changed:", e.target.value);
+        // Send message to content scripts to update language
+        if (chrome.tabs && chrome.tabs.query) {
+          chrome.tabs.query({}, (tabs) => {
+            tabs.forEach((tab) => {
+              if (chrome.tabs.sendMessage) {
+                chrome.tabs
+                  .sendMessage(tab.id, {
+                    action: "updateLanguage",
+                    language: e.target.value,
+                  })
+                  .catch(() => {
+                    // Tab might not have content script loaded, ignore
+                  });
+              }
+            });
+          });
+        }
+      });
+    }
+
     // Auto-highlight toggle
     const autoHighlight = document.getElementById("auto-highlight");
     if (autoHighlight) {
@@ -342,6 +367,16 @@ class HeliosSettingsUI {
       console.log(
         "🔍 Set activation key:",
         this.manager.settings.activationKey
+      );
+    }
+
+    // Target language dropdown
+    const targetLanguage = tabElement.querySelector("#target-language");
+    if (targetLanguage) {
+      targetLanguage.value = this.manager.settings.targetLanguage || 'zh';
+      console.log(
+        "🔍 Set target language:",
+        this.manager.settings.targetLanguage
       );
     }
 

@@ -7,8 +7,13 @@ class BackgroundService {
 
   init() {
     // Listen for extension installation
-    chrome.runtime.onInstalled.addListener(() => {
+    chrome.runtime.onInstalled.addListener((details) => {
       this.setupInitialData();
+
+      // Open onboarding page on first install
+      if (details.reason === 'install') {
+        this.openOnboardingPage();
+      }
     });
 
     // Listen for messages from content script and settings
@@ -35,6 +40,7 @@ class BackgroundService {
         "activationKey",
         "autoHighlight",
         "popupTheme",
+        "targetLanguage",
       ]);
 
       this.extensionSettings = {
@@ -46,6 +52,7 @@ class BackgroundService {
         autoHighlight:
           result.autoHighlight !== undefined ? result.autoHighlight : true,
         popupTheme: result.popupTheme || "dark",
+        targetLanguage: result.targetLanguage || "en",
       };
 
       console.log("🔍 Loaded extension settings:", this.extensionSettings);
@@ -56,6 +63,7 @@ class BackgroundService {
         activationKey: "Shift",
         autoHighlight: true,
         popupTheme: "dark",
+        targetLanguage: "en",
       };
     }
   }
@@ -71,6 +79,9 @@ class BackgroundService {
         "activationKey",
         "autoHighlight",
         "popupTheme",
+        "targetLanguage",
+        "hasCompletedOnboarding",
+        "installDate",
       ]);
 
       // Initialize empty vocabulary list if it doesn't exist
@@ -116,6 +127,18 @@ class BackgroundService {
       }
       if (!result.popupTheme) {
         await chrome.storage.local.set({ popupTheme: "dark" });
+      }
+
+      // Initialize target language (default to English if not set)
+      if (!result.targetLanguage) {
+        await chrome.storage.local.set({ targetLanguage: "en" });
+      }
+
+      // Set install date for first-time users
+      if (!result.installDate) {
+        await chrome.storage.local.set({
+          installDate: new Date().toISOString()
+        });
       }
 
       await this.loadExtensionSettings();
@@ -180,6 +203,14 @@ class BackgroundService {
 
         case "getExtensionSettings":
           await this.handleGetExtensionSettings(sendResponse);
+          break;
+
+        case "onboardingCompleted":
+          await this.handleOnboardingCompleted(message.language, sendResponse);
+          break;
+
+        case "openSettings":
+          this.handleOpenSettings(sendResponse);
           break;
 
         // === VOCABULARY HANDLERS ===
@@ -414,6 +445,12 @@ class BackgroundService {
       return data.result;
     } catch (error) {
       console.error("🃏 AnkiConnect error:", error);
+
+      // Provide more helpful error messages
+      if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
+        throw new Error('Cannot connect to Anki. Please ensure Anki is running and AnkiConnect add-on is installed.');
+      }
+
       throw error;
     }
   }
@@ -474,21 +511,41 @@ class BackgroundService {
 
   buildCardFields(wordData, fieldMappings) {
     const fields = {};
+    const language = wordData.language || 'zh'; // Default to Chinese if not specified
+    const isChinese = language === 'zh';
 
-    const pinyinWithNumbers = this.pinyinTonesToNumbers(wordData.pinyin, wordData.character.length);
+    // Build dataMap differently based on language
+    let dataMap;
 
-    // Available data
-    const dataMap = {
-      expression: wordData.character,
-      expressionRubyTxt: `${wordData.character}[${pinyinWithNumbers};]`,
-      reading: pinyinWithNumbers,
-      meaning: wordData.definition,
-      sentence: wordData.sentence,
-      traditional: wordData.traditional,
-      simplified: wordData.simplified,
-      source: wordData.url,
-      frequency: wordData.frequency?.toString() || "",
-    };
+    if (isChinese) {
+      // For Chinese: convert pinyin to tone numbers and create ruby text
+      const pinyinWithNumbers = this.pinyinTonesToNumbers(wordData.pinyin, wordData.character.length);
+
+      dataMap = {
+        expression: wordData.character,
+        expressionRubyTxt: `${wordData.character}[${pinyinWithNumbers};]`,
+        reading: pinyinWithNumbers,
+        meaning: wordData.definition,
+        sentence: wordData.sentence,
+        traditional: wordData.traditional,
+        simplified: wordData.simplified,
+        source: wordData.url,
+        frequency: wordData.frequency?.toString() || "",
+      };
+    } else {
+      // For other languages: use raw pronunciation (IPA), no ruby text
+      dataMap = {
+        expression: wordData.character,
+        reading: wordData.pinyin || '', // Raw IPA pronunciation
+        meaning: wordData.definition,
+        sentence: wordData.sentence,
+        source: wordData.url,
+        frequency: wordData.frequency?.toString() || "",
+        // Traditional/simplified are same as expression for non-Chinese
+        traditional: wordData.character,
+        simplified: wordData.character,
+      };
+    }
 
     // Apply field mappings
     for (const [fieldName, dataType] of Object.entries(fieldMappings)) {
@@ -499,11 +556,17 @@ class BackgroundService {
 
     // Fallback if no mappings
     if (Object.keys(fields).length === 0) {
-      fields["Front"] = wordData.character || "Unknown";
-      fields["Back"] =
-        pinyinWithNumbers && wordData.definition
-          ? `${pinyinWithNumbers}<br>${wordData.definition}`
-          : wordData.definition || "No definition";
+      if (isChinese) {
+        const pinyinWithNumbers = this.pinyinTonesToNumbers(wordData.pinyin, wordData.character.length);
+        fields["Front"] = wordData.character || "Unknown";
+        fields["Back"] =
+          pinyinWithNumbers && wordData.definition
+            ? `${pinyinWithNumbers}<br>${wordData.definition}`
+            : wordData.definition || "No definition";
+      } else {
+        fields["Front"] = wordData.character || "Unknown";
+        fields["Back"] = wordData.definition || "No definition";
+      }
     }
 
     return fields;
@@ -632,6 +695,20 @@ class BackgroundService {
     }
   }
 
+  async handleOpenSettings(sendResponse) {
+    try {
+      if (chrome.runtime && chrome.runtime.openOptionsPage) {
+        chrome.runtime.openOptionsPage();
+        sendResponse({ success: true });
+      } else {
+        sendResponse({ success: false, error: 'openOptionsPage not available' });
+      }
+    } catch (error) {
+      console.error('Error opening settings:', error);
+      sendResponse({ success: false, error: error.message });
+    }
+  }
+
   // ============ VOCABULARY HANDLERS ============
 
   async handleWordLookup(word, sendResponse) {
@@ -736,6 +813,52 @@ class BackgroundService {
           success: false,
           error: error.message,
         });
+      }
+    }
+  }
+
+  /**
+   * Open onboarding page for first-time users
+   */
+  openOnboardingPage() {
+    const onboardingUrl = chrome.runtime.getURL('src/ui/onboarding/onboarding.html');
+    chrome.tabs.create({ url: onboardingUrl });
+    console.log('🔧 Opened onboarding page for first-time user');
+  }
+
+  /**
+   * Handle onboarding completion
+   */
+  async handleOnboardingCompleted(languageCode, sendResponse) {
+    try {
+      console.log(`🔧 Onboarding completed with language: ${languageCode}`);
+
+      // Reload our cached settings to include the new language
+      await this.loadExtensionSettings();
+
+      // Broadcast to all tabs to reload with new language
+      const tabs = await chrome.tabs.query({});
+      const broadcastPromises = tabs.map(tab => {
+        return chrome.tabs.sendMessage(tab.id, {
+          action: "settingsUpdated",
+          settings: { targetLanguage: languageCode }
+        }).catch(() => {
+          // Tab might not have content script loaded, ignore
+          console.log(`Could not send to tab ${tab.id}, probably no content script`);
+        });
+      });
+
+      await Promise.allSettled(broadcastPromises);
+
+      console.log(`✅ Successfully broadcasted language change to all tabs`);
+
+      if (sendResponse) {
+        sendResponse({ success: true });
+      }
+    } catch (error) {
+      console.error('❌ Error handling onboarding completion:', error);
+      if (sendResponse) {
+        sendResponse({ success: false, error: error.message });
       }
     }
   }

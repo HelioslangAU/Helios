@@ -3,9 +3,10 @@
  * Handles grouping entries by pronunciation and creating character cards
  */
 class CardManager {
-  constructor(dictionaryManager, definitionFilter) {
+  constructor(dictionaryManager, definitionFilter, languageRegistry = null) {
     this.dictionaryManager = dictionaryManager;
     this.definitionFilter = definitionFilter;
+    this.languageRegistry = languageRegistry;
   }
 
   groupByPronunciation(entries, originalCharacter) {
@@ -33,6 +34,11 @@ class CardManager {
 
   createCharacterCards(word) {
     const characterCards = [];
+
+    // Only create character cards for char based languages 
+    if (!this.languageRegistry || this.languageRegistry.getLanguageInfo(this.languageRegistry.getCurrentLanguage()).scanResolution !== 'char') {
+      return characterCards;
+    }
 
     // Only create character cards for multi-character words
     if (!word || word.length < 2) {
@@ -71,7 +77,40 @@ class CardManager {
   }
 
   prepareBasicPopupData(character) {
-    const matches = this.dictionaryManager.dictionary[character] || [];
+    if (this.languageRegistry.getCaseSensitive(this.languageRegistry.getCurrentLanguage())) {
+      character = character.toLowerCase();
+    }
+    let matches = this.dictionaryManager.dictionary[character];
+    if (matches) {
+      // Process each match that has an empty definition
+      const processedMatches = [];
+      for (const match of matches) {
+        if (match.definition === '') {
+          // If this match has variations, get the base form's definition
+          if (match.variations && match.variations.length > 0) {
+            const baseForm = match.variations[0];
+            const baseFormDefs = this.dictionaryManager.dictionary[baseForm];
+            if (baseFormDefs && baseFormDefs.length > 0) {
+              // Add base form annotation to each definition
+              const annotatedDefs = baseFormDefs.map(def => ({
+                ...def,
+                definition: def.definition ? `${def.definition} {${baseForm}}` : `{${baseForm}}`,
+                translation: def.translation ? `${def.translation} {${baseForm}}` : `{${baseForm}}`
+              }));
+              processedMatches.push(...annotatedDefs);
+            }
+          }
+        } else {
+          // Keep matches that already have definitions
+          processedMatches.push(match);
+        }
+      }
+      // Only update matches if we found any processed entries
+      if (processedMatches.length > 0) {
+        matches = processedMatches;
+      }
+    }
+
     return {
       matches,
       isKnown: false, // Will be set by calling code
