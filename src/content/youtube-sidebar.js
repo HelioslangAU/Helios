@@ -13,6 +13,16 @@ class YouTubeSidebar {
     this.activeIndex = -1;
     this.layoutObserver = null; // Observer to maintain layout during YouTube navigation
     this.currentSecondarySubtitles = []; // Store secondary subtitles for sidebar display
+    this.resizeObserver = null; // Observer to sync sidebar height with video player
+    this.resizeHandler = null; // Window resize handler for cleanup
+
+    // Scroll detection for preventing auto-scroll during user interaction
+    this.userIsScrollingPage = false; // Flag to track if user is scrolling the main page
+    this.userIsScrollingSidebar = false; // Flag to track if user is manually scrolling the sidebar
+    this.pageScrollTimeout = null; // Timeout reference to reset page scroll flag
+    this.sidebarScrollTimeout = null; // Timeout reference to reset sidebar scroll flag
+    this.isAutoScrolling = false; // Flag to prevent detecting auto-scroll as user scroll
+    this.mouseInScrollZone = false; // Flag to track if mouse is in the right 35% scroll zone
 
     // Settings
     this.settings = {
@@ -58,6 +68,8 @@ class YouTubeSidebar {
       this._enableTheaterMode();
       this._adjustVideoLayout();
       this.show();
+      // Sync sidebar height with video player
+      setTimeout(() => this._syncSidebarToVideoHeight(), 500);
     } else {
       this.hide();
     }
@@ -81,8 +93,16 @@ class YouTubeSidebar {
       link.href = chrome.runtime.getURL('src/ui/youtube-sidebar/youtube-sidebar.css');
       document.head.appendChild(link);
 
-      // Add to page
-      document.body.appendChild(this.sidebar);
+      // Wait for page-manager and inject sidebar into it
+      const injectSidebar = () => {
+        const pageManager = document.querySelector('#page-manager');
+        if (pageManager) {
+          pageManager.appendChild(this.sidebar);
+        } else {
+          setTimeout(injectSidebar, 100);
+        }
+      };
+      injectSidebar();
 
       // Get elements
       this.listContainer = this.sidebar.querySelector('#yt-subtitle-list');
@@ -173,6 +193,9 @@ class YouTubeSidebar {
 
     // Setup hotkeys
     this._setupHotkeys();
+
+    // Setup scroll detection to prevent auto-scroll during user page scrolling
+    this._setupScrollDetection();
   }
 
   /**
@@ -193,12 +216,179 @@ class YouTubeSidebar {
           setTimeout(() => {
             this._enableTheaterMode();
             this._adjustVideoLayout();
+            this._syncSidebarToVideoHeight();
           }, 100);
         } else {
           this.hide();
         }
       }
     }, 500);
+  }
+
+  /**
+   * Setup scroll detection to prevent auto-scroll when user is scrolling
+   */
+  _setupScrollDetection() {
+    // Listen for window scroll events (main YouTube page scrolling)
+    const handlePageScroll = () => {
+      // Set flag to true when user scrolls the page
+      this.userIsScrollingPage = true;
+
+      // Clear existing timeout
+      if (this.pageScrollTimeout) {
+        clearTimeout(this.pageScrollTimeout);
+      }
+
+      // Reset flag after 1.5 seconds of no scrolling (more responsive)
+      this.pageScrollTimeout = setTimeout(() => {
+        this.userIsScrollingPage = false;
+      }, 1500);
+    };
+
+    window.addEventListener('scroll', handlePageScroll, { passive: true });
+
+    // Listen for sidebar container scroll events (user manually scrolling subtitles)
+    const handleSidebarScroll = (e) => {
+      // Don't count auto-scroll as user scroll
+      if (this.isAutoScrolling) {
+        return;
+      }
+
+      // Only allow scrolling if mouse is in the scroll zone (right 35%)
+      if (!this.mouseInScrollZone) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      }
+
+      // Set flag to true when user manually scrolls the sidebar
+      this.userIsScrollingSidebar = true;
+
+      // Clear existing timeout
+      if (this.sidebarScrollTimeout) {
+        clearTimeout(this.sidebarScrollTimeout);
+      }
+
+      // Reset flag after 2 seconds of no scrolling
+      this.sidebarScrollTimeout = setTimeout(() => {
+        this.userIsScrollingSidebar = false;
+      }, 2000);
+    };
+
+    // Track mouse position to determine if user is in scroll zone
+    const handleMouseMove = (e) => {
+      if (!this.listContainer) return;
+
+      const rect = this.listContainer.getBoundingClientRect();
+      const relativeX = e.clientX - rect.left;
+      const containerWidth = rect.width;
+
+      // Right 35% is the scroll zone
+      const scrollZoneStart = containerWidth * 0.65;
+      this.mouseInScrollZone = relativeX >= scrollZoneStart;
+    };
+
+    const handleMouseLeave = () => {
+      this.mouseInScrollZone = false;
+    };
+
+    // Prevent scroll when not in scroll zone
+    const preventScrollOutsideZone = (e) => {
+      if (!this.mouseInScrollZone && !this.isAutoScrolling) {
+        e.preventDefault();
+        return false;
+      }
+    };
+
+    // Add sidebar scroll listener when listContainer is available
+    // This will be called after _loadSidebar completes
+    if (this.listContainer) {
+      this.listContainer.addEventListener('scroll', handleSidebarScroll, { passive: true });
+      this.listContainer.addEventListener('mousemove', handleMouseMove, { passive: true });
+      this.listContainer.addEventListener('mouseleave', handleMouseLeave, { passive: true });
+      this.listContainer.addEventListener('wheel', preventScrollOutsideZone, { passive: false });
+    } else {
+      // Wait for listContainer to be ready
+      const checkListContainer = setInterval(() => {
+        if (this.listContainer) {
+          clearInterval(checkListContainer);
+          this.listContainer.addEventListener('scroll', handleSidebarScroll, { passive: true });
+          this.listContainer.addEventListener('mousemove', handleMouseMove, { passive: true });
+          this.listContainer.addEventListener('mouseleave', handleMouseLeave, { passive: true });
+          this.listContainer.addEventListener('wheel', preventScrollOutsideZone, { passive: false });
+        }
+      }, 100);
+    }
+  }
+
+  /**
+   * Sync sidebar height and position to match video player
+   * Makes the sidebar feel integrated into YouTube instead of an overlay
+   */
+  _syncSidebarToVideoHeight() {
+    if (!this.sidebar) return;
+
+    const syncHeight = () => {
+      // Find the video player container and page-manager
+      const videoPlayer = document.querySelector('.html5-video-player');
+      const pageManager = document.querySelector('#page-manager');
+
+      // Try different containers in order of preference
+      const ytdWatchFlexy = document.querySelector('ytd-watch-flexy');
+      const playerContainer = document.querySelector('#player-container');
+      const playerContainerOuter = document.querySelector('#player-container-outer');
+
+      if (!videoPlayer || !pageManager) {
+        // Retry after a short delay if not found
+        setTimeout(syncHeight, 100);
+        return;
+      }
+
+      const playerRect = videoPlayer.getBoundingClientRect();
+
+      // Set sidebar height to match video player height EXACTLY
+      this.sidebar.style.setProperty('height', `${playerRect.height}px`, 'important');
+
+      // Calculate position using getBoundingClientRect (actual visual position)
+      // Since sidebar is absolutely positioned within page-manager, we need the
+      // visual offset of the video relative to page-manager
+      const pageManagerRect = pageManager.getBoundingClientRect();
+      const topRelativeToPageManager = playerRect.top - pageManagerRect.top;
+
+      this.sidebar.style.setProperty('top', `${topRelativeToPageManager}px`, 'important');
+
+      console.log(`[Helios YouTube Sidebar] Sync complete - Height: ${playerRect.height}px, Top: ${topRelativeToPageManager}px, Video top: ${playerRect.top}px, PageManager top: ${pageManagerRect.top}px`);
+    };
+
+    // Initial sync
+    syncHeight();
+
+    // Setup ResizeObserver to keep sidebar synced when video player resizes
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+    }
+
+    const videoPlayer = document.querySelector('.html5-video-player');
+    if (videoPlayer) {
+      this.resizeObserver = new ResizeObserver(() => {
+        syncHeight();
+      });
+
+      this.resizeObserver.observe(videoPlayer);
+
+      // Also observe the player container for theater mode changes
+      const playerContainer = document.querySelector('#player-container');
+      if (playerContainer) {
+        this.resizeObserver.observe(playerContainer);
+      }
+    }
+
+    // Only sync on window resize, NOT on scroll
+    const resizeHandler = () => syncHeight();
+    window.addEventListener('resize', resizeHandler);
+
+    // Store handler for cleanup
+    this.resizeHandler = resizeHandler;
   }
 
   /**
@@ -569,6 +759,12 @@ class YouTubeSidebar {
       if (pageManager) {
         pageManager.classList.add('helios-sidebar-active');
         pageManager.classList.remove('helios-sidebar-hidden');
+
+        // Also directly set the margin and position to ensure it applies
+        pageManager.style.marginRight = '420px';
+        pageManager.style.position = 'relative';
+        pageManager.style.transition = 'margin-right 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+
         console.log('[Helios YouTube Sidebar] Video layout adjusted - sidebar will push video');
 
         // Setup observer to re-enforce layout on YouTube SPA navigation
@@ -588,10 +784,12 @@ class YouTubeSidebar {
     if (this.layoutObserver) return; // Already setup
 
     this.layoutObserver = new MutationObserver(() => {
-      // Re-enforce classes when YouTube modifies the DOM
+      // Re-enforce classes and styles when YouTube modifies the DOM
       if (this.isVisible && !pageManager.classList.contains('helios-sidebar-active')) {
         pageManager.classList.add('helios-sidebar-active');
         pageManager.classList.remove('helios-sidebar-hidden');
+        pageManager.style.marginRight = '420px';
+        pageManager.style.position = 'relative';
         console.log('[Helios YouTube Sidebar] Layout re-enforced after DOM change');
       }
     });
@@ -853,6 +1051,27 @@ class YouTubeSidebar {
             wordSpan.classList.add('unknown-word');
           }
 
+          // Add pause-on-hover functionality for sidebar words
+          // Track whether we paused the video (to avoid resuming already paused video)
+          let wasPlayingBeforeHover = false;
+
+          wordSpan.addEventListener('mouseenter', () => {
+            if (this.settings.pauseOnHover && this.videoBinding && this.videoBinding.videoElement) {
+              const video = this.videoBinding.videoElement;
+              wasPlayingBeforeHover = !video.paused;
+              if (wasPlayingBeforeHover) {
+                video.pause();
+              }
+            }
+          });
+
+          wordSpan.addEventListener('mouseleave', () => {
+            if (this.settings.pauseOnHover && this.videoBinding && this.videoBinding.videoElement && wasPlayingBeforeHover) {
+              this.videoBinding.videoElement.play();
+              wasPlayingBeforeHover = false;
+            }
+          });
+
           primaryText.appendChild(wordSpan);
 
           // Add space after word (except for last word) for languages that use spaces
@@ -973,11 +1192,48 @@ class YouTubeSidebar {
     items.forEach((item, index) => {
       if (index === newIndex) {
         item.classList.add('active');
-        // Scroll into view
-        item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Only auto-scroll if user is NOT scrolling (page or sidebar)
+        if (!this.userIsScrollingPage && !this.userIsScrollingSidebar) {
+          // Manually center the subtitle for consistent behavior
+          this._scrollSubtitleToCenter(item);
+        }
       } else {
         item.classList.remove('active');
       }
+    });
+  }
+
+  /**
+   * Scroll a subtitle item to the center of the list container
+   * This ensures consistent centering behavior on every subtitle change
+   */
+  _scrollSubtitleToCenter(item) {
+    if (!this.listContainer || !item) return;
+
+    // Set auto-scrolling flag to prevent detecting this as user scroll
+    this.isAutoScrolling = true;
+
+    // Use requestAnimationFrame for smoother, more responsive scrolling
+    requestAnimationFrame(() => {
+      const containerRect = this.listContainer.getBoundingClientRect();
+      const itemRect = item.getBoundingClientRect();
+
+      // Calculate the scroll position needed to center the item
+      const containerCenter = containerRect.height / 2;
+      const itemCenter = itemRect.height / 2;
+      const scrollOffset = (itemRect.top - containerRect.top) - containerCenter + itemCenter;
+
+      // Smooth scroll to the calculated position
+      this.listContainer.scrollBy({
+        top: scrollOffset,
+        behavior: 'smooth'
+      });
+
+      // Reset auto-scrolling flag after animation completes
+      // Smooth scroll typically takes ~300-500ms
+      setTimeout(() => {
+        this.isAutoScrolling = false;
+      }, 600);
     });
   }
 
@@ -1021,7 +1277,12 @@ class YouTubeSidebar {
       if (pageManager) {
         pageManager.classList.add('helios-sidebar-active');
         pageManager.classList.remove('helios-sidebar-hidden');
+        pageManager.style.marginRight = '420px';
+        pageManager.style.position = 'relative';
       }
+
+      // Sync sidebar height with video player
+      setTimeout(() => this._syncSidebarToVideoHeight(), 100);
     }
   }
 
@@ -1038,6 +1299,8 @@ class YouTubeSidebar {
       if (pageManager) {
         pageManager.classList.remove('helios-sidebar-active');
         pageManager.classList.remove('helios-sidebar-hidden');
+        pageManager.style.marginRight = '0';
+        pageManager.style.position = '';
       }
     }
   }
@@ -1152,6 +1415,29 @@ class YouTubeSidebar {
       this.layoutObserver = null;
     }
 
+    // Disconnect resize observer
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
+    }
+
+    // Remove resize handler
+    if (this.resizeHandler) {
+      window.removeEventListener('resize', this.resizeHandler);
+      this.resizeHandler = null;
+    }
+
+    // Clear scroll detection timeouts
+    if (this.pageScrollTimeout) {
+      clearTimeout(this.pageScrollTimeout);
+      this.pageScrollTimeout = null;
+    }
+
+    if (this.sidebarScrollTimeout) {
+      clearTimeout(this.sidebarScrollTimeout);
+      this.sidebarScrollTimeout = null;
+    }
+
     if (this.sidebar && this.sidebar.parentElement) {
       this.sidebar.parentElement.removeChild(this.sidebar);
     }
@@ -1162,6 +1448,8 @@ class YouTubeSidebar {
     if (pageManager) {
       pageManager.classList.remove('helios-sidebar-active');
       pageManager.classList.remove('helios-sidebar-hidden');
+      pageManager.style.marginRight = '0';
+      pageManager.style.position = '';
     }
   }
 }

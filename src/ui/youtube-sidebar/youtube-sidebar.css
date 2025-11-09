@@ -17,18 +17,18 @@
 
 /* Main Container */
 .helios-youtube-sidebar {
-  position: fixed;
-  top: 56px;
-  right: 0;
-  width: 420px;
-  height: calc(100vh - 56px);
+  position: absolute !important;
+  top: 0 !important;
+  right: -420px !important; /* Position in the margin area created by page-manager */
+  width: 420px !important;
+  height: 600px !important; /* Default, will be dynamically adjusted */
   background: var(--helios-bg-primary);
   display: flex;
   flex-direction: column;
-  z-index: 2100;
+  z-index: 2100 !important;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
   color: var(--helios-text-primary);
-  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), top 0.3s cubic-bezier(0.4, 0, 0.2, 1), height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
 }
 
@@ -138,8 +138,29 @@
 .yt-subtitle-list {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   margin: 0 -4px;
   padding: 0 4px;
+  position: relative;
+}
+
+/* Scroll zone indicator - subtle gradient on the right edge */
+.yt-subtitle-list::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 35%;
+  height: 100%;
+  background: linear-gradient(to right, transparent 0%, rgba(255, 107, 71, 0.03) 100%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  border-radius: 0 0 14px 0;
+}
+
+.yt-subtitle-list:hover::after {
+  opacity: 1;
 }
 
 .yt-subtitle-list::-webkit-scrollbar {
@@ -209,6 +230,7 @@
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
+  max-width: 100%;
 }
 
 .yt-subtitle-text-container {
@@ -216,6 +238,8 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .yt-subtitle-item::before {
@@ -279,12 +303,17 @@
   line-height: 1.6;
   word-break: break-word;
   font-weight: 500;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  max-width: 100%;
 }
 
 .yt-subtitle-text-primary {
   color: var(--helios-text-primary);
   font-size: 15px;
   font-weight: 600;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
 }
 
 .yt-subtitle-text-secondary {
@@ -294,6 +323,8 @@
   font-style: italic;
   padding-left: 4px;
   border-left: 2px solid rgba(255, 107, 71, 0.3);
+  overflow-wrap: break-word;
+  word-wrap: break-word;
 }
 
 .yt-subtitle-item.active .yt-subtitle-text-primary {
@@ -338,6 +369,7 @@
 #page-manager.helios-sidebar-active {
   margin-right: 420px !important;
   transition: margin-right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative !important; /* Required for absolute positioning of sidebar */
 }
 
 #page-manager.helios-sidebar-active.helios-sidebar-hidden {
@@ -347,6 +379,7 @@
 /* Theater mode adjustments - stronger specificity */
 ytd-watch-flexy[theater] #page-manager.helios-sidebar-active {
   margin-right: 420px !important;
+  position: relative !important;
 }
 
 ytd-watch-flexy[theater] #page-manager.helios-sidebar-active.helios-sidebar-hidden {
@@ -356,15 +389,18 @@ ytd-watch-flexy[theater] #page-manager.helios-sidebar-active.helios-sidebar-hidd
 /* Fullscreen mode adjustments */
 ytd-watch-flexy[fullscreen] #page-manager.helios-sidebar-active {
   margin-right: 420px !important;
+  position: relative !important;
 }
 
 /* Double-enforce with body selector for maximum priority */
 body #page-manager.helios-sidebar-active {
   margin-right: 420px !important;
+  position: relative !important;
 }
 
 body ytd-watch-flexy[theater] #page-manager.helios-sidebar-active {
   margin-right: 420px !important;
+  position: relative !important;
 }
 
 /* Force adjust all content containers */
@@ -430,10 +466,12 @@ body ytd-watch-flexy[theater] #page-manager.helios-sidebar-active {
 
   #page-manager.helios-sidebar-active {
     margin-right: 380px !important;
+    position: relative !important;
   }
 
   ytd-watch-flexy[theater] #page-manager.helios-sidebar-active {
     margin-right: 380px !important;
+    position: relative !important;
   }
 }
 
@@ -441,20 +479,24 @@ body ytd-watch-flexy[theater] #page-manager.helios-sidebar-active {
 /* This provides an extra layer of enforcement */
 body:has(.helios-youtube-sidebar:not(.hidden)) #page-manager {
   margin-right: 420px !important;
+  position: relative !important;
 }
 
 body:has(.helios-youtube-sidebar:not(.hidden)) ytd-watch-flexy[theater] #page-manager {
   margin-right: 420px !important;
+  position: relative !important;
 }
 
 /* Fallback: Force margin using attribute selector directly on html */
 html:has(.helios-youtube-sidebar:not(.hidden)) #page-manager {
   margin-right: 420px !important;
+  position: relative !important;
 }
 
 /* Nuclear option: Apply to all watch pages when sidebar exists */
 ytd-app:has(.helios-youtube-sidebar:not(.hidden)) #page-manager {
   margin-right: 420px !important;
+  position: relative !important;
 }
 
 /* Settings Styles */
