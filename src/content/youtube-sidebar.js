@@ -22,6 +22,7 @@ class YouTubeSidebar {
     this.pageScrollTimeout = null; // Timeout reference to reset page scroll flag
     this.sidebarScrollTimeout = null; // Timeout reference to reset sidebar scroll flag
     this.isAutoScrolling = false; // Flag to prevent detecting auto-scroll as user scroll
+    this.mouseInScrollZone = false; // Flag to track if mouse is in the right 35% scroll zone
 
     // Settings
     this.settings = {
@@ -247,10 +248,17 @@ class YouTubeSidebar {
     window.addEventListener('scroll', handlePageScroll, { passive: true });
 
     // Listen for sidebar container scroll events (user manually scrolling subtitles)
-    const handleSidebarScroll = () => {
+    const handleSidebarScroll = (e) => {
       // Don't count auto-scroll as user scroll
       if (this.isAutoScrolling) {
         return;
+      }
+
+      // Only allow scrolling if mouse is in the scroll zone (right 35%)
+      if (!this.mouseInScrollZone) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
       }
 
       // Set flag to true when user manually scrolls the sidebar
@@ -267,16 +275,47 @@ class YouTubeSidebar {
       }, 2000);
     };
 
+    // Track mouse position to determine if user is in scroll zone
+    const handleMouseMove = (e) => {
+      if (!this.listContainer) return;
+
+      const rect = this.listContainer.getBoundingClientRect();
+      const relativeX = e.clientX - rect.left;
+      const containerWidth = rect.width;
+
+      // Right 35% is the scroll zone
+      const scrollZoneStart = containerWidth * 0.65;
+      this.mouseInScrollZone = relativeX >= scrollZoneStart;
+    };
+
+    const handleMouseLeave = () => {
+      this.mouseInScrollZone = false;
+    };
+
+    // Prevent scroll when not in scroll zone
+    const preventScrollOutsideZone = (e) => {
+      if (!this.mouseInScrollZone && !this.isAutoScrolling) {
+        e.preventDefault();
+        return false;
+      }
+    };
+
     // Add sidebar scroll listener when listContainer is available
     // This will be called after _loadSidebar completes
     if (this.listContainer) {
       this.listContainer.addEventListener('scroll', handleSidebarScroll, { passive: true });
+      this.listContainer.addEventListener('mousemove', handleMouseMove, { passive: true });
+      this.listContainer.addEventListener('mouseleave', handleMouseLeave, { passive: true });
+      this.listContainer.addEventListener('wheel', preventScrollOutsideZone, { passive: false });
     } else {
       // Wait for listContainer to be ready
       const checkListContainer = setInterval(() => {
         if (this.listContainer) {
           clearInterval(checkListContainer);
           this.listContainer.addEventListener('scroll', handleSidebarScroll, { passive: true });
+          this.listContainer.addEventListener('mousemove', handleMouseMove, { passive: true });
+          this.listContainer.addEventListener('mouseleave', handleMouseLeave, { passive: true });
+          this.listContainer.addEventListener('wheel', preventScrollOutsideZone, { passive: false });
         }
       }, 100);
     }
