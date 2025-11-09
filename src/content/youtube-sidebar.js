@@ -1051,6 +1051,19 @@ class YouTubeSidebar {
             wordSpan.classList.add('unknown-word');
           }
 
+          // Add pause-on-hover functionality for sidebar words
+          wordSpan.addEventListener('mouseenter', () => {
+            if (this.settings.pauseOnHover && this.videoBinding && this.videoBinding.videoElement) {
+              this.videoBinding.videoElement.pause();
+            }
+          });
+
+          wordSpan.addEventListener('mouseleave', () => {
+            if (this.settings.pauseOnHover && this.videoBinding && this.videoBinding.videoElement) {
+              this.videoBinding.videoElement.play();
+            }
+          });
+
           primaryText.appendChild(wordSpan);
 
           // Add space after word (except for last word) for languages that use spaces
