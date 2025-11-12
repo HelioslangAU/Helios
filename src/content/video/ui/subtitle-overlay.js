@@ -382,79 +382,38 @@ class SubtitleOverlay {
    */
   _setupVocabUpdateListener() {
     document.addEventListener('helios-vocab-updated', () => {
-      console.log('[DEBUG Subtitle Overlay] Vocab updated, starting cleanup...');
-
-      // Clean up popup and hover state to allow next word interaction
-      if (this.pauseOnHover && this.pausedByHover) {
-        console.log('[DEBUG Subtitle Overlay] Paused by hover, resuming video...');
-        // Clear any pending resume timeout
-        if (this.resumeTimeout) {
-          clearTimeout(this.resumeTimeout);
-          this.resumeTimeout = null;
-        }
-
-        // Resume video after vocab action
-        setTimeout(() => {
-          if (this.videoElement && this.videoElement.paused && this.pausedByHover) {
-            this.videoElement.play();
-            this.pausedByHover = false;
-            console.log('[DEBUG Subtitle Overlay] Video resumed');
-          }
-        }, 100);
-      }
-
-      // Force close any open popup to ensure clean state
-      console.log('[DEBUG Subtitle Overlay] Checking popup state:', {
-        hasPopupManager: !!window.popupManager,
-        hasPopup: !!(window.popupManager && window.popupManager.popup),
-        popupHasParent: !!(window.popupManager && window.popupManager.popup && window.popupManager.popup.parentElement)
-      });
-
-      // Clean up popup and highlight state
-      if (window.popupManager) {
-        // Use proper hide method if available
-        if (typeof window.popupManager.hide === 'function') {
-          console.log('[DEBUG Subtitle Overlay] Hiding popup via popupManager.hide()');
-          window.popupManager.hide();
-        } else if (typeof window.popupManager.hidePopup === 'function') {
-          console.log('[DEBUG Subtitle Overlay] Hiding popup via popupManager.hidePopup()');
-          window.popupManager.hidePopup();
-        }
-
-        // Also manually remove the popup element to be safe
-        if (window.popupManager.popup) {
-          const popup = window.popupManager.popup;
-          if (popup.parentElement) {
-            popup.style.display = 'none';
-            popup.parentElement.removeChild(popup);
-            console.log('[DEBUG Subtitle Overlay] Popup removed from DOM');
-          }
-          // Clear the reference
-          window.popupManager.popup = null;
-        }
-
-        // CRITICAL: Reset the isMouseOverPopup flag to allow next lookup
-        window.popupManager.isMouseOverPopup = false;
-        console.log('[DEBUG Subtitle Overlay] Reset isMouseOverPopup flag');
-      }
-
-      // Clear any lookup highlights
-      if (window.highlightManager && typeof window.highlightManager.removeLookupHighlight === 'function') {
-        window.highlightManager.removeLookupHighlight();
-        console.log('[DEBUG Subtitle Overlay] Lookup highlight cleared');
-      }
-
-      // Re-render current subtitles to get fresh event handlers and updated underlining
-      // This ensures the next word hover will work properly
-      // Use a small delay to ensure popup/lookup state is fully reset
+      // Update underlining WITHOUT full re-render to preserve popup
       if (this.currentSubtitles.length > 0) {
-        console.log('[DEBUG Subtitle Overlay] Re-rendering subtitles after vocab update');
         setTimeout(() => {
-          this._render();
-          console.log('[DEBUG Subtitle Overlay] Cleanup and re-render complete');
-        }, 150);
-      } else {
-        console.log('[DEBUG Subtitle Overlay] Cleanup complete');
+          this._updateSubtitleUnderlining();
+        }, 50);
+      }
+    });
+  }
+
+  /**
+   * Update underlining on existing subtitle words without re-rendering
+   * Used when vocabulary changes to avoid closing popup
+   */
+  _updateSubtitleUnderlining() {
+    const dictionary = window.dictionaryManager?.dictionary || {};
+    const wordSpans = this.container.querySelectorAll('.helios-subtitle-word');
+
+    wordSpans.forEach(wordSpan => {
+      const word = wordSpan.getAttribute('data-helios-word');
+      if (!word) return;
+
+      const cleanWord = word.toLowerCase();
+
+      // Remove existing unknown-word class
+      wordSpan.classList.remove('unknown-word');
+
+      // Re-check if word should be underlined
+      if (window.vocabManager &&
+          dictionary[cleanWord] &&
+          !window.vocabManager.isWordKnown(cleanWord) &&
+          !window.vocabManager.isWordIgnored(cleanWord)) {
+        wordSpan.classList.add('unknown-word');
       }
     });
   }
@@ -622,12 +581,6 @@ class SubtitleOverlay {
 
           // Add pause on hover listeners
           wordSpan.addEventListener('mouseenter', () => {
-            console.log('[DEBUG Subtitle Overlay] Mouse entered word:', word, {
-              pauseOnHover: this.pauseOnHover,
-              videoPlaying: this.videoElement && !this.videoElement.paused,
-              hasPopupManager: !!window.popupManager
-            });
-
             if (this.pauseOnHover && this.videoElement && !this.videoElement.paused) {
               // Cancel any pending resume
               if (this.resumeTimeout) {
@@ -637,7 +590,6 @@ class SubtitleOverlay {
 
               this.videoElement.pause();
               this.pausedByHover = true;
-              console.log('[DEBUG Subtitle Overlay] Video paused on hover');
             }
           });
 

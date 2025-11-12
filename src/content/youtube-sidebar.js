@@ -32,6 +32,10 @@ class YouTubeSidebar {
       pauseOnHover: false
     };
 
+    // Pause on hover state tracking
+    this.pausedByHover = false;
+    this.resumeTimeout = null;
+
     // Load settings from storage
     this._loadSettings();
 
@@ -172,18 +176,10 @@ class YouTubeSidebar {
     document.addEventListener('helios-vocab-updated', () => {
       // Update underlining without full re-render to avoid jarring refresh
       this._updateUnderlining();
-
-      // Clean up popup state to allow next word interaction
-      if (window.popupManager && window.popupManager.popup) {
-        const popup = window.popupManager.popup;
-        if (popup && popup.parentElement) {
-          popup.style.display = 'none';
-          if (popup.parentElement) {
-            popup.parentElement.removeChild(popup);
-          }
-        }
-      }
     });
+
+    // Setup global mouse listener for pause-on-hover resume logic
+    this._setupPauseOnHoverListener();
 
     // Listen for video notifications to display in sidebar
     document.addEventListener('helios-video-notification', (e) => {
@@ -1052,23 +1048,20 @@ class YouTubeSidebar {
           }
 
           // Add pause-on-hover functionality for sidebar words
-          // Track whether we paused the video (to avoid resuming already paused video)
-          let wasPlayingBeforeHover = false;
-
           wordSpan.addEventListener('mouseenter', () => {
             if (this.settings.pauseOnHover && this.videoBinding && this.videoBinding.videoElement) {
-              const video = this.videoBinding.videoElement;
-              wasPlayingBeforeHover = !video.paused;
-              if (wasPlayingBeforeHover) {
-                video.pause();
+              // Cancel any pending resume
+              if (this.resumeTimeout) {
+                clearTimeout(this.resumeTimeout);
+                this.resumeTimeout = null;
               }
-            }
-          });
 
-          wordSpan.addEventListener('mouseleave', () => {
-            if (this.settings.pauseOnHover && this.videoBinding && this.videoBinding.videoElement && wasPlayingBeforeHover) {
-              this.videoBinding.videoElement.play();
-              wasPlayingBeforeHover = false;
+              const video = this.videoBinding.videoElement;
+              const wasPlaying = !video.paused;
+              if (wasPlaying) {
+                video.pause();
+                this.pausedByHover = true;
+              }
             }
           });
 
@@ -1106,6 +1099,55 @@ class YouTubeSidebar {
       });
 
       this.listContainer.appendChild(item);
+    });
+  }
+
+  /**
+   * Check if popup is currently visible
+   * Used to prevent video resume when user is reading popup
+   */
+  _isPopupVisible() {
+    // Check if popup manager exists and has an active popup
+    if (window.popupManager && window.popupManager.popup) {
+      const popup = window.popupManager.popup;
+      // Check if popup exists in DOM and is visible
+      return popup && popup.parentElement && popup.style.display !== 'none';
+    }
+    return false;
+  }
+
+  /**
+   * Setup global mousemove listener for pause-on-hover resume logic
+   * Resumes video when mouse leaves both sidebar word and popup
+   */
+  _setupPauseOnHoverListener() {
+    document.addEventListener('mousemove', (e) => {
+      if (!this.settings.pauseOnHover || !this.pausedByHover) return;
+
+      // Check if mouse is over popup or sidebar word
+      const target = e.target;
+      const isOverPopup = target && target.closest('.chinese-lang-extension-popup');
+      const isOverSidebarWord = target && target.closest('.yt-subtitle-word');
+
+      // If not over either, resume video after a short delay
+      if (!isOverPopup && !isOverSidebarWord) {
+        if (!this.resumeTimeout) {
+          this.resumeTimeout = setTimeout(() => {
+            if (this.videoBinding && this.videoBinding.videoElement &&
+                this.videoBinding.videoElement.paused && this.pausedByHover) {
+              this.videoBinding.videoElement.play();
+              this.pausedByHover = false;
+            }
+            this.resumeTimeout = null;
+          }, 300);
+        }
+      } else {
+        // Cancel resume if mouse moves back over popup or word
+        if (this.resumeTimeout) {
+          clearTimeout(this.resumeTimeout);
+          this.resumeTimeout = null;
+        }
+      }
     });
   }
 
