@@ -4,23 +4,61 @@
 class HeliosSettingsVocabulary {
   constructor(manager) {
     this.manager = manager;
-    this.vocabManager= null
+    this.vocabManager = null;
+    this.languageRegistry = null;
+    this.dictionaryManager = null;
 
     this.init();
   }
 
   async init() {
+    // Initialize language registry and adapters for validation
+    if (typeof LanguageRegistry !== 'undefined') {
+      this.languageRegistry = new LanguageRegistry();
+      this.languageRegistry.initializeDefaultAdapters();
+      window.languageRegistry = this.languageRegistry;
+      console.log('🔍 Language registry initialized in settings page');
+    } else {
+      console.warn('🔍 LanguageRegistry not available - validation will be skipped');
+    }
+
+    // Initialize dictionary manager
+    if (this.languageRegistry && typeof DictionaryManager !== 'undefined') {
+      this.dictionaryManager = new DictionaryManager(this.languageRegistry);
+      window.dictionaryManager = this.dictionaryManager;
+      console.log('🔍 Dictionary manager initialized in settings page');
+    } else {
+      console.warn('🔍 DictionaryManager not available - validation will be skipped');
+    }
+
     this.vocabManager = new VocabManager();
     
     // Set the current language from settings if available
+    let targetLanguage = 'zh'; // default
     try {
       const settings = await chrome.storage.local.get(['targetLanguage']);
       if (settings.targetLanguage) {
-        this.vocabManager.setCurrentLanguage(settings.targetLanguage);
-        console.log(`🔍 Vocab manager language set to: ${settings.targetLanguage}`);
+        targetLanguage = settings.targetLanguage;
+        this.vocabManager.setCurrentLanguage(targetLanguage);
+        console.log(`🔍 Vocab manager language set to: ${targetLanguage}`);
       }
     } catch (error) {
       console.warn('Could not get target language from settings:', error);
+    }
+
+    // Set language in registry and load dictionary if available
+    if (this.languageRegistry) {
+      this.languageRegistry.setLanguage(targetLanguage);
+    }
+
+    // Load dictionary for validation
+    if (this.dictionaryManager) {
+      try {
+        await this.dictionaryManager.loadDictionary();
+        console.log('🔍 Dictionary loaded for validation');
+      } catch (error) {
+        console.warn('🔍 Could not load dictionary:', error);
+      }
     }
     
     await this.vocabManager.loadKnownWords();

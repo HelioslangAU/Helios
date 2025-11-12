@@ -277,13 +277,33 @@ class VocabManager {
     if (!this.knownWordsByLanguage[this.currentLanguage]) {
       await this.loadKnownWords();
     }
+    
+    // Get language adapter and dictionary for validation
+    // Note: In settings page context, languageRegistry may not be available
+    // Get adapter for the vocab manager's current language (not the registry's current language)
+    const languageRegistry = window.languageRegistry;
+    const adapter = languageRegistry?.adapters?.get(this.currentLanguage) || languageRegistry?.getAdapter();
+    const dictionary = window.dictionaryManager?.dictionary || {};
+    
+    // Only validate if both adapter and dictionary are available
+    // In settings page context, validation will be skipped gracefully
+    const canValidate = adapter && typeof adapter.isValidWord === 'function' && dictionary && Object.keys(dictionary).length > 0;
+    
     const currentSet = this.getCurrentLanguageKnownWords();
     const initialSize = currentSet.size;
     let processedWordsCount = 0;
+    let skippedWordsCount = 0;
     
     words.forEach(word => {
       const normalizedWord = this.normalizeWord(word);
       if (normalizedWord) {
+        // Check if word exists in dictionary before adding (only if validation is available)
+        if (canValidate) {
+          if (!adapter.isValidWord(normalizedWord, dictionary)) {
+            skippedWordsCount++;
+            return; // Skip this word if it's not in the dictionary
+          }
+        }
         processedWordsCount++;
         // Set.add() adds the word (returns true if new, false if duplicate)
         currentSet.add(normalizedWord);
@@ -295,7 +315,11 @@ class VocabManager {
     
     await this.saveKnownWords();
     console.log(`Marked multiple words as known (${this.currentLanguage}):`, words);
-    console.log(`Initial size: ${initialSize}, Final size: ${finalSize}, New words: ${newWordsCount}, Processed: ${processedWordsCount}`);
+    if (canValidate) {
+      console.log(`Initial size: ${initialSize}, Final size: ${finalSize}, New words: ${newWordsCount}, Processed: ${processedWordsCount}, Skipped: ${skippedWordsCount}`);
+    } else {
+      console.log(`Initial size: ${initialSize}, Final size: ${finalSize}, New words: ${newWordsCount}, Processed: ${processedWordsCount} (validation skipped - adapter/dictionary not available)`);
+    }
     this.notifySidebarUpdate();
     return { newWordsCount, processedWordsCount };
   }
