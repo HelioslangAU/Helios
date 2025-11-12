@@ -54,20 +54,23 @@ class VocabManager {
         'ignoredWordsByLanguage'
       ]);
 
-      // Load old format for migration
-      const oldResult = await chrome.storage.local.get([
-        'chineseExtensionKnownWords',
-        'chineseExtensionIgnoredWords'
-      ]);
-
-      // Load new format if available
+      // Load new format if available - MERGE instead of replace to preserve in-memory changes
       if (newResult.knownWordsByLanguage) {
         Object.keys(newResult.knownWordsByLanguage).forEach(lang => {
           // Normalize words when loading to ensure consistency
           const normalizedWords = newResult.knownWordsByLanguage[lang]
             .map(word => this.normalizeWord(word))
             .filter(word => word); // Filter out invalid words
-          this.knownWordsByLanguage[lang] = new Set(normalizedWords);
+          
+          // Merge with existing Set instead of replacing to preserve in-memory additions
+          if (!this.knownWordsByLanguage[lang]) {
+            this.knownWordsByLanguage[lang] = new Set(normalizedWords);
+          } else {
+            // Add words from storage to existing Set (preserves any in-memory additions)
+            normalizedWords.forEach(word => {
+              this.knownWordsByLanguage[lang].add(word);
+            });
+          }
         });
         console.log('Known words loaded (per-language format):', this.knownWordsByLanguage);
       }
@@ -78,31 +81,18 @@ class VocabManager {
           const normalizedWords = newResult.ignoredWordsByLanguage[lang]
             .map(word => this.normalizeWord(word))
             .filter(word => word); // Filter out invalid words
-          this.ignoredWordsByLanguage[lang] = new Set(normalizedWords);
+          
+          // Merge with existing Set instead of replacing to preserve in-memory additions
+          if (!this.ignoredWordsByLanguage[lang]) {
+            this.ignoredWordsByLanguage[lang] = new Set(normalizedWords);
+          } else {
+            // Add words from storage to existing Set (preserves any in-memory additions)
+            normalizedWords.forEach(word => {
+              this.ignoredWordsByLanguage[lang].add(word);
+            });
+          }
         });
         console.log('Ignored words loaded (per-language format):', this.ignoredWordsByLanguage);
-      }
-
-      // Migrate old format if exists and new format doesn't exist
-      // Migrate to CURRENT language (not hardcoded to 'zh')
-      if (oldResult.chineseExtensionKnownWords && !newResult.knownWordsByLanguage) {
-        console.log(`Migrating old known words to ${this.currentLanguage} language...`);
-        // Normalize words during migration
-        const normalizedWords = oldResult.chineseExtensionKnownWords
-          .map(word => this.normalizeWord(word))
-          .filter(word => word);
-        this.knownWordsByLanguage[this.currentLanguage] = new Set(normalizedWords);
-        await this.saveKnownWords(); // Save in new format
-      }
-
-      if (oldResult.chineseExtensionIgnoredWords && !newResult.ignoredWordsByLanguage) {
-        console.log(`Migrating old ignored words to ${this.currentLanguage} language...`);
-        // Normalize words during migration
-        const normalizedWords = oldResult.chineseExtensionIgnoredWords
-          .map(word => this.normalizeWord(word))
-          .filter(word => word);
-        this.ignoredWordsByLanguage[this.currentLanguage] = new Set(normalizedWords);
-        await this.saveKnownWords(); // Save in new format
       }
 
       console.log(`Vocab loaded successfully. Current language: ${this.currentLanguage}, Known words:`, this.getCurrentLanguageKnownWords().size);
@@ -132,10 +122,7 @@ class VocabManager {
       await chrome.storage.local.set({
         knownWordsByLanguage: knownWordsObj,
         ignoredWordsByLanguage: ignoredWordsObj,
-        // Keep old format for backward compatibility
-        // Save current language words to old format
-        chineseExtensionKnownWords: [...currentKnownWords],
-        chineseExtensionIgnoredWords: [...currentIgnoredWords]
+
       });
       console.log(`Known words saved to extension storage (per-language). Current language: ${this.currentLanguage}`);
     } catch (error) {
@@ -284,16 +271,57 @@ class VocabManager {
 
   // Batch operations for better performance
   async markMultipleWordsAsKnown(words) {
+    //console.log('Marking multiple words as known:', words);
+    // Only load if we don't have data for the current language yet
+    // This prevents overwriting in-memory changes from previous operations
+    if (!this.knownWordsByLanguage[this.currentLanguage]) {
+      await this.loadKnownWords();
+    }
+    
+    // Get language adapter and dictionary for validation
+    // Note: In settings page context, languageRegistry may not be available
+    // Get adapter for the vocab manager's current language (not the registry's current language)
+    const languageRegistry = window.languageRegistry;
+    const adapter = languageRegistry?.adapters?.get(this.currentLanguage) || languageRegistry?.getAdapter();
+    const dictionary = window.dictionaryManager?.dictionary || {};
+    
+    // Only validate if both adapter and dictionary are available
+    // In settings page context, validation will be skipped gracefully
+    const canValidate = adapter && typeof adapter.isValidWord === 'function' && dictionary && Object.keys(dictionary).length > 0;
+    
     const currentSet = this.getCurrentLanguageKnownWords();
+    const initialSize = currentSet.size;
+    let processedWordsCount = 0;
+    let skippedWordsCount = 0;
+    
     words.forEach(word => {
       const normalizedWord = this.normalizeWord(word);
       if (normalizedWord) {
+        // Check if word exists in dictionary before adding (only if validation is available)
+        if (canValidate) {
+          if (!adapter.isValidWord(normalizedWord, dictionary)) {
+            skippedWordsCount++;
+            return; // Skip this word if it's not in the dictionary
+          }
+        }
+        processedWordsCount++;
+        // Set.add() adds the word (returns true if new, false if duplicate)
         currentSet.add(normalizedWord);
       }
     });
+    
+    const finalSize = currentSet.size;
+    const newWordsCount = finalSize - initialSize;
+    
     await this.saveKnownWords();
     console.log(`Marked multiple words as known (${this.currentLanguage}):`, words);
+    if (canValidate) {
+      console.log(`Initial size: ${initialSize}, Final size: ${finalSize}, New words: ${newWordsCount}, Processed: ${processedWordsCount}, Skipped: ${skippedWordsCount}`);
+    } else {
+      console.log(`Initial size: ${initialSize}, Final size: ${finalSize}, New words: ${newWordsCount}, Processed: ${processedWordsCount} (validation skipped - adapter/dictionary not available)`);
+    }
     this.notifySidebarUpdate();
+    return { newWordsCount, processedWordsCount };
   }
 
   async markMultipleWordsAsUnknown(words) {
