@@ -48,7 +48,7 @@ class PopupEventHandler {
 
         // Execute the appropriate action based on current state
         await this.executeMarkAction(character, managers, nextState, isMultiCard, currentCard);
-        
+
         // Update button appearance
         this.updateMarkButton(markButton, nextState);
 
