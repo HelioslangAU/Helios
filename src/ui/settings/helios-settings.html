@@ -94,13 +94,20 @@
     <!-- Load paths configuration first (correct relative path from src/ui/settings/) -->
     <script src="../../config/paths.js"></script>
 
+    <!-- Load language adapters (required for vocabulary validation) -->
+    <script src="../../content/languages/base-language-adapter.js"></script>
+    <script src="../../content/languages/chinese-adapter.js"></script>
+    <script src="../../content/languages/space-separated-adapter.js"></script>
+    <script src="../../content/languages/language-registry.js"></script>
+
     <!-- Load all settings modules as external scripts (MV3 CSP-safe) -->
     <script src="../../content/settings/settings-storage.js"></script>
     <script src="../../content/settings/settings-ui.js"></script>
     <script src="../../content/settings/settings-anki.js"></script>
+    <script src="../../content/dictionary-manager.js"></script>
+    <script src="../../content/vocab-manager.js"></script>
     <script src="../../content/settings/settings-vocabulary.js"></script>
     <script src="../../content/settings/settings-advanced.js"></script>
-    <script src="../../content/vocab-manager.js"></script>
 
     <!-- Main settings manager last -->
     <script src="../../content/settings/helios-settings.js"></script>
