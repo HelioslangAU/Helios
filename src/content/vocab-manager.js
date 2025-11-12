@@ -278,15 +278,26 @@ class VocabManager {
       await this.loadKnownWords();
     }
     const currentSet = this.getCurrentLanguageKnownWords();
+    const initialSize = currentSet.size;
+    let processedWordsCount = 0;
+    
     words.forEach(word => {
       const normalizedWord = this.normalizeWord(word);
       if (normalizedWord) {
+        processedWordsCount++;
+        // Set.add() adds the word (returns true if new, false if duplicate)
         currentSet.add(normalizedWord);
       }
     });
+    
+    const finalSize = currentSet.size;
+    const newWordsCount = finalSize - initialSize;
+    
     await this.saveKnownWords();
     console.log(`Marked multiple words as known (${this.currentLanguage}):`, words);
+    console.log(`Initial size: ${initialSize}, Final size: ${finalSize}, New words: ${newWordsCount}, Processed: ${processedWordsCount}`);
     this.notifySidebarUpdate();
+    return { newWordsCount, processedWordsCount };
   }
 
   async markMultipleWordsAsUnknown(words) {

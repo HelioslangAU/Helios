@@ -110,15 +110,22 @@ class HeliosSettingsVocabulary {
       await this.vocabManager.loadKnownWords();
       
       // Import words using vocab manager (it will normalize and handle them)
-      await this.vocabManager.markMultipleWordsAsKnown(words);
+      // Returns an object with newWordsCount and processedWordsCount
+      const result = await this.vocabManager.markMultipleWordsAsKnown(words);
+      const newWordsCount = result.newWordsCount;
+      const processedWordsCount = result.processedWordsCount;
+      const duplicatesCount = processedWordsCount - newWordsCount;
 
       textarea.value = "";
       await this.loadStatistics();
 
-      alert(
-        `Successfully imported ${words.length} words!\n\n` +
-          `Words imported for language: ${this.vocabManager.currentLanguage || 'current'}`
-      );
+      let message = `Successfully imported ${newWordsCount} new word${newWordsCount !== 1 ? 's' : ''}!`;
+      if (duplicatesCount > 0) {
+        message += `\n${duplicatesCount} duplicate word${duplicatesCount !== 1 ? 's were' : ' was'} skipped.`;
+      }
+      message += `\n\nWords imported for language: ${this.vocabManager.currentLanguage || 'current'}`;
+
+      alert(message);
     } catch (error) {
       console.error("🔍 Error importing words:", error);
       alert("Error importing words. Please try again.");
