@@ -35,6 +35,11 @@ class FeatureToggle {
   }
 
   enable() {
+    // Re-enable page processing
+    if (this.pageProcessor && this.pageProcessor.startProcessing) {
+      this.pageProcessor.startProcessing();
+    }
+
     if (this.autoHighlight) {
       this.pageProcessor.processPageForUnknownWords();
     }
@@ -112,9 +117,16 @@ class FeatureToggle {
     // Remove all event listeners
     this.textScanner && this.textScanner.unregister();
 
+    // Stop all page processing and disconnect observers
+    if (this.pageProcessor && this.pageProcessor.stopProcessing) {
+      this.pageProcessor.stopProcessing();
+    } else if (this.pageProcessor && this.pageProcessor.clearHighlights) {
+      // Fallback for older code
+      this.pageProcessor.clearHighlights();
+    }
+
     // Hide and cleanup UI elements
     this.popup && this.popup.hidePopup && this.popup.hidePopup();
-    this.pageProcessor && this.pageProcessor.clearHighlights && this.pageProcessor.clearHighlights();
     this.sidebarManager && this.sidebarManager.hideSidebar && this.sidebarManager.hideSidebar();
     this.bannerManager && this.bannerManager.hideBanner && this.bannerManager.hideBanner();
 
