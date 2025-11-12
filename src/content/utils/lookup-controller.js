@@ -14,7 +14,18 @@ class LookupController {
 
   onPointerMove = (event) => {
     // Video subtitle words (data-subtitle-word="true") don't require shift key
-    const isSubtitleWord = event.target?.getAttribute('data-subtitle-word') === 'true';
+    // Check the target AND walk up the DOM tree to find subtitle word spans
+    let isSubtitleWord = false;
+    let checkElement = event.target;
+
+    // Walk up the DOM tree (max 5 levels) to find data-subtitle-word attribute
+    for (let i = 0; i < 5 && checkElement; i++) {
+      if (checkElement.getAttribute?.('data-subtitle-word') === 'true') {
+        isSubtitleWord = true;
+        break;
+      }
+      checkElement = checkElement.parentElement;
+    }
 
     // Skip if not activated and not on a subtitle word
     if (!isSubtitleWord && !this.activation.isActive()) return;
