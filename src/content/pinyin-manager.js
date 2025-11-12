@@ -81,9 +81,9 @@ class PinyinManager {
     const style = document.createElement("style");
     style.id = "helios-pinyin-styles";
     style.textContent = `
-      .helios-pinyin-wrapper { display: inline; }
-      ruby.helios-pinyin { ruby-align: center; ruby-position: over; display: inline-ruby; vertical-align: baseline; }
-      ruby.helios-pinyin rt { font-size: 0.6em; color: #666; line-height: 1.1; text-align: center; display: ruby-text; }
+      .helios-pinyin-wrapper { display: inline; pointer-events: none; }
+      ruby.helios-pinyin { ruby-align: center; ruby-position: over; display: inline-ruby; vertical-align: baseline; pointer-events: none; }
+      ruby.helios-pinyin rt { font-size: 0.6em; color: #666; line-height: 1.1; text-align: center; display: ruby-text; pointer-events: none; }
       @media (prefers-color-scheme: dark) { ruby.helios-pinyin rt { color: #aaa; } }
       ruby.helios-pinyin + ruby.helios-pinyin { margin-left: 1px; }
     `;

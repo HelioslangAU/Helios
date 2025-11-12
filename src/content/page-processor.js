@@ -68,7 +68,8 @@ class PageProcessor {
     if (!container) container = textNode?.parentElement;
     if (!container) return word;
 
-    const fullText = container.textContent || '';
+    // Use getBaseText to exclude pinyin/ruby RT tags
+    const fullText = this.getBaseText(container) || container.textContent || '';
     const adapter = this.languageRegistry.getAdapter();
     const sentenceBoundary = adapter ? adapter.getSentenceBoundary() : /(?<=[.!?。！？\n])/;
     const sentences = fullText.split(sentenceBoundary);
@@ -78,7 +79,8 @@ class PageProcessor {
         if (trimmed) return trimmed;
       }
     }
-    return (container.textContent || '').trim() || word;
+    // Use getBaseText for fallback too
+    return this.getBaseText(container).trim() || word;
   }
 
   // Heuristics to detect likely subtitle containers (e.g., asbplayer)
@@ -617,12 +619,12 @@ class PageProcessor {
     if (!element) return null;
 
     const textNodes = this.getTextNodes(element);
-    
+
     for (const textNode of textNodes) {
       const result = this.checkTextNodeAtPosition(textNode, event.clientX, event.clientY);
       if (result) return result;
     }
-    
+
     return null;
   }
 
@@ -658,7 +660,6 @@ class PageProcessor {
 
   checkTextNodeAtPosition(textNode, x, y) {
     if (!textNode || !textNode.parentElement) return null;
-    //console.log('checkTextNodeAtPosition', textNode, x, y);
 
     const adapter = this.languageRegistry.getAdapter();
     if (!adapter) return null;
@@ -681,32 +682,32 @@ class PageProcessor {
     // For character-based languages, use character-by-character detection
     if (isCharacterBased) {
       const allTextNodes = this.getTextNodes(container);
-      
+
       for (const node of allTextNodes) {
         const nodeText = node.textContent;
         const range = document.createRange();
-        
+
         for (let i = 0; i < nodeText.length; i++) {
           if (!adapter.isTargetCharacter || !adapter.isTargetCharacter(nodeText[i])) continue;
-          
+
           range.setStart(node, i);
           range.setEnd(node, i + 1);
-          
+
           const rect = range.getBoundingClientRect();
-          
-          if (x >= rect.left && x <= rect.right && 
+
+          if (x >= rect.left && x <= rect.right &&
               y >= rect.top && y <= rect.bottom) {
-            
+
             // Try to find longest word starting from this character
             const wordResult = this.findLongestWordFromPosition(node, i);
             if (wordResult) return wordResult;
-            
+
             // Fall back to single character
-            return { 
-              word: nodeText[i], 
-              textNode: node, 
-              start: i, 
-              end: i + 1 
+            return {
+              word: nodeText[i],
+              textNode: node,
+              start: i,
+              end: i + 1
             };
           }
         }
