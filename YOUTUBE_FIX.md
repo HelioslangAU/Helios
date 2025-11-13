@@ -1,4 +1,4 @@
-﻿# YouTube Subtitle Loading Fix
+# YouTube Subtitle Loading Fix
 
 ## Problem
 
