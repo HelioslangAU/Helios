@@ -75,7 +75,10 @@ class PopupContentBuilder {
   }
 
   static createCardContent(displayCharacter, card, isKnown, isIgnored, frequency, settings = {}, languageCode = null) {
-    const { pinyin, entries } = card;
+    const { pinyin: cardPinyin, entries } = card;
+    // Use card's pinyin if available (may be empty string), otherwise fall back to first entry's pinyin
+    // This ensures each card shows its own pinyin corresponding to its entries
+    const pinyin = (cardPinyin !== undefined && cardPinyin !== null) ? cardPinyin : (entries && entries.length > 0 ? entries[0].pinyin : null);
     const lengthClass = this.getWordLengthClass(displayCharacter);
     const languageClass = languageCode ? this.getLanguageClass(languageCode) : '';
     const combinedClasses = `${lengthClass} ${languageClass}`.trim();
@@ -103,7 +106,10 @@ class PopupContentBuilder {
   }
 
   static createCardContentInner(displayCharacter, card, isKnown, isIgnored, frequency, settings = {}, languageCode = null) {
-    const { pinyin, entries } = card;
+    const { pinyin: cardPinyin, entries } = card;
+    // Use card's pinyin if available (may be empty string), otherwise fall back to first entry's pinyin
+    // This ensures each card shows its own pinyin corresponding to its entries
+    const pinyin = (cardPinyin !== undefined && cardPinyin !== null) ? cardPinyin : (entries && entries.length > 0 ? entries[0].pinyin : null);
     const lengthClass = this.getWordLengthClass(displayCharacter);
     const languageClass = languageCode ? this.getLanguageClass(languageCode) : '';
     const combinedClasses = `${lengthClass} ${languageClass}`.trim();
@@ -114,7 +120,7 @@ class PopupContentBuilder {
 
     return `
       <div class="character-container">
-        <div class="character highlight ${combinedClasses}"><ruby>${displayCharacter}<rt>${pinyin}</rt></ruby></div>
+        <div class="character highlight ${combinedClasses}">${pinyin ? `<ruby>${displayCharacter}<rt>${pinyin}</rt></ruby>` : displayCharacter}</div>
         ${pronunciationBtn}
         ${formattedFrequency && showFrequency ? `<div class="frequency">${formattedFrequency}</div>` : ""}
       </div>
