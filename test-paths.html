@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -15,37 +15,37 @@
         function testPaths() {
             const results = document.getElementById('test-results');
             let output = '<h2>Test Results:</h2><ul>';
-
+            
             try {
                 // Test basic path access
                 const heliosSettings = window.PATHS.getPath('HTML.HELIOS_SETTINGS');
                 output += `<li>✅ HTML.HELIOS_SETTINGS: ${heliosSettings}</li>`;
-
+                
                 // Test Chrome URL generation
                 const chromeUrl = window.PATHS.getChromeURL('HTML.HELIOS_SETTINGS');
                 output += `<li>✅ Chrome URL: ${chromeUrl}</li>`;
-
+                
                 // Test frequency files
                 const freqFiles = window.PATHS.getFrequencyFiles();
                 output += `<li>✅ Frequency files count: ${freqFiles.length}</li>`;
-
+                
                 // Test content scripts
                 const contentScripts = window.PATHS.getContentScripts();
                 output += `<li>✅ Content scripts count: ${contentScripts.length}</li>`;
-
+                
                 // Test icons
                 const icons = window.PATHS.getIcons();
                 output += `<li>✅ Icons: ${JSON.stringify(icons)}</li>`;
-
+                
                 output += '</ul><p style="color: green;">✅ All tests passed! Paths configuration is working correctly.</p>';
-
+                
             } catch (error) {
                 output += `<li style="color: red;">❌ Error: ${error.message}</li></ul>`;
             }
-
+            
             results.innerHTML = output;
         }
-
+        
         // Run tests when page loads
         window.addEventListener('load', testPaths);
     </script>
