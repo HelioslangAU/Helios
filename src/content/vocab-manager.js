@@ -446,7 +446,7 @@ class VocabManager {
       recentWords = recentWords.slice(0, 20);
 
       chrome.storage.local.set({ [storageKey]: recentWords }, () => {
-        console.log(`✅ Tracked word lookup: ${normalizedWord} (${this.currentLanguage}) - Def: "${definitionText}" - Total: ${recentWords.length}`);
+        //console.log(`✅ Tracked word lookup: ${normalizedWord} (${this.currentLanguage}) - Def: "${definitionText}" - Total: ${recentWords.length}`);
       });
     });
   }
