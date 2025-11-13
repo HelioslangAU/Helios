@@ -10,9 +10,9 @@
   --helios-text-primary: #f8fafc;
   --helios-text-secondary: #cbd5e1;
   --helios-text-muted: #94a3b8;
-  --helios-border: rgba(255, 255, 255, 0.06);
-  --helios-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
-  --helios-shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.3);
+  --helios-border: rgb(255 255 255 / 6%);
+  --helios-shadow: 0 4px 24px rgb(0 0 0 / 40%);
+  --helios-shadow-sm: 0 2px 12px rgb(0 0 0 / 30%);
 }
 
 /* Main Container */
@@ -79,7 +79,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: 24px 20px 20px 20px;
+  padding: 24px 20px 20px;
 }
 
 /* Settings Section */
@@ -88,7 +88,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: 24px 20px 20px 20px;
+  padding: 24px 20px 20px;
 }
 
 .yt-settings-header {
@@ -137,8 +137,7 @@
 /* Subtitle List */
 .yt-subtitle-list {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden auto;
   margin: 0 -4px;
   padding: 0 4px;
   position: relative;
@@ -152,11 +151,11 @@
   right: 0;
   width: 35%;
   height: 100%;
-  background: linear-gradient(to right, transparent 0%, rgba(255, 107, 71, 0.03) 100%);
+  background: linear-gradient(to right, transparent 0%, rgb(255 107 71 / 3%) 100%);
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.3s ease;
-  border-radius: 0 0 14px 0;
+  border-radius: 0 0 14px;
 }
 
 .yt-subtitle-list:hover::after {
@@ -172,12 +171,12 @@
 }
 
 .yt-subtitle-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 107, 71, 0.25);
+  background: rgb(255 107 71 / 25%);
   border-radius: 3px;
 }
 
 .yt-subtitle-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 107, 71, 0.35);
+  background: rgb(255 107 71 / 35%);
 }
 
 /* Empty State */
@@ -194,7 +193,7 @@
   width: 80px;
   height: 80px;
   border-radius: 20px;
-  background: linear-gradient(135deg, rgba(255, 107, 71, 0.08) 0%, rgba(255, 143, 71, 0.04) 100%);
+  background: linear-gradient(135deg, rgb(255 107 71 / 8%) 0%, rgb(255 143 71 / 4%) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -204,7 +203,7 @@
 }
 
 .yt-subtitle-empty p {
-  margin: 0 0 8px 0;
+  margin: 0 0 8px;
   font-size: 15px;
   font-weight: 600;
   color: var(--helios-text-secondary);
@@ -256,7 +255,7 @@
 
 .yt-subtitle-item:hover {
   background: var(--helios-bg-card);
-  border-color: rgba(255, 107, 71, 0.2);
+  border-color: rgb(255 107 71 / 20%);
   transform: translateX(4px) scale(1.01);
   box-shadow: var(--helios-shadow-sm);
 }
@@ -266,35 +265,35 @@
 }
 
 .yt-subtitle-item.active {
-  background: linear-gradient(135deg, rgba(255, 107, 71, 0.12) 0%, rgba(255, 143, 71, 0.06) 100%);
-  border-color: rgba(255, 107, 71, 0.3);
-  box-shadow: 0 4px 20px rgba(255, 107, 71, 0.15);
+  background: linear-gradient(135deg, rgb(255 107 71 / 12%) 0%, rgb(255 143 71 / 6%) 100%);
+  border-color: rgb(255 107 71 / 30%);
+  box-shadow: 0 4px 20px rgb(255 107 71 / 15%);
 }
 
 .yt-subtitle-item.active::before {
   background: var(--helios-accent-gradient);
   width: 4px;
-  box-shadow: 0 0 12px rgba(255, 107, 71, 0.6);
+  box-shadow: 0 0 12px rgb(255 107 71 / 60%);
 }
 
 .yt-subtitle-timestamp {
   flex-shrink: 0;
   min-width: 52px;
   padding: 6px 10px;
-  background: rgba(255, 107, 71, 0.1);
-  border: 1px solid rgba(255, 107, 71, 0.2);
+  background: rgb(255 107 71 / 10%);
+  border: 1px solid rgb(255 107 71 / 20%);
   border-radius: 8px;
   color: var(--helios-accent-primary);
   font-size: 11px;
   font-weight: 700;
-  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
   letter-spacing: 0.03em;
   text-align: center;
 }
 
 .yt-subtitle-item.active .yt-subtitle-timestamp {
-  background: rgba(255, 107, 71, 0.15);
-  border-color: rgba(255, 107, 71, 0.3);
+  background: rgb(255 107 71 / 15%);
+  border-color: rgb(255 107 71 / 30%);
 }
 
 .yt-subtitle-text {
@@ -322,7 +321,7 @@
   font-weight: 400;
   font-style: italic;
   padding-left: 4px;
-  border-left: 2px solid rgba(255, 107, 71, 0.3);
+  border-left: 2px solid rgb(255 107 71 / 30%);
   overflow-wrap: break-word;
   word-wrap: break-word;
 }
@@ -334,7 +333,7 @@
 
 .yt-subtitle-item.active .yt-subtitle-text-secondary {
   color: var(--helios-text-secondary);
-  border-left-color: rgba(255, 107, 71, 0.6);
+  border-left-color: rgb(255 107 71 / 60%);
 }
 
 /* Word styling in sidebar */
@@ -345,24 +344,25 @@
 }
 
 .yt-subtitle-word:hover {
-  background: rgba(255, 107, 71, 0.15);
+  background: rgb(255 107 71 / 15%);
   color: var(--helios-accent-primary);
 }
 
 /* Unknown word styling in sidebar */
 .yt-subtitle-word.unknown-word {
   text-decoration: underline;
-  text-decoration-color: #ff4444;
+  text-decoration-color: #f44;
   text-decoration-thickness: 2px;
   text-underline-offset: 2px;
 }
 
 .yt-subtitle-word.unknown-word:hover {
-  background: rgba(255, 68, 68, 0.2);
-  color: #ff6666;
+  background: rgb(255 68 68 / 20%);
+  color: #f66;
 }
 
 /* Video Container Adjustments - ALWAYS push content, NEVER cover */
+
 /* Use multiple selectors for maximum compatibility with YouTube's dynamic updates */
 
 /* Primary page manager adjustment */
@@ -437,20 +437,19 @@ body ytd-watch-flexy[theater] #page-manager.helios-sidebar-active {
 }
 
 /* Animations */
-@keyframes slideInRight {
+@keyframes slide-in-right {
   from {
     opacity: 0;
     transform: translateX(20px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
   }
 }
 
-.yt-subtitle-item {
-  animation: slideInRight 0.3s ease-out backwards;
-}
+
 
 .yt-subtitle-item:nth-child(1) { animation-delay: 0.05s; }
 .yt-subtitle-item:nth-child(2) { animation-delay: 0.08s; }
@@ -459,7 +458,7 @@ body ytd-watch-flexy[theater] #page-manager.helios-sidebar-active {
 .yt-subtitle-item:nth-child(5) { animation-delay: 0.17s; }
 
 /* Responsive */
-@media (max-width: 1280px) {
+@media (width <= 1280px) {
   .helios-youtube-sidebar {
     width: 380px;
   }
@@ -476,6 +475,7 @@ body ytd-watch-flexy[theater] #page-manager.helios-sidebar-active {
 }
 
 /* Additional body-level adjustments using :has() for browsers that support it */
+
 /* This provides an extra layer of enforcement */
 body:has(.helios-youtube-sidebar:not(.hidden)) #page-manager {
   margin-right: 420px !important;
@@ -511,7 +511,7 @@ ytd-app:has(.helios-youtube-sidebar:not(.hidden)) #page-manager {
 }
 
 .yt-setting-header h3 {
-  margin: 0 0 8px 0;
+  margin: 0 0 8px;
   font-size: 18px;
   font-weight: 600;
   color: var(--helios-text-primary);
@@ -519,7 +519,7 @@ ytd-app:has(.helios-youtube-sidebar:not(.hidden)) #page-manager {
 }
 
 .yt-setting-description {
-  margin: 0 0 16px 0;
+  margin: 0 0 16px;
   font-size: 13px;
   color: var(--helios-text-muted);
   line-height: 1.5;
@@ -530,7 +530,7 @@ ytd-app:has(.helios-youtube-sidebar:not(.hidden)) #page-manager {
 }
 
 .yt-setting-hint {
-  margin: 8px 0 0 0;
+  margin: 8px 0 0;
   font-size: 12px;
   color: var(--helios-text-muted);
   line-height: 1.4;
@@ -552,7 +552,7 @@ ytd-app:has(.helios-youtube-sidebar:not(.hidden)) #page-manager {
 
 .yt-toggle-label:hover {
   background: var(--helios-bg-card);
-  border-color: rgba(255, 107, 71, 0.2);
+  border-color: rgb(255 107 71 / 20%);
 }
 
 .yt-toggle-label > span:first-child {
@@ -569,7 +569,7 @@ ytd-app:has(.helios-youtube-sidebar:not(.hidden)) #page-manager {
   position: relative;
   width: 44px;
   height: 24px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgb(255 255 255 / 10%);
   border-radius: 12px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -599,8 +599,8 @@ ytd-app:has(.helios-youtube-sidebar:not(.hidden)) #page-manager {
 .yt-hotkey-list {
   margin-top: 16px;
   padding: 16px;
-  background: rgba(255, 107, 71, 0.05);
-  border: 1px solid rgba(255, 107, 71, 0.1);
+  background: rgb(255 107 71 / 5%);
+  border: 1px solid rgb(255 107 71 / 10%);
   border-radius: 12px;
 }
 
@@ -614,7 +614,7 @@ ytd-app:has(.helios-youtube-sidebar:not(.hidden)) #page-manager {
 }
 
 .yt-hotkey-item:not(:last-child) {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgb(255 255 255 / 5%);
 }
 
 .yt-hotkey-key {
@@ -625,11 +625,11 @@ ytd-app:has(.helios-youtube-sidebar:not(.hidden)) #page-manager {
   height: 28px;
   padding: 0 10px;
   background: var(--helios-bg-card);
-  border: 1px solid rgba(255, 107, 71, 0.2);
+  border: 1px solid rgb(255 107 71 / 20%);
   border-radius: 6px;
   font-size: 12px;
   font-weight: 700;
-  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
   color: var(--helios-accent-primary);
   letter-spacing: 0.02em;
 }
@@ -667,13 +667,13 @@ ytd-app:has(.helios-youtube-sidebar:not(.hidden)) #page-manager {
 
 .yt-select:hover {
   background: var(--helios-bg-card);
-  border-color: rgba(255, 107, 71, 0.2);
+  border-color: rgb(255 107 71 / 20%);
 }
 
 .yt-select:focus {
   outline: none;
   border-color: var(--helios-accent-primary);
-  box-shadow: 0 0 0 3px rgba(255, 107, 71, 0.1);
+  box-shadow: 0 0 0 3px rgb(255 107 71 / 10%);
 }
 
 .yt-select option {
@@ -686,12 +686,12 @@ ytd-app:has(.helios-youtube-sidebar:not(.hidden)) #page-manager {
 .yt-notification {
   position: relative;
   padding: 14px 18px;
-  margin: 16px 20px 0 20px;
+  margin: 16px 20px 0;
   border-radius: 10px;
   font-size: 13px;
   font-weight: 500;
   line-height: 1.4;
-  animation: notificationSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: notification-slide-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border: 1px solid;
   box-shadow: var(--helios-shadow-sm);
 }
@@ -701,28 +701,29 @@ ytd-app:has(.helios-youtube-sidebar:not(.hidden)) #page-manager {
 }
 
 .yt-notification-info {
-  background: rgba(59, 130, 246, 0.1);
-  border-color: rgba(59, 130, 246, 0.3);
+  background: rgb(59 130 246 / 10%);
+  border-color: rgb(59 130 246 / 30%);
   color: #60a5fa;
 }
 
 .yt-notification-success {
-  background: rgba(34, 197, 94, 0.1);
-  border-color: rgba(34, 197, 94, 0.3);
+  background: rgb(34 197 94 / 10%);
+  border-color: rgb(34 197 94 / 30%);
   color: #4ade80;
 }
 
 .yt-notification-error {
-  background: rgba(239, 68, 68, 0.1);
-  border-color: rgba(239, 68, 68, 0.3);
+  background: rgb(239 68 68 / 10%);
+  border-color: rgb(239 68 68 / 30%);
   color: #f87171;
 }
 
-@keyframes notificationSlideIn {
+@keyframes notification-slide-in {
   from {
     opacity: 0;
     transform: translateY(-10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);

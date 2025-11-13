@@ -96,5 +96,3 @@ class LookupController {
     this.highlightManager.removeLookupHighlight();
   };
 }
-
-

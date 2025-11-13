@@ -30,5 +30,3 @@ class TextScanner {
     this._listeners = [];
   }
 }
-
-

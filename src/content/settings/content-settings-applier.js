@@ -37,5 +37,3 @@ class ContentSettingsApplier {
 if (typeof window !== 'undefined') {
   window.ContentSettingsApplier = ContentSettingsApplier;
 }
-
-

@@ -1,4 +1,4 @@
-# Quick Test Instructions
+﻿# Quick Test Instructions
 
 ## Step 1: Reload Extension
 1. Go to `chrome://extensions/`

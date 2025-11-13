@@ -1,4 +1,4 @@
-// Background Script for Helios Language Learning Extension with Clean Anki Integration
+﻿// Background Script for Helios Language Learning Extension with Clean Anki Integration
 class BackgroundService {
   constructor() {
     this.extensionSettings = {};
@@ -497,7 +497,7 @@ class BackgroundService {
           result += char;
         }
       }
-      
+
       if (tone) {
         return result + tone;
       } else {

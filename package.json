@@ -1,0 +1,13 @@
+{
+    "name":  "language-extension",
+    "version":  "1.0.0",
+    "description":  "A browser extension for language learning",
+    "scripts":  {
+                    "lint:css":  "stylelint \"src/**/*.css\"",
+                    "build":  "npm run lint:css"
+                },
+    "devDependencies":  {
+                            "stylelint":  "^16.2.1",
+                            "stylelint-config-standard":  "^36.0.0"
+                        }
+}

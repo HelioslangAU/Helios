@@ -6,7 +6,7 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgb(0 0 0 / 80%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -21,7 +21,7 @@
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 8px 32px rgb(0 0 0 / 60%);
 }
 
 .helios-subtitle-selector-header {
@@ -29,7 +29,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
 }
 
 .helios-subtitle-selector-header h3 {
@@ -42,7 +42,7 @@
 .helios-subtitle-selector-close {
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgb(255 255 255 / 70%);
   font-size: 32px;
   cursor: pointer;
   padding: 0;
@@ -60,8 +60,8 @@
 
 .helios-subtitle-selector-info {
   padding: 16px 20px;
-  background: rgba(33, 150, 243, 0.1);
-  border-bottom: 1px solid rgba(33, 150, 243, 0.2);
+  background: rgb(33 150 243 / 10%);
+  border-bottom: 1px solid rgb(33 150 243 / 20%);
   color: #64B5F6;
   font-size: 13px;
   line-height: 1.4;
@@ -76,7 +76,7 @@
 .helios-subtitle-selector-empty {
   padding: 40px 20px;
   text-align: center;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgb(255 255 255 / 50%);
   font-size: 14px;
 }
 
@@ -85,14 +85,14 @@
   align-items: center;
   padding: 12px;
   margin: 4px 0;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgb(255 255 255 / 5%);
   border-radius: 6px;
   cursor: pointer;
   transition: background 0.2s;
 }
 
 .helios-subtitle-selector-item:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgb(255 255 255 / 10%);
 }
 
 .helios-subtitle-selector-item input[type="radio"] {
@@ -115,7 +115,7 @@
 }
 
 .helios-subtitle-selector-item .track-badge {
-  background: rgba(255, 193, 7, 0.2);
+  background: rgb(255 193 7 / 20%);
   color: #FFC107;
   padding: 2px 8px;
   border-radius: 12px;
@@ -128,7 +128,7 @@
   justify-content: flex-end;
   gap: 12px;
   padding: 16px 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid rgb(255 255 255 / 10%);
 }
 
 .helios-subtitle-selector-cancel,
@@ -143,12 +143,12 @@
 }
 
 .helios-subtitle-selector-cancel {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgb(255 255 255 / 10%);
   color: white;
 }
 
 .helios-subtitle-selector-cancel:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgb(255 255 255 / 15%);
 }
 
 .helios-subtitle-selector-ok {
@@ -166,15 +166,15 @@
 }
 
 .helios-subtitle-selector-list::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
+  background: rgb(0 0 0 / 20%);
   border-radius: 4px;
 }
 
 .helios-subtitle-selector-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgb(255 255 255 / 30%);
   border-radius: 4px;
 }
 
 .helios-subtitle-selector-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.5);
+  background: rgb(255 255 255 / 50%);
 }

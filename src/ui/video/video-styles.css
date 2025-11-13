@@ -24,7 +24,7 @@
 /* Subtitle Text - ASB Player Style */
 .helios-subtitle-text {
   display: inline-block;
-  color: #FFFFFF;
+  color: #FFF;
   font-size: 40px;
   font-weight: 700;
   line-height: 1.4;
@@ -32,14 +32,14 @@
 
   /* Clean text shadow for readability */
   text-shadow:
-    -1px -1px 2px #000000,
-    1px -1px 2px #000000,
-    -1px 1px 2px #000000,
-    1px 1px 2px #000000,
-    0px 0px 4px rgba(0, 0, 0, 0.8);
+    -1px -1px 2px #000,
+    1px -1px 2px #000,
+    -1px 1px 2px #000,
+    1px 1px 2px #000,
+    0 0 4px rgb(0 0 0 / 80%);
 
   /* Semi-transparent background */
-  background: rgba(0, 0, 0, 0.7);
+  background: rgb(0 0 0 / 70%);
   padding: 6px 16px;
   border-radius: 4px;
   margin: 0;
@@ -55,10 +55,6 @@
   transition: all 0.2s ease;
 }
 
-.helios-subtitle-text:hover {
-  background: rgba(0, 0, 0, 0.85);
-}
-
 /* Primary Subtitle (Target Language) */
 .helios-subtitle-primary {
   /* Primary subtitle has default full styling */
@@ -72,33 +68,28 @@
   font-size: 28px !important;
   font-weight: 500 !important;
   color: #E0E0E0 !important;
-  background: rgba(0, 0, 0, 0.6) !important;
+  background: rgb(0 0 0 / 60%) !important;
   opacity: 0.9;
   padding: 4px 14px !important;
 }
 
 .helios-subtitle-secondary:hover {
-  background: rgba(0, 0, 0, 0.75) !important;
+  background: rgb(0 0 0 / 75%) !important;
   opacity: 1;
 }
 
 /* Unknown word styling */
 .helios-subtitle-word.unknown-word {
   text-decoration: underline;
-  text-decoration-color: #ff4444;
+  text-decoration-color: #f44;
   text-decoration-thickness: 2px;
   text-underline-offset: 3px;
 }
 
 /* Allow visible text selection for better UX when copying */
 .helios-subtitle-word::selection {
-  background: rgba(33, 150, 243, 0.3);
-  color: #ffffff;
-}
-
-.helios-subtitle-word::-moz-selection {
-  background: rgba(33, 150, 243, 0.3);
-  color: #ffffff;
+  background: rgb(33 150 243 / 30%);
+  color: #fff;
 }
 
 /* Fullscreen Mode */
@@ -115,7 +106,7 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgb(0 0 0 / 85%);
   z-index: 2147483646;
   display: flex;
   align-items: center;
@@ -127,9 +118,9 @@
   text-align: center;
   color: white;
   padding: 40px;
-  border: 4px dashed rgba(255, 255, 255, 0.5);
+  border: 4px dashed rgb(255 255 255 / 50%);
   border-radius: 12px;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgb(0 0 0 / 60%);
   min-width: 300px;
 }
 
@@ -146,7 +137,7 @@
 
 .helios-drop-zone-hint {
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgb(255 255 255 / 70%);
 }
 
 /* Notification */
@@ -159,7 +150,7 @@
   font-size: 14px;
   font-weight: 500;
   z-index: 2147483647;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 30%);
   transition: opacity 0.3s;
   pointer-events: none;
 }
@@ -189,8 +180,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  background: rgba(40, 40, 40, 0.8);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgb(40 40 40 / 80%);
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
   cursor: grab;
   user-select: none;
 }
@@ -208,7 +199,7 @@
 .helios-panel-close {
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgb(255 255 255 / 70%);
   font-size: 24px;
   cursor: pointer;
   padding: 0;
@@ -233,7 +224,7 @@
 .helios-panel-empty {
   padding: 40px 20px;
   text-align: center;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgb(255 255 255 / 50%);
   font-size: 14px;
 }
 
@@ -242,19 +233,19 @@
   gap: 12px;
   padding: 12px;
   margin: 4px 0;
-  background: rgba(40, 40, 40, 0.5);
+  background: rgb(40 40 40 / 50%);
   border-radius: 6px;
   cursor: pointer;
   transition: background 0.2s, transform 0.1s;
 }
 
 .helios-panel-item:hover {
-  background: rgba(60, 60, 60, 0.7);
+  background: rgb(60 60 60 / 70%);
   transform: translateX(4px);
 }
 
 .helios-panel-item-active {
-  background: rgba(33, 150, 243, 0.3);
+  background: rgb(33 150 243 / 30%);
   border-left: 3px solid #2196F3;
 }
 
@@ -281,17 +272,17 @@
 }
 
 .helios-panel-list::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
+  background: rgb(0 0 0 / 20%);
   border-radius: 4px;
 }
 
 .helios-panel-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgb(255 255 255 / 30%);
   border-radius: 4px;
 }
 
 .helios-panel-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.5);
+  background: rgb(255 255 255 / 50%);
 }
 
 /* Load Button (floating action button) - DISABLED */
@@ -301,7 +292,7 @@
 
 .helios-load-button:hover {
   transform: scale(1.1);
-  box-shadow: 0 6px 16px rgba(33, 150, 243, 0.6);
+  box-shadow: 0 6px 16px rgb(33 150 243 / 60%);
 }
 
 .helios-load-button:active {
@@ -309,17 +300,14 @@
 }
 
 /* Animation */
-@keyframes fadeIn {
+@keyframes fade-in {
   from {
     opacity: 0;
     transform: translateY(-10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
   }
-}
-
-.helios-subtitle-text {
-  animation: fadeIn 0.2s ease-out;
 }

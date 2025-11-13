@@ -1,4 +1,4 @@
-# Testing the Helios Video Feature
+﻿# Testing the Helios Video Feature
 
 ## Quick Start Testing Guide
 

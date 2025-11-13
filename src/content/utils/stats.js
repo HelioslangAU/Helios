@@ -15,5 +15,3 @@ function getStats(dictionaryManager, vocabManager) {
       totalWords > 0 ? ((knownWords / totalWords) * 100).toFixed(1) : 0,
   };
 }
-
-
