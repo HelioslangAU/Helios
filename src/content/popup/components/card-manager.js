@@ -76,7 +76,7 @@ class CardManager {
     return characterCards;
   }
 
-  prepareBasicPopupData(character) {
+  async prepareBasicPopupData(character) {
     if (this.languageRegistry.getCaseSensitive(this.languageRegistry.getCurrentLanguage())) {
       character = character.toLowerCase();
     }
@@ -93,6 +93,12 @@ class CardManager {
           // If this match has variations, get the base form's definition
           if (match.variations && match.variations.length > 0) {
             const baseForm = match.variations[0];
+            
+            // Ensure base form is loaded in dictionary (for async dictionary)
+            if (this.dictionaryManager.getDefinition) {
+              await this.dictionaryManager.getDefinition(baseForm);
+            }
+            
             const baseFormDefs = this.dictionaryManager.dictionary[baseForm];
             if (baseFormDefs && Array.isArray(baseFormDefs) && baseFormDefs.length > 0) {
               // Add base form annotation to each definition

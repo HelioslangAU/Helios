@@ -104,7 +104,6 @@ class DictionaryBridge {
         word: lowercaseWord
       });
       
-      console.log('🌉 Bridge getDefinition response:', response);
       
       // Response structure: {success: true, entries: [...]}
       const entries = response.entries;

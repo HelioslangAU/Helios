@@ -48,8 +48,8 @@ class PopupManager {
     // Create popup element with correct size from the start
     const popup = PopupPositioner.createPopupElement(this.settingsManager.settings.popupFontSize);
 
-    // Prepare data - now the sync dictionary should have the cached entry
-    const dictionaryData = this.cardManager.prepareBasicPopupData(character);
+    // Prepare data - now async to handle base form lookups
+    const dictionaryData = await this.cardManager.prepareBasicPopupData(character);
     
     // If still no matches, try one more time after a brief delay
     if (!dictionaryData.matches || dictionaryData.matches.length === 0) {
@@ -57,7 +57,7 @@ class PopupManager {
       await this.dictionaryManager.getDefinition(character);
       await new Promise(resolve => setTimeout(resolve, 50));
       // Re-prepare data
-      const retryData = this.cardManager.prepareBasicPopupData(character);
+      const retryData = await this.cardManager.prepareBasicPopupData(character);
       if (retryData.matches && retryData.matches.length > 0) {
         dictionaryData.matches = retryData.matches;
         console.log('✅ Found matches on retry:', retryData.matches.length);

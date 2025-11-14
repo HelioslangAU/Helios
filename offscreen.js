@@ -168,12 +168,10 @@ class OffscreenDictionaryService {
   async handleGetDefinition(word) {
     try {
       const lowercaseWord = word.toLowerCase();
-      console.log(`📚 Looking up word: "${lowercaseWord}"`);
-      console.log(`📚 Dictionary size: ${Object.keys(this.dictionaryManager.dictionary).length}`);
-      console.log(`📚 Dictionary has word: ${!!this.dictionaryManager.dictionary[lowercaseWord]}`);
+
       
       const entries = this.dictionaryManager.dictionary[lowercaseWord] || null;
-      console.log(`📚 Found entries:`, entries ? entries.length : 0);
+      //console.log(`📚 Found entries:`, entries ? entries.length : 0);
       return { success: true, entries };
     } catch (error) {
       console.error('📚 Error in handleGetDefinition:', error);
