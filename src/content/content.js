@@ -49,8 +49,8 @@ class ChineseLanguageLearningExtension {
     this.languageRegistry.initializeDefaultAdapters();
     window.languageRegistry = this.languageRegistry;
 
-    // Core managers
-    this.dictionaryManager = new DictionaryManager(this.languageRegistry);
+    // Core managers - use DictionaryManagerProxy for offscreen dictionary
+    this.dictionaryManager = new DictionaryManagerProxy(this.languageRegistry);
     this.vocabManager = new VocabManager();
     this.highlightManager = new HighlightManager();
     this.frequencyManager = new FrequencyManager();

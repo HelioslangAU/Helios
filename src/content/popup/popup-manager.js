@@ -27,7 +27,7 @@ class PopupManager {
     this.settingsManager = new PopupSettingsManager();
   }
 
-  showDictionaryPopup(x, y, character, sentence) {
+  async showDictionaryPopup(x, y, character, sentence) {
     // Clear any pending hide timers immediately
     clearTimeout(this.hideTimeout);
 
@@ -37,11 +37,32 @@ class PopupManager {
 
     this.capturedSentence = sentence;
 
+    // Ensure dictionary entry is loaded (for async dictionary proxy)
+    // This also updates the sync dictionary cache
+    if (this.dictionaryManager.getDefinition) {
+      await this.dictionaryManager.getDefinition(character);
+      // Small delay to ensure cache is updated
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+
     // Create popup element with correct size from the start
     const popup = PopupPositioner.createPopupElement(this.settingsManager.settings.popupFontSize);
 
-    // Prepare data
+    // Prepare data - now the sync dictionary should have the cached entry
     const dictionaryData = this.cardManager.prepareBasicPopupData(character);
+    
+    // If still no matches, try one more time after a brief delay
+    if (!dictionaryData.matches || dictionaryData.matches.length === 0) {
+      console.log('⚠️ No matches found, retrying dictionary lookup...');
+      await this.dictionaryManager.getDefinition(character);
+      await new Promise(resolve => setTimeout(resolve, 50));
+      // Re-prepare data
+      const retryData = this.cardManager.prepareBasicPopupData(character);
+      if (retryData.matches && retryData.matches.length > 0) {
+        dictionaryData.matches = retryData.matches;
+        console.log('✅ Found matches on retry:', retryData.matches.length);
+      }
+    }
     dictionaryData.isKnown = this.vocabManager.isWordKnown(character);
     dictionaryData.isIgnored = this.vocabManager.isWordIgnored(character);
     dictionaryData.frequency = this.frequencyManager?.getFrequency(character);

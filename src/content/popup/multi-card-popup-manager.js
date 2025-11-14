@@ -11,16 +11,38 @@ class MultiCardPopupManager extends PopupManager {
     this.cardManager = new CardManager(this.dictionaryManager, this.definitionFilter, this.languageRegistry);
   }
 
-  showDictionaryPopup(x, y, character, sentence) {
+  async showDictionaryPopup(x, y, character, sentence) {
     this.originalCharacter = character;
     this.capturedSentence = sentence;
 
-    const allEntries = this.dictionaryManager.dictionary[character] || [];
-    const cards = this.cardManager.groupByPronunciation(allEntries, character);
+    // Ensure dictionary entry is loaded (for async dictionary proxy)
+    // This also updates the sync dictionary cache
+    if (this.dictionaryManager.getDefinition) {
+      await this.dictionaryManager.getDefinition(character);
+      // Small delay to ensure cache is updated
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+
+    // Handle async dictionary - get entries (may be null/undefined if not cached)
+    const allEntries = this.dictionaryManager.dictionary[character];
+    const safeEntries = Array.isArray(allEntries) ? allEntries : [];
+    
+    // If still no entries, try one more time
+    if (safeEntries.length === 0) {
+      console.log('⚠️ No entries found in multi-card, retrying...');
+      await this.dictionaryManager.getDefinition(character);
+      await new Promise(resolve => setTimeout(resolve, 50));
+      const retryEntries = this.dictionaryManager.dictionary[character];
+      if (Array.isArray(retryEntries) && retryEntries.length > 0) {
+        console.log('✅ Found entries on retry:', retryEntries.length);
+        return await super.showDictionaryPopup(x, y, character, sentence);
+      }
+    }
+    const cards = this.cardManager.groupByPronunciation(safeEntries, character);
 
     // If only one card, use basic popup
     if (cards.length <= 1) {
-      return super.showDictionaryPopup(x, y, character, sentence);
+      return await super.showDictionaryPopup(x, y, character, sentence);
     }
 
     // Setup multi-card popup

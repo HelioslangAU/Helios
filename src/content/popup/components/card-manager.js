@@ -51,7 +51,7 @@ class CardManager {
       const character = word[i];
       const charEntries = this.dictionaryManager.dictionary[character];
 
-      if (charEntries && charEntries.length > 0) {
+      if (charEntries && Array.isArray(charEntries) && charEntries.length > 0) {
         // Group character entries by pronunciation
         const charGroups = {};
         charEntries.forEach((entry) => {
@@ -81,7 +81,11 @@ class CardManager {
       character = character.toLowerCase();
     }
     let matches = this.dictionaryManager.dictionary[character];
-    if (matches) {
+    // Handle null/undefined from async dictionary proxy
+    if (!matches) {
+      matches = [];
+    }
+    if (matches && matches.length > 0) {
       // Process each match that has an empty definition
       const processedMatches = [];
       for (const match of matches) {
@@ -90,7 +94,7 @@ class CardManager {
           if (match.variations && match.variations.length > 0) {
             const baseForm = match.variations[0];
             const baseFormDefs = this.dictionaryManager.dictionary[baseForm];
-            if (baseFormDefs && baseFormDefs.length > 0) {
+            if (baseFormDefs && Array.isArray(baseFormDefs) && baseFormDefs.length > 0) {
               // Add base form annotation to each definition
               const annotatedDefs = baseFormDefs.map(def => ({
                 ...def,
@@ -112,7 +116,7 @@ class CardManager {
     }
 
     return {
-      matches,
+      matches: matches || [],
       isKnown: false, // Will be set by calling code
       frequency: null // Will be set by calling code
     };
