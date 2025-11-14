@@ -39,7 +39,6 @@ class DictionaryBridge {
       await this.ensureOffscreenDocument();
     }
 
-    console.log('🌉 Bridge sending message to offscreen:', message.action, message);
 
     return new Promise((resolve, reject) => {
       chrome.runtime.sendMessage(message, (response) => {
@@ -47,10 +46,8 @@ class DictionaryBridge {
           console.error('🌉 Bridge error:', chrome.runtime.lastError.message);
           reject(new Error(chrome.runtime.lastError.message));
         } else if (response) {
-          console.log('🌉 Bridge received raw response:', response);
           // Response from background is the data object directly
           if (response.success !== false) {
-            console.log('🌉 Bridge resolving with:', response);
             resolve(response);
           } else {
             console.error('🌉 Bridge error response:', response);
@@ -66,14 +63,23 @@ class DictionaryBridge {
 
   /**
    * Load dictionary for a language
+   * Only loads if not already loaded for this specific language
    */
   async loadDictionary(languageCode) {
     try {
+      // Always send DICT_LOAD - the offscreen document will check if it's already loaded
+      // for this specific language and skip if needed, or load if it's a different language
       const response = await this.sendToOffscreen({
         action: 'DICT_LOAD',
         languageCode: languageCode
       });
-      this.cache.clear(); // Clear cache when loading new dictionary
+      
+      // Clear cache when loading a new dictionary (offscreen handles checking if reload is needed)
+      // We clear cache to ensure we get fresh entries for the new language
+      if (response.success && response.language === languageCode) {
+        this.cache.clear();
+      }
+      
       return response;
     } catch (error) {
       console.error('Error loading dictionary:', error);
@@ -204,11 +210,19 @@ class DictionaryBridge {
       const response = await this.sendToOffscreen({
         action: 'DICT_GET_SIZE'
       });
-      return response.size;
+      return response.size || 0;
     } catch (error) {
       console.error('Error getting dictionary size:', error);
       return 0;
     }
+  }
+
+  /**
+   * Check if dictionary is loaded
+   */
+  async isDictionaryLoaded() {
+    const size = await this.getSize();
+    return size > 0;
   }
 
   /**

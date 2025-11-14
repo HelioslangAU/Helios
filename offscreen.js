@@ -36,11 +36,9 @@ class OffscreenDictionaryService {
 
   setupMessageListener() {
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-      console.log('📚 Offscreen received message:', message.action, message);
       
       // Only handle dictionary messages (ignore responses)
       if (message.action && message.action.startsWith('DICT_') && !message.action.startsWith('RESPONSE_')) {
-        console.log('📚 Processing dictionary message:', message.action);
         this.handleMessage(message, sender, sendResponse);
         return true; // Keep channel open for async responses
       }
@@ -120,13 +118,26 @@ class OffscreenDictionaryService {
         };
       }
 
-      // If already loaded for this language, return immediately
+      // If already loaded for THIS EXACT language, return immediately
       if (this.currentLanguage === languageCode && !this.isLoading) {
-        return { 
-          success: true, 
-          size: Object.keys(this.dictionaryManager.dictionary).length,
-          language: languageCode
-        };
+        const size = Object.keys(this.dictionaryManager.dictionary).length;
+        if (size > 0) {
+          console.log(`📚 Dictionary already loaded for ${languageCode} (${size} entries), skipping reload`);
+          return { 
+            success: true, 
+            size: size,
+            language: languageCode
+          };
+        }
+      }
+
+      // If dictionary has entries but for a DIFFERENT language, we need to reload
+      // The dictionary is language-specific, so we must load the new language's dictionary
+      const currentSize = Object.keys(this.dictionaryManager.dictionary).length;
+      if (currentSize > 0 && this.currentLanguage !== languageCode && !this.isLoading) {
+        console.log(`📚 Switching dictionary from ${this.currentLanguage} to ${languageCode}, loading new dictionary...`);
+        // Clear existing dictionary before loading new one
+        this.dictionaryManager.dictionary = {};
       }
 
       // Load dictionary for new language

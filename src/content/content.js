@@ -92,15 +92,17 @@ class ChineseLanguageLearningExtension {
     // Ensure vocab manager has the correct language before loading
     const currentLang = this.languageRegistry.getCurrentLanguage();
     this.vocabManager.setCurrentLanguage(currentLang);
-    console.log(`📚 Loading dictionary for language: ${currentLang}`);
+    console.log(`📚 Checking dictionary for language: ${currentLang}`);
 
+    // Load dictionary (will skip if already loaded in offscreen)
+    // Dictionary persists in offscreen document across page reloads
     await Promise.all([
       this.dictionaryManager.loadDictionary(),
       this.vocabManager.loadKnownWords(),
       this.frequencyManager.loadFrequencyList(),
     ]);
 
-    console.log(`✅ Dictionary and resources loaded successfully`);
+    console.log(`✅ Dictionary and resources ready`);
 
     // Extension is enabled if we got here - create all components
     this.pageProcessor = new PageProcessor(this.dictionaryManager, this.vocabManager, this.languageRegistry);
