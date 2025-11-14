@@ -175,7 +175,9 @@ class YouTubeSidebar {
     // Listen for vocabulary updates to refresh underlining
     document.addEventListener('helios-vocab-updated', () => {
       // Update underlining without full re-render to avoid jarring refresh
-      this._updateUnderlining();
+      this._updateUnderlining().catch(err => {
+        console.error('[Helios YouTube Sidebar] Error updating underlining:', err);
+      });
     });
 
     // Setup global mouse listener for pause-on-hover resume logic
@@ -250,12 +252,9 @@ class YouTubeSidebar {
         return;
       }
 
-      // Only allow scrolling if mouse is in the scroll zone (right 35%)
-      if (!this.mouseInScrollZone) {
-        e.preventDefault();
-        e.stopPropagation();
-        return false;
-      }
+      // Note: Cannot preventDefault in passive scroll listener
+      // The wheel event handler (non-passive) handles scroll prevention
+      // This handler just tracks user scrolling for auto-scroll logic
 
       // Set flag to true when user manually scrolls the sidebar
       this.userIsScrollingSidebar = true;
@@ -663,7 +662,9 @@ class YouTubeSidebar {
             this.videoBinding.overlay.clearSecondarySubtitles();
           }
           // Re-render sidebar list without secondary subtitles
-          this._renderSubtitleList();
+          this._renderSubtitleList().catch(err => {
+            console.error('[Helios YouTube Sidebar] Error re-rendering subtitle list:', err);
+          });
         }
 
         console.log(`[Helios YouTube Sidebar] Dual subtitles ${e.target.checked ? 'enabled' : 'disabled'}`);
@@ -810,8 +811,10 @@ class YouTubeSidebar {
     this.currentTrack = track;
     this.currentSecondarySubtitles = []; // Reset secondary subtitles
 
-    // Render subtitle list
-    this._renderSubtitleList();
+    // Render subtitle list (async)
+    this._renderSubtitleList().catch(err => {
+      console.error('[Helios YouTube Sidebar] Error rendering subtitle list:', err);
+    });
 
     // Update language dropdown with new video's available languages
     this._updateLanguageDropdown();
@@ -932,7 +935,9 @@ class YouTubeSidebar {
       }
 
       // Re-render sidebar list with dual subtitles
-      this._renderSubtitleList();
+      this._renderSubtitleList().catch(err => {
+        console.error('[Helios YouTube Sidebar] Error re-rendering subtitle list:', err);
+      });
 
       console.log(`[Helios YouTube Sidebar] Loaded ${secondaryEntries.length} secondary subtitles`);
     } catch (error) {
@@ -971,9 +976,53 @@ class YouTubeSidebar {
   }
 
   /**
+   * Extract potential words from text for preloading
+   * @param {string} text - Text to extract words from
+   * @returns {string[]} - Array of potential words
+   */
+  _extractPotentialWords(text) {
+    const words = [];
+    const currentLang = window.languageRegistry?.getCurrentLanguage();
+    
+    if (currentLang && ['zh', 'ja', 'ko'].includes(currentLang)) {
+      // For CJK languages, extract unique characters and common sequences (1-3 chars)
+      const seen = new Set();
+      
+      // Extract single characters
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        if (char.trim() && !seen.has(char)) {
+          words.push(char);
+          seen.add(char);
+        }
+      }
+      
+      // Extract 2-3 character sequences (most common word lengths)
+      for (let len = 2; len <= 3; len++) {
+        for (let i = 0; i <= text.length - len; i++) {
+          const candidate = text.substring(i, i + len);
+          if (candidate.trim() && !seen.has(candidate)) {
+            words.push(candidate);
+            seen.add(candidate);
+          }
+        }
+      }
+    } else {
+      // For space-separated languages, split by whitespace
+      const matches = text.match(/[\p{L}\p{M}]+/gu);
+      if (matches) {
+        words.push(...matches.map(w => w.toLowerCase()));
+      }
+    }
+    
+    // Return unique words
+    return [...new Set(words)];
+  }
+
+  /**
    * Render subtitle list
    */
-  _renderSubtitleList() {
+  async _renderSubtitleList() {
     if (!this.listContainer) return;
 
     // Clear existing
@@ -996,8 +1045,24 @@ class YouTubeSidebar {
       return;
     }
 
+    // Preload words from all subtitles before rendering
+    if (window.dictionaryManager && window.dictionaryManager.preloadWords) {
+      const allWordsToPreload = [];
+      this.currentSubtitles.forEach(entry => {
+        const words = this._extractPotentialWords(entry.text);
+        allWordsToPreload.push(...words);
+      });
+      
+      // Preload unique words
+      const uniqueWords = [...new Set(allWordsToPreload)];
+      if (uniqueWords.length > 0) {
+        await window.dictionaryManager.preloadWords(uniqueWords);
+      }
+    }
+
     // Create subtitle items
-    this.currentSubtitles.forEach((entry, index) => {
+    for (const entry of this.currentSubtitles) {
+      const index = this.currentSubtitles.indexOf(entry);
       const item = document.createElement('div');
       item.className = 'yt-subtitle-item';
       item.dataset.index = index;
@@ -1016,9 +1081,15 @@ class YouTubeSidebar {
 
       // Extract words using language adapter (handles Chinese, English, etc.)
       const adapter = window.languageRegistry?.getAdapter();
-      const dictionary = window.dictionaryManager?.dictionary || {};
 
-      if (adapter && adapter.extractWords) {
+      if (adapter && adapter.extractWords && window.dictionaryManager) {
+        // Preload potential words from this subtitle text before extraction
+        const wordsToPreload = this._extractPotentialWords(entry.text);
+        if (wordsToPreload.length > 0 && window.dictionaryManager.preloadWords) {
+          await window.dictionaryManager.preloadWords(wordsToPreload);
+        }
+        
+        const dictionary = window.dictionaryManager?.dictionary || {};
         // Use language-aware word extraction
         const extractedWords = adapter.extractWords(entry.text, dictionary);
 
@@ -1099,7 +1170,7 @@ class YouTubeSidebar {
       });
 
       this.listContainer.appendChild(item);
-    });
+    }
   }
 
   /**
@@ -1155,14 +1226,24 @@ class YouTubeSidebar {
    * Update underlining on existing word spans without re-rendering
    * This preserves scroll position and avoids jarring refresh
    */
-  _updateUnderlining() {
+  async _updateUnderlining() {
     if (!this.listContainer || !window.vocabManager || !window.dictionaryManager) return;
 
-    const dictionary = window.dictionaryManager.dictionary || {};
     const wordSpans = this.listContainer.querySelectorAll('.yt-subtitle-word');
+    const wordsToCheck = Array.from(wordSpans).map(span => {
+      const word = span.textContent || span.getAttribute('data-helios-word');
+      return word ? word.toLowerCase() : null;
+    }).filter(w => w !== null);
+
+    // Preload words to ensure they're in cache
+    if (wordsToCheck.length > 0 && window.dictionaryManager.preloadWords) {
+      await window.dictionaryManager.preloadWords(wordsToCheck);
+    }
+
+    const dictionary = window.dictionaryManager.dictionary || {};
 
     wordSpans.forEach(wordSpan => {
-      const word = wordSpan.textContent;
+      const word = wordSpan.textContent || wordSpan.getAttribute('data-helios-word');
       if (!word) return;
 
       const cleanWord = word.toLowerCase();
