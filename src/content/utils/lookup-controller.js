@@ -27,13 +27,14 @@ class LookupController {
       checkElement = checkElement.parentElement;
     }
 
-    // Skip if not activated and not on a subtitle word
-    if (!isSubtitleWord && !this.activation.isActive()) return;
-
     // Skip if mouse is over popup
     if (this.popup?.isMouseOverPopup) return;
 
+    // Remember last pointer event even before activation so we can trigger later
     this.lastPointerEvent = event;
+
+    // Skip if not activated and not on a subtitle word
+    if (!isSubtitleWord && !this.activation.isActive()) return;
 
     const characterInfo = this.pageProcessor.getCharacterAtPosition(event);
 
