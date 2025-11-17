@@ -19,6 +19,10 @@ class PopupManager {
     this.isMouseOverPopup = false;
     this.isSubtitleWordPopup = false; // Track if popup is for subtitle word
 
+    // Prevent concurrent popup creation
+    this.popupCreationInProgress = false;
+    this.currentPopupRequestId = null;
+
     // Initialize managers
     this.ankiManager = new AnkiManager();
     this.ankiManager.initialize(this.dictionaryManager);
@@ -27,7 +31,11 @@ class PopupManager {
     this.settingsManager = new PopupSettingsManager();
   }
 
-  showDictionaryPopup(x, y, character, sentence) {
+  async showDictionaryPopup(x, y, character, sentence) {
+    // Generate unique request ID for this popup creation
+    const requestId = Date.now() + Math.random();
+    this.currentPopupRequestId = requestId;
+
     // Clear any pending hide timers immediately
     clearTimeout(this.hideTimeout);
 
@@ -35,61 +43,135 @@ class PopupManager {
     this.hidePopup();
     this.removeAllPopupsFromPage();
 
+    // Mark that popup creation is in progress
+    this.popupCreationInProgress = true;
+
     this.capturedSentence = sentence;
 
-    // Create popup element with correct size from the start
-    const popup = PopupPositioner.createPopupElement(this.settingsManager.settings.popupFontSize);
+    try {
+      // Ensure dictionary entry is loaded (for async dictionary proxy)
+      // This also updates the sync dictionary cache
+      if (this.dictionaryManager.getDefinition) {
+        await this.dictionaryManager.getDefinition(character);
+        // Small delay to ensure cache is updated
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
 
-    // Prepare data
-    const dictionaryData = this.cardManager.prepareBasicPopupData(character);
-    dictionaryData.isKnown = this.vocabManager.isWordKnown(character);
-    dictionaryData.isIgnored = this.vocabManager.isWordIgnored(character);
-    dictionaryData.frequency = this.frequencyManager?.getFrequency(character);
+      // Check if this request was cancelled (newer request came in)
+      if (this.currentPopupRequestId !== requestId) {
+        return; // Another popup request is in progress, abort this one
+      }
 
-    // Build content
-    const currentLanguage = this.languageRegistry.getCurrentLanguage();
-    popup.innerHTML = PopupContentBuilder.createBasicContent(
-      character,
-      dictionaryData,
-      this.vocabManager,
-      this.frequencyManager,
-      this.settingsManager.settings,
-      currentLanguage
-    );
+      // Create popup element with correct size from the start
+      const popup = PopupPositioner.createPopupElement(this.settingsManager.settings.popupFontSize);
 
-    // Add to DOM and position
-    document.body.appendChild(popup);
-    const positioned = PopupPositioner.positionPopup(popup, this.highlightManager);
+      // Prepare data - now async to handle base form lookups
+      const dictionaryData = await this.cardManager.prepareBasicPopupData(character);
+      
+      // Check again if cancelled
+      if (this.currentPopupRequestId !== requestId) {
+        // Clean up the popup element we created
+        if (popup.parentNode) {
+          popup.remove();
+        }
+        return;
+      }
+      
+      // If still no matches, try one more time after a brief delay
+      if (!dictionaryData.matches || dictionaryData.matches.length === 0) {
+        console.log('⚠️ No matches found, retrying dictionary lookup...');
+        await this.dictionaryManager.getDefinition(character);
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        // Check again if cancelled
+        if (this.currentPopupRequestId !== requestId) {
+          if (popup.parentNode) {
+            popup.remove();
+          }
+          return;
+        }
+        
+        // Re-prepare data
+        const retryData = await this.cardManager.prepareBasicPopupData(character);
+        if (retryData.matches && retryData.matches.length > 0) {
+          dictionaryData.matches = retryData.matches;
+          console.log('✅ Found matches on retry:', retryData.matches.length);
+        }
+      }
+      
+      // Final check before creating popup
+      if (this.currentPopupRequestId !== requestId) {
+        if (popup.parentNode) {
+          popup.remove();
+        }
+        return;
+      }
+      
+      dictionaryData.isKnown = this.vocabManager.isWordKnown(character);
+      dictionaryData.isIgnored = this.vocabManager.isWordIgnored(character);
+      dictionaryData.frequency = this.frequencyManager?.getFrequency(character);
 
-    if (!positioned) {
-      return;
+      // Build content
+      const currentLanguage = this.languageRegistry.getCurrentLanguage();
+      popup.innerHTML = PopupContentBuilder.createBasicContent(
+        character,
+        dictionaryData,
+        this.vocabManager,
+        this.frequencyManager,
+        this.settingsManager.settings,
+        currentLanguage
+      );
+
+      // Add to DOM and position
+      document.body.appendChild(popup);
+      const positioned = PopupPositioner.positionPopup(popup, this.highlightManager);
+
+      if (!positioned) {
+        if (popup.parentNode) {
+          popup.remove();
+        }
+        return;
+      }
+
+      // Final check - make sure we're still the active request
+      if (this.currentPopupRequestId !== requestId) {
+        if (popup.parentNode) {
+          popup.remove();
+        }
+        return;
+      }
+
+      this.popup = popup;
+
+      // Apply settings to the popup
+      this.settingsManager.onPopupCreated(popup);
+
+      // Remove creating class to enable transitions after initial setup
+      popup.classList.remove('creating');
+
+      // Track word lookup for recent vocabulary
+      if (dictionaryData && dictionaryData.matches && dictionaryData.matches.length > 0) {
+        this.vocabManager.trackWordLookup(character, dictionaryData.matches[0]);
+      }
+
+      // Setup event handlers
+      const managers = {
+        vocabManager: this.vocabManager,
+        ankiManager: this.ankiManager,
+        pronunciationManager: this.pronunciationManager,
+        frequencyManager: this.frequencyManager,
+        dictionaryManager: this.dictionaryManager,
+        popupManager: this,
+        settingsManager: this.settingsManager
+      };
+
+      PopupEventHandler.setupEvents(popup, character, managers, { isMultiCard: false });
+    } finally {
+      // Only clear the flag if this is still the current request
+      if (this.currentPopupRequestId === requestId) {
+        this.popupCreationInProgress = false;
+      }
     }
-
-    this.popup = popup;
-
-    // Apply settings to the popup
-    this.settingsManager.onPopupCreated(popup);
-
-    // Remove creating class to enable transitions after initial setup
-    popup.classList.remove('creating');
-
-    // Track word lookup for recent vocabulary
-    if (dictionaryData && dictionaryData.matches && dictionaryData.matches.length > 0) {
-      this.vocabManager.trackWordLookup(character, dictionaryData.matches[0]);
-    }
-
-    // Setup event handlers
-    const managers = {
-      vocabManager: this.vocabManager,
-      ankiManager: this.ankiManager,
-      pronunciationManager: this.pronunciationManager,
-      frequencyManager: this.frequencyManager,
-      dictionaryManager: this.dictionaryManager,
-      popupManager: this,
-      settingsManager: this.settingsManager
-    };
-
-    PopupEventHandler.setupEvents(popup, character, managers, { isMultiCard: false });
   }
 
   scheduleHidePopup() {
@@ -146,6 +228,7 @@ class PopupManager {
     // Clear any pending timers
     clearTimeout(this.hideTimeout);
     this.hideTimeout = null;
+    // Don't reset popupCreationInProgress here - let it be reset by the next creation
   }
   incrementSessionCounter() {
     if (window.chrome && chrome.storage && chrome.storage.local) {

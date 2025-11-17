@@ -16,11 +16,46 @@ class BackgroundService {
       }
     });
 
+    // Track pending dictionary requests to route responses back to correct sender
+    this.pendingDictionaryRequests = new Map();
+
     // Listen for messages from content script and settings
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      // Handle responses from offscreen document - forward back to original requester
+      if (message.action && message.action.startsWith('RESPONSE_DICT_')) {
+        const requestId = message.requestId;
+        if (requestId && this.pendingDictionaryRequests.has(requestId)) {
+          const { sendResponse: originalSendResponse } = this.pendingDictionaryRequests.get(requestId);
+          this.pendingDictionaryRequests.delete(requestId);
+          originalSendResponse(message.data);
+          return false; // Response already sent
+        }
+        return false;
+      }
+      
+      // Route dictionary messages to offscreen document
+      if (message.action && message.action.startsWith('DICT_')) {
+        this.routeToOffscreen(message, sender, sendResponse);
+        return true; // Keep channel open for async response
+      }
+      
+      // Route CREATE_OFFSCREEN to handler
+      if (message.action === 'CREATE_OFFSCREEN') {
+        this.createOffscreenDocument().then(() => {
+          sendResponse({ success: true });
+        }).catch(error => {
+          sendResponse({ success: false, error: error.message });
+        });
+        return true;
+      }
+      
+      // Handle other messages normally
       this.handleMessage(message, sender, sendResponse);
       return true; // Keep message channel open for async response
     });
+
+    // Create offscreen document on startup
+    this.createOffscreenDocument();
 
     // Reset daily session count
     this.setupDailyReset();
@@ -31,6 +66,76 @@ class BackgroundService {
     console.log(
       "🔧 Helios Background Service initialized with clean Anki integration"
     );
+  }
+
+  /**
+   * Create offscreen document for dictionary manager
+   */
+  async createOffscreenDocument() {
+    try {
+      // Check if offscreen document already exists
+      const clients = await chrome.runtime.getContexts({
+        contextTypes: ['OFFSCREEN_DOCUMENT']
+      });
+      
+      if (clients.length > 0) {
+        console.log('📚 Offscreen document already exists');
+        return;
+      }
+
+      // Create offscreen document
+      await chrome.offscreen.createDocument({
+        url: 'offscreen.html',
+        reasons: ['DOM_SCRAPING'],
+        justification: 'Persistent dictionary manager for language learning extension'
+      });
+      
+      console.log('📚 Offscreen document created successfully');
+    } catch (error) {
+      console.error('Error creating offscreen document:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Route dictionary messages to offscreen document
+   */
+  async routeToOffscreen(message, sender, sendResponse) {
+    try {
+      // Ensure offscreen document exists
+      const clients = await chrome.runtime.getContexts({
+        contextTypes: ['OFFSCREEN_DOCUMENT']
+      });
+      
+      if (clients.length === 0) {
+        await this.createOffscreenDocument();
+        // Wait a bit for offscreen to initialize
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      // Add unique request ID if not already present
+      if (!message.requestId) {
+        message.requestId = Date.now() + Math.random();
+      }
+      
+      // Store the sendResponse callback to route response back to original sender
+      this.pendingDictionaryRequests.set(message.requestId, { sendResponse, sender });
+      
+      // Send message to offscreen - it will receive it via its onMessage listener
+      // The offscreen document will send back a RESPONSE_* message which we'll catch above
+      chrome.runtime.sendMessage(message).catch(error => {
+        // Clean up on error
+        this.pendingDictionaryRequests.delete(message.requestId);
+        sendResponse({ success: false, error: error.message });
+      });
+      
+    } catch (error) {
+      console.error('Error routing to offscreen:', error);
+      if (message.requestId) {
+        this.pendingDictionaryRequests.delete(message.requestId);
+      }
+      sendResponse({ success: false, error: error.message });
+    }
   }
 
   async loadExtensionSettings() {

@@ -384,8 +384,8 @@ class SubtitleOverlay {
     document.addEventListener('helios-vocab-updated', () => {
       // Update underlining WITHOUT full re-render to preserve popup
       if (this.currentSubtitles.length > 0) {
-        setTimeout(() => {
-          this._updateSubtitleUnderlining();
+        setTimeout(async () => {
+          await this._updateSubtitleUnderlining();
         }, 50);
       }
     });
@@ -395,10 +395,22 @@ class SubtitleOverlay {
    * Update underlining on existing subtitle words without re-rendering
    * Used when vocabulary changes to avoid closing popup
    */
-  _updateSubtitleUnderlining() {
-    const dictionary = window.dictionaryManager?.dictionary || {};
+  async _updateSubtitleUnderlining() {
+    if (!window.dictionaryManager || !window.vocabManager) return;
+    
     const wordSpans = this.container.querySelectorAll('.helios-subtitle-word');
+    const wordsToCheck = Array.from(wordSpans).map(span => {
+      const word = span.getAttribute('data-helios-word');
+      return word ? word.toLowerCase() : null;
+    }).filter(w => w !== null);
 
+    // Preload words to ensure they're in cache
+    if (wordsToCheck.length > 0 && window.dictionaryManager.preloadWords) {
+      await window.dictionaryManager.preloadWords(wordsToCheck);
+    }
+
+    const dictionary = window.dictionaryManager?.dictionary || {};
+    
     wordSpans.forEach(wordSpan => {
       const word = wordSpan.getAttribute('data-helios-word');
       if (!word) return;
@@ -456,11 +468,21 @@ class SubtitleOverlay {
    * Update underlining on existing word spans without re-rendering
    * This preserves hover states and popups
    */
-  _updateUnderlining() {
+  async _updateUnderlining() {
     if (!this.container || !window.vocabManager || !window.dictionaryManager) return;
 
-    const dictionary = window.dictionaryManager.dictionary || {};
     const wordSpans = this.container.querySelectorAll('.helios-subtitle-word');
+    const wordsToCheck = Array.from(wordSpans).map(span => {
+      const word = span.getAttribute('data-helios-word');
+      return word ? word.toLowerCase() : null;
+    }).filter(w => w !== null);
+
+    // Preload words to ensure they're in cache
+    if (wordsToCheck.length > 0 && window.dictionaryManager.preloadWords) {
+      await window.dictionaryManager.preloadWords(wordsToCheck);
+    }
+
+    const dictionary = window.dictionaryManager.dictionary || {};
 
     wordSpans.forEach(wordSpan => {
       const word = wordSpan.getAttribute('data-helios-word');
@@ -507,14 +529,63 @@ class SubtitleOverlay {
     if (hasChanged) {
       this.currentSubtitles = subtitles;
       this.lastRenderedIndexes = currentIndexes;
-      this._render();
+      this._render().catch(err => {
+        console.error('[Helios Subtitle Overlay] Error rendering subtitles:', err);
+      });
     }
+  }
+
+  /**
+   * Extract potential words from text for preloading
+   * This is a simple extraction to get candidate words before the full extractWords call
+   * @param {string} text - Text to extract words from
+   * @returns {string[]} - Array of potential words
+   */
+  _extractPotentialWords(text) {
+    const words = [];
+    const currentLang = window.languageRegistry?.getCurrentLanguage();
+    
+    if (currentLang && ['zh', 'ja', 'ko'].includes(currentLang)) {
+      // For CJK languages, extract unique characters and common sequences (1-3 chars)
+      // The full extractWords will check longer sequences, but we preload shorter ones
+      // to improve initial lookup performance
+      const seen = new Set();
+      
+      // Extract single characters
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        if (char.trim() && !seen.has(char)) {
+          words.push(char);
+          seen.add(char);
+        }
+      }
+      
+      // Extract 2-3 character sequences (most common word lengths)
+      for (let len = 2; len <= 3; len++) {
+        for (let i = 0; i <= text.length - len; i++) {
+          const candidate = text.substring(i, i + len);
+          if (candidate.trim() && !seen.has(candidate)) {
+            words.push(candidate);
+            seen.add(candidate);
+          }
+        }
+      }
+    } else {
+      // For space-separated languages, split by whitespace
+      const matches = text.match(/[\p{L}\p{M}]+/gu);
+      if (matches) {
+        words.push(...matches.map(w => w.toLowerCase()));
+      }
+    }
+    
+    // Return unique words
+    return [...new Set(words)];
   }
 
   /**
    * Render current subtitles to DOM
    */
-  _render() {
+  async _render() {
     // Clean up any popups/highlights before clearing DOM
     if (window.popupManager) {
       window.popupManager.hidePopup();
@@ -534,7 +605,7 @@ class SubtitleOverlay {
     const currentTime = this.videoElement.currentTime * 1000;
 
     // Create subtitle elements with hover-enabled words
-    this.currentSubtitles.forEach((subtitle, index) => {
+    for (const subtitle of this.currentSubtitles) {
       // Create container for dual subtitles
       const dualContainer = document.createElement('div');
       dualContainer.className = 'helios-subtitle-dual-container';
@@ -546,9 +617,16 @@ class SubtitleOverlay {
 
       // Extract words using language adapter (handles Chinese, English, etc.)
       const adapter = window.languageRegistry?.getAdapter();
-      const dictionary = window.dictionaryManager?.dictionary || {};
-
-      if (adapter && adapter.extractWords) {
+      
+      if (adapter && adapter.extractWords && window.dictionaryManager) {
+        // Preload potential words from subtitle text before extraction
+        // This ensures words are in cache for extractWords to find them
+        const wordsToPreload = this._extractPotentialWords(subtitle.text);
+        if (wordsToPreload.length > 0 && window.dictionaryManager.preloadWords) {
+          await window.dictionaryManager.preloadWords(wordsToPreload);
+        }
+        
+        const dictionary = window.dictionaryManager?.dictionary || {};
         // Use language-aware word extraction
         const extractedWords = adapter.extractWords(subtitle.text, dictionary);
 
@@ -642,7 +720,7 @@ class SubtitleOverlay {
       }
 
       this.container.appendChild(dualContainer);
-    });
+    }
   }
 
   /**

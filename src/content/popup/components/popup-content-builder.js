@@ -41,7 +41,9 @@ class PopupContentBuilder {
     const combinedClasses = `${lengthClass} ${languageClass}`.trim();
     const formattedFrequency = this.formatFrequency(frequency);
 
-    if (matches.length === 0) {
+    // Handle null/undefined matches from async dictionary
+    const safeMatches = matches || [];
+    if (safeMatches.length === 0) {
       return `
         <div class="popup-content">
           <div class="character-container">
@@ -53,8 +55,8 @@ class PopupContentBuilder {
       `;
     }
 
-    const pinyin = matches[0].pinyin;
-    const definitionsHtml = this.createDefinitionsHtml(matches);
+    const pinyin = safeMatches[0].pinyin;
+    const definitionsHtml = this.createDefinitionsHtml(safeMatches);
     const pronunciationBtn = this.createPronunciationButton(character, pinyin);
     const showFrequency = settings.showFrequency !== false;
 
@@ -75,7 +77,10 @@ class PopupContentBuilder {
   }
 
   static createCardContent(displayCharacter, card, isKnown, isIgnored, frequency, settings = {}, languageCode = null) {
-    const { pinyin, entries } = card;
+    const { pinyin: cardPinyin, entries } = card;
+    // Use card's pinyin if available (may be empty string), otherwise fall back to first entry's pinyin
+    // This ensures each card shows its own pinyin corresponding to its entries
+    const pinyin = (cardPinyin !== undefined && cardPinyin !== null) ? cardPinyin : (entries && entries.length > 0 ? entries[0].pinyin : null);
     const lengthClass = this.getWordLengthClass(displayCharacter);
     const languageClass = languageCode ? this.getLanguageClass(languageCode) : '';
     const combinedClasses = `${lengthClass} ${languageClass}`.trim();
@@ -103,7 +108,10 @@ class PopupContentBuilder {
   }
 
   static createCardContentInner(displayCharacter, card, isKnown, isIgnored, frequency, settings = {}, languageCode = null) {
-    const { pinyin, entries } = card;
+    const { pinyin: cardPinyin, entries } = card;
+    // Use card's pinyin if available (may be empty string), otherwise fall back to first entry's pinyin
+    // This ensures each card shows its own pinyin corresponding to its entries
+    const pinyin = (cardPinyin !== undefined && cardPinyin !== null) ? cardPinyin : (entries && entries.length > 0 ? entries[0].pinyin : null);
     const lengthClass = this.getWordLengthClass(displayCharacter);
     const languageClass = languageCode ? this.getLanguageClass(languageCode) : '';
     const combinedClasses = `${lengthClass} ${languageClass}`.trim();
@@ -114,7 +122,7 @@ class PopupContentBuilder {
 
     return `
       <div class="character-container">
-        <div class="character highlight ${combinedClasses}"><ruby>${displayCharacter}<rt>${pinyin}</rt></ruby></div>
+        <div class="character highlight ${combinedClasses}">${pinyin ? `<ruby>${displayCharacter}<rt>${pinyin}</rt></ruby>` : displayCharacter}</div>
         ${pronunciationBtn}
         ${formattedFrequency && showFrequency ? `<div class="frequency">${formattedFrequency}</div>` : ""}
       </div>

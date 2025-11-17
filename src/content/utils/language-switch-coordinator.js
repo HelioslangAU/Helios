@@ -61,7 +61,10 @@ class LanguageSwitchCoordinator {
       }
 
       // Step 4: Load new dictionary (this is the heavy operation)
+      // This will detect if it's a different language and load the new dictionary
+      console.log(`📚 Loading dictionary for new language: ${newLanguageCode}`);
       await this.dictionaryManager.loadDictionary();
+      console.log(`✅ Dictionary loaded for ${newLanguageCode}`);
 
       // Step 5: Reprocess the page with new language
       if (this.pageProcessor) {

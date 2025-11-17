@@ -12,6 +12,9 @@ class DefinitionFilter {
         /^ancient variant of/i,
         /^obsolete variant of/i,
         /^classical variant of/i,
+        /surname/i,
+        /^name/i,
+        /^last name/i,
       ],
       hide: [],
       prioritize: [],
@@ -25,11 +28,14 @@ class DefinitionFilter {
     });
 
     // Then sort entries by priority
-    return visibleEntries.sort((a, b) => {
+    const sorted = visibleEntries.sort((a, b) => {
       const aScore = this.getDefinitionPriority(a.definition);
       const bScore = this.getDefinitionPriority(b.definition);
       return bScore - aScore; // Higher score = higher priority (shown first)
     });
+
+
+    return sorted;
   }
 
   getDefinitionPriority(definition) {
@@ -39,7 +45,11 @@ class DefinitionFilter {
     }
 
     // Check for deprioritize patterns (lowest priority)
-    if (this.filters.deprioritize.some((pattern) => pattern.test(definition))) {
+    const deprioritized = this.filters.deprioritize.some((pattern) => {
+      const matches = pattern.test(definition);
+      return matches;
+    });
+    if (deprioritized) {
       return -100;
     }
 
