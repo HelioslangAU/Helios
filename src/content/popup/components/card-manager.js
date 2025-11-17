@@ -62,7 +62,7 @@ class CardManager {
       const character = word[i];
       const charEntries = this.dictionaryManager.dictionary[character];
 
-      if (charEntries && charEntries.length > 0) {
+      if (charEntries && Array.isArray(charEntries) && charEntries.length > 0) {
         // Group character entries by pronunciation
         const charGroups = {};
         charEntries.forEach((entry) => {
@@ -89,6 +89,7 @@ class CardManager {
     return characterCards;
   }
 
+
   // Helper method to get the highest priority score from a card's entries
   getCardPriority(entries) {
     if (!entries || entries.length === 0) return 0;
@@ -99,12 +100,17 @@ class CardManager {
     ));
   }
 
-  prepareBasicPopupData(character) {
+  async prepareBasicPopupData(character) {
+
     if (this.languageRegistry.getCaseSensitive(this.languageRegistry.getCurrentLanguage())) {
       character = character.toLowerCase();
     }
     let matches = this.dictionaryManager.dictionary[character];
-    if (matches) {
+    // Handle null/undefined from async dictionary proxy
+    if (!matches) {
+      matches = [];
+    }
+    if (matches && matches.length > 0) {
       // Process each match that has an empty definition
       const processedMatches = [];
       for (const match of matches) {
@@ -112,8 +118,14 @@ class CardManager {
           // If this match has variations, get the base form's definition
           if (match.variations && match.variations.length > 0) {
             const baseForm = match.variations[0];
+            
+            // Ensure base form is loaded in dictionary (for async dictionary)
+            if (this.dictionaryManager.getDefinition) {
+              await this.dictionaryManager.getDefinition(baseForm);
+            }
+            
             const baseFormDefs = this.dictionaryManager.dictionary[baseForm];
-            if (baseFormDefs && baseFormDefs.length > 0) {
+            if (baseFormDefs && Array.isArray(baseFormDefs) && baseFormDefs.length > 0) {
               // Add base form annotation to each definition
               const annotatedDefs = baseFormDefs.map(def => ({
                 ...def,

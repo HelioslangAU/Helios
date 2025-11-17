@@ -41,7 +41,9 @@ class PopupContentBuilder {
     const combinedClasses = `${lengthClass} ${languageClass}`.trim();
     const formattedFrequency = this.formatFrequency(frequency);
 
-    if (matches.length === 0) {
+    // Handle null/undefined matches from async dictionary
+    const safeMatches = matches || [];
+    if (safeMatches.length === 0) {
       return `
         <div class="popup-content">
           <div class="character-container">
@@ -53,8 +55,8 @@ class PopupContentBuilder {
       `;
     }
 
-    const pinyin = matches[0].pinyin;
-    const definitionsHtml = this.createDefinitionsHtml(matches);
+    const pinyin = safeMatches[0].pinyin;
+    const definitionsHtml = this.createDefinitionsHtml(safeMatches);
     const pronunciationBtn = this.createPronunciationButton(character, pinyin);
     const showFrequency = settings.showFrequency !== false;
 

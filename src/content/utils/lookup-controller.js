@@ -12,7 +12,7 @@ class LookupController {
     this.isCurrentWordSubtitle = false; // Track if current word is from subtitle
   }
 
-  onPointerMove = (event) => {
+  onPointerMove = async (event) => {
     // Video subtitle words (data-subtitle-word="true") don't require shift key
     // Check the target AND walk up the DOM tree to find subtitle word spans
     let isSubtitleWord = false;
@@ -27,13 +27,14 @@ class LookupController {
       checkElement = checkElement.parentElement;
     }
 
-    // Skip if not activated and not on a subtitle word
-    if (!isSubtitleWord && !this.activation.isActive()) return;
-
     // Skip if mouse is over popup
     if (this.popup?.isMouseOverPopup) return;
 
+    // Remember last pointer event even before activation so we can trigger later
     this.lastPointerEvent = event;
+
+    // Skip if not activated and not on a subtitle word
+    if (!isSubtitleWord && !this.activation.isActive()) return;
 
     const characterInfo = this.pageProcessor.getCharacterAtPosition(event);
 
@@ -76,7 +77,7 @@ class LookupController {
       // Show popup only if highlight was successfully created
       if (this.highlightManager.currentHighlight) {
         const rect = this.highlightManager.currentHighlight.getBoundingClientRect();
-        this.popup.showDictionaryPopup(rect.left, rect.bottom, newCharacterInfo.word, sentence);
+        await this.popup.showDictionaryPopup(rect.left, rect.bottom, newCharacterInfo.word, sentence);
         // Set subtitle word flag AFTER showing popup (showDictionaryPopup resets it)
         this.popup.isSubtitleWordPopup = isSubtitleWord;
       }

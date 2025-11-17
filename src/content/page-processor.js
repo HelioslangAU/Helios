@@ -134,18 +134,20 @@ class PageProcessor {
 
     console.log(`📊 ${visibleNodes.length} visible, ${hiddenNodes.length} hidden nodes`);
 
-    // INSTANT PROCESSING: Process visible nodes synchronously for immediate feedback
-    // Then batch process remaining hidden nodes in background
+    // INSTANT PROCESSING: Process visible nodes for immediate feedback
+    // Note: processTextNodeForUnknownWords is now async, but we process in parallel
     if (visibleNodes.length > 0) {
       const start = Date.now();
-      visibleNodes.forEach(node => {
-        try {
-          this.processTextNodeForUnknownWords(node);
-        } catch (e) {
-          console.warn('Error processing visible node:', e);
-        }
+      // Process visible nodes in parallel (they preload words asynchronously)
+      Promise.all(
+        visibleNodes.map(node => 
+          this.processTextNodeForUnknownWords(node).catch(e => {
+            console.warn('Error processing visible node:', e);
+          })
+        )
+      ).then(() => {
+        console.log(`✅ Visible nodes processed in ${Date.now() - start}ms`);
       });
-      console.log(`✅ Visible nodes processed in ${Date.now() - start}ms`);
 
       // Calculate comprehension immediately after visible content is processed
       // This gives quick feedback to banner/stats even before full page is done
@@ -156,7 +158,7 @@ class PageProcessor {
 
     // Process hidden nodes in background batches
     if (hiddenNodes.length > 0) {
-      this.processBatchedTextNodes(hiddenNodes, () => {
+      this.processBatchedTextNodesAsync(hiddenNodes, () => {
         // Recalculate comprehension after all processing is complete
         this.calculateComprehensionPercentage();
         // Notify sidebar after calculation
@@ -220,7 +222,11 @@ class PageProcessor {
 
         for (let i = currentIndex; i < batchEnd; i++) {
           try {
-            this.processTextNodeForUnknownWords(textNodes[i]);
+            // Note: processTextNodeForUnknownWords is now async, but we call it without await
+            // for performance. The async preloading happens inside.
+            this.processTextNodeForUnknownWords(textNodes[i]).catch(err => {
+              console.warn('Error processing text node:', err);
+            });
           } catch (error) {
             // Skip problematic nodes
             console.warn('Error processing text node:', error);
@@ -257,6 +263,45 @@ class PageProcessor {
       // Fallback for browsers without requestIdleCallback
       setTimeout(() => processBatch({ timeRemaining: () => 50, didTimeout: false }), 0);
     }
+  }
+
+  /**
+   * Process text nodes in batches asynchronously (for async dictionary)
+   * @param {Array} textNodes - Array of text nodes to process
+   * @param {Function} onComplete - Callback when processing is complete
+   */
+  async processBatchedTextNodesAsync(textNodes, onComplete = null) {
+    if (textNodes.length === 0) {
+      if (onComplete) onComplete();
+      return;
+    }
+
+    const BATCH_SIZE = 50; // Smaller batch size for async processing
+    let currentIndex = 0;
+    const startTime = Date.now();
+
+    while (currentIndex < textNodes.length) {
+      const batchEnd = Math.min(currentIndex + BATCH_SIZE, textNodes.length);
+      const batch = textNodes.slice(currentIndex, batchEnd);
+
+      // Process batch in parallel
+      await Promise.all(
+        batch.map(node => 
+          this.processTextNodeForUnknownWords(node).catch(err => {
+            console.warn('Error processing text node:', err);
+          })
+        )
+      );
+
+      currentIndex = batchEnd;
+
+      // Yield to browser between batches
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+
+    const elapsed = Date.now() - startTime;
+    console.log(`✅ Async batch complete: ${textNodes.length} nodes in ${elapsed}ms`);
+    if (onComplete) onComplete();
   }
 
   /**
@@ -479,7 +524,7 @@ class PageProcessor {
     return textNodes;
   }
 
-  processTextNodeForUnknownWords(textNode) {
+  async processTextNodeForUnknownWords(textNode) {
     // Safety check: NEVER process popup content
     if (textNode.parentElement && textNode.parentElement.closest('.chinese-lang-extension-popup')) {
       return;
@@ -489,7 +534,17 @@ class PageProcessor {
     if (!text) return;
 
     const adapter = this.languageRegistry.getAdapter();
-    const words = adapter ? adapter.extractWords(text, this.dictionaryManager.dictionary) : [];
+    if (!adapter) return;
+
+    // Preload potential words before extraction (for async dictionary)
+    if (this.dictionaryManager.preloadWords) {
+      const potentialWords = this.extractPotentialWords(text, adapter);
+      if (potentialWords.length > 0) {
+        await this.dictionaryManager.preloadWords(potentialWords);
+      }
+    }
+
+    const words = adapter.extractWords(text, this.dictionaryManager.dictionary);
     if (words.length === 0) return;
 
     const fragment = document.createDocumentFragment();
@@ -526,6 +581,38 @@ class PageProcessor {
     }
 
     textNode.parentNode.replaceChild(fragment, textNode);
+  }
+
+  /**
+   * Extract potential words from text for preloading
+   * This helps with async dictionary by preloading words before extraction
+   */
+  extractPotentialWords(text, adapter) {
+    const potentialWords = new Set();
+    
+    // For character-based languages (like Chinese), extract all 1-5 character sequences
+    if (adapter.getScanResolution && adapter.getScanResolution() === 'char') {
+      for (let i = 0; i < text.length; i++) {
+        if (adapter.isTargetCharacter && adapter.isTargetCharacter(text[i])) {
+          // Try sequences of 1-5 characters
+          for (let len = 1; len <= Math.min(5, text.length - i); len++) {
+            const candidate = text.substring(i, i + len);
+            if ([...candidate].every(c => adapter.isTargetCharacter(c))) {
+              potentialWords.add(candidate);
+            }
+          }
+        }
+      }
+    } else {
+      // For word-based languages, extract words using word boundaries
+      const wordRegex = /\b[\p{L}\p{M}]+\b/gu;
+      let match;
+      while ((match = wordRegex.exec(text)) !== null) {
+        potentialWords.add(match[0].toLowerCase());
+      }
+    }
+    
+    return Array.from(potentialWords);
   }
 
   // Legacy method - now handled by language adapters
@@ -945,9 +1032,14 @@ class PageProcessor {
 
     // Process all text nodes in the element
     const textNodes = this.getAllTextNodes(element);
-    for (const textNode of textNodes) {
-      this.processTextNodeForUnknownWords(textNode);
-    }
+    // Process nodes in parallel (they handle async preloading internally)
+    Promise.all(
+      textNodes.map(node => 
+        this.processTextNodeForUnknownWords(node).catch(err => {
+          console.warn('Error processing text node in forceReprocessElement:', err);
+        })
+      )
+    );
 
     // --- Restore highlight if possible ---
     if (highlightedWord && highlightText) {
