@@ -1275,45 +1275,53 @@ class YouTubeSidebar {
         const currentLang = window.languageRegistry?.getCurrentLanguage();
         const usesSpaces = currentLang && !['zh', 'ja', 'ko'].includes(currentLang);
 
-        extractedWords.forEach(({ word, offset }, index) => {
+        extractedWords.forEach(({ word, offset, isTargetLang }, index) => {
           const wordSpan = document.createElement('span');
-          wordSpan.className = 'yt-subtitle-word';
-          wordSpan.textContent = word;
-          wordSpan.style.cursor = 'pointer';
 
-          // Mark as subtitle word for hover-without-shift functionality
-          wordSpan.setAttribute('data-subtitle-word', 'true');
-          wordSpan.setAttribute('data-helios-word', word);
+          if (isTargetLang !== false) {
+            // Target language word - add interactive features
+            wordSpan.className = 'yt-subtitle-word';
+            wordSpan.style.cursor = 'pointer';
 
-          // Check if word is unknown and add styling
-          // Only underline if: word is in dictionary, not known, and not ignored
-          const cleanWord = word.toLowerCase();
+            // Mark as subtitle word for hover-without-shift functionality
+            wordSpan.setAttribute('data-subtitle-word', 'true');
+            wordSpan.setAttribute('data-helios-word', word);
 
-          if (window.vocabManager &&
-              dictionary[cleanWord] &&
-              !window.vocabManager.isWordKnown(cleanWord) &&
-              !window.vocabManager.isWordIgnored(cleanWord)) {
-            wordSpan.classList.add('unknown-word');
+            // Check if word is unknown and add styling
+            // Only underline if: word is in dictionary, not known, and not ignored
+            const cleanWord = word.toLowerCase();
+
+            if (window.vocabManager &&
+                dictionary[cleanWord] &&
+                !window.vocabManager.isWordKnown(cleanWord) &&
+                !window.vocabManager.isWordIgnored(cleanWord)) {
+              wordSpan.classList.add('unknown-word');
+            }
+
+            // Add pause-on-hover functionality for sidebar words
+            wordSpan.addEventListener('mouseenter', () => {
+              if (this.settings.pauseOnHover && this.videoBinding && this.videoBinding.videoElement) {
+                // Cancel any pending resume
+                if (this.resumeTimeout) {
+                  clearTimeout(this.resumeTimeout);
+                  this.resumeTimeout = null;
+                }
+
+                const video = this.videoBinding.videoElement;
+                const wasPlaying = !video.paused;
+                if (wasPlaying) {
+                  video.pause();
+                  this.pausedByHover = true;
+                }
+              }
+            });
+          } else {
+            // Non-target language text - display as plain text
+            wordSpan.className = 'yt-subtitle-plain-text';
+            wordSpan.style.cursor = 'default';
           }
 
-          // Add pause-on-hover functionality for sidebar words
-          wordSpan.addEventListener('mouseenter', () => {
-            if (this.settings.pauseOnHover && this.videoBinding && this.videoBinding.videoElement) {
-              // Cancel any pending resume
-              if (this.resumeTimeout) {
-                clearTimeout(this.resumeTimeout);
-                this.resumeTimeout = null;
-              }
-
-              const video = this.videoBinding.videoElement;
-              const wasPlaying = !video.paused;
-              if (wasPlaying) {
-                video.pause();
-                this.pausedByHover = true;
-              }
-            }
-          });
-
+          wordSpan.textContent = word;
           primaryText.appendChild(wordSpan);
 
           // Add space after word (except for last word) for languages that use spaces
