@@ -354,7 +354,7 @@
   text-decoration: underline;
   text-decoration-color: #ff4444;
   text-decoration-thickness: 2px;
-  text-underline-offset: 2px;
+  text-underline-offset: 4px;
 }
 
 .yt-subtitle-word.unknown-word:hover {
