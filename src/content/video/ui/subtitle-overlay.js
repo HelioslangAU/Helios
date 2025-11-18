@@ -15,6 +15,7 @@ class SubtitleOverlay {
     this.pauseOnHover = false; // Pause video when hovering over subtitle words
     this.pausedByHover = false; // Track if video is currently paused by hover feature
     this.resumeTimeout = null; // Timeout for delayed resume
+    this.isVisible = true; // Track whether overlay should be visible (toggled by 'w' key)
 
     // Dragging state
     this.isDragging = false;
@@ -114,8 +115,8 @@ class SubtitleOverlay {
   _updatePosition() {
     const rect = this.videoElement.getBoundingClientRect();
 
-    // Only show subtitles if video is visible
-    if (rect.width === 0 || rect.height === 0) {
+    // Only show subtitles if video is visible AND overlay is toggled visible
+    if (rect.width === 0 || rect.height === 0 || !this.isVisible) {
       this.container.style.display = 'none';
       return;
     }
@@ -800,6 +801,26 @@ class SubtitleOverlay {
    */
   setOffset(offsetMs) {
     this.offsetMs = offsetMs;
+  }
+
+  /**
+   * Toggle subtitle overlay visibility (for 'w' hotkey)
+   * @returns {boolean} - New visibility state
+   */
+  toggleVisibility() {
+    this.isVisible = !this.isVisible;
+
+    if (this.isVisible) {
+      // Show overlay by updating position
+      this._updatePosition();
+      console.log('[Helios Subtitle Overlay] Subtitles shown');
+    } else {
+      // Hide overlay
+      this.container.style.display = 'none';
+      console.log('[Helios Subtitle Overlay] Subtitles hidden');
+    }
+
+    return this.isVisible;
   }
 
   /**

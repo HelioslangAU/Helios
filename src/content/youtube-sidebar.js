@@ -29,7 +29,13 @@ class YouTubeSidebar {
       hotkeysEnabled: true,
       dualSubtitlesEnabled: false,
       secondarySubtitleLanguage: null,
-      pauseOnHover: false
+      pauseOnHover: true,
+      hotkeys: {
+        previous: { key: 'a', shift: false, ctrl: false, alt: false },
+        next: { key: 'd', shift: false, ctrl: false, alt: false },
+        restart: { key: 's', shift: false, ctrl: false, alt: false },
+        toggle: { key: 'w', shift: false, ctrl: false, alt: false }
+      }
     };
 
     // Pause on hover state tracking
@@ -124,11 +130,20 @@ class YouTubeSidebar {
       this.secondaryLanguageContainer = this.sidebar.querySelector('#yt-secondary-language-container');
       this.pauseOnHoverToggle = this.sidebar.querySelector('#yt-pause-on-hover-toggle');
 
+      // Get hotkey input elements
+      this.hotkeyPrevInput = this.sidebar.querySelector('#yt-hotkey-prev');
+      this.hotkeyNextInput = this.sidebar.querySelector('#yt-hotkey-next');
+      this.hotkeyRestartInput = this.sidebar.querySelector('#yt-hotkey-restart');
+      this.hotkeyToggleInput = this.sidebar.querySelector('#yt-hotkey-toggle');
+
       // Setup header button listeners
       this._setupHeaderButtons();
 
       // Setup settings listeners
       this._setupSettingsListeners();
+
+      // Setup hotkey input listeners
+      this._setupHotkeyInputs();
 
       // Apply loaded settings to UI
       this._applySettingsToUI();
@@ -401,25 +416,38 @@ class YouTubeSidebar {
         return;
       }
 
-      const key = e.key.toLowerCase();
+      // Normalize key name for arrow keys
+      let keyName = e.key;
+      if (keyName.startsWith('Arrow')) {
+        keyName = keyName.substring(5); // "ArrowLeft" -> "Left"
+      }
+      const key = keyName.toLowerCase();
 
-      // A = Previous subtitle
-      if (key === 'a') {
+      // Check if this key combination matches any of our hotkeys
+      const matchesHotkey = (hotkey) => {
+        return hotkey.key === key &&
+               hotkey.shift === e.shiftKey &&
+               (hotkey.ctrl === (e.ctrlKey || e.metaKey)) &&
+               hotkey.alt === e.altKey;
+      };
+
+      // Previous subtitle
+      if (matchesHotkey(this.settings.hotkeys.previous)) {
         e.preventDefault();
         this._jumpToPreviousSubtitle();
       }
-      // D = Next subtitle
-      else if (key === 'd') {
+      // Next subtitle
+      else if (matchesHotkey(this.settings.hotkeys.next)) {
         e.preventDefault();
         this._jumpToNextSubtitle();
       }
-      // S = Jump to current subtitle start
-      else if (key === 's') {
+      // Jump to current subtitle start
+      else if (matchesHotkey(this.settings.hotkeys.restart)) {
         e.preventDefault();
         this._jumpToCurrentSubtitleStart();
       }
-      // W = Toggle subtitle visibility (overlay)
-      else if (key === 'w') {
+      // Toggle subtitle visibility (overlay)
+      else if (matchesHotkey(this.settings.hotkeys.toggle)) {
         e.preventDefault();
         this._toggleSubtitleOverlay();
       }
@@ -703,6 +731,142 @@ class YouTubeSidebar {
   }
 
   /**
+   * Setup hotkey input listeners for customization
+   */
+  _setupHotkeyInputs() {
+    // YouTube's native controls that should be blocked when no modifiers are used
+    const youtubeControlKeys = [
+      'k', // Play/Pause
+      ' ', // Space - Play/Pause
+      'j', // Rewind 10s
+      'l', // Forward 10s
+      'left', // Rewind 5s
+      'right', // Forward 5s
+      'up', // Volume up
+      'down', // Volume down
+      'm', // Mute
+      'f', // Fullscreen
+      't', // Theater mode
+      'i', // Miniplayer
+      'c', // Captions
+      '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', // Seek to %
+      'home', // Start
+      'end', // End
+      '<', '>', // Playback speed
+      '/', // Search
+      'escape' // Exit fullscreen
+    ];
+
+    const inputs = [
+      { element: this.hotkeyPrevInput, key: 'previous' },
+      { element: this.hotkeyNextInput, key: 'next' },
+      { element: this.hotkeyRestartInput, key: 'restart' },
+      { element: this.hotkeyToggleInput, key: 'toggle' }
+    ];
+
+    inputs.forEach(({ element, key }) => {
+      if (!element) return;
+
+      // Make input focusable and show cursor on click
+      element.addEventListener('click', (e) => {
+        element.removeAttribute('readonly');
+        element.select();
+        element.placeholder = 'Press any key...';
+      });
+
+      // Capture keypress and update hotkey
+      element.addEventListener('keydown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Ignore modifier keys alone
+        if (['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) {
+          return;
+        }
+
+        // Normalize key names for special keys
+        let keyName = e.key;
+        if (keyName.startsWith('Arrow')) {
+          keyName = keyName.substring(5); // "ArrowLeft" -> "Left"
+        }
+
+        const newHotkey = {
+          key: keyName.toLowerCase(),
+          shift: e.shiftKey,
+          ctrl: e.ctrlKey || e.metaKey, // Meta (Cmd) treated as Ctrl
+          alt: e.altKey
+        };
+
+        // Check if this conflicts with YouTube controls (only if no modifiers used)
+        const hasModifiers = newHotkey.shift || newHotkey.ctrl || newHotkey.alt;
+        if (!hasModifiers && youtubeControlKeys.includes(newHotkey.key)) {
+          const displayKey = this._formatHotkeyDisplay(newHotkey);
+          this._showNotification(
+            `'${displayKey}' is used by YouTube. Try adding Shift, Ctrl, or Alt (e.g., Shift+${displayKey})`,
+            'error'
+          );
+          element.blur();
+          element.setAttribute('readonly', 'true');
+          return;
+        }
+
+        // Check if key combination is already used by another hotkey
+        const existingUse = Object.entries(this.settings.hotkeys).find(
+          ([k, v]) => k !== key &&
+                      v.key === newHotkey.key &&
+                      v.shift === newHotkey.shift &&
+                      v.ctrl === newHotkey.ctrl &&
+                      v.alt === newHotkey.alt
+        );
+
+        if (existingUse) {
+          const comboStr = this._formatHotkeyDisplay(newHotkey);
+          this._showNotification(`Key '${comboStr}' is already used for ${existingUse[0]}`, 'error');
+          element.blur();
+          element.setAttribute('readonly', 'true');
+          return;
+        }
+
+        // Update settings
+        this.settings.hotkeys[key] = newHotkey;
+        const displayText = this._formatHotkeyDisplay(newHotkey);
+        element.value = displayText;
+        element.blur();
+        element.setAttribute('readonly', 'true');
+
+        this._saveSettings();
+        this._showNotification(`Hotkey updated to '${displayText}'`, 'success');
+      });
+
+      // Handle blur - restore readonly and placeholder
+      element.addEventListener('blur', () => {
+        element.setAttribute('readonly', 'true');
+        const displayText = this._formatHotkeyDisplay(this.settings.hotkeys[key]);
+        element.placeholder = displayText;
+        if (!element.value) {
+          element.value = displayText;
+        }
+      });
+    });
+  }
+
+  /**
+   * Format hotkey object for display (e.g., "Ctrl+Shift+L")
+   */
+  _formatHotkeyDisplay(hotkey) {
+    const parts = [];
+    if (hotkey.ctrl) parts.push('Ctrl');
+    if (hotkey.shift) parts.push('Shift');
+    if (hotkey.alt) parts.push('Alt');
+
+    // Capitalize first letter of key for display
+    const keyDisplay = hotkey.key.charAt(0).toUpperCase() + hotkey.key.slice(1);
+    parts.push(keyDisplay);
+
+    return parts.join('+');
+  }
+
+  /**
    * Apply loaded settings to UI
    */
   _applySettingsToUI() {
@@ -724,6 +888,20 @@ class YouTubeSidebar {
 
     if (this.pauseOnHoverToggle) {
       this.pauseOnHoverToggle.checked = this.settings.pauseOnHover;
+    }
+
+    // Apply hotkey values to inputs
+    if (this.hotkeyPrevInput) {
+      this.hotkeyPrevInput.value = this._formatHotkeyDisplay(this.settings.hotkeys.previous);
+    }
+    if (this.hotkeyNextInput) {
+      this.hotkeyNextInput.value = this._formatHotkeyDisplay(this.settings.hotkeys.next);
+    }
+    if (this.hotkeyRestartInput) {
+      this.hotkeyRestartInput.value = this._formatHotkeyDisplay(this.settings.hotkeys.restart);
+    }
+    if (this.hotkeyToggleInput) {
+      this.hotkeyToggleInput.value = this._formatHotkeyDisplay(this.settings.hotkeys.toggle);
     }
   }
 
@@ -1494,12 +1672,9 @@ class YouTubeSidebar {
   _toggleSubtitleOverlay() {
     if (!this.videoBinding || !this.videoBinding.overlay) return;
 
-    const overlay = this.videoBinding.overlay.container;
-    if (overlay) {
-      const isHidden = overlay.style.display === 'none';
-      overlay.style.display = isHidden ? '' : 'none';
-      console.log(`[Helios Hotkeys] Subtitle overlay ${isHidden ? 'shown' : 'hidden'}`);
-    }
+    // Use the overlay's toggleVisibility method for persistent state
+    const isVisible = this.videoBinding.overlay.toggleVisibility();
+    console.log(`[Helios Hotkeys] Subtitle overlay ${isVisible ? 'shown' : 'hidden'}`);
   }
 
   /**
@@ -1509,7 +1684,25 @@ class YouTubeSidebar {
     try {
       const result = await chrome.storage.local.get(['ytSidebarSettings']);
       if (result.ytSidebarSettings) {
-        this.settings = { ...this.settings, ...result.ytSidebarSettings };
+        const loaded = result.ytSidebarSettings;
+
+        // Migrate old hotkey format (string) to new format (object with modifiers)
+        if (loaded.hotkeys) {
+          Object.keys(loaded.hotkeys).forEach(key => {
+            const hotkey = loaded.hotkeys[key];
+            // If it's a string (old format), convert to new format
+            if (typeof hotkey === 'string') {
+              loaded.hotkeys[key] = {
+                key: hotkey,
+                shift: false,
+                ctrl: false,
+                alt: false
+              };
+            }
+          });
+        }
+
+        this.settings = { ...this.settings, ...loaded };
       }
     } catch (error) {
       console.error('[Helios YouTube Sidebar] Failed to load settings:', error);
