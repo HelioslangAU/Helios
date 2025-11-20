@@ -9,7 +9,7 @@ class CardManager {
     this.languageRegistry = languageRegistry;
   }
 
-  groupByPronunciation(entries, originalCharacter) {
+  async groupByPronunciation(entries, originalCharacter) {
     const groups = {};
 
     entries.forEach((entry) => {
@@ -18,6 +18,32 @@ class CardManager {
       }
       groups[entry.pinyin].push(entry);
     });
+
+    // Enhance variant definitions before grouping
+    const adapter = this.languageRegistry?.getAdapter();
+    if (adapter && adapter.enhanceVariantDefinition) {
+      for (const [pinyin, pinyinEntries] of Object.entries(groups)) {
+        const enhancedEntries = [];
+        for (const entry of pinyinEntries) {
+          if (entry.definition) {
+            const enhancedDefinition = await adapter.enhanceVariantDefinition(
+              entry.definition,
+              this.dictionaryManager.dictionary,
+              this.dictionaryManager.getDefinition ? 
+                (word) => this.dictionaryManager.getDefinition(word) : 
+                null
+            );
+            enhancedEntries.push({
+              ...entry,
+              definition: enhancedDefinition
+            });
+          } else {
+            enhancedEntries.push(entry);
+          }
+        }
+        groups[pinyin] = enhancedEntries;
+      }
+    }
 
     // Start with the main word pronunciations
     const mainWordCards = Object.entries(groups).map(([pinyin, entries]) => {
@@ -32,7 +58,7 @@ class CardManager {
     });
 
     // Add individual character cards for multi-character words
-    const characterCards = this.createCharacterCards(originalCharacter);
+    const characterCards = await this.createCharacterCards(originalCharacter);
 
     // Sort cards by priority (highest priority first)
     const allCards = [...mainWordCards, ...characterCards];
@@ -43,7 +69,7 @@ class CardManager {
     });
   }
 
-  createCharacterCards(word) {
+  async createCharacterCards(word) {
     const characterCards = [];
 
     // Only create character cards for char based languages 
@@ -71,6 +97,32 @@ class CardManager {
           }
           charGroups[entry.pinyin].push(entry);
         });
+
+        // Enhance variant definitions before creating cards
+        const adapter = this.languageRegistry?.getAdapter();
+        if (adapter && adapter.enhanceVariantDefinition) {
+          for (const [pinyin, pinyinEntries] of Object.entries(charGroups)) {
+            const enhancedEntries = [];
+            for (const entry of pinyinEntries) {
+              if (entry.definition) {
+                const enhancedDefinition = await adapter.enhanceVariantDefinition(
+                  entry.definition,
+                  this.dictionaryManager.dictionary,
+                  this.dictionaryManager.getDefinition ? 
+                    (word) => this.dictionaryManager.getDefinition(word) : 
+                    null
+                );
+                enhancedEntries.push({
+                  ...entry,
+                  definition: enhancedDefinition
+                });
+              } else {
+                enhancedEntries.push(entry);
+              }
+            }
+            charGroups[pinyin] = enhancedEntries;
+          }
+        }
 
         // Add cards for each pronunciation of this character
         Object.entries(charGroups).forEach(([pinyin, entries]) => {
@@ -143,6 +195,37 @@ class CardManager {
       // Only update matches if we found any processed entries
       if (processedMatches.length > 0) {
         matches = processedMatches;
+      }
+      
+      // Enhance variant definitions by appending base variant definitions
+      const adapter = this.languageRegistry.getAdapter();
+      if (adapter && adapter.enhanceVariantDefinition) {
+        const enhancedMatches = [];
+        for (const match of matches) {
+          if (match.definition) {
+            // Check if this is a variant pattern and enhance it
+            const enhancedDefinition = await adapter.enhanceVariantDefinition(
+              match.definition,
+              this.dictionaryManager.dictionary,
+              this.dictionaryManager.getDefinition ? 
+                (word) => this.dictionaryManager.getDefinition(word) : 
+                null
+            );
+            
+            // If definition was enhanced, create a new match with enhanced definition
+            if (enhancedDefinition !== match.definition) {
+              enhancedMatches.push({
+                ...match,
+                definition: enhancedDefinition
+              });
+            } else {
+              enhancedMatches.push(match);
+            }
+          } else {
+            enhancedMatches.push(match);
+          }
+        }
+        matches = enhancedMatches;
       }
       
       // Apply definition filter and sorting

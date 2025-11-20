@@ -208,6 +208,190 @@ class BaseLanguageAdapter {
     return this.getConfig().code;
   }
 
+  /**
+   * Detect if a definition is a variant pattern (e.g., "erhua variant of", "non standard spelling")
+   * @param {string} definition - Definition text to check
+   * @returns {Object|null} - Object with {pattern, baseWords} or null if not a variant
+   */
+  detectVariantPattern(definition) {
+    if (!definition || typeof definition !== 'string') {
+      return null;
+    }
+
+    // Common variant patterns across languages
+    const variantPatterns = [
+      // Chinese variants - handle format "erhua variant of 等一會|等一会[deng3 yi1 hui4]"
+      /erhua\s+variant\s+of\s+(.+?)(?:\s*\[|;|$)/i,
+      // General variants
+      /(?:non\s*)?standard\s*(?:spelling|variant)\s+of\s+(.+?)(?:\s*\[|;|$)/i,
+      /variant\s+of\s+(.+?)(?:\s*\[|;|$)/i,
+      /old\s+variant\s+of\s+(.+?)(?:\s*\[|;|$)/i,
+      /archaic\s+variant\s+of\s+(.+?)(?:\s*\[|;|$)/i,
+      /ancient\s+variant\s+of\s+(.+?)(?:\s*\[|;|$)/i,
+      /obsolete\s+variant\s+of\s+(.+?)(?:\s*\[|;|$)/i,
+      /classical\s+variant\s+of\s+(.+?)(?:\s*\[|;|$)/i,
+      // Alternative spellings
+      /alternative\s+spelling\s+of\s+(.+?)(?:\s*\[|;|$)/i,
+      /alternate\s+spelling\s+of\s+(.+?)(?:\s*\[|;|$)/i,
+      // Other common patterns
+      /see\s+also\s*[:：]?\s*(.+?)(?:\s*\[|;|$)/i,
+    ];
+
+    for (const pattern of variantPatterns) {
+      const match = definition.match(pattern);
+      if (match && match[1]) {
+        // Extract base word(s) - could be multiple forms separated by |
+        const baseWordsText = match[1].trim();
+        
+        // For Chinese, handle format like "等一會|等一会"
+        // For other languages, just extract the word(s)
+        const baseWords = this.extractBaseWords(baseWordsText);
+        
+        if (baseWords.length > 0) {
+          return {
+            pattern: pattern.source,
+            baseWords: baseWords,
+            fullMatch: match[0]
+          };
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Extract base words from variant definition text
+   * Handles formats like "等一會|等一会" (Chinese) or simple words
+   * @param {string} baseWordsText - Text containing base word(s)
+   * @returns {Array<string>} - Array of base words
+   */
+  extractBaseWords(baseWordsText) {
+    if (!baseWordsText) return [];
+
+    // For Chinese: handle format "等一會|等一会[deng3 yi1 hui4]" or "等一會|等一会"
+    // Extract the simplified form (second one if pipe exists) or the whole thing
+    if (baseWordsText.includes('|')) {
+      const parts = baseWordsText.split('|');
+      // Try simplified form first (usually second), then traditional
+      const words = [];
+      for (const part of parts) {
+        // Remove pinyin in brackets [deng3 yi1 hui4]
+        const cleanPart = part.replace(/\s*\[.*?\]/g, '').trim();
+        if (cleanPart) {
+          words.push(cleanPart);
+        }
+      }
+      return words.length > 0 ? words : [];
+    }
+
+    // For other languages or simple format, remove pinyin/pronunciation and clean
+    // Remove anything in brackets like [pronunciation] or [pinyin]
+    const cleaned = baseWordsText.replace(/\s*\[.*?\]/g, '').trim();
+    
+    if (cleaned) {
+      return [cleaned];
+    }
+
+    return [];
+  }
+
+  /**
+   * Enhance variant definition by appending base variant's definition
+   * @param {string} definition - Original variant definition
+   * @param {Object} dictionary - Dictionary object to look up base variant
+   * @param {Function} getDefinitionAsync - Async function to get definition if not in dictionary
+   * @returns {Promise<string>} - Enhanced definition with base variant's definition appended
+   */
+  async enhanceVariantDefinition(definition, dictionary, getDefinitionAsync = null) {
+    if (!definition) return definition;
+
+    const variantInfo = this.detectVariantPattern(definition);
+    if (!variantInfo || variantInfo.baseWords.length === 0) {
+      return definition;
+    }
+
+    // Try each base word until we find a definition
+    for (const baseWord of variantInfo.baseWords) {
+      let baseEntries = null;
+
+      // Check dictionary directly - try both normalized and original forms
+      const normalizedBaseWord = this.getCaseSensitive() ? baseWord : baseWord.toLowerCase();
+      
+      // Try normalized form first
+      if (dictionary && dictionary[normalizedBaseWord]) {
+        baseEntries = dictionary[normalizedBaseWord];
+      }
+      
+      // If not found, try original form (for case-sensitive languages)
+      if (!baseEntries && dictionary && dictionary[baseWord]) {
+        baseEntries = dictionary[baseWord];
+      }
+
+      // If not found and async lookup is available, try that
+      if (!baseEntries && getDefinitionAsync) {
+        try {
+          baseEntries = await getDefinitionAsync(baseWord);
+          // Cache it in dictionary if we got a result
+          if (baseEntries && dictionary) {
+            // Cache under both forms for easier lookup
+            dictionary[normalizedBaseWord] = baseEntries;
+            if (baseWord !== normalizedBaseWord) {
+              dictionary[baseWord] = baseEntries;
+            }
+          }
+        } catch (error) {
+          console.warn(`Failed to look up base variant "${baseWord}":`, error);
+        }
+      }
+
+      if (baseEntries && Array.isArray(baseEntries) && baseEntries.length > 0) {
+        // Get the first meaningful definition from base variant
+        const baseDefinition = this.extractBaseDefinition(baseEntries);
+        if (baseDefinition) {
+          // Append base definition to variant definition
+          return `${definition}\n;${baseDefinition}`;
+        }
+      }
+    }
+
+    // If no base definition found, return original
+    return definition;
+  }
+
+  /**
+   * Extract all definitions from base variant entries
+   * @param {Array} entries - Dictionary entries for base variant
+   * @returns {string|null} - All definitions joined together or null
+   */
+  extractBaseDefinition(entries) {
+    if (!entries || entries.length === 0) return null;
+
+    // Filter out variant patterns and other low-priority definitions
+    const meaningfulEntries = entries.filter(entry => {
+      if (!entry.definition) return false;
+      // Skip if it's also a variant pattern
+      return !this.detectVariantPattern(entry.definition);
+    });
+
+    // If no meaningful entries, fall back to all entries
+    const entriesToUse = meaningfulEntries.length > 0 ? meaningfulEntries : entries;
+    
+    // Collect all definitions from all entries
+    const allDefinitions = [];
+    for (const entry of entriesToUse) {
+      if (entry && entry.definition) {
+        // Split by semicolons and add all definitions
+        const defs = entry.definition.split(';').map(d => d.trim()).filter(Boolean);
+        allDefinitions.push(...defs);
+      }
+    }
+
+    // Remove duplicates while preserving order
+    const uniqueDefinitions = Array.from(new Set(allDefinitions));
+    
+    return uniqueDefinitions.length > 0 ? uniqueDefinitions.join('; ') : null;
+  }
 
 }
 
