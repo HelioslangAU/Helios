@@ -15,6 +15,7 @@ class SubtitleOverlay {
     this.pauseOnHover = false; // Pause video when hovering over subtitle words
     this.pausedByHover = false; // Track if video is currently paused by hover feature
     this.resumeTimeout = null; // Timeout for delayed resume
+    this.isVisible = true; // Track whether overlay should be visible (toggled by 'w' key)
 
     // Dragging state
     this.isDragging = false;
@@ -114,8 +115,8 @@ class SubtitleOverlay {
   _updatePosition() {
     const rect = this.videoElement.getBoundingClientRect();
 
-    // Only show subtitles if video is visible
-    if (rect.width === 0 || rect.height === 0) {
+    // Only show subtitles if video is visible AND overlay is toggled visible
+    if (rect.width === 0 || rect.height === 0 || !this.isVisible) {
       this.container.style.display = 'none';
       return;
     }
@@ -634,59 +635,69 @@ class SubtitleOverlay {
         const currentLang = window.languageRegistry?.getCurrentLanguage();
         const usesSpaces = currentLang && !['zh', 'ja', 'ko'].includes(currentLang);
 
-        extractedWords.forEach(({ word, offset }, index) => {
-          // Create word span
+        extractedWords.forEach(({ word, offset, isTargetLang }, index) => {
+          // Create word span or plain text based on whether it's target language
           const wordSpan = document.createElement('span');
-          wordSpan.className = 'helios-subtitle-word';
-          wordSpan.textContent = word;
-          wordSpan.style.cursor = 'pointer';
-          wordSpan.style.pointerEvents = 'auto';
-          wordSpan.setAttribute('data-helios-word', word);
 
-          // Mark this element as a subtitle word so we can intercept events
-          wordSpan.setAttribute('data-subtitle-word', 'true');
+          if (isTargetLang !== false) {
+            // Target language word - add interactive features
+            wordSpan.className = 'helios-subtitle-word';
+            wordSpan.style.cursor = 'pointer';
+            wordSpan.style.pointerEvents = 'auto';
+            wordSpan.setAttribute('data-helios-word', word);
 
-          // Check if word is unknown and add styling
-          // Only underline if: word is in dictionary, not known, and not ignored
-          const cleanWord = word.toLowerCase();
+            // Mark this element as a subtitle word so we can intercept events
+            wordSpan.setAttribute('data-subtitle-word', 'true');
 
-          if (window.vocabManager &&
-              dictionary[cleanWord] &&
-              !window.vocabManager.isWordKnown(cleanWord) &&
-              !window.vocabManager.isWordIgnored(cleanWord)) {
-            wordSpan.classList.add('unknown-word');
+            // Check if word is unknown and add styling
+            // Only underline if: word is in dictionary, not known, and not ignored
+            const cleanWord = word.toLowerCase();
+
+            if (window.vocabManager &&
+                dictionary[cleanWord] &&
+                !window.vocabManager.isWordKnown(cleanWord) &&
+                !window.vocabManager.isWordIgnored(cleanWord)) {
+              wordSpan.classList.add('unknown-word');
+            }
+
+            // Add pause on hover listeners
+            wordSpan.addEventListener('mouseenter', () => {
+              if (this.pauseOnHover && this.videoElement && !this.videoElement.paused) {
+                // Cancel any pending resume
+                if (this.resumeTimeout) {
+                  clearTimeout(this.resumeTimeout);
+                  this.resumeTimeout = null;
+                }
+
+                this.videoElement.pause();
+                this.pausedByHover = true;
+              }
+            });
+
+            wordSpan.addEventListener('mouseleave', () => {
+              if (this.pauseOnHover && this.pausedByHover) {
+                // Delay resume to allow user to move mouse to popup
+                this.resumeTimeout = setTimeout(() => {
+                  // Only resume if popup is not visible
+                  if (!this._isPopupVisible()) {
+                    if (this.videoElement && this.videoElement.paused) {
+                      this.videoElement.play();
+                    }
+                    this.pausedByHover = false;
+                  }
+                  this.resumeTimeout = null;
+                }, 200); // 200ms delay allows smooth transition to popup
+              }
+            });
+          } else {
+            // Non-target language text (e.g., English in Chinese captions)
+            // Display as plain text without interactive features
+            wordSpan.className = 'helios-subtitle-plain-text';
+            wordSpan.style.cursor = 'default';
+            wordSpan.style.pointerEvents = 'none';
           }
 
-          // Add pause on hover listeners
-          wordSpan.addEventListener('mouseenter', () => {
-            if (this.pauseOnHover && this.videoElement && !this.videoElement.paused) {
-              // Cancel any pending resume
-              if (this.resumeTimeout) {
-                clearTimeout(this.resumeTimeout);
-                this.resumeTimeout = null;
-              }
-
-              this.videoElement.pause();
-              this.pausedByHover = true;
-            }
-          });
-
-          wordSpan.addEventListener('mouseleave', () => {
-            if (this.pauseOnHover && this.pausedByHover) {
-              // Delay resume to allow user to move mouse to popup
-              this.resumeTimeout = setTimeout(() => {
-                // Only resume if popup is not visible
-                if (!this._isPopupVisible()) {
-                  if (this.videoElement && this.videoElement.paused) {
-                    this.videoElement.play();
-                  }
-                  this.pausedByHover = false;
-                }
-                this.resumeTimeout = null;
-              }, 200); // 200ms delay allows smooth transition to popup
-            }
-          });
-
+          wordSpan.textContent = word;
           primarySubtitleEl.appendChild(wordSpan);
 
           // Add space after word (except for last word) for languages that use spaces
@@ -800,6 +811,26 @@ class SubtitleOverlay {
    */
   setOffset(offsetMs) {
     this.offsetMs = offsetMs;
+  }
+
+  /**
+   * Toggle subtitle overlay visibility (for 'w' hotkey)
+   * @returns {boolean} - New visibility state
+   */
+  toggleVisibility() {
+    this.isVisible = !this.isVisible;
+
+    if (this.isVisible) {
+      // Show overlay by updating position
+      this._updatePosition();
+      console.log('[Helios Subtitle Overlay] Subtitles shown');
+    } else {
+      // Hide overlay
+      this.container.style.display = 'none';
+      console.log('[Helios Subtitle Overlay] Subtitles hidden');
+    }
+
+    return this.isVisible;
   }
 
   /**

@@ -118,13 +118,42 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 16px;
+  padding: 0 4px;
+}
+
+.yt-select-caption-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
   font-weight: 700;
   color: var(--helios-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  margin-bottom: 16px;
-  padding: 0 4px;
+  width: 100%;
+}
+
+.yt-select-caption-btn:hover {
+  color: var(--helios-accent-primary);
+}
+
+.yt-select-caption-btn:hover svg {
+  transform: translateY(1px);
+}
+
+.yt-select-caption-btn svg {
+  transition: transform 0.2s ease;
+  opacity: 0.6;
+}
+
+.yt-select-caption-btn:hover svg {
+  opacity: 1;
 }
 
 .yt-subtitle-count {
@@ -354,7 +383,7 @@
   text-decoration: underline;
   text-decoration-color: #ff4444;
   text-decoration-thickness: 2px;
-  text-underline-offset: 2px;
+  text-underline-offset: 4px;
 }
 
 .yt-subtitle-word.unknown-word:hover {
@@ -537,6 +566,20 @@ ytd-app:has(.helios-youtube-sidebar:not(.hidden)) #page-manager {
   opacity: 0.8;
 }
 
+.yt-hotkey-hint {
+  margin: 12px 0 16px 0;
+  padding: 12px 14px;
+  background: rgba(255, 107, 71, 0.05);
+  border-left: 3px solid rgba(255, 107, 71, 0.3);
+  border-radius: 6px;
+  line-height: 1.6;
+}
+
+.yt-hotkey-hint strong {
+  color: var(--helios-accent-primary);
+  font-weight: 600;
+}
+
 /* Toggle Switch */
 .yt-toggle-label {
   display: flex;
@@ -632,6 +675,58 @@ ytd-app:has(.helios-youtube-sidebar:not(.hidden)) #page-manager {
   font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
   color: var(--helios-accent-primary);
   letter-spacing: 0.02em;
+}
+
+.yt-hotkey-input {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  max-width: 120px;
+  height: 32px;
+  padding: 0 8px;
+  background: var(--helios-bg-card);
+  border: 1px solid rgba(255, 107, 71, 0.2);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  color: var(--helios-accent-primary);
+  letter-spacing: 0.02em;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.yt-hotkey-input:hover {
+  background: var(--helios-bg-secondary);
+  border-color: rgba(255, 107, 71, 0.4);
+  box-shadow: 0 0 0 3px rgba(255, 107, 71, 0.08);
+}
+
+.yt-hotkey-input:focus {
+  background: var(--helios-bg-secondary);
+  border-color: var(--helios-accent-primary);
+  box-shadow: 0 0 0 3px rgba(255, 107, 71, 0.15);
+  animation: pulse 1.5s infinite;
+}
+
+.yt-hotkey-input::placeholder {
+  color: var(--helios-text-muted);
+  opacity: 0.5;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 3px rgba(255, 107, 71, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(255, 107, 71, 0.25);
+  }
 }
 
 .yt-hotkey-desc {

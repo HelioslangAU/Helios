@@ -70,7 +70,7 @@ class MultiCardPopupManager extends PopupManager {
         return;
       }
       
-      const cards = this.cardManager.groupByPronunciation(safeEntries, character);
+      const cards = await this.cardManager.groupByPronunciation(safeEntries, character);
 
       // If only one card, use basic popup
       if (cards.length <= 1) {
