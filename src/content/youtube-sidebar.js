@@ -42,6 +42,9 @@ class YouTubeSidebar {
     this.pausedByHover = false;
     this.resumeTimeout = null;
 
+    // Current track tracking
+    this.currentTrack = null;
+
     // Load settings from storage
     this._loadSettings();
 
@@ -120,6 +123,7 @@ class YouTubeSidebar {
       this.settingsSection = this.sidebar.querySelector('#yt-settings-section');
       this.settingsBtn = this.sidebar.querySelector('#yt-settings-btn');
       this.closeBtn = this.sidebar.querySelector('#yt-close-btn');
+      this.selectCaptionBtn = this.sidebar.querySelector('#yt-select-caption-btn');
       this.notificationElement = this.sidebar.querySelector('#yt-notification');
       this.notificationMessage = this.sidebar.querySelector('.yt-notification-message');
 
@@ -479,6 +483,13 @@ class YouTubeSidebar {
           // Close the sidebar
           this.hide();
         }
+      });
+    }
+
+    // Caption selector button - show modal to select caption track
+    if (this.selectCaptionBtn) {
+      this.selectCaptionBtn.addEventListener('click', () => {
+        this._showCaptionSelector();
       });
     }
   }
@@ -1571,6 +1582,71 @@ class YouTubeSidebar {
   _expandHelios() {
     // Dispatch event to open main sidebar
     document.dispatchEvent(new CustomEvent('helios-open-sidebar'));
+  }
+
+  /**
+   * Show caption selector modal
+   */
+  async _showCaptionSelector() {
+    console.log('[Helios YouTube Sidebar] Opening caption selector');
+
+    // Get available tracks from YouTube loader
+    const youtubeLoader = window.heliosVideoFeature?.youtubeLoader;
+    if (!youtubeLoader) {
+      console.warn('[Helios YouTube Sidebar] YouTube loader not available');
+      this._showNotification('YouTube loader not available', 'error');
+      return;
+    }
+
+    // Show loading notification
+    this._showNotification('Loading available captions...', 'info');
+
+    try {
+      const tracks = await youtubeLoader.getAvailableTracks();
+
+      if (tracks.length === 0) {
+        this._showNotification('No caption tracks available', 'error');
+        return;
+      }
+
+      console.log('[Helios YouTube Sidebar] Available tracks:', tracks.length);
+
+      // Create or get subtitle selector modal
+      if (!window.subtitleSelectorModal) {
+        window.subtitleSelectorModal = new SubtitleSelectorModal();
+      }
+
+      // Show modal with tracks, callback, and current track
+      window.subtitleSelectorModal.show(tracks, async (selectedTrack) => {
+        console.log('[Helios YouTube Sidebar] Selected track:', selectedTrack.languageName);
+        this._showNotification(`Loading ${selectedTrack.languageName} captions...`, 'info');
+
+        try {
+          // Load the selected track
+          const entries = await youtubeLoader.loadTrack(selectedTrack.url);
+
+          if (entries.length === 0) {
+            this._showNotification('No captions found in selected track', 'error');
+            return;
+          }
+
+          // Load into video binding with track info
+          const binding = window.heliosVideoFeature?.videoDetector?.getPrimaryBinding();
+          if (binding) {
+            binding.loadSubtitles(entries, selectedTrack);
+            this._showNotification(`Loaded ${entries.length} captions (${selectedTrack.languageName})`, 'success');
+          } else {
+            this._showNotification('Video binding not found', 'error');
+          }
+        } catch (error) {
+          console.error('[Helios YouTube Sidebar] Error loading track:', error);
+          this._showNotification('Failed to load captions', 'error');
+        }
+      }, this.currentTrack);
+    } catch (error) {
+      console.error('[Helios YouTube Sidebar] Error getting tracks:', error);
+      this._showNotification('Failed to get available captions', 'error');
+    }
   }
 
   /**

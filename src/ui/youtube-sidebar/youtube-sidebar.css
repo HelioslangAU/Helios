@@ -118,13 +118,42 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 16px;
+  padding: 0 4px;
+}
+
+.yt-select-caption-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
   font-weight: 700;
   color: var(--helios-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  margin-bottom: 16px;
-  padding: 0 4px;
+  width: 100%;
+}
+
+.yt-select-caption-btn:hover {
+  color: var(--helios-accent-primary);
+}
+
+.yt-select-caption-btn:hover svg {
+  transform: translateY(1px);
+}
+
+.yt-select-caption-btn svg {
+  transition: transform 0.2s ease;
+  opacity: 0.6;
+}
+
+.yt-select-caption-btn:hover svg {
+  opacity: 1;
 }
 
 .yt-subtitle-count {

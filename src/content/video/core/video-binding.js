@@ -91,15 +91,16 @@ class VideoBinding {
   /**
    * Load subtitles from entries
    * @param {SubtitleEntry[]} entries - Subtitle entries
+   * @param {Object} track - Optional track information
    */
-  loadSubtitles(entries) {
+  loadSubtitles(entries, track = null) {
     this.subtitleCollection = new SubtitleCollection(entries);
     this._updateSubtitles();
 
     console.log(`[Helios Video] Loaded ${entries.length} subtitles`);
 
     // Notify that subtitles were loaded
-    this._notifySubtitlesLoaded();
+    this._notifySubtitlesLoaded(entries, track);
   }
 
   /**
@@ -166,10 +167,14 @@ class VideoBinding {
 
   /**
    * Notify that subtitles were loaded
+   * @param {SubtitleEntry[]} entries - Subtitle entries
+   * @param {Object} track - Optional track information
    */
-  _notifySubtitlesLoaded() {
+  _notifySubtitlesLoaded(entries = [], track = null) {
     const event = new CustomEvent('helios-subtitles-loaded', {
       detail: {
+        entries: entries,
+        track: track,
         subtitleCount: this.subtitleCollection.getCount(),
         videoElement: this.videoElement,
         binding: this
