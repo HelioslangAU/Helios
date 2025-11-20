@@ -1,4 +1,4 @@
-/* Subtitle Selector Modal (ASB Player style) */
+/* Subtitle Selector Modal - Helios Design Language (Minimal & Professional) */
 
 .helios-subtitle-selector-modal {
   position: fixed;
@@ -6,175 +6,247 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2147483647;
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .helios-subtitle-selector-content {
-  background: #2a2a2a;
-  border-radius: 8px;
-  width: 500px;
+  background: #1a1a1a;
+  border: 1px solid rgba(255, 107, 71, 0.2);
+  border-radius: 12px;
+  width: 480px;
   max-width: 90vw;
-  max-height: 80vh;
+  max-height: 70vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9),
+              0 0 1px rgba(255, 107, 71, 0.3);
+  animation: contentSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes contentSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 .helios-subtitle-selector-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 107, 71, 0.12);
 }
 
 .helios-subtitle-selector-header h3 {
   margin: 0;
-  color: white;
-  font-size: 18px;
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 16px;
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .helios-subtitle-selector-close {
-  background: none;
+  background: transparent;
   border: none;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 32px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 24px;
   cursor: pointer;
   padding: 0;
   width: 32px;
   height: 32px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.2s;
+  transition: all 0.15s ease;
 }
 
 .helios-subtitle-selector-close:hover {
-  color: white;
-}
-
-.helios-subtitle-selector-info {
-  padding: 16px 20px;
-  background: rgba(33, 150, 243, 0.1);
-  border-bottom: 1px solid rgba(33, 150, 243, 0.2);
-  color: #64B5F6;
-  font-size: 13px;
-  line-height: 1.4;
+  background: rgba(255, 107, 71, 0.1);
+  color: rgb(255, 107, 71);
 }
 
 .helios-subtitle-selector-list {
   flex: 1;
   overflow-y: auto;
   padding: 12px;
+  min-height: 200px;
 }
 
 .helios-subtitle-selector-empty {
-  padding: 40px 20px;
+  padding: 60px 20px;
   text-align: center;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.4);
   font-size: 14px;
 }
 
 .helios-subtitle-selector-item {
   display: flex;
   align-items: center;
-  padding: 12px;
+  padding: 14px 16px;
   margin: 4px 0;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  will-change: transform, background-color, border-color;
 }
 
 .helios-subtitle-selector-item:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 107, 71, 0.08);
+  border-color: rgba(255, 107, 71, 0.25);
+  transform: translateX(2px);
+}
+
+.helios-subtitle-selector-item:active {
+  transform: translateX(1px);
+}
+
+.helios-subtitle-selector-item.selected {
+  background: rgba(255, 107, 71, 0.12);
+  border-color: rgba(255, 107, 71, 0.3);
 }
 
 .helios-subtitle-selector-item input[type="radio"] {
   margin: 0 12px 0 0;
   cursor: pointer;
+  width: 16px;
+  height: 16px;
+  accent-color: rgb(255, 107, 71);
+  flex-shrink: 0;
 }
 
 .helios-subtitle-selector-item label {
   flex: 1;
-  cursor: pointer;
-  color: white;
-  font-size: 14px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
 }
 
 .helios-subtitle-selector-item .track-name {
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
   flex: 1;
 }
 
-.helios-subtitle-selector-item .track-badge {
-  background: rgba(255, 193, 7, 0.2);
-  color: #FFC107;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 500;
+.helios-subtitle-selector-item .track-badges {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-shrink: 0;
 }
 
+.helios-subtitle-selector-item .track-badge {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.helios-subtitle-selector-item .track-badge:not(.track-badge-current) {
+  background: rgba(255, 193, 7, 0.15);
+  color: rgba(255, 193, 7, 0.9);
+}
+
+.helios-subtitle-selector-item .track-badge-current {
+  background: rgba(255, 107, 71, 0.2);
+  color: rgb(255, 107, 71);
+}
+
+/* Footer */
 .helios-subtitle-selector-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
+  gap: 10px;
   padding: 16px 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid rgba(255, 107, 71, 0.12);
 }
 
 .helios-subtitle-selector-cancel,
 .helios-subtitle-selector-ok {
   padding: 10px 24px;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   border: none;
+  letter-spacing: 0.01em;
 }
 
 .helios-subtitle-selector-cancel {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .helios-subtitle-selector-cancel:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .helios-subtitle-selector-ok {
-  background: #2196F3;
+  background: rgb(255, 107, 71);
   color: white;
+  box-shadow: 0 2px 8px rgba(255, 107, 71, 0.25);
 }
 
 .helios-subtitle-selector-ok:hover {
-  background: #1976D2;
+  background: rgb(255, 87, 51);
+  box-shadow: 0 4px 12px rgba(255, 107, 71, 0.35);
+  transform: translateY(-1px);
+}
+
+.helios-subtitle-selector-ok:active {
+  transform: translateY(0);
 }
 
 /* Scrollbar */
 .helios-subtitle-selector-list::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 .helios-subtitle-selector-list::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
+  background: transparent;
+  margin: 8px 0;
 }
 
 .helios-subtitle-selector-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
+  background: rgba(255, 107, 71, 0.25);
+  border-radius: 3px;
+  transition: background 0.2s;
 }
 
 .helios-subtitle-selector-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 107, 71, 0.4);
 }

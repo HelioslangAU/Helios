@@ -46,7 +46,7 @@ class ChineseLanguageAdapter extends BaseLanguageAdapter {
    * Extract Chinese words from text with positions
    * @param {string} text - Text to process
    * @param {Object} dictionary - Dictionary to validate against
-   * @returns {Array} - Array of {word, start, end} objects
+   * @returns {Array} - Array of {word, start, end, isTargetLang} objects
    */
   extractWords(text, dictionary) {
     const words = [];
@@ -60,7 +60,7 @@ class ChineseLanguageAdapter extends BaseLanguageAdapter {
         // Try to find the longest word (1-5 characters)
         for (let len = Math.min(5, text.length - i); len >= 1; len--) {
           const candidate = text.substring(i, i + len);
-          if ([...candidate].every(c => this.isTargetCharacter(c)) && 
+          if ([...candidate].every(c => this.isTargetCharacter(c)) &&
               dictionary && dictionary[candidate]) {
             if (len > longestLength) {
               longestWord = candidate;
@@ -73,22 +73,36 @@ class ChineseLanguageAdapter extends BaseLanguageAdapter {
           words.push({
             word: longestWord,
             start: i,
-            end: i + longestLength
+            end: i + longestLength,
+            isTargetLang: true
           });
           i += longestLength;
         } else {
-          // Single character fallback
-          if (dictionary && dictionary[text[i]]) {
-            words.push({
-              word: text[i],
-              start: i,
-              end: i + 1
-            });
-          }
+          // Single character fallback - include even if not in dictionary
+          words.push({
+            word: text[i],
+            start: i,
+            end: i + 1,
+            isTargetLang: true
+          });
           i++;
         }
       } else {
-        i++;
+        // Non-target language character (e.g., English, numbers, punctuation)
+        // Collect consecutive non-target characters
+        const start = i;
+        while (i < text.length && !this.isTargetCharacter(text[i])) {
+          i++;
+        }
+        const nonTargetText = text.substring(start, i);
+
+        // Add as a single segment
+        words.push({
+          word: nonTargetText,
+          start: start,
+          end: i,
+          isTargetLang: false
+        });
       }
     }
 
