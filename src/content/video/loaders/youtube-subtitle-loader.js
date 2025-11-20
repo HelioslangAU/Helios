@@ -271,10 +271,11 @@ class YouTubeSubtitleLoader {
       selectedTrack = tracks.find(t => t.language.startsWith(preferredLanguage));
     }
 
-    // Fallback to first available track
+    // NO FALLBACK - if no matching language, don't load anything
     if (!selectedTrack) {
-      console.log('[Helios YouTube] No matching language - using first available track');
-      selectedTrack = tracks[0];
+      console.log('[Helios YouTube] No captions available for target language:', preferredLanguage);
+      console.log('[Helios YouTube] Not loading any captions (user must manually select)');
+      return false;
     }
 
     console.log('[Helios YouTube] Selected track:', selectedTrack.language, selectedTrack.languageName);

@@ -109,14 +109,19 @@
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   user-select: none;
+  will-change: transform, background-color, border-color;
 }
 
 .helios-subtitle-selector-item:hover {
   background: rgba(255, 107, 71, 0.08);
   border-color: rgba(255, 107, 71, 0.25);
   transform: translateX(2px);
+}
+
+.helios-subtitle-selector-item:active {
+  transform: translateX(1px);
 }
 
 .helios-subtitle-selector-item.selected {
