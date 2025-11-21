@@ -103,6 +103,7 @@
         "src/ui/popup/popup.css",
         "dictionaries/**/*",
         "freq-dict/*",
+        "OnboardingVocab/**/*",
         "src/ui/settings/helios-settings.html",
         "src/settings/helios-settings.js",
         "src/settings/settings-storage.js",

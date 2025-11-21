@@ -405,6 +405,19 @@ class EnglishLanguageAdapter extends SpaceSeparatedLanguageAdapter {
   getDictionaryPath() {
     return 'dictionaries/English/ecdict.csv';
   }
+
+  /**
+   * Get proficiency level definitions for English (CEFR levels)
+   * @returns {Array<Object>} - Array of level definitions
+   */
+  getLevelDefinitions() {
+    return [
+      { level: 'A1', name: 'A1 (Beginner)', wordCount: 500 },
+      { level: 'A2', name: 'A2 (Elementary)', wordCount: 1000 },
+      { level: 'B1', name: 'B1 (Intermediate)', wordCount: 2000 },
+      { level: 'B2', name: 'B2 (Upper Intermediate)', wordCount: 4000 }
+    ];
+  }
 }
 
 /**
@@ -508,6 +521,29 @@ class SpanishLanguageAdapter extends SpaceSeparatedLanguageAdapter {
   getDictionaryPath() {
     return 'dictionaries/Spanish/';
   }
+
+  /**
+   * Get proficiency level definitions for Spanish (CEFR levels)
+   * @returns {Array<Object>} - Array of level definitions
+   */
+  getLevelDefinitions() {
+    return [
+      { level: 'A1', name: 'A1 (Beginner)', wordCount: 500 },
+      { level: 'A2', name: 'A2 (Elementary)', wordCount: 1000 },
+      { level: 'B1', name: 'B1 (Intermediate)', wordCount: 2000 },
+      { level: 'B2', name: 'B2 (Upper Intermediate)', wordCount: 4000 }
+    ];
+  }
+
+  /**
+   * Get the vocabulary file path for onboarding word lists
+   * @param {string} level - Proficiency level (e.g., 'A1', 'A2')
+   * @returns {string|null} - Path to vocabulary file or null if not available
+   */
+  getOnboardingVocabPath(level) {
+    const langCode = this.getLanguageCode();
+    return `OnboardingVocab/${langCode.charAt(0).toUpperCase() + langCode.slice(1)}5k.csv`;
+  }
 }
 
 /**
@@ -555,6 +591,19 @@ class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
 
   getDictionaryPath() {
     return 'dictionaries/French/';
+  }
+
+  /**
+   * Get proficiency level definitions for French (CEFR levels)
+   * @returns {Array<Object>} - Array of level definitions
+   */
+  getLevelDefinitions() {
+    return [
+      { level: 'A1', name: 'A1 (Beginner)', wordCount: 500 },
+      { level: 'A2', name: 'A2 (Elementary)', wordCount: 1000 },
+      { level: 'B1', name: 'B1 (Intermediate)', wordCount: 2000 },
+      { level: 'B2', name: 'B2 (Upper Intermediate)', wordCount: 4000 }
+    ];
   }
 
   /**

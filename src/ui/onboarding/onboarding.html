@@ -17,8 +17,56 @@
   <div class="onboarding-container">
     <!-- Main Content -->
     <main class="onboarding-content">
-      <!-- Step 1: Hero Welcome -->
-      <section class="onboarding-step active" id="step-hero">
+      <!-- Step 1: Language Selection -->
+      <section class="onboarding-step active" id="step-language">
+        <div class="step-content">
+          <h2 class="step-title">Choose Your Language</h2>
+          <p class="step-description">
+            Select the language you want to learn. This will personalize all examples and features.
+          </p>
+
+          <div id="language-selector-container" class="language-selector-wrapper">
+            <!-- Language selector will be injected here -->
+          </div>
+
+          <div class="step-nav">
+            <button class="btn btn-primary" id="btn-lang-next" disabled>Next →</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 2: Level Selection -->
+      <section class="onboarding-step" id="step-level">
+        <div class="step-content">
+          <h2 class="step-title">What's Your Current Level?</h2>
+          <p class="step-description">
+            Select your proficiency level to import a starter vocabulary list. 
+            This helps Helios understand which words you already know.
+          </p>
+
+          <div id="level-selector-container" class="level-selector-container">
+            <!-- Level selector will be injected here -->
+          </div>
+
+          <div class="level-import-option">
+            <label class="level-import-checkbox">
+              <input type="checkbox" id="import-words-checkbox" checked>
+              <span>Import words for this level as known words</span>
+            </label>
+            <p class="level-import-hint">
+              This will mark the selected number of words as "known" to get you started faster.
+            </p>
+          </div>
+
+          <div class="step-nav">
+            <button class="btn btn-secondary" id="btn-level-back">← Back</button>
+            <button class="btn btn-primary" id="btn-level-next">Continue →</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 3: Hero Welcome -->
+      <section class="onboarding-step" id="step-hero">
         <div class="step-content hero-content">
           <div class="hero-logo">
             <img src="../../../icons/icon128.png" alt="Helios Logo" class="logo-large">
@@ -40,7 +88,7 @@
         </div>
       </section>
 
-      <!-- Step 2: Feature - Dictionary Popup -->
+      <!-- Step 4: Feature - Dictionary Popup -->
       <section class="onboarding-step" id="step-popup">
         <div class="step-content">
           <div class="feature-showcase">
@@ -97,7 +145,7 @@
         </div>
       </section>
 
-      <!-- Step 3: Feature - Dashboard & Progress -->
+      <!-- Step 5: Feature - Dashboard & Progress -->
       <section class="onboarding-step" id="step-banner">
         <div class="step-content">
           <div class="feature-showcase reverse">
@@ -175,7 +223,7 @@
         </div>
       </section>
 
-      <!-- Step 4: Feature - Smart Highlighting -->
+      <!-- Step 6: Feature - Smart Highlighting -->
       <section class="onboarding-step" id="step-highlighting">
         <div class="step-content">
           <div class="feature-showcase">
@@ -235,26 +283,7 @@
         </div>
       </section>
 
-      <!-- Step 5: Language Selection -->
-      <section class="onboarding-step" id="step-language">
-        <div class="step-content">
-          <h2 class="step-title">Choose Your Language</h2>
-          <p class="step-description">
-            Select the language you want to learn. You can change this anytime in settings.
-          </p>
-
-          <div id="language-selector-container" class="language-selector-wrapper">
-            <!-- Language selector will be injected here -->
-          </div>
-
-          <div class="step-nav">
-            <button class="btn btn-secondary" id="btn-lang-back">← Back</button>
-            <button class="btn btn-primary" id="btn-finish" disabled>Complete Setup</button>
-          </div>
-        </div>
-      </section>
-
-      <!-- Step 6: Success -->
+      <!-- Step 7: Success -->
       <section class="onboarding-step" id="step-success">
         <div class="step-content success-content">
           <div class="success-icon">✨</div>
@@ -293,10 +322,15 @@
       <div class="progress-dot" data-step="3"></div>
       <div class="progress-dot" data-step="4"></div>
       <div class="progress-dot" data-step="5"></div>
+      <div class="progress-dot" data-step="6"></div>
     </div>
   </div>
 
   <!-- Scripts -->
+  <script src="../../content/languages/base-language-adapter.js"></script>
+  <script src="../../content/languages/chinese-adapter.js"></script>
+  <script src="../../content/languages/space-separated-adapter.js"></script>
+  <script src="../../content/vocab-manager.js"></script>
   <script src="../../content/components/language-selector/language-selector.js"></script>
   <script src="../../content/onboarding/first-run-detector.js"></script>
   <script src="../../content/onboarding/onboarding-controller.js"></script>

@@ -236,6 +236,32 @@ class ChineseLanguageAdapter extends BaseLanguageAdapter {
   getDictionaryPath() {
     return 'dictionaries/Chinese/cedict_ts.u8';
   }
+
+  /**
+   * Get proficiency level definitions for Chinese (HSK levels)
+   * @returns {Array<Object>} - Array of level definitions
+   */
+  getLevelDefinitions() {
+    return [
+      { level: 'HSK1', name: 'HSK 1', wordCount: 150 },
+      { level: 'HSK2', name: 'HSK 2', wordCount: 300 },
+      { level: 'HSK3', name: 'HSK 3', wordCount: 600 },
+      { level: 'HSK4', name: 'HSK 4', wordCount: 1200 },
+      { level: 'HSK5', name: 'HSK 5', wordCount: 2500 },
+      { level: 'HSK6', name: 'HSK 6', wordCount: 5000 }
+    ];
+  }
+
+  /**
+   * Get the vocabulary file path for onboarding word lists
+   * @param {string} level - Proficiency level (e.g., 'HSK1', 'HSK2')
+   * @returns {string|null} - Path to vocabulary file or null if not available
+   */
+  getOnboardingVocabPath(level) {
+    // For Chinese, we might have separate files per HSK level
+    // For now, return a general path - can be customized later
+    return `OnboardingVocab/Chinese5k.csv`;
+  }
 }
 
 // Export for use in other modules

@@ -5,16 +5,22 @@
 
 class OnboardingPage {
   constructor() {
-    this.currentStep = 'hero';
+    this.currentStep = 'language';
     this.controller = new OnboardingController();
     this.languageSelector = null;
     this.selectedLanguage = null;
+    this.selectedLevel = null;
+    this.shouldImportWords = true;
+    this.vocabManager = null;
 
     this.init();
   }
 
   async init() {
     console.log('Initializing onboarding page...');
+
+    // Initialize vocab manager
+    this.vocabManager = new VocabManager();
 
     // Set up event listeners
     this.setupEventListeners();
@@ -33,17 +39,31 @@ class OnboardingPage {
       return;
     }
 
-    // Show hero step
-    this.showStep('hero');
+    // Show language selection step (first step)
+    this.showStep('language');
+    this.initializeLanguageSelector();
   }
 
   setupEventListeners() {
-    // Step 1: Hero - Get Started button
+    // Step 1: Language selection - Next button
+    document.getElementById('btn-lang-next')?.addEventListener('click', () => {
+      this.goToLevelSelection();
+    });
+
+    // Step 2: Level selection - Back/Next buttons
+    document.getElementById('btn-level-back')?.addEventListener('click', () => {
+      this.showStep('language');
+    });
+    document.getElementById('btn-level-next')?.addEventListener('click', () => {
+      this.handleLevelSelection();
+    });
+
+    // Step 3: Hero - Get Started button
     document.getElementById('btn-start')?.addEventListener('click', () => {
       this.showStep('popup');
     });
 
-    // Step 2: Popup feature - Back/Next buttons
+    // Step 4: Popup feature - Back/Next buttons
     document.getElementById('btn-popup-back')?.addEventListener('click', () => {
       this.showStep('hero');
     });
@@ -51,7 +71,7 @@ class OnboardingPage {
       this.showStep('banner');
     });
 
-    // Step 3: Banner feature - Back/Next buttons
+    // Step 5: Banner feature - Back/Next buttons
     document.getElementById('btn-banner-back')?.addEventListener('click', () => {
       this.showStep('popup');
     });
@@ -59,31 +79,18 @@ class OnboardingPage {
       this.showStep('highlighting');
     });
 
-    // Step 4: Highlighting feature - Back/Next buttons
+    // Step 6: Highlighting feature - Back/Next buttons
     document.getElementById('btn-highlight-back')?.addEventListener('click', () => {
       this.showStep('banner');
     });
     document.getElementById('btn-highlight-next')?.addEventListener('click', () => {
-      this.goToLanguageSelection();
-    });
-
-    // Step 5: Language selection - Back/Finish buttons
-    document.getElementById('btn-lang-back')?.addEventListener('click', () => {
-      this.showStep('highlighting');
-    });
-    document.getElementById('btn-finish')?.addEventListener('click', () => {
       this.completeOnboarding();
     });
 
-    // Step 6: Success - Start Learning button
+    // Step 7: Success - Start Learning button
     document.getElementById('btn-start-learning')?.addEventListener('click', () => {
       this.startUsingExtension();
     });
-  }
-
-  goToLanguageSelection() {
-    this.showStep('language');
-    this.initializeLanguageSelector();
   }
 
   initializeLanguageSelector() {
@@ -116,10 +123,196 @@ class OnboardingPage {
     console.log(`Language selected: ${code} (${language.name})`);
     this.selectedLanguage = { code, ...language };
 
-    // Enable finish button
-    const finishBtn = document.getElementById('btn-finish');
-    if (finishBtn) {
-      finishBtn.disabled = false;
+    // Enable next button
+    const nextBtn = document.getElementById('btn-lang-next');
+    if (nextBtn) {
+      nextBtn.disabled = false;
+    }
+  }
+
+  async goToLevelSelection() {
+    if (!this.selectedLanguage) {
+      alert('Please select a language before continuing');
+      return;
+    }
+
+    // Set language in vocab manager
+    this.vocabManager.setCurrentLanguage(this.selectedLanguage.code);
+
+    // Show level selection step
+    this.showStep('level');
+    this.initializeLevelSelector();
+  }
+
+  async initializeLevelSelector() {
+    const container = document.getElementById('level-selector-container');
+    if (!container) {
+      console.error('Level selector container not found');
+      return;
+    }
+
+    // Get language adapter to retrieve level definitions
+    const adapter = await this.getLanguageAdapter(this.selectedLanguage.code);
+    if (!adapter) {
+      console.error('Could not get language adapter');
+      container.innerHTML = '<p>Level selection not available for this language.</p>';
+      return;
+    }
+
+    const levels = adapter.getLevelDefinitions();
+    if (!levels || levels.length === 0) {
+      container.innerHTML = '<p>No proficiency levels defined for this language.</p>';
+      return;
+    }
+
+    // Create level selector UI
+    container.innerHTML = '';
+    levels.forEach(level => {
+      const levelOption = document.createElement('div');
+      levelOption.className = 'level-option';
+      levelOption.dataset.level = level.level;
+      levelOption.innerHTML = `
+        <div class="level-name">${level.name}</div>
+        <div class="level-word-count">${level.wordCount.toLocaleString()} words</div>
+      `;
+      levelOption.addEventListener('click', () => {
+        // Remove selected class from all options
+        container.querySelectorAll('.level-option').forEach(opt => {
+          opt.classList.remove('selected');
+        });
+        // Add selected class to clicked option
+        levelOption.classList.add('selected');
+        this.selectedLevel = level;
+      });
+      container.appendChild(levelOption);
+    });
+
+    // Set up import checkbox
+    const importCheckbox = document.getElementById('import-words-checkbox');
+    if (importCheckbox) {
+      importCheckbox.addEventListener('change', (e) => {
+        this.shouldImportWords = e.target.checked;
+      });
+    }
+  }
+
+  async getLanguageAdapter(languageCode) {
+    // Try to get adapter from language registry if available
+    if (window.languageRegistry) {
+      return window.languageRegistry.getAdapter(languageCode);
+    }
+
+    // Fallback: create adapter directly based on language code
+    // This is a simplified approach - in production, you'd want to use the registry
+    try {
+      // Dynamically import language adapters
+      const adapters = {
+        'zh': ChineseLanguageAdapter,
+        'es': SpanishLanguageAdapter,
+        'fr': FrenchLanguageAdapter,
+        'en': EnglishLanguageAdapter
+      };
+
+      const AdapterClass = adapters[languageCode];
+      if (AdapterClass) {
+        return new AdapterClass();
+      }
+    } catch (error) {
+      console.error('Error creating language adapter:', error);
+    }
+
+    return null;
+  }
+
+  async handleLevelSelection() {
+    if (!this.selectedLevel) {
+      alert('Please select a proficiency level');
+      return;
+    }
+
+    // If user wants to import words, do it now
+    if (this.shouldImportWords) {
+      try {
+        const nextBtn = document.getElementById('btn-level-next');
+        if (nextBtn) {
+          nextBtn.textContent = 'Importing words...';
+          nextBtn.disabled = true;
+        }
+
+        await this.importWordsForLevel(this.selectedLanguage.code, this.selectedLevel);
+        
+        if (nextBtn) {
+          nextBtn.textContent = 'Continue →';
+          nextBtn.disabled = false;
+        }
+      } catch (error) {
+        console.error('Error importing words:', error);
+        alert('Error importing words. You can continue without importing.');
+      }
+    }
+
+    // Continue to hero step
+    this.showStep('hero');
+  }
+
+  async importWordsForLevel(languageCode, level) {
+    console.log(`Importing words for ${languageCode} level ${level.level}...`);
+
+    // Get language adapter
+    const adapter = await this.getLanguageAdapter(languageCode);
+    if (!adapter) {
+      throw new Error('Could not get language adapter');
+    }
+
+    // Get vocabulary file path
+    const vocabPath = adapter.getOnboardingVocabPath(level.level);
+    if (!vocabPath) {
+      console.warn('No vocabulary file path defined for this level');
+      return;
+    }
+
+    try {
+      // Load CSV file
+      const fullPath = chrome.runtime.getURL(vocabPath);
+      const response = await fetch(fullPath);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to load vocabulary file: ${response.statusText}`);
+      }
+
+      const csvText = await response.text();
+      
+      // Parse CSV - handle quoted fields and simple one-word-per-line format
+      const parseCSVLine = (line) => {
+        line = line.trim();
+        if (!line) return null;
+        
+        // Handle quoted fields (e.g., "el, la")
+        if (line.startsWith('"') && line.endsWith('"')) {
+          return line.slice(1, -1).trim();
+        }
+        return line;
+      };
+
+      const lines = csvText.split('\n')
+        .map(parseCSVLine)
+        .filter(line => line && !line.startsWith('#'));
+      
+      // Extract words up to the level's word count
+      const wordsToImport = lines.slice(0, level.wordCount);
+      
+      console.log(`Importing ${wordsToImport.length} words for level ${level.level}...`);
+
+      // Load vocab manager and import words
+      await this.vocabManager.loadKnownWords();
+      const result = await this.vocabManager.markMultipleWordsAsKnown(wordsToImport);
+      
+      console.log(`✅ Imported ${result.newWordsCount} new words (${result.processedWordsCount} processed)`);
+      
+      return result;
+    } catch (error) {
+      console.error('Error importing words from CSV:', error);
+      throw error;
     }
   }
 
@@ -131,10 +324,10 @@ class OnboardingPage {
 
     try {
       // Show loading state
-      const finishBtn = document.getElementById('btn-finish');
-      if (finishBtn) {
-        finishBtn.textContent = 'Setting up...';
-        finishBtn.disabled = true;
+      const nextBtn = document.getElementById('btn-highlight-next');
+      if (nextBtn) {
+        nextBtn.textContent = 'Setting up...';
+        nextBtn.disabled = true;
       }
 
       // Complete onboarding
@@ -153,10 +346,10 @@ class OnboardingPage {
       alert('An error occurred. Please try again.');
 
       // Reset button
-      const finishBtn = document.getElementById('btn-finish');
-      if (finishBtn) {
-        finishBtn.textContent = 'Complete Setup';
-        finishBtn.disabled = false;
+      const nextBtn = document.getElementById('btn-highlight-next');
+      if (nextBtn) {
+        nextBtn.textContent = 'Next →';
+        nextBtn.disabled = false;
       }
     }
   }
@@ -191,17 +384,18 @@ class OnboardingPage {
   updateProgressIndicator(stepName) {
     const dots = document.querySelectorAll('.progress-dot');
 
-    // Map step names to indices (6-step flow)
+    // Map step names to indices (7-step flow)
     const stepIndex = {
-      'hero': 0,
-      'popup': 1,
-      'banner': 2,
-      'highlighting': 3,
-      'language': 4,
-      'success': 5
+      'language': 0,
+      'level': 1,
+      'hero': 2,
+      'popup': 3,
+      'banner': 4,
+      'highlighting': 5,
+      'success': 6
     };
 
-    const currentIndex = stepIndex[stepName];
+    const currentIndex = stepIndex[stepName] ?? 0;
 
     dots.forEach((dot, index) => {
       if (index <= currentIndex) {
