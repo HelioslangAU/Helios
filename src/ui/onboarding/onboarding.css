@@ -935,6 +935,98 @@ body {
   transition: transform 0.3s;
 }
 
+/* Interactive Sentence Container for Popup Demo */
+.onboarding-sentence-container {
+  width: 100%;
+  max-width: 500px;
+  background: radial-gradient(ellipse at top, #151518 0%, #0a0a0b 100%);
+  border: 1px solid rgba(255, 107, 71, 0.12);
+  border-radius: 20px;
+  padding: 32px;
+  font-size: 18px;
+  line-height: 1.8;
+  color: #94a3b8;
+  box-shadow:
+    0 40px 120px rgba(0, 0, 0, 0.6),
+    0 0 80px rgba(255, 107, 71, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(16px);
+  transition: transform 0.3s;
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.onboarding-sentence {
+  font-size: 20px;
+  line-height: 2;
+  color: #e2e8f0;
+  text-align: center;
+  width: 100%;
+  word-break: break-word;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Ensure unknown words are highlighted in the onboarding sentence */
+.onboarding-sentence-container .chinese-unknown-word,
+.onboarding-sentence-container .unknown-word {
+  color: #f8fafc;
+  text-decoration: underline;
+  text-decoration-color: #ff6b47;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  cursor: help;
+  transition: all 0.2s;
+}
+
+.onboarding-sentence-container .chinese-unknown-word:hover,
+.onboarding-sentence-container .unknown-word:hover {
+  background: rgba(255, 107, 71, 0.15);
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border-radius: 4px;
+}
+
+/* Preserve spacing when highlighting words in onboarding sentence */
+.onboarding-sentence-container {
+  white-space: pre-wrap !important; /* Preserve all whitespace including spaces between words */
+  word-spacing: normal !important;
+  letter-spacing: normal !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+}
+
+.onboarding-sentence {
+  white-space: pre-wrap !important; /* Preserve all whitespace including spaces between words */
+  word-spacing: normal !important;
+  letter-spacing: normal !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+}
+
+/* Ensure lookup-highlight doesn't affect spacing around it */
+.onboarding-sentence-container .lookup-highlight {
+  display: inline !important;
+  white-space: pre-wrap !important; /* Preserve whitespace inside the span too */
+  word-spacing: normal !important;
+  letter-spacing: normal !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 3px !important;
+  /* Prevent any layout shifts */
+  box-sizing: content-box !important;
+  vertical-align: baseline !important;
+  /* Ensure the span doesn't collapse whitespace around it */
+  line-height: inherit !important;
+  /* Force inline display to preserve text flow */
+  position: relative !important;
+  z-index: 1 !important;
+}
+
 .text-sample-mockup:hover {
   transform: translateY(-4px) scale(1.02);
 }

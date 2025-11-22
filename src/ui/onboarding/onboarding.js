@@ -5,13 +5,25 @@
 
 class OnboardingPage {
   constructor() {
-    this.currentStep = 'language';
+    this.currentStep = 'hero';
     this.controller = new OnboardingController();
     this.languageSelector = null;
     this.selectedLanguage = null;
     this.selectedLevel = null;
     this.shouldImportWords = true;
     this.vocabManager = null;
+    
+    // Popup system components
+    this.popupSystemInitialized = false;
+    this.dictionaryManager = null;
+    this.dictionaryBridge = null; // For early dictionary loading
+    this.highlightManager = null;
+    this.pageProcessor = null;
+    this.popupManager = null;
+    this.lookupController = null;
+    this.activationController = null;
+    this.languageRegistry = null;
+    this.frequencyManager = null;
 
     this.init();
   }
@@ -39,18 +51,26 @@ class OnboardingPage {
       return;
     }
 
-    // Show language selection step (first step)
-    this.showStep('language');
-    this.initializeLanguageSelector();
+    // Show hero welcome step (first step)
+    this.showStep('hero');
   }
 
   setupEventListeners() {
-    // Step 1: Language selection - Next button
+    // Step 1: Hero - Get Started button
+    document.getElementById('btn-start')?.addEventListener('click', () => {
+      this.showStep('language');
+      this.initializeLanguageSelector();
+    });
+
+    // Step 2: Language selection - Back/Next buttons
+    document.getElementById('btn-lang-back')?.addEventListener('click', () => {
+      this.showStep('hero');
+    });
     document.getElementById('btn-lang-next')?.addEventListener('click', () => {
       this.goToLevelSelection();
     });
 
-    // Step 2: Level selection - Back/Next buttons
+    // Step 3: Level selection - Back/Next buttons
     document.getElementById('btn-level-back')?.addEventListener('click', () => {
       this.showStep('language');
     });
@@ -58,32 +78,11 @@ class OnboardingPage {
       this.handleLevelSelection();
     });
 
-    // Step 3: Hero - Get Started button
-    document.getElementById('btn-start')?.addEventListener('click', () => {
-      this.showStep('popup');
-    });
-
     // Step 4: Popup feature - Back/Next buttons
     document.getElementById('btn-popup-back')?.addEventListener('click', () => {
-      this.showStep('hero');
+      this.showStep('level');
     });
     document.getElementById('btn-popup-next')?.addEventListener('click', () => {
-      this.showStep('banner');
-    });
-
-    // Step 5: Banner feature - Back/Next buttons
-    document.getElementById('btn-banner-back')?.addEventListener('click', () => {
-      this.showStep('popup');
-    });
-    document.getElementById('btn-banner-next')?.addEventListener('click', () => {
-      this.showStep('highlighting');
-    });
-
-    // Step 6: Highlighting feature - Back/Next buttons
-    document.getElementById('btn-highlight-back')?.addEventListener('click', () => {
-      this.showStep('banner');
-    });
-    document.getElementById('btn-highlight-next')?.addEventListener('click', () => {
       this.completeOnboarding();
     });
 
@@ -123,10 +122,65 @@ class OnboardingPage {
     console.log(`Language selected: ${code} (${language.name})`);
     this.selectedLanguage = { code, ...language };
 
+    // Start loading dictionary in offscreen script immediately
+    this.startDictionaryLoading(code);
+
     // Enable next button
     const nextBtn = document.getElementById('btn-lang-next');
     if (nextBtn) {
       nextBtn.disabled = false;
+    }
+  }
+
+  async startDictionaryLoading(languageCode) {
+    try {
+      console.log(`📚 Starting dictionary loading for ${languageCode} in offscreen...`);
+      
+      // Create a DictionaryBridge instance to communicate with offscreen
+      if (!this.dictionaryBridge) {
+        if (typeof DictionaryBridge !== 'undefined') {
+          this.dictionaryBridge = new DictionaryBridge();
+          // Ensure offscreen document is ready
+          await this.dictionaryBridge.ensureOffscreenDocument();
+        } else {
+          // Fallback: send message directly to background/offscreen
+          chrome.runtime.sendMessage({
+            action: 'DICT_LOAD',
+            languageCode: languageCode
+          }, (response) => {
+            if (chrome.runtime.lastError) {
+              console.warn('Could not trigger dictionary loading:', chrome.runtime.lastError);
+            } else if (response && response.success) {
+              console.log(`✅ Dictionary loading started for ${languageCode}`);
+            }
+          });
+          return;
+        }
+      }
+      
+      // Start loading dictionary (this is async but we don't wait for it)
+      // It will load in the background while user selects level
+      this.dictionaryBridge.loadDictionary(languageCode).then(result => {
+        if (result.success) {
+          console.log(`✅ Dictionary loaded for ${languageCode}: ${result.size} entries`);
+        } else {
+          console.warn(`⚠️ Dictionary loading failed:`, result.error);
+        }
+      }).catch(error => {
+        console.warn(`⚠️ Dictionary loading error:`, error);
+      });
+    } catch (error) {
+      console.warn('Could not start dictionary loading:', error);
+      // Don't block the user flow if dictionary loading fails
+      // Try fallback method
+      try {
+        chrome.runtime.sendMessage({
+          action: 'DICT_LOAD',
+          languageCode: languageCode
+        });
+      } catch (e) {
+        // Ignore - dictionary will load later when popup system initializes
+      }
     }
   }
 
@@ -251,8 +305,11 @@ class OnboardingPage {
       }
     }
 
-    // Continue to hero step
-    this.showStep('hero');
+    // Continue to popup feature step
+    // Small delay to ensure everything is ready
+    setTimeout(() => {
+      this.showStep('popup');
+    }, 100);
   }
 
   async importWordsForLevel(languageCode, level) {
@@ -324,7 +381,7 @@ class OnboardingPage {
 
     try {
       // Show loading state
-      const nextBtn = document.getElementById('btn-highlight-next');
+      const nextBtn = document.getElementById('btn-popup-next');
       if (nextBtn) {
         nextBtn.textContent = 'Setting up...';
         nextBtn.disabled = true;
@@ -346,7 +403,7 @@ class OnboardingPage {
       alert('An error occurred. Please try again.');
 
       // Reset button
-      const nextBtn = document.getElementById('btn-highlight-next');
+      const nextBtn = document.getElementById('btn-popup-next');
       if (nextBtn) {
         nextBtn.textContent = 'Next →';
         nextBtn.disabled = false;
@@ -377,6 +434,22 @@ class OnboardingPage {
       this.currentStep = stepName;
     }
 
+    // Initialize popup system if showing popup step
+    if (stepName === 'popup') {
+      // Set sentence text immediately (before initialization)
+      const sentenceElement = document.getElementById('onboarding-sentence');
+      if (sentenceElement && this.selectedLanguage) {
+        const sentence = this.getSampleSentence(this.selectedLanguage.code);
+        sentenceElement.textContent = sentence;
+        console.log('Sentence set:', sentence);
+      }
+      
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        this.initializePopupSystem();
+      }, 100);
+    }
+
     // Update progress indicator
     this.updateProgressIndicator(stepName);
   }
@@ -384,15 +457,13 @@ class OnboardingPage {
   updateProgressIndicator(stepName) {
     const dots = document.querySelectorAll('.progress-dot');
 
-    // Map step names to indices (7-step flow)
+    // Map step names to indices (5-step flow)
     const stepIndex = {
-      'language': 0,
-      'level': 1,
-      'hero': 2,
+      'hero': 0,
+      'language': 1,
+      'level': 2,
       'popup': 3,
-      'banner': 4,
-      'highlighting': 5,
-      'success': 6
+      'success': 4
     };
 
     const currentIndex = stepIndex[stepName] ?? 0;
@@ -406,88 +477,339 @@ class OnboardingPage {
     });
   }
 
-  setupInteractiveDemo() {
-    let isShiftPressed = false;
-    let demoPopup = null;
-
-    // Track shift key state
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Shift') {
-        isShiftPressed = true;
-      }
-    });
-
-    document.addEventListener('keyup', (e) => {
-      if (e.key === 'Shift') {
-        isShiftPressed = false;
-        this.closeDemoPopup();
-      }
-    });
-
-    // Add hover listeners to all highlighted words
-    const highlightedWords = document.querySelectorAll('#interactive-sample .highlighted-word');
-    highlightedWords.forEach(word => {
-      word.addEventListener('mouseenter', (e) => {
-        if (isShiftPressed) {
-          this.showDemoPopup(e.target);
-        }
-      });
-
-      word.addEventListener('mouseleave', () => {
-        if (!isShiftPressed) {
-          this.closeDemoPopup();
-        }
-      });
-    });
+  getSampleSentence(languageCode) {
+    const sentences = {
+      'zh': '我喜欢学习新的语言。',
+      'es': 'Me gusta aprender nuevos idiomas.',
+      'fr': "J'aime apprendre de nouvelles langues.",
+      'en': 'I love learning new languages.'
+    };
+    return sentences[languageCode] || sentences['zh'];
   }
 
-  showDemoPopup(wordElement) {
-    // Close existing popup
-    this.closeDemoPopup();
-
-    const word = wordElement.dataset.word;
-    const definitions = JSON.parse(wordElement.dataset.definitions);
-
-    // Create popup
-    const popup = document.createElement('div');
-    popup.className = 'demo-popup';
-    popup.innerHTML = `
-      <div class="demo-popup-top-accent"></div>
-      <div class="demo-popup-body">
-        <button class="demo-popup-anki-btn">A</button>
-        <div class="demo-popup-char-container">
-          <div class="demo-popup-character">
-            <div class="demo-popup-char">${word}</div>
-          </div>
-        </div>
-        <div class="demo-popup-definitions">
-          <div class="demo-popup-def-block">
-            ${definitions.map(def => `<div class="demo-popup-def-item">• ${def}</div>`).join('')}
-          </div>
-        </div>
-        <button class="demo-popup-known-btn">Mark Known</button>
-      </div>
-    `;
-
-    // Position popup
-    const rect = wordElement.getBoundingClientRect();
-    popup.style.position = 'fixed';
-    popup.style.left = `${rect.left}px`;
-    popup.style.top = `${rect.bottom + 10}px`;
-    popup.style.zIndex = '10000';
-
-    document.body.appendChild(popup);
-    this.demoPopup = popup;
-
-    // Add click prevention
-    popup.addEventListener('click', (e) => e.stopPropagation());
-  }
-
-  closeDemoPopup() {
-    if (this.demoPopup) {
-      this.demoPopup.remove();
-      this.demoPopup = null;
+  async initializePopupSystem() {
+    if (this.popupSystemInitialized) {
+      return; // Already initialized
     }
+
+    if (!this.selectedLanguage) {
+      console.warn('Cannot initialize popup system: no language selected');
+      return;
+    }
+
+    try {
+      console.log('Initializing popup system for onboarding...');
+
+      // Initialize language registry
+      this.languageRegistry = new LanguageRegistry();
+      this.languageRegistry.initializeDefaultAdapters();
+      this.languageRegistry.setLanguage(this.selectedLanguage.code);
+
+      // Initialize managers
+      // Reuse dictionaryBridge if already created (from language selection)
+      if (!this.dictionaryBridge) {
+        this.dictionaryBridge = new DictionaryBridge();
+        await this.dictionaryBridge.ensureOffscreenDocument();
+      }
+      
+      this.dictionaryManager = new DictionaryManagerProxy(this.languageRegistry);
+      this.vocabManager = new VocabManager();
+      this.vocabManager.setCurrentLanguage(this.selectedLanguage.code);
+      this.highlightManager = new HighlightManager();
+      this.frequencyManager = new FrequencyManager();
+
+      // Load dictionary and resources
+      // Dictionary may already be loading from language selection, but wait for it to complete
+      await Promise.all([
+        this.dictionaryManager.loadDictionary(),
+        this.vocabManager.loadKnownWords(),
+        this.frequencyManager.loadFrequencyList()
+      ]);
+
+      const originalInit = PageProcessor.prototype.initializeProcessing;
+      PageProcessor.prototype.ensureGlobalCSS = function() {
+        // Do nothing - prevent auto-processing
+      };
+
+      // Initialize page processor
+      // Prevent auto-processing of the entire page - we only want popup functionality
+      this.pageProcessor = new PageProcessor(
+        this.dictionaryManager,
+        this.vocabManager,
+        this.languageRegistry
+      );
+
+      PageProcessor.prototype.ensureGlobalCSS = originalInit;
+      
+      // Override ALL processing methods to prevent any automatic underlining
+      this.pageProcessor.processPageForUnknownWords = () => {
+        // Do nothing - we don't want underlines on the onboarding page
+        console.log('📝 Page processing disabled for onboarding');
+      };
+
+      this.pageProcessor.ensureGlobalCSS = () => {
+        // Do nothing - we don't want to inject CSS for the onboarding page
+      };
+      
+      this.pageProcessor.processTextNodeForUnknownWords = () => {
+        // Do nothing - prevent processing of individual text nodes
+        return Promise.resolve();
+      };
+      
+      // Override initializeProcessing to prevent it from calling processPageForUnknownWords
+      this.pageProcessor.initializeProcessing = () => {
+        // Only inject CSS and set up subtitle listeners, but don't process the page
+        this.pageProcessor.ensureGlobalCSS();
+        this.pageProcessor.setupSubtitleEventListeners();
+        // Don't call processPageForUnknownWords() - we don't want underlines
+        console.log('📝 PageProcessor initialized for onboarding (no auto-processing)');
+      };
+      
+      // Override getCharacterAtPosition to ignore spaces and only work in sentence container
+      const originalGetCharacterAtPosition = this.pageProcessor.getCharacterAtPosition.bind(this.pageProcessor);
+      this.pageProcessor.getCharacterAtPosition = (event) => {
+        // Only allow lookups in the sentence container
+        const sentenceContainer = document.getElementById('onboarding-sentence-container');
+        const elementAtPoint = document.elementFromPoint(event.clientX, event.clientY);
+        
+        if (!sentenceContainer || !sentenceContainer.contains(elementAtPoint)) {
+          return null; // Don't process anything outside the sentence container
+        }
+        
+        // Check if hovering over whitespace - if so, ignore
+        if (elementAtPoint) {
+          const text = elementAtPoint.textContent || '';
+          const range = document.caretRangeFromPoint?.(event.clientX, event.clientY);
+          if (range) {
+            const char = range.toString() || text[range.startOffset] || '';
+            if (/^\s+$/.test(char)) {
+              return null; // Ignore spaces
+            }
+          }
+        }
+        
+        // Get character info
+        const result = originalGetCharacterAtPosition(event);
+        
+        // If result is a space or whitespace, ignore it
+        if (result && result.word && /^\s+$/.test(result.word.trim())) {
+          return null;
+        }
+        
+        return result;
+      };
+      
+      // Ensure CSS is injected (in case initialization already ran)
+      if (!this.pageProcessor.injectedCSS) {
+        this.pageProcessor.ensureGlobalCSS();
+      }
+      
+      // Remove any underlines that might have been created during initialization
+      // (in case the constructor already processed the page)
+      // Run multiple times to catch any that appear later
+      const removeUnderlines = () => {
+        const underlinedWords = document.querySelectorAll('.chinese-unknown-word, .unknown-word');
+        let removedCount = 0;
+        
+        underlinedWords.forEach(word => {
+          // Remove the underline class but keep the text
+          const parent = word.parentNode;
+          if (parent) {
+            const text = word.textContent;
+            const textNode = document.createTextNode(text);
+            parent.replaceChild(textNode, word);
+            // Normalize to merge adjacent text nodes
+            parent.normalize();
+            removedCount++;
+          }
+        });
+        
+        if (removedCount > 0) {
+          console.log(`📝 Removed ${removedCount} underlines from onboarding page`);
+        }
+      };
+      
+      // Remove immediately and also check periodically
+      setTimeout(removeUnderlines, 50);
+      setTimeout(removeUnderlines, 200);
+      setTimeout(removeUnderlines, 500);
+      
+      // Also set up a mutation observer to catch any new underlines
+      const observer = new MutationObserver(() => {
+        removeUnderlines();
+      });
+      
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true
+      });
+      
+      // Stop observing after a while
+      setTimeout(() => {
+        observer.disconnect();
+      }, 2000);
+
+      // Initialize popup manager
+      this.popupManager = new MultiCardPopupManager({
+        highlightManager: this.highlightManager,
+        dictionaryManager: this.dictionaryManager,
+        vocabManager: this.vocabManager,
+        frequencyManager: this.frequencyManager,
+        languageRegistry: this.languageRegistry
+      });
+
+      // Initialize activation controller
+      this.activationController = new ActivationController('Shift');
+
+      // Override highlight manager to preserve spacing in onboarding sentence
+      const originalHighlightLookupText = this.highlightManager.highlightLookupText.bind(this.highlightManager);
+      this.highlightManager.highlightLookupText = (node, start, end) => {
+        // Check if we're in the onboarding sentence container
+        const sentenceContainer = document.getElementById('onboarding-sentence-container');
+        const isInSentenceContainer = sentenceContainer && sentenceContainer.contains(node);
+        
+        if (isInSentenceContainer) {
+          // For onboarding, use a version that preserves spacing better
+          this.highlightManager.removeLookupHighlight();
+          
+          if (!node || start === end || !node.parentNode) return;
+          
+          const text = node.textContent;
+          const before = text.slice(0, start);
+          const target = text.slice(start, end);
+          const after = text.slice(end);
+          
+          // Create nodes preserving all spacing
+          const beforeNode = document.createTextNode(before);
+          const highlightSpan = document.createElement('span');
+          highlightSpan.className = 'lookup-highlight';
+          highlightSpan.style.display = 'inline';
+          highlightSpan.style.padding = '0';
+          highlightSpan.style.margin = '0';
+          highlightSpan.textContent = target;
+          const afterNode = document.createTextNode(after);
+          
+          const parent = node.parentNode;
+          const fragment = document.createDocumentFragment();
+          fragment.appendChild(beforeNode);
+          fragment.appendChild(highlightSpan);
+          fragment.appendChild(afterNode);
+          
+          parent.insertBefore(fragment, node);
+          parent.removeChild(node);
+          
+          this.highlightManager.currentHighlight = highlightSpan;
+          this.highlightManager.isMouseOverHighlight = true;
+          
+          highlightSpan.addEventListener('mouseenter', () => {
+            this.highlightManager.isMouseOverHighlight = true;
+          });
+          
+          highlightSpan.addEventListener('mouseleave', () => {
+            this.highlightManager.isMouseOverHighlight = false;
+            if (window.popupManager) {
+              window.popupManager.scheduleHidePopup();
+            }
+          });
+        } else {
+          // Use original method for other elements
+          originalHighlightLookupText(node, start, end);
+        }
+      };
+      
+      // Initialize lookup controller
+      this.lookupController = new LookupController({
+        pageProcessor: this.pageProcessor,
+        highlightManager: this.highlightManager,
+        popup: this.popupManager,
+        activation: this.activationController
+      });
+
+      // Set up event listeners for Shift key
+      document.addEventListener('keydown', (e) => {
+        this.activationController.handleKeyDown(e, {
+          onActivate: () => {
+            this.activationController.toggleActivationMode(true);
+            if (this.lookupController.lastPointerEvent) {
+              this.lookupController.onPointerMove(this.lookupController.lastPointerEvent);
+            }
+          }
+        });
+      });
+
+      document.addEventListener('keyup', (e) => {
+        this.activationController.handleKeyUp(e, {
+          onDeactivate: () => {
+            this.activationController.toggleActivationMode(false);
+            this.lookupController.onDeactivate();
+          }
+        });
+      });
+
+      // Set up pointer move listener
+      document.addEventListener('pointermove', (e) => {
+        this.lookupController.onPointerMove(e);
+      });
+
+      // Set up click listener
+      document.addEventListener('click', (e) => {
+        this.lookupController.onClick(e);
+      });
+
+      this.popupSystemInitialized = true;
+      console.log('✅ Popup system initialized');
+
+      // Set up the interactive sentence
+      this.setupInteractiveSentence();
+    } catch (error) {
+      console.error('Error initializing popup system:', error);
+    }
+  }
+
+  setupInteractiveSentence() {
+    const container = document.getElementById('onboarding-sentence-container');
+    const sentenceElement = document.getElementById('onboarding-sentence');
+    
+    if (!container || !sentenceElement) {
+      console.warn('Sentence container not found', { container, sentenceElement });
+      // Retry after a short delay
+      setTimeout(() => {
+        this.setupInteractiveSentence();
+      }, 200);
+      return;
+    }
+
+    // Get sample sentence for selected language
+    const sentence = this.getSampleSentence(this.selectedLanguage.code);
+    console.log('Setting up sentence:', sentence, 'for language:', this.selectedLanguage.code);
+    sentenceElement.textContent = sentence;
+
+    // Note: We don't process the sentence for underlines - we just want popup functionality
+    // The popup will work via LookupController which uses PageProcessor.getCharacterAtPosition
+    // which doesn't require pre-processing. Users can hold Shift and hover to see popups.
+    console.log('✅ Sentence ready for popup interaction (no underlines)');
+  }
+
+  getAllTextNodes(element) {
+    const textNodes = [];
+    const walker = document.createTreeWalker(
+      element,
+      NodeFilter.SHOW_TEXT,
+      null,
+      false
+    );
+    let node;
+    while (node = walker.nextNode()) {
+      if (node.textContent.trim()) {
+        textNodes.push(node);
+      }
+    }
+    return textNodes;
+  }
+
+  setupInteractiveDemo() {
+    // This is now handled by the real popup system in initializePopupSystem
+    // Keeping this method for compatibility but it's no longer needed
   }
 
   setupFloatingCharacters() {

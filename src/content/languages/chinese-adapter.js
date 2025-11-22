@@ -260,7 +260,7 @@ class ChineseLanguageAdapter extends BaseLanguageAdapter {
   getOnboardingVocabPath(level) {
     // For Chinese, we might have separate files per HSK level
     // For now, return a general path - can be customized later
-    return `OnboardingVocab/Chinese5k.csv`;
+    return `OnboardingVocab/zh5k.csv`;
   }
 }
 
