@@ -25,6 +25,11 @@ class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
     );
   }
 
+  getOnboardingVocabPath(level) {
+    const langCode = this.getLanguageCode();
+    return `OnboardingVocab/${langCode.charAt(0).toUpperCase() + langCode.slice(1)}5k.csv`;
+  }
+
   /**
    * Extract words from text with positions
    * @param {string} text - Text to process
@@ -37,7 +42,10 @@ class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
     
 
     // Use configured regex to find word boundaries and extract complete words
-    const wordRegex = new RegExp(`${this.config.wordBoundaryRegex.source}[\\p{L}\\p{M}]+${this.config.wordBoundaryRegex.source}`, 'gu');
+    // Pattern allows apostrophes and hyphens within words (e.g., "don't", "M'appelle")
+    // Note: Match pattern that includes apostrophes and ensures proper boundaries
+    // The pattern matches: letters followed by optional (apostrophe/hyphen + letters) groups
+    const wordRegex = new RegExp(`\\b[\\p{L}\\p{M}]+(?:[''-][\\p{L}\\p{M}]+)*\\b`, 'gu');
     let match;
     
     while ((match = wordRegex.exec(text)) !== null) {
@@ -450,7 +458,10 @@ class SpanishLanguageAdapter extends SpaceSeparatedLanguageAdapter {
   }
   extractWords(text, dictionary) {
     const words = [];
-    const wordRegex = new RegExp(`${this.config.wordBoundaryRegex.source}[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]+${this.config.wordBoundaryRegex.source}`, 'g');
+    // Pattern allows apostrophes and hyphens within words (e.g., "no's", "d'accord")
+    // Note: Match pattern that includes apostrophes and ensures proper boundaries
+    // The pattern matches: letters followed by optional (apostrophe/hyphen + letters) groups
+    const wordRegex = new RegExp(`\\b[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]+(?:[''-][a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]+)*\\b`, 'g');
     let match;
     
     while ((match = wordRegex.exec(text)) !== null) {
@@ -636,7 +647,10 @@ class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
    */
   extractWords(text, dictionary) {
     const words = [];
-    const wordRegex = new RegExp(`${this.config.wordBoundaryRegex.source}[\\p{L}\\p{M}]+${this.config.wordBoundaryRegex.source}`, 'gu');
+    // Pattern allows apostrophes and hyphens within words (e.g., "M'appelle", "d'accord", "c'est")
+    // Note: Match pattern that includes apostrophes and ensures proper boundaries
+    // The pattern matches: letters followed by optional (apostrophe/hyphen + letters) groups
+    const wordRegex = new RegExp(`\\b[\\p{L}\\p{M}]+(?:[''-][\\p{L}\\p{M}]+)*\\b`, 'gu');
     let match;
     
     while ((match = wordRegex.exec(text)) !== null) {
