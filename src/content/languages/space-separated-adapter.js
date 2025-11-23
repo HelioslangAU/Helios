@@ -630,6 +630,71 @@ class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
   }
 
   /**
+   * Override findDictionaryForm to handle French contractions (l', d', c', etc.)
+   * @param {string} word - Word to check
+   * @param {Object} dictionary - Dictionary object
+   * @returns {string|null} - Found dictionary form or null
+   */
+  findDictionaryForm(word, dictionary) {
+    const normalizedWord = word.toLowerCase().trim();
+    
+    // First check if the word exists as is (including contractions if they're in dictionary)
+    if (dictionary[normalizedWord] && dictionary[normalizedWord].length > 0) {
+      return normalizedWord;
+    }
+
+    // Check if this is a French contraction (e.g., l'image, d'accord, c'est)
+    // Pattern: single letter + apostrophe + word
+    const contractionPattern = /^([a-z])'([a-zàâäéèêëïîôùûüÿç]+)$/i;
+    const match = normalizedWord.match(contractionPattern);
+    
+    if (match) {
+      const article = match[1].toLowerCase();
+      const baseWord = match[2].toLowerCase();
+      
+      // Common French contractions and their meanings:
+      // l' = le/la (the)
+      // d' = de (of/from)
+      // c' = ce (this/that)
+      // n' = ne (not - usually part of "ne...pas")
+      // s' = se (reflexive pronoun)
+      // t' = te (you - informal object)
+      // m' = me (me)
+      // j' = je (I)
+      
+      // Try to find the base word in the dictionary
+      if (dictionary[baseWord] && dictionary[baseWord].length > 0) {
+        // Return base word - we'll enhance the definition later with article info
+        return baseWord;
+      }
+      
+      // Also try with different case if original had capital
+      if (word[0] !== normalizedWord[0]) {
+        const capitalizedBase = baseWord.charAt(0).toUpperCase() + baseWord.slice(1);
+        if (dictionary[capitalizedBase] && dictionary[capitalizedBase].length > 0) {
+          return capitalizedBase;
+        }
+      }
+    }
+
+    // Check if this is a form mapping to another word (from parent class logic)
+    if (dictionary[normalizedWord] && dictionary[normalizedWord][0] && 
+        Array.isArray(dictionary[normalizedWord][0][5])) {
+      // Get the base form from the mapping array
+      for (const mapping of dictionary[normalizedWord][0][5]) {
+        if (Array.isArray(mapping) && mapping.length > 0) {
+          const baseForm = mapping[0];
+          if (dictionary[baseForm]) {
+            return baseForm;
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Override isValidWord to handle French word variations
    * @param {string} word - Word to validate
    * @param {Object} dictionary - Dictionary object
