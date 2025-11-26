@@ -24,7 +24,6 @@ class OnboardingPage {
     this.activationController = null;
     this.frequencyManager = null;
     this.dictionaryLoaded = false;
-    this.dictionaryLoadingStarted = false;
     
     // Store event handler references for cleanup
     this.eventHandlers = {
