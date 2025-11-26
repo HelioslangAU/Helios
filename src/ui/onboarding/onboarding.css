@@ -1524,6 +1524,12 @@ body {
   margin-top: 48px;
 }
 
+.step-nav-right {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
 /* Buttons */
 .btn {
   padding: 16px 40px;

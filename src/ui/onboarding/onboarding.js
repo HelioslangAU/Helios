@@ -87,9 +87,12 @@ class OnboardingPage {
       this.initializeLevelSelector();
     });
 
-    // Step 4: Level selection - Back/Next buttons
+    // Step 4: Level selection - Back/Next/Skip buttons
     document.getElementById('btn-level-back')?.addEventListener('click', () => {
       this.showStep('popup');
+    });
+    document.getElementById('btn-level-skip')?.addEventListener('click', () => {
+      this.skipLevelSelection();
     });
     document.getElementById('btn-level-next')?.addEventListener('click', () => {
       this.handleLevelSelection();
@@ -467,8 +470,9 @@ class OnboardingPage {
   }
 
   async handleLevelSelection() {
+    // If no level selected, just continue without importing words
     if (!this.selectedLevel) {
-      alert('Please select a proficiency level');
+      await this.completeOnboardingFlow();
       return;
     }
 
@@ -494,6 +498,15 @@ class OnboardingPage {
     }
 
     // Complete onboarding and show success step
+    await this.completeOnboardingFlow();
+  }
+
+  async skipLevelSelection() {
+    // Skip level selection and go directly to success
+    await this.completeOnboardingFlow();
+  }
+
+  async completeOnboardingFlow() {
     try {
       await this.controller.completeOnboarding(this.selectedLanguage.code);
 
