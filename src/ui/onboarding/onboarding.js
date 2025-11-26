@@ -138,8 +138,8 @@ class OnboardingPage {
     
     this.selectedLanguage = { code, ...language };
 
-    // Start loading dictionary in offscreen script immediately
-    this.startDictionaryLoading(code);
+    // Don't start loading dictionary yet - wait until user clicks Next
+    // This ensures the loading page always shows up
 
     // Enable next button
     const nextBtn = document.getElementById('btn-lang-next');
@@ -370,19 +370,12 @@ class OnboardingPage {
     // Set language in vocab manager
     this.vocabManager.setCurrentLanguage(this.selectedLanguage.code);
 
-    // Check if dictionary is loaded
-    const isDictionaryLoaded = await this.checkDictionaryLoaded();
-    
-    if (!isDictionaryLoaded) {
-      // Show loading step first
-      this.showStep('loading');
-      this.initializeLoadingStep();
-    } else {
-      // Dictionary already loaded, go directly to popup tutorial
-      setTimeout(() => {
-        this.showStep('popup');
-      }, 100);
-    }
+    // Start loading dictionary now (when user clicks Next)
+    this.startDictionaryLoading(this.selectedLanguage.code);
+
+    // Always show loading step first (since we just started loading)
+    this.showStep('loading');
+    this.initializeLoadingStep();
   }
 
   async initializeLevelSelector() {
