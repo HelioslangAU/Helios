@@ -60,43 +60,36 @@
         </div>
       </section>
 
-      <!-- Step 3: Level Selection -->
-      <section class="onboarding-step" id="step-level">
-        <div class="step-content">
-          <h2 class="step-title">What's Your Current Level?</h2>
+      <!-- Step 3: Dictionary Loading -->
+      <section class="onboarding-step" id="step-loading">
+        <div class="step-content loading-step-content">
+          <h2 class="step-title">Loading Dictionary</h2>
           <p class="step-description">
-            Select your proficiency level to import a starter vocabulary list. 
-            This helps Helios understand which words you already know.
+            Preparing your <span id="loading-language-name"></span> dictionary...
           </p>
 
-          <div id="level-selector-container" class="level-selector-container">
-            <!-- Level selector will be injected here -->
-          </div>
-
-          <div class="level-import-option">
-            <label class="level-import-checkbox">
-              <input type="checkbox" id="import-words-checkbox" checked>
-              <span>Import words for this level as known words</span>
-            </label>
-            <p class="level-import-hint">
-              This will mark the selected number of words as "known" to get you started faster.
-            </p>
-          </div>
-
-          <div class="step-nav">
-            <button class="btn btn-secondary" id="btn-level-back">← Back</button>
-            <button class="btn btn-primary" id="btn-level-next">Continue →</button>
+          <!-- Dictionary Loading Progress Bar -->
+          <div class="dictionary-loading-container" id="dictionary-loading-container">
+            <div class="dictionary-loading-label">
+              <span class="loading-text">Loading dictionary...</span>
+            </div>
+            <div class="loading-bar-wrapper">
+              <div class="loading-bar-background">
+                <div class="loading-bar-fill" id="dictionary-loading-bar"></div>
+              </div>
+              <div class="loading-percentage" id="dictionary-loading-percentage">0%</div>
+            </div>
           </div>
         </div>
       </section>
 
-      <!-- Step 4: Feature - Dictionary Popup -->
+      <!-- Step 4: Feature - Dictionary Popup Tutorial -->
       <section class="onboarding-step" id="step-popup">
         <div class="step-content">
           <div class="feature-showcase">
             <div class="feature-text">
               <div class="feature-badge">Tutorial</div>
-              <h2 class="feature-title">Instant definitions at your fingertips</h2>
+              <h2 class="feature-title">Definitions at your fingertips</h2>
 
               <div class="feature-hint interactive">
                 <span class="hint-icon">👉</span>
@@ -135,7 +128,53 @@
         </div>
       </section>
 
-      <!-- Step 5: Success -->
+      <!-- Step 5: Level Selection -->
+      <section class="onboarding-step" id="step-level">
+        <div class="step-content">
+          <h2 class="step-title">What's Your Current Level?</h2>
+          <p class="step-description">
+            Select your proficiency level to import a starter vocabulary list. 
+            This helps Helios understand which words you already know.
+          </p>
+
+          <div id="level-selector-container" class="level-selector-container">
+            <!-- Level selector will be injected here -->
+          </div>
+
+          <div class="level-import-option">
+            <label class="level-import-checkbox">
+              <input type="checkbox" id="import-words-checkbox" checked>
+              <span>Import words for this level as known words</span>
+            </label>
+            <p class="level-import-hint">
+              This will mark the selected number of words as "known" to get you started faster.
+            </p>
+          </div>
+
+          <div class="bulk-import-section">
+            <h3 class="bulk-import-title">Or Import Your Own Word List (e.g. Anki)</h3>
+            <p class="bulk-import-description">
+              Paste words from your external word lists, separated by spaces, commas, or line breaks. You can also import words later in the settings.
+            </p>
+            <textarea
+              class="bulk-import-textarea"
+              id="bulk-import-textarea"
+              placeholder="Paste known words here, separated by space, comma, or new line&#10;Example: 对 错 好 不好 中国 学习 汉语"
+            ></textarea>
+            <button class="btn btn-secondary btn-bulk-import" id="btn-bulk-import">
+              <span>📥</span>
+              Import Words
+            </button>
+          </div>
+
+          <div class="step-nav">
+            <button class="btn btn-secondary" id="btn-level-back">← Back</button>
+            <button class="btn btn-primary" id="btn-level-next">Continue →</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 6: Success -->
       <section class="onboarding-step" id="step-success">
         <div class="step-content success-content">
           <div class="success-icon">✨</div>
@@ -151,9 +190,32 @@
               <li><strong>Hold Shift + Hover</strong> over words to see instant definitions and translations</li>
               <li><strong>Click words</strong> to mark them as known and remove the underline</li>
               <li><strong>Click "A" button</strong> in the popup to instantly add words to Anki</li>
-              <li><strong>Check the banner</strong> at the top of pages to see your comprehension percentage</li>
+              <li><strong>Check the banner</strong> on the side of pages to see your comprehension percentage</li>
               <li><strong>Click the Helios icon</strong> in your toolbar to view detailed vocabulary statistics</li>
             </ul>
+          </div>
+
+          <div class="try-it-out">
+            <h3 class="try-it-out-title">🎬 Try It Out!</h3>
+            <p class="try-it-out-description">
+              Experience Helios in action on your favorite content platforms:
+            </p>
+            <div class="try-it-out-links">
+              <a href="https://www.netflix.com" target="_blank" rel="noopener noreferrer" class="try-it-out-link netflix-link">
+                <span class="link-icon">🎬</span>
+                <span class="link-text">Netflix</span>
+                <svg class="link-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </a>
+              <a href="https://www.youtube.com" target="_blank" rel="noopener noreferrer" class="try-it-out-link youtube-link">
+                <span class="link-icon">📺</span>
+                <span class="link-text">YouTube</span>
+                <svg class="link-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </a>
+            </div>
           </div>
 
           <button class="btn btn-primary btn-large" id="btn-start-learning">

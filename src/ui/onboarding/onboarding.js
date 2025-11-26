@@ -22,8 +22,17 @@ class OnboardingPage {
     this.popupManager = null;
     this.lookupController = null;
     this.activationController = null;
-    this.languageRegistry = null;
     this.frequencyManager = null;
+    this.dictionaryLoaded = false;
+    this.dictionaryLoadingStarted = false;
+    
+    // Store event handler references for cleanup
+    this.eventHandlers = {
+      keydown: null,
+      keyup: null,
+      pointermove: null,
+      click: null
+    };
 
     this.init();
   }
@@ -67,23 +76,24 @@ class OnboardingPage {
       this.showStep('hero');
     });
     document.getElementById('btn-lang-next')?.addEventListener('click', () => {
-      this.goToLevelSelection();
+      this.goToTutorial();
     });
 
-    // Step 3: Level selection - Back/Next buttons
-    document.getElementById('btn-level-back')?.addEventListener('click', () => {
+    // Step 3: Popup feature - Back/Next buttons
+    document.getElementById('btn-popup-back')?.addEventListener('click', () => {
       this.showStep('language');
+    });
+    document.getElementById('btn-popup-next')?.addEventListener('click', () => {
+      this.showStep('level');
+      this.initializeLevelSelector();
+    });
+
+    // Step 4: Level selection - Back/Next buttons
+    document.getElementById('btn-level-back')?.addEventListener('click', () => {
+      this.showStep('popup');
     });
     document.getElementById('btn-level-next')?.addEventListener('click', () => {
       this.handleLevelSelection();
-    });
-
-    // Step 4: Popup feature - Back/Next buttons
-    document.getElementById('btn-popup-back')?.addEventListener('click', () => {
-      this.showStep('level');
-    });
-    document.getElementById('btn-popup-next')?.addEventListener('click', () => {
-      this.completeOnboarding();
     });
 
     // Step 7: Success - Start Learning button
@@ -120,6 +130,13 @@ class OnboardingPage {
 
   handleLanguageSelection(code, language) {
     console.log(`Language selected: ${code} (${language.name})`);
+    
+    // If language changed, reset popup system to allow reinitialization
+    if (this.selectedLanguage && this.selectedLanguage.code !== code) {
+      console.log('Language changed, resetting popup system...');
+      this.resetPopupSystem();
+    }
+    
     this.selectedLanguage = { code, ...language };
 
     // Start loading dictionary in offscreen script immediately
@@ -132,10 +149,53 @@ class OnboardingPage {
     }
   }
 
+  resetPopupSystem() {
+    // Clean up event listeners first
+    this.cleanupEventListeners();
+    
+    // Reset initialization flag
+    this.popupSystemInitialized = false;
+    
+    // Reset components
+    this.lookupController = null;
+    this.popupManager = null;
+    this.pageProcessor = null;
+    this.highlightManager = null;
+    this.dictionaryManager = null;
+    this.frequencyManager = null;
+    this.languageRegistry = null;
+    this.activationController = null;
+    
+    // Clear dictionary bridge to force reload for new language
+    this.dictionaryBridge = null;
+    this.dictionaryLoaded = false;
+  }
+
+  cleanupEventListeners() {
+    // Remove all event listeners if they exist
+    if (this.eventHandlers.keydown) {
+      document.removeEventListener('keydown', this.eventHandlers.keydown);
+      this.eventHandlers.keydown = null;
+    }
+    if (this.eventHandlers.keyup) {
+      document.removeEventListener('keyup', this.eventHandlers.keyup);
+      this.eventHandlers.keyup = null;
+    }
+    if (this.eventHandlers.pointermove) {
+      document.removeEventListener('pointermove', this.eventHandlers.pointermove);
+      this.eventHandlers.pointermove = null;
+    }
+    if (this.eventHandlers.click) {
+      document.removeEventListener('click', this.eventHandlers.click);
+      this.eventHandlers.click = null;
+    }
+  }
+
   async startDictionaryLoading(languageCode) {
     try {
       console.log(`📚 Starting dictionary loading for ${languageCode} in offscreen...`);
       
+      // Don't show loading bar yet - load in background while user selects level
       // Create a DictionaryBridge instance to communicate with offscreen
       if (!this.dictionaryBridge) {
         if (typeof DictionaryBridge !== 'undefined') {
@@ -163,6 +223,7 @@ class OnboardingPage {
       this.dictionaryBridge.loadDictionary(languageCode).then(result => {
         if (result.success) {
           console.log(`✅ Dictionary loaded for ${languageCode}: ${result.size} entries`);
+          this.dictionaryLoaded = true;
         } else {
           console.warn(`⚠️ Dictionary loading failed:`, result.error);
         }
@@ -184,7 +245,124 @@ class OnboardingPage {
     }
   }
 
-  async goToLevelSelection() {
+  showDictionaryLoadingBar() {
+    const container = document.getElementById('dictionary-loading-container');
+    if (container) {
+      container.style.display = 'block';
+      this.updateLoadingProgress(0);
+    }
+  }
+
+  hideDictionaryLoadingBar() {
+    const container = document.getElementById('dictionary-loading-container');
+    if (container) {
+      container.style.display = 'none';
+    }
+  }
+
+  updateLoadingProgress(percentage) {
+    const bar = document.getElementById('dictionary-loading-bar');
+    const percentageText = document.getElementById('dictionary-loading-percentage');
+    
+    if (bar) {
+      bar.style.width = `${Math.min(100, Math.max(0, percentage))}%`;
+    }
+    
+    if (percentageText) {
+      percentageText.textContent = `${Math.round(percentage)}%`;
+    }
+  }
+
+  completeDictionaryLoadingBar() {
+    const container = document.getElementById('dictionary-loading-container');
+    const loadingText = container?.querySelector('.loading-text');
+    
+    if (container) {
+      container.classList.add('complete');
+      this.updateLoadingProgress(100);
+      this.dictionaryLoaded = true;
+      
+      if (loadingText) {
+        loadingText.textContent = 'Dictionary loaded!';
+      }
+      
+      // If we're on the loading step, automatically proceed to popup tutorial step
+      if (this.currentStep === 'loading') {
+        setTimeout(() => {
+          this.showStep('popup');
+        }, 800);
+      } else {
+        // Hide after a delay if not on loading step
+        setTimeout(() => {
+          this.hideDictionaryLoadingBar();
+        }, 2000);
+      }
+    }
+  }
+
+  startProgressTracking(languageCode) {
+    // Clear any existing intervals
+    if (this.progressInterval) {
+      clearInterval(this.progressInterval);
+      this.progressInterval = null;
+    }
+    if (this.dictionaryCheckInterval) {
+      clearInterval(this.dictionaryCheckInterval);
+      this.dictionaryCheckInterval = null;
+    }
+    
+    let simulatedProgress = 0;
+    const maxProgress = 95; // Don't go to 100% until actually loaded
+    
+    // Simulate progress with smooth animation
+    this.progressInterval = setInterval(() => {
+      // Gradually increase progress
+      if (simulatedProgress < maxProgress) {
+        // Slow down as we approach max (ease-out curve)
+        const increment = (maxProgress - simulatedProgress) * 0.05;
+        simulatedProgress = Math.min(maxProgress, simulatedProgress + increment);
+        this.updateLoadingProgress(simulatedProgress);
+      }
+    }, 100);
+    
+    // Check if dictionary is actually loaded
+    const checkDictionaryLoaded = async () => {
+      try {
+        if (this.dictionaryBridge) {
+          const isLoaded = await this.dictionaryBridge.isDictionaryLoaded();
+          if (isLoaded) {
+            // Dictionary is loaded, complete the progress
+            if (this.progressInterval) {
+              clearInterval(this.progressInterval);
+              this.progressInterval = null;
+            }
+            if (this.dictionaryCheckInterval) {
+              clearInterval(this.dictionaryCheckInterval);
+              this.dictionaryCheckInterval = null;
+            }
+            this.completeDictionaryLoadingBar();
+            return true;
+          }
+        }
+      } catch (error) {
+        // Ignore errors
+      }
+      return false;
+    };
+    
+    // Check periodically if dictionary is loaded
+    this.dictionaryCheckInterval = setInterval(async () => {
+      const loaded = await checkDictionaryLoaded();
+      if (loaded) {
+        if (this.dictionaryCheckInterval) {
+          clearInterval(this.dictionaryCheckInterval);
+          this.dictionaryCheckInterval = null;
+        }
+      }
+    }, 500);
+  }
+
+  async goToTutorial() {
     if (!this.selectedLanguage) {
       alert('Please select a language before continuing');
       return;
@@ -193,9 +371,19 @@ class OnboardingPage {
     // Set language in vocab manager
     this.vocabManager.setCurrentLanguage(this.selectedLanguage.code);
 
-    // Show level selection step
-    this.showStep('level');
-    this.initializeLevelSelector();
+    // Check if dictionary is loaded
+    const isDictionaryLoaded = await this.checkDictionaryLoaded();
+    
+    if (!isDictionaryLoaded) {
+      // Show loading step first
+      this.showStep('loading');
+      this.initializeLoadingStep();
+    } else {
+      // Dictionary already loaded, go directly to popup tutorial
+      setTimeout(() => {
+        this.showStep('popup');
+      }, 100);
+    }
   }
 
   async initializeLevelSelector() {
@@ -246,6 +434,14 @@ class OnboardingPage {
     if (importCheckbox) {
       importCheckbox.addEventListener('change', (e) => {
         this.shouldImportWords = e.target.checked;
+      });
+    }
+
+    // Set up bulk import button
+    const bulkImportBtn = document.getElementById('btn-bulk-import');
+    if (bulkImportBtn) {
+      bulkImportBtn.addEventListener('click', () => {
+        this.handleBulkImport();
       });
     }
   }
@@ -305,11 +501,51 @@ class OnboardingPage {
       }
     }
 
-    // Continue to popup feature step
-    // Small delay to ensure everything is ready
-    setTimeout(() => {
-      this.showStep('popup');
-    }, 100);
+    // Complete onboarding and show success step
+    try {
+      await this.controller.completeOnboarding(this.selectedLanguage.code);
+
+      // Update success step with selected language
+      const languageNameElement = document.getElementById('selected-language-name');
+      if (languageNameElement) {
+        languageNameElement.textContent = this.selectedLanguage.name;
+      }
+
+      // Show success step
+      this.showStep('success');
+    } catch (error) {
+      console.error('Error completing onboarding:', error);
+      alert('An error occurred. Please try again.');
+    }
+  }
+
+  async checkDictionaryLoaded() {
+    try {
+      if (this.dictionaryBridge) {
+        return await this.dictionaryBridge.isDictionaryLoaded();
+      }
+      // If no bridge yet, assume not loaded
+      return false;
+    } catch (error) {
+      console.warn('Error checking dictionary status:', error);
+      return false;
+    }
+  }
+
+  initializeLoadingStep() {
+    // Update language name in loading step
+    const loadingLanguageName = document.getElementById('loading-language-name');
+    if (loadingLanguageName && this.selectedLanguage) {
+      loadingLanguageName.textContent = this.selectedLanguage.name;
+    }
+
+    // Initialize progress bar (container is already visible in loading step)
+    this.updateLoadingProgress(0);
+    
+    // Start progress tracking
+    if (this.selectedLanguage) {
+      this.startProgressTracking(this.selectedLanguage.code);
+    }
   }
 
   async importWordsForLevel(languageCode, level) {
@@ -373,45 +609,71 @@ class OnboardingPage {
     }
   }
 
-  async completeOnboarding() {
-    if (!this.selectedLanguage) {
-      alert('Please select a language before continuing');
+  async handleBulkImport() {
+    const textarea = document.getElementById('bulk-import-textarea');
+    const text = textarea.value.trim();
+
+    if (!text) {
+      alert('Please enter some words to import.');
+      return;
+    }
+
+    // Parse input text - split by various delimiters (same logic as settings)
+    const words = text.split(/[\s,\n\r]+/).filter((word) => word.trim());
+
+    if (words.length === 0) {
+      alert('No valid words found. Please check your input.');
       return;
     }
 
     try {
-      // Show loading state
-      const nextBtn = document.getElementById('btn-popup-next');
-      if (nextBtn) {
-        nextBtn.textContent = 'Setting up...';
-        nextBtn.disabled = true;
+      const importBtn = document.getElementById('btn-bulk-import');
+      if (importBtn) {
+        importBtn.textContent = 'Importing...';
+        importBtn.disabled = true;
       }
 
-      // Complete onboarding
-      await this.controller.completeOnboarding(this.selectedLanguage.code);
+      // Ensure vocab manager is loaded
+      await this.vocabManager.loadKnownWords();
+      
+      // Import words using vocab manager (it will normalize and handle them)
+      // Returns an object with newWordsCount and processedWordsCount
+      const result = await this.vocabManager.markMultipleWordsAsKnown(words);
+      const newWordsCount = result.newWordsCount;
+      const processedWordsCount = result.processedWordsCount;
+      const duplicatesCount = processedWordsCount - newWordsCount;
 
-      // Update success step with selected language
-      const languageNameElement = document.getElementById('selected-language-name');
-      if (languageNameElement) {
-        languageNameElement.textContent = this.selectedLanguage.name;
+      textarea.value = '';
+
+      let message = `Successfully imported ${newWordsCount} new word${newWordsCount !== 1 ? 's' : ''}!`;
+      if (duplicatesCount > 0) {
+        message += `\n${duplicatesCount} duplicate word${duplicatesCount !== 1 ? 's were' : ' was'} skipped.`;
       }
+      message += `\n\nWords imported for language: ${this.selectedLanguage?.name || this.vocabManager.currentLanguage || 'current'}`;
 
-      // Show success step
-      this.showStep('success');
+      alert(message);
     } catch (error) {
-      console.error('Error completing onboarding:', error);
-      alert('An error occurred. Please try again.');
-
-      // Reset button
-      const nextBtn = document.getElementById('btn-popup-next');
-      if (nextBtn) {
-        nextBtn.textContent = 'Next →';
-        nextBtn.disabled = false;
+      console.error('Error importing words:', error);
+      alert('Error importing words. Please try again.');
+    } finally {
+      const importBtn = document.getElementById('btn-bulk-import');
+      if (importBtn) {
+        importBtn.innerHTML = '<span>📥</span> Import Words';
+        importBtn.disabled = false;
       }
     }
   }
 
+
   startUsingExtension() {
+    // Clear any intervals before closing
+    if (this.progressInterval) {
+      clearInterval(this.progressInterval);
+    }
+    if (this.dictionaryCheckInterval) {
+      clearInterval(this.dictionaryCheckInterval);
+    }
+    
     // Close onboarding and navigate to a webpage
     window.close();
   }
@@ -457,12 +719,13 @@ class OnboardingPage {
   updateProgressIndicator(stepName) {
     const dots = document.querySelectorAll('.progress-dot');
 
-    // Map step names to indices (5-step flow)
+    // Map step names to indices (loading step is transitional, maps to same as popup)
     const stepIndex = {
       'hero': 0,
       'language': 1,
-      'level': 2,
-      'popup': 3,
+      'loading': 2, // Same as popup since it's transitional
+      'popup': 2,
+      'level': 3,
       'success': 4
     };
 
@@ -488,17 +751,30 @@ class OnboardingPage {
   }
 
   async initializePopupSystem() {
-    if (this.popupSystemInitialized) {
-      return; // Already initialized
-    }
-
     if (!this.selectedLanguage) {
       console.warn('Cannot initialize popup system: no language selected');
       return;
     }
 
+    // Check if already initialized for this language
+    if (this.popupSystemInitialized && 
+        this.languageRegistry && 
+        this.languageRegistry.getCurrentLanguage() === this.selectedLanguage.code) {
+      console.log('Popup system already initialized for this language');
+      return;
+    }
+
+    // If initialized for a different language, reset first
+    if (this.popupSystemInitialized) {
+      console.log('Reinitializing popup system for new language...');
+      this.resetPopupSystem();
+    }
+
     try {
       console.log('Initializing popup system for onboarding...');
+
+      // Clean up any existing event listeners
+      this.cleanupEventListeners();
 
       // Initialize language registry
       this.languageRegistry = new LanguageRegistry();
@@ -506,11 +782,9 @@ class OnboardingPage {
       this.languageRegistry.setLanguage(this.selectedLanguage.code);
 
       // Initialize managers
-      // Reuse dictionaryBridge if already created (from language selection)
-      if (!this.dictionaryBridge) {
-        this.dictionaryBridge = new DictionaryBridge();
-        await this.dictionaryBridge.ensureOffscreenDocument();
-      }
+      // Create new dictionaryBridge for new language
+      this.dictionaryBridge = new DictionaryBridge();
+      await this.dictionaryBridge.ensureOffscreenDocument();
       
       this.dictionaryManager = new DictionaryManagerProxy(this.languageRegistry);
       this.vocabManager = new VocabManager();
@@ -525,6 +799,13 @@ class OnboardingPage {
         this.vocabManager.loadKnownWords(),
         this.frequencyManager.loadFrequencyList()
       ]);
+      
+      // Dictionary is now loaded, complete the progress bar if we're on the loading step
+      if (this.currentStep === 'loading') {
+        this.completeDictionaryLoadingBar();
+      } else {
+        this.dictionaryLoaded = true;
+      }
 
       const originalInit = PageProcessor.prototype.initializeProcessing;
       PageProcessor.prototype.ensureGlobalCSS = function() {
@@ -725,36 +1006,48 @@ class OnboardingPage {
         activation: this.activationController
       });
 
-      // Set up event listeners for Shift key
-      document.addEventListener('keydown', (e) => {
-        this.activationController.handleKeyDown(e, {
-          onActivate: () => {
-            this.activationController.toggleActivationMode(true);
-            if (this.lookupController.lastPointerEvent) {
-              this.lookupController.onPointerMove(this.lookupController.lastPointerEvent);
+      // Set up event listeners for Shift key (store references for cleanup)
+      this.eventHandlers.keydown = (e) => {
+        if (this.activationController && this.lookupController) {
+          this.activationController.handleKeyDown(e, {
+            onActivate: () => {
+              this.activationController.toggleActivationMode(true);
+              if (this.lookupController.lastPointerEvent) {
+                this.lookupController.onPointerMove(this.lookupController.lastPointerEvent);
+              }
             }
-          }
-        });
-      });
+          });
+        }
+      };
+      document.addEventListener('keydown', this.eventHandlers.keydown);
 
-      document.addEventListener('keyup', (e) => {
-        this.activationController.handleKeyUp(e, {
-          onDeactivate: () => {
-            this.activationController.toggleActivationMode(false);
-            this.lookupController.onDeactivate();
-          }
-        });
-      });
+      this.eventHandlers.keyup = (e) => {
+        if (this.activationController && this.lookupController) {
+          this.activationController.handleKeyUp(e, {
+            onDeactivate: () => {
+              this.activationController.toggleActivationMode(false);
+              this.lookupController.onDeactivate();
+            }
+          });
+        }
+      };
+      document.addEventListener('keyup', this.eventHandlers.keyup);
 
       // Set up pointer move listener
-      document.addEventListener('pointermove', (e) => {
-        this.lookupController.onPointerMove(e);
-      });
+      this.eventHandlers.pointermove = (e) => {
+        if (this.lookupController) {
+          this.lookupController.onPointerMove(e);
+        }
+      };
+      document.addEventListener('pointermove', this.eventHandlers.pointermove);
 
       // Set up click listener
-      document.addEventListener('click', (e) => {
-        this.lookupController.onClick(e);
-      });
+      this.eventHandlers.click = (e) => {
+        if (this.lookupController) {
+          this.lookupController.onClick(e);
+        }
+      };
+      document.addEventListener('click', this.eventHandlers.click);
 
       this.popupSystemInitialized = true;
       console.log('✅ Popup system initialized');
@@ -866,3 +1159,4 @@ if (document.readyState === 'loading') {
 } else {
   new OnboardingPage();
 }
+
