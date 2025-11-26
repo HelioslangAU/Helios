@@ -1104,14 +1104,14 @@ body {
   white-space: pre-wrap !important; /* Preserve whitespace inside the span too */
   word-spacing: normal !important;
   letter-spacing: normal !important;
-  padding: 0 !important;
+  padding: 0 2px !important; /* Minimal horizontal padding, no vertical padding */
   margin: 0 !important;
   border-radius: 3px !important;
   /* Prevent any layout shifts */
   box-sizing: content-box !important;
   vertical-align: baseline !important;
-  /* Ensure the span doesn't collapse whitespace around it */
-  line-height: inherit !important;
+  /* Very tight line-height to fit the word exactly */
+  line-height: 1.3 !important;
   /* Force inline display to preserve text flow */
   position: relative !important;
   z-index: 2 !important; /* Higher than underlined word */
