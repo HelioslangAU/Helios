@@ -171,6 +171,19 @@ class OnboardingPage {
     // Clear dictionary bridge to force reload for new language
     this.dictionaryBridge = null;
     this.dictionaryLoaded = false;
+    
+    // Reset loading bar UI state
+    this.resetDictionaryLoadingBar();
+    
+    // Clear any progress tracking intervals
+    if (this.progressInterval) {
+      clearInterval(this.progressInterval);
+      this.progressInterval = null;
+    }
+    if (this.dictionaryCheckInterval) {
+      clearInterval(this.dictionaryCheckInterval);
+      this.dictionaryCheckInterval = null;
+    }
   }
 
   cleanupEventListeners() {
@@ -259,6 +272,22 @@ class OnboardingPage {
     const container = document.getElementById('dictionary-loading-container');
     if (container) {
       container.style.display = 'none';
+    }
+  }
+
+  resetDictionaryLoadingBar() {
+    const container = document.getElementById('dictionary-loading-container');
+    const loadingText = container?.querySelector('.loading-text');
+    
+    if (container) {
+      // Remove complete class to reset visual state
+      container.classList.remove('complete');
+      // Reset progress to 0
+      this.updateLoadingProgress(0);
+      // Reset loading text
+      if (loadingText) {
+        loadingText.textContent = 'Loading dictionary...';
+      }
     }
   }
 
@@ -424,14 +453,6 @@ class OnboardingPage {
       container.appendChild(levelOption);
     });
 
-    // Set up import checkbox
-    const importCheckbox = document.getElementById('import-words-checkbox');
-    if (importCheckbox) {
-      importCheckbox.addEventListener('change', (e) => {
-        this.shouldImportWords = e.target.checked;
-      });
-    }
-
     // Set up bulk import button
     const bulkImportBtn = document.getElementById('btn-bulk-import');
     if (bulkImportBtn) {
@@ -544,8 +565,8 @@ class OnboardingPage {
       loadingLanguageName.textContent = this.selectedLanguage.name;
     }
 
-    // Initialize progress bar (container is already visible in loading step)
-    this.updateLoadingProgress(0);
+    // Reset loading bar UI to ensure it starts fresh
+    this.resetDictionaryLoadingBar();
     
     // Start progress tracking
     if (this.selectedLanguage) {
