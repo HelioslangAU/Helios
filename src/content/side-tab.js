@@ -19,6 +19,7 @@ class HeliosSideTab {
         this.closeBtn = document.getElementById('full-close-btn');
         this.settingsBtn = document.getElementById('settings-btn');
         this.youtubeSubtitlesBtn = document.getElementById('youtube-subtitles-btn');
+        this.positionToggleBtn = document.getElementById('position-toggle-btn');
 
         // Pinyin controls (full view)
         this.pinyinContainer = document.getElementById('pinyin-toggle-container');
@@ -44,8 +45,13 @@ class HeliosSideTab {
         this.comprehensionPercentage = 0;
         this.pageWordsCount = 0;
 
+        // Position state
+        this.position = 'right'; // 'left' or 'right'
+
         this.initEventListeners();
         this.loadState();
+        this.loadPosition();
+        this.updatePositionUI();
         this.updateYouTubeFeatures();
     }
 
@@ -111,6 +117,11 @@ class HeliosSideTab {
                 this.pinyinCheckbox.checked = !this.pinyinCheckbox.checked;
                 this.handlePinyinToggle(this.pinyinCheckbox.checked);
             }
+        });
+
+        // Position toggle button
+        this.positionToggleBtn?.addEventListener('click', () => {
+            this.togglePosition();
         });
 
         // Keyboard shortcuts
@@ -189,6 +200,73 @@ class HeliosSideTab {
             }
         } catch (e) {
             console.warn('Failed to load side tab state:', e);
+        }
+    }
+
+    /**
+     * Toggle position between left and right
+     */
+    togglePosition() {
+        const newPosition = this.position === 'right' ? 'left' : 'right';
+        this.setPosition(newPosition);
+    }
+
+    /**
+     * Set the position of the side tab
+     * @param {string} position - 'left' or 'right'
+     */
+    setPosition(position) {
+        if (this.position === position) return;
+
+        const validPositions = ['left', 'right'];
+        if (!validPositions.includes(position)) {
+            console.error(`Invalid position: ${position}`);
+            return;
+        }
+
+        this.position = position;
+        this.container.setAttribute('data-position', position);
+        this.savePosition();
+        this.updatePositionUI();
+    }
+
+    /**
+     * Save position to localStorage
+     */
+    savePosition() {
+        try {
+            localStorage.setItem('helios-side-tab-position', this.position);
+        } catch (e) {
+            console.warn('Failed to save side tab position:', e);
+        }
+    }
+
+    /**
+     * Load position from localStorage
+     */
+    loadPosition() {
+        try {
+            const savedPosition = localStorage.getItem('helios-side-tab-position');
+            if (savedPosition && ['left', 'right'].includes(savedPosition)) {
+                this.setPosition(savedPosition);
+            } else {
+                // Set default position if no saved position exists
+                this.container.setAttribute('data-position', this.position);
+            }
+        } catch (e) {
+            console.warn('Failed to load side tab position:', e);
+            // Set default position on error
+            this.container.setAttribute('data-position', this.position);
+        }
+    }
+
+    /**
+     * Update position UI elements
+     */
+    updatePositionUI() {
+        if (this.positionToggleBtn) {
+            const tooltipText = this.position === 'right' ? 'Move to Left Side' : 'Move to Right Side';
+            this.positionToggleBtn.setAttribute('data-tooltip', tooltipText);
         }
     }
 

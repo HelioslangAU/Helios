@@ -6,6 +6,7 @@
   <title>Welcome to Helios</title>
   <link rel="stylesheet" href="onboarding.css">
   <link rel="stylesheet" href="../../content/components/language-selector/language-selector.css">
+  <link rel="stylesheet" href="../../ui/popup/popup.css">
 </head>
 <body>
   <!-- Floating Characters Background -->
@@ -40,53 +41,83 @@
         </div>
       </section>
 
-      <!-- Step 2: Feature - Dictionary Popup -->
+      <!-- Step 2: Language Selection -->
+      <section class="onboarding-step" id="step-language">
+        <div class="step-content">
+          <h2 class="step-title">Choose Your Language</h2>
+          <p class="step-description">
+            Select the language you want to learn.
+          </p>
+
+          <div id="language-selector-container" class="language-selector-wrapper">
+            <!-- Language selector will be injected here -->
+          </div>
+
+          <div class="step-nav">
+            <button class="btn btn-secondary" id="btn-lang-back">← Back</button>
+            <button class="btn btn-primary" id="btn-lang-next" disabled>Next →</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 3: Dictionary Loading -->
+      <section class="onboarding-step" id="step-loading">
+        <div class="step-content loading-step-content">
+          <h2 class="step-title">Loading Dictionary</h2>
+          <p class="step-description">
+            Preparing your <span id="loading-language-name"></span> dictionary...
+          </p>
+
+          <!-- Dictionary Loading Progress Bar -->
+          <div class="dictionary-loading-container" id="dictionary-loading-container">
+            <div class="dictionary-loading-label">
+              <span class="loading-text">Loading dictionary...</span>
+            </div>
+            <div class="loading-bar-wrapper">
+              <div class="loading-bar-background">
+                <div class="loading-bar-fill" id="dictionary-loading-bar"></div>
+              </div>
+              <div class="loading-percentage" id="dictionary-loading-percentage">0%</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 4: Feature - Dictionary Popup Tutorial -->
       <section class="onboarding-step" id="step-popup">
         <div class="step-content">
           <div class="feature-showcase">
             <div class="feature-text">
-              <div class="feature-badge">Dictionary</div>
-              <h2 class="feature-title">Instant translations at your fingertips</h2>
-              <p class="feature-description">
-                Hover over any word while holding <strong>Shift</strong> to see beautiful, detailed
-                definitions with pronunciation and context. Learn vocabulary in real-time
-                without breaking your flow.
-              </p>
+              <div class="feature-badge">Tutorial</div>
+              <h2 class="feature-title">Definitions at your fingertips</h2>
+
+              <div class="feature-hint interactive">
+                <span class="hint-icon">👉</span>
+                <span>Hold Shift and hover over the example sentence →</span>
+              </div>
               <ul class="feature-list">
                 <li>
-                  <div class="feature-checkmark">✓</div>
-                  <span>Detailed definitions with pronunciation</span>
+                  <button class="pronunciation-btn" type="button" aria-label="Get audio pronunciation">
+                    <span class="icon">🔊</span>
+                  </button>
+                  <span>Get audio pronunciation</span>
                 </li>
                 <li>
-                  <div class="feature-checkmark">✓</div>
-                  <span>One-click save to Anki flashcards</span>
+                  <button class="anki-btn anki-available" type="button" aria-label="Save to Anki flashcards">A</button>
+                  <span>Save to Anki flashcards</span>
                 </li>
                 <li>
-                  <div class="feature-checkmark">✓</div>
+                  <button class="mark-known-btn" type="button" aria-label="Mark words as known to track progress">KNOWN</button>
                   <span>Mark words as known to track progress</span>
                 </li>
               </ul>
             </div>
             <div class="feature-visual">
-              <!-- Popup Mockup - Matches actual popup -->
-              <div class="popup-mockup">
-                <div class="popup-top-accent"></div>
-                <div class="popup-body">
-                  <button class="popup-anki-btn">A</button>
-                  <div class="popup-pinyin-top">xuéxí</div>
-                  <div class="popup-char-container">
-                    <div class="popup-char">学习</div>
-                    <button class="popup-speaker-btn">🔊</button>
-                    <div class="popup-frequency">FREQUENCY: 554</div>
-                  </div>
-                  <div class="popup-definitions">
-                    <div class="popup-def-block">
-                      <div class="popup-def-item">• to study; to learn</div>
-                      <div class="popup-def-item">• to emulate</div>
-                    </div>
-                  </div>
-                  <button class="popup-known-btn">MARK KNOWN</button>
-                </div>
+              <!-- Real Interactive Sentence -->
+              <div class="onboarding-sentence-container" id="onboarding-sentence-container">
+                <p class="onboarding-sentence" id="onboarding-sentence">
+                  <!-- Sentence will be inserted here by JavaScript -->
+                </p>
               </div>
             </div>
           </div>
@@ -97,159 +128,41 @@
         </div>
       </section>
 
-      <!-- Step 3: Feature - Dashboard & Progress -->
-      <section class="onboarding-step" id="step-banner">
+      <!-- Step 5: Level Selection -->
+      <section class="onboarding-step" id="step-level">
         <div class="step-content">
-          <div class="feature-showcase reverse">
-            <div class="feature-visual">
-              <!-- Dashboard Mockup -->
-              <div class="dashboard-mockup">
-                <div class="dashboard-header">
-                  <div class="dashboard-title">Helios</div>
-                  <div class="dashboard-toggle"></div>
-                  <div class="dashboard-settings">⚙</div>
-                </div>
-                <div class="dashboard-stats-card">
-                  <div class="dashboard-big-number">2,847</div>
-                  <div class="dashboard-stats-label">WORDS LEARNED</div>
-                </div>
-                <div class="dashboard-vocab-section">
-                  <div class="dashboard-vocab-header">
-                    <span class="dashboard-vocab-title">Recent Vocabulary</span>
-                    <span class="dashboard-vocab-badge">5 TOTAL</span>
-                  </div>
-                  <div class="dashboard-vocab-list">
-                    <div class="dashboard-vocab-item">
-                      <div class="dashboard-vocab-content">
-                        <div class="dashboard-vocab-word">学习</div>
-                        <div class="dashboard-vocab-def">to study; to learn; to emulate</div>
-                      </div>
-                      <button class="dashboard-vocab-delete">×</button>
-                    </div>
-                    <div class="dashboard-vocab-item">
-                      <div class="dashboard-vocab-content">
-                        <div class="dashboard-vocab-word">语言</div>
-                        <div class="dashboard-vocab-def">language; speech; tongue</div>
-                      </div>
-                      <button class="dashboard-vocab-delete">×</button>
-                    </div>
-                    <div class="dashboard-vocab-item">
-                      <div class="dashboard-vocab-content">
-                        <div class="dashboard-vocab-word">美丽</div>
-                        <div class="dashboard-vocab-def">beautiful; pretty</div>
-                      </div>
-                      <button class="dashboard-vocab-delete">×</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="feature-text">
-              <div class="feature-badge">Progress Dashboard</div>
-              <h2 class="feature-title">Track every word</h2>
-              <p class="feature-description">
-                Your personal vocabulary dashboard shows all words learned,
-                recent vocabulary, and detailed progress stats. Access it
-                anytime from the extension popup.
-              </p>
-              <ul class="feature-list">
-                <li>
-                  <div class="feature-checkmark">✓</div>
-                  <span>Track total words learned over time</span>
-                </li>
-                <li>
-                  <div class="feature-checkmark">✓</div>
-                  <span>Review recent vocabulary with definitions</span>
-                </li>
-                <li>
-                  <div class="feature-checkmark">✓</div>
-                  <span>Beautiful stats visualization</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-          <div class="step-nav">
-            <button class="btn btn-secondary" id="btn-banner-back">← Back</button>
-            <button class="btn btn-primary" id="btn-banner-next">Next →</button>
-          </div>
-        </div>
-      </section>
-
-      <!-- Step 4: Feature - Smart Highlighting -->
-      <section class="onboarding-step" id="step-highlighting">
-        <div class="step-content">
-          <div class="feature-showcase">
-            <div class="feature-text">
-              <div class="feature-badge">Smart Highlighting</div>
-              <h2 class="feature-title">Never miss unknown words</h2>
-              <p class="feature-description">
-                Helios automatically underlines words you haven't learned yet,
-                making it easy to spot new vocabulary as you browse. Simply
-                <strong>hold Shift and hover</strong> over any underlined word
-                to see the definition card instantly.
-              </p>
-              <div class="feature-hint interactive">
-                <span class="hint-icon">👉</span>
-                <span>Try it now! Hold Shift and hover over the underlined words →</span>
-              </div>
-              <ul class="feature-list">
-                <li>
-                  <div class="feature-checkmark">✓</div>
-                  <span>Automatic underlining of unknown words</span>
-                </li>
-                <li>
-                  <div class="feature-checkmark">✓</div>
-                  <span>Hold Shift + hover to see definitions</span>
-                </li>
-                <li>
-                  <div class="feature-checkmark">✓</div>
-                  <span>Works on any website instantly</span>
-                </li>
-              </ul>
-            </div>
-            <div class="feature-visual">
-              <!-- Text Sample Mockup -->
-              <div class="text-sample-mockup" id="interactive-sample">
-                <div class="text-sample-line">
-                  Learning a new <span class="highlighted-word" data-word="language" data-definitions='["a system of communication used by a particular community", "the method of human communication"]'>language</span> is an exciting
-                </div>
-                <div class="text-sample-line">
-                  <span class="highlighted-word" data-word="journey" data-definitions='["an act of traveling from one place to another", "a long and often difficult process of personal change"]'>journey</span> that opens doors to new
-                </div>
-                <div class="text-sample-line">
-                  <span class="highlighted-word" data-word="cultures" data-definitions='["the customs, arts, social institutions of a particular group", "the attitudes and behavior of a society"]'>cultures</span> and <span class="highlighted-word" data-word="experiences" data-definitions='["practical contact with events or facts", "an event or occurrence that leaves an impression"]'>experiences</span>. With Helios,
-                </div>
-                <div class="text-sample-line">
-                  every webpage becomes a learning
-                </div>
-                <div class="text-sample-line">
-                  <span class="highlighted-word" data-word="opportunity" data-definitions='["a set of circumstances that makes it possible to do something", "a chance for advancement or progress"]'>opportunity</span>.
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="step-nav">
-            <button class="btn btn-secondary" id="btn-highlight-back">← Back</button>
-            <button class="btn btn-primary" id="btn-highlight-next">Next →</button>
-          </div>
-        </div>
-      </section>
-
-      <!-- Step 5: Language Selection -->
-      <section class="onboarding-step" id="step-language">
-        <div class="step-content">
-          <h2 class="step-title">Choose Your Language</h2>
+          <h2 class="step-title">What's Your Current Level?</h2>
           <p class="step-description">
-            Select the language you want to learn. You can change this anytime in settings.
+            Select your proficiency level to import a starter vocabulary list (optional). 
+            This helps Helios understand which words you already know.
           </p>
 
-          <div id="language-selector-container" class="language-selector-wrapper">
-            <!-- Language selector will be injected here -->
+          <div id="level-selector-container" class="level-selector-container">
+            <!-- Level selector will be injected here -->
+          </div>
+
+          <div class="bulk-import-section">
+            <h3 class="bulk-import-title">Or Import Your Own Word List (e.g. Anki)</h3>
+            <p class="bulk-import-description">
+              Paste words from your external word lists, separated by spaces, commas, or line breaks. You can also import words later in the settings.
+            </p>
+            <textarea
+              class="bulk-import-textarea"
+              id="bulk-import-textarea"
+              placeholder="Paste known words here, separated by space, comma, or new line&#10;Example: 对 错 好 不好 中国 学习 汉语"
+            ></textarea>
+            <button class="btn btn-secondary btn-bulk-import" id="btn-bulk-import">
+              <span>📥</span>
+              Import Words
+            </button>
           </div>
 
           <div class="step-nav">
-            <button class="btn btn-secondary" id="btn-lang-back">← Back</button>
-            <button class="btn btn-primary" id="btn-finish" disabled>Complete Setup</button>
+            <button class="btn btn-secondary" id="btn-level-back">← Back</button>
+            <div class="step-nav-right">
+              <button class="btn btn-secondary" id="btn-level-skip">Skip</button>
+              <button class="btn btn-primary" id="btn-level-next">Continue →</button>
+            </div>
           </div>
         </div>
       </section>
@@ -264,15 +177,8 @@
             Start browsing and watch your vocabulary grow!
           </p>
 
-          <div class="quick-tips">
-            <h3>Quick Start Guide</h3>
-            <ul>
-              <li><strong>Hold Shift + Hover</strong> over words to see instant definitions and translations</li>
-              <li><strong>Click words</strong> to mark them as known and remove the underline</li>
-              <li><strong>Click "A" button</strong> in the popup to instantly add words to Anki</li>
-              <li><strong>Check the banner</strong> at the top of pages to see your comprehension percentage</li>
-              <li><strong>Click the Helios icon</strong> in your toolbar to view detailed vocabulary statistics</li>
-            </ul>
+          <div class="recommended-content" id="recommended-content">
+            <!-- Recommended video link will be inserted here by JavaScript -->
           </div>
 
           <button class="btn btn-primary btn-large" id="btn-start-learning">
@@ -292,11 +198,34 @@
       <div class="progress-dot" data-step="2"></div>
       <div class="progress-dot" data-step="3"></div>
       <div class="progress-dot" data-step="4"></div>
-      <div class="progress-dot" data-step="5"></div>
     </div>
   </div>
 
   <!-- Scripts -->
+  <script src="../../content/languages/base-language-adapter.js"></script>
+  <script src="../../content/languages/chinese-adapter.js"></script>
+  <script src="../../content/languages/space-separated-adapter.js"></script>
+  <script src="../../content/languages/language-registry.js"></script>
+  <script src="../../content/vocab-manager.js"></script>
+  <script src="../../content/dictionary-bridge.js"></script>
+  <script src="../../content/dictionary-manager.js"></script>
+  <script src="../../content/frequency-manager.js"></script>
+  <script src="../../content/text-highlighter.js"></script>
+  <script src="../../content/page-processor.js"></script>
+  <script src="../../content/pronunciation-manager.js"></script>
+  <script src="../../content/pronunciation.js"></script>
+  <script src="../../content/anki-manager.js"></script>
+  <script src="../../content/popup/components/popup-positioner.js"></script>
+  <script src="../../content/popup/components/popup-content-builder.js"></script>
+  <script src="../../content/popup/components/popup-event-handler.js"></script>
+  <script src="../../content/popup/components/card-navigator.js"></script>
+  <script src="../../content/popup/components/definition-filter.js"></script>
+  <script src="../../content/popup/components/card-manager.js"></script>
+  <script src="../../content/popup/popup-settings-manager.js"></script>
+  <script src="../../content/popup/popup-manager.js"></script>
+  <script src="../../content/popup/multi-card-popup-manager.js"></script>
+  <script src="../../content/utils/activation-controller.js"></script>
+  <script src="../../content/utils/lookup-controller.js"></script>
   <script src="../../content/components/language-selector/language-selector.js"></script>
   <script src="../../content/onboarding/first-run-detector.js"></script>
   <script src="../../content/onboarding/onboarding-controller.js"></script>

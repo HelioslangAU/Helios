@@ -25,6 +25,11 @@ class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
     );
   }
 
+  getOnboardingVocabPath(level) {
+    const langCode = this.getLanguageCode();
+    return `OnboardingVocab/${langCode.charAt(0).toUpperCase() + langCode.slice(1)}5k.csv`;
+  }
+
   /**
    * Extract words from text with positions
    * @param {string} text - Text to process
@@ -37,7 +42,10 @@ class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
     
 
     // Use configured regex to find word boundaries and extract complete words
-    const wordRegex = new RegExp(`${this.config.wordBoundaryRegex.source}[\\p{L}\\p{M}]+${this.config.wordBoundaryRegex.source}`, 'gu');
+    // Pattern allows apostrophes and hyphens within words (e.g., "don't", "M'appelle")
+    // Note: Match pattern that includes apostrophes and ensures proper boundaries
+    // The pattern matches: letters followed by optional (apostrophe/hyphen + letters) groups
+    const wordRegex = new RegExp(`\\b[\\p{L}\\p{M}]+(?:[''-][\\p{L}\\p{M}]+)*\\b`, 'gu');
     let match;
     
     while ((match = wordRegex.exec(text)) !== null) {
@@ -405,6 +413,19 @@ class EnglishLanguageAdapter extends SpaceSeparatedLanguageAdapter {
   getDictionaryPath() {
     return 'dictionaries/English/ecdict.csv';
   }
+
+  /**
+   * Get proficiency level definitions for English (CEFR levels)
+   * @returns {Array<Object>} - Array of level definitions
+   */
+  getLevelDefinitions() {
+    return [
+      { level: 'A1', name: 'A1 (Beginner)', wordCount: 500 },
+      { level: 'A2', name: 'A2 (Elementary)', wordCount: 1000 },
+      { level: 'B1', name: 'B1 (Intermediate)', wordCount: 2000 },
+      { level: 'B2', name: 'B2 (Upper Intermediate)', wordCount: 4000 }
+    ];
+  }
 }
 
 /**
@@ -437,7 +458,10 @@ class SpanishLanguageAdapter extends SpaceSeparatedLanguageAdapter {
   }
   extractWords(text, dictionary) {
     const words = [];
-    const wordRegex = new RegExp(`${this.config.wordBoundaryRegex.source}[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]+${this.config.wordBoundaryRegex.source}`, 'g');
+    // Pattern allows apostrophes and hyphens within words (e.g., "no's", "d'accord")
+    // Note: Match pattern that includes apostrophes and ensures proper boundaries
+    // The pattern matches: letters followed by optional (apostrophe/hyphen + letters) groups
+    const wordRegex = new RegExp(`\\b[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]+(?:[''-][a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]+)*\\b`, 'g');
     let match;
     
     while ((match = wordRegex.exec(text)) !== null) {
@@ -508,6 +532,29 @@ class SpanishLanguageAdapter extends SpaceSeparatedLanguageAdapter {
   getDictionaryPath() {
     return 'dictionaries/Spanish/';
   }
+
+  /**
+   * Get proficiency level definitions for Spanish (CEFR levels)
+   * @returns {Array<Object>} - Array of level definitions
+   */
+  getLevelDefinitions() {
+    return [
+      { level: 'A1', name: 'A1 (Beginner)', wordCount: 500 },
+      { level: 'A2', name: 'A2 (Elementary)', wordCount: 1000 },
+      { level: 'B1', name: 'B1 (Intermediate)', wordCount: 2000 },
+      { level: 'B2', name: 'B2 (Upper Intermediate)', wordCount: 4000 }
+    ];
+  }
+
+  /**
+   * Get the vocabulary file path for onboarding word lists
+   * @param {string} level - Proficiency level (e.g., 'A1', 'A2')
+   * @returns {string|null} - Path to vocabulary file or null if not available
+   */
+  getOnboardingVocabPath(level) {
+    const langCode = this.getLanguageCode();
+    return `OnboardingVocab/${langCode.charAt(0).toUpperCase() + langCode.slice(1)}5k.csv`;
+  }
 }
 
 /**
@@ -558,6 +605,19 @@ class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
   }
 
   /**
+   * Get proficiency level definitions for French (CEFR levels)
+   * @returns {Array<Object>} - Array of level definitions
+   */
+  getLevelDefinitions() {
+    return [
+      { level: 'A1', name: 'A1 (Beginner)', wordCount: 500 },
+      { level: 'A2', name: 'A2 (Elementary)', wordCount: 1000 },
+      { level: 'B1', name: 'B1 (Intermediate)', wordCount: 2000 },
+      { level: 'B2', name: 'B2 (Upper Intermediate)', wordCount: 4000 }
+    ];
+  }
+
+  /**
    * Override normalizeWord to handle French word variations
    * @param {string} word - Word to normalize
    * @returns {string} - Normalized word
@@ -567,6 +627,71 @@ class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
     
     // First try the word as is
     return normalizedWord;
+  }
+
+  /**
+   * Override findDictionaryForm to handle French contractions (l', d', c', etc.)
+   * @param {string} word - Word to check
+   * @param {Object} dictionary - Dictionary object
+   * @returns {string|null} - Found dictionary form or null
+   */
+  findDictionaryForm(word, dictionary) {
+    const normalizedWord = word.toLowerCase().trim();
+    
+    // First check if the word exists as is (including contractions if they're in dictionary)
+    if (dictionary[normalizedWord] && dictionary[normalizedWord].length > 0) {
+      return normalizedWord;
+    }
+
+    // Check if this is a French contraction (e.g., l'image, d'accord, c'est)
+    // Pattern: single letter + apostrophe + word
+    const contractionPattern = /^([a-z])'([a-zàâäéèêëïîôùûüÿç]+)$/i;
+    const match = normalizedWord.match(contractionPattern);
+    
+    if (match) {
+      const article = match[1].toLowerCase();
+      const baseWord = match[2].toLowerCase();
+      
+      // Common French contractions and their meanings:
+      // l' = le/la (the)
+      // d' = de (of/from)
+      // c' = ce (this/that)
+      // n' = ne (not - usually part of "ne...pas")
+      // s' = se (reflexive pronoun)
+      // t' = te (you - informal object)
+      // m' = me (me)
+      // j' = je (I)
+      
+      // Try to find the base word in the dictionary
+      if (dictionary[baseWord] && dictionary[baseWord].length > 0) {
+        // Return base word - we'll enhance the definition later with article info
+        return baseWord;
+      }
+      
+      // Also try with different case if original had capital
+      if (word[0] !== normalizedWord[0]) {
+        const capitalizedBase = baseWord.charAt(0).toUpperCase() + baseWord.slice(1);
+        if (dictionary[capitalizedBase] && dictionary[capitalizedBase].length > 0) {
+          return capitalizedBase;
+        }
+      }
+    }
+
+    // Check if this is a form mapping to another word (from parent class logic)
+    if (dictionary[normalizedWord] && dictionary[normalizedWord][0] && 
+        Array.isArray(dictionary[normalizedWord][0][5])) {
+      // Get the base form from the mapping array
+      for (const mapping of dictionary[normalizedWord][0][5]) {
+        if (Array.isArray(mapping) && mapping.length > 0) {
+          const baseForm = mapping[0];
+          if (dictionary[baseForm]) {
+            return baseForm;
+          }
+        }
+      }
+    }
+
+    return null;
   }
 
   /**
@@ -587,7 +712,10 @@ class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
    */
   extractWords(text, dictionary) {
     const words = [];
-    const wordRegex = new RegExp(`${this.config.wordBoundaryRegex.source}[\\p{L}\\p{M}]+${this.config.wordBoundaryRegex.source}`, 'gu');
+    // Pattern allows apostrophes and hyphens within words (e.g., "M'appelle", "d'accord", "c'est")
+    // Note: Match pattern that includes apostrophes and ensures proper boundaries
+    // The pattern matches: letters followed by optional (apostrophe/hyphen + letters) groups
+    const wordRegex = new RegExp(`\\b[\\p{L}\\p{M}]+(?:[''-][\\p{L}\\p{M}]+)*\\b`, 'gu');
     let match;
     
     while ((match = wordRegex.exec(text)) !== null) {

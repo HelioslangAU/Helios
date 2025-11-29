@@ -393,6 +393,27 @@ class BaseLanguageAdapter {
     return uniqueDefinitions.length > 0 ? uniqueDefinitions.join('; ') : null;
   }
 
+  /**
+   * Get proficiency level definitions for this language
+   * Returns an array of {level, name, wordCount} objects
+   * Override this method in language-specific adapters
+   * @returns {Array<Object>} - Array of level definitions
+   */
+  getLevelDefinitions() {
+    // Default: no levels defined
+    return [];
+  }
+
+  /**
+   * Get the vocabulary file path for onboarding word lists
+   * @param {string} level - Proficiency level (e.g., 'A1', 'HSK1')
+   * @returns {string|null} - Path to vocabulary file or null if not available
+   */
+  getOnboardingVocabPath(level) {
+    // Default implementation - override in language adapters when available
+    return null;
+  }
+
 }
 
 // Export for use in other modules

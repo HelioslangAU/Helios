@@ -572,8 +572,9 @@ class SubtitleOverlay {
         }
       }
     } else {
-      // For space-separated languages, split by whitespace
-      const matches = text.match(/[\p{L}\p{M}]+/gu);
+      // For space-separated languages, extract words including apostrophes
+      // Pattern allows apostrophes and hyphens within words (e.g., "don't", "M'appelle")
+      const matches = text.match(/[\p{L}\p{M}]+(?:[''-][\p{L}\p{M}]+)*/gu);
       if (matches) {
         words.push(...matches.map(w => w.toLowerCase()));
       }

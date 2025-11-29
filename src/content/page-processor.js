@@ -550,18 +550,29 @@ class PageProcessor {
     const fragment = document.createDocumentFragment();
     let lastIndex = 0;
 
-    words.forEach(({ word, start, end }) => {
+    words.forEach(({ word, start, end, dictionaryForm }) => {
       if (start > lastIndex) {
         fragment.appendChild(document.createTextNode(text.slice(lastIndex, start)));
       }
       const span = document.createElement('span');
       span.textContent = word;
       span.setAttribute('data-word', word); // Always add data-word
+      
+      // If dictionaryForm is available (e.g., for contractions or base forms), store it
+      if (dictionaryForm) {
+        span.setAttribute('data-dictionary-form', dictionaryForm);
+      }
 
       // Convert word to lowercase for dictionary lookup while preserving display
       const lowercaseWord = word.toLowerCase();
+      // Use dictionaryForm if available, otherwise use the word itself
+      const lookupWord = dictionaryForm ? dictionaryForm.toLowerCase() : lowercaseWord;
+      
+      // Check if word exists in dictionary (using base form if contraction)
+      const hasDictionaryEntry = this.dictionaryManager.dictionary[lookupWord];
+      
       if (!this.vocabManager.isWordKnown(lowercaseWord) && 
-          this.dictionaryManager.dictionary[lowercaseWord] && 
+          hasDictionaryEntry && 
           !this.vocabManager.isWordIgnored(lowercaseWord)) {
         span.className = 'lang-unknown-word';
         this.unknownWordElements.set(lowercaseWord, span);
@@ -605,7 +616,9 @@ class PageProcessor {
       }
     } else {
       // For word-based languages, extract words using word boundaries
-      const wordRegex = /\b[\p{L}\p{M}]+\b/gu;
+      // Pattern allows apostrophes and hyphens within words (e.g., "don't", "M'appelle")
+      // This matches the pattern used in extractWords to ensure consistency
+      const wordRegex = /\b[\p{L}\p{M}]+(?:[''-][\p{L}\p{M}]+)*\b/gu;
       let match;
       while ((match = wordRegex.exec(text)) !== null) {
         potentialWords.add(match[0].toLowerCase());

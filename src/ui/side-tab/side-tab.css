@@ -44,6 +44,12 @@
     pointer-events: none;
 }
 
+/* Left-side positioning */
+.helios-side-tab[data-position="left"] {
+    right: auto;
+    left: 0;
+}
+
 .helios-side-tab * {
     box-sizing: border-box;
     margin: 0;
@@ -79,6 +85,21 @@
     opacity: 0;
 }
 
+/* Left-side peek tab */
+.helios-side-tab[data-position="left"] .side-tab-peek {
+    right: auto;
+    left: 0;
+    transform: translateY(-50%) translateX(-100%);
+    border-right: 1px solid rgba(255, 255, 255, 0.15);
+    border-left: none;
+    border-radius: 0 16px 16px 0;
+    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.3);
+}
+
+.helios-side-tab[data-position="left"] .side-tab-peek .peek-icon svg {
+    transform: scaleX(-1);
+}
+
 .side-tab-peek:hover {
     background: rgba(10, 10, 11, 0.6);
     border-color: rgba(255, 143, 71, 0.3);
@@ -97,8 +118,20 @@
     pointer-events: auto;
 }
 
+/* Left-side hover trigger area */
+.helios-side-tab[data-position="left"]::after {
+    right: auto;
+    left: 0;
+}
+
 /* Show peek tab on hover near right edge */
 .helios-side-tab:hover .side-tab-peek {
+    transform: translateY(-50%) translateX(0);
+    opacity: 1;
+}
+
+/* Show peek tab on hover near left edge */
+.helios-side-tab[data-position="left"]:hover .side-tab-peek {
     transform: translateY(-50%) translateX(0);
     opacity: 1;
 }
@@ -161,6 +194,25 @@
     padding: 28px 0;
 }
 
+/* Left-side partial view */
+.helios-side-tab[data-position="left"] .side-tab-partial {
+    right: auto;
+    left: 0;
+    background: linear-gradient(
+        to right,
+        rgba(10, 10, 11, 0.18),
+        rgba(15, 15, 18, 0.15),
+        rgba(10, 10, 11, 0.20)
+    );
+    border-left: none;
+    border-right: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow:
+        inset -1px 0 1px rgba(255, 255, 255, 0.08),  /* Inner highlight */
+        4px 0 20px rgba(0, 0, 0, 0.15),
+        2px 0 10px rgba(0, 0, 0, 0.1);
+    transform: translateX(-100%);
+}
+
 /* Removed orange gradient line and header */
 
 /* Partial Stats */
@@ -188,6 +240,11 @@
     transform: translateX(-6px);
 }
 
+/* Left-side hover effect */
+.helios-side-tab[data-position="left"] .partial-stat-item:hover {
+    transform: translateX(6px);
+}
+
 .partial-stat-item::after {
     content: attr(data-tooltip);
     position: absolute;
@@ -205,6 +262,17 @@
     transition: all 0.2s var(--transition-timing);
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+/* Left-side tooltip */
+.helios-side-tab[data-position="left"] .partial-stat-item::after {
+    right: auto;
+    left: calc(100% + 16px);
+    transform: translateX(-12px);
+}
+
+.helios-side-tab[data-position="left"] .partial-stat-item:hover::after {
+    transform: translateX(0);
 }
 
 .partial-stat-item:hover::after {
@@ -345,6 +413,17 @@
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
+/* Left-side action button tooltip */
+.helios-side-tab[data-position="left"] .partial-action-btn::after {
+    right: auto;
+    left: calc(100% + 16px);
+    transform: translateX(-12px);
+}
+
+.helios-side-tab[data-position="left"] .partial-action-btn:hover::after {
+    transform: translateX(0);
+}
+
 .partial-action-btn:hover::after {
     opacity: 1;
     transform: translateX(0);
@@ -374,7 +453,6 @@
 }
 
 #partial-expand-btn:hover svg {
-    transform: rotate(90deg);
     color: rgba(255, 143, 71, 1);
 }
 
@@ -388,7 +466,6 @@
 }
 
 .partial-close-btn:hover svg {
-    transform: rotate(90deg);
     color: rgba(239, 68, 68, 1);
 }
 
@@ -430,6 +507,25 @@
     flex-direction: column;
     overflow-y: auto;
     overflow-x: hidden;
+}
+
+/* Left-side full view */
+.helios-side-tab[data-position="left"] .side-tab-full {
+    right: auto;
+    left: 0;
+    background: linear-gradient(
+        to right,
+        rgba(10, 10, 11, 0.70),
+        rgba(15, 15, 18, 0.65),
+        rgba(10, 10, 11, 0.68)
+    );
+    border-left: none;
+    border-right: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow:
+        inset -1px 0 1px rgba(255, 255, 255, 0.08),  /* Inner highlight */
+        12px 0 48px rgba(0, 0, 0, 0.6),
+        8px 0 32px rgba(0, 0, 0, 0.4);
+    transform: translateX(-100%);
 }
 
 /* Removed orange gradient line */
@@ -720,6 +816,11 @@
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
+/* Left-side action button hover */
+.helios-side-tab[data-position="left"] .action-button:hover {
+    transform: translateX(6px);
+}
+
 .settings-button:hover {
     border-color: rgba(255, 107, 71, 0.2);
 }
@@ -789,6 +890,53 @@
     background: linear-gradient(135deg, rgba(255, 107, 71, 0.35), rgba(255, 143, 71, 0.28));
 }
 
+/* Position toggle button styling (Partial View) */
+.partial-position-btn {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.05));
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.partial-position-btn svg {
+    width: 22px;
+    height: 22px;
+    transform: scaleX(-1);
+    color: rgba(255, 255, 255, 0.7);
+    transition: all 0.3s var(--transition-timing);
+}
+
+.partial-position-btn:hover {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.25), rgba(96, 165, 250, 0.20));
+    border-color: rgba(96, 165, 250, 0.4);
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.partial-position-btn:hover svg {
+    color: rgba(96, 165, 250, 1);
+}
+
+/* Arrow direction: Right side = left arrow (←), Left side = right arrow (→) */
+/* Default (right side): arrow points left (no transform needed) */
+
+/* Flip icon when on left side to point right */
+.helios-side-tab[data-position="left"] .partial-position-btn svg {
+    transform: scaleX(1);
+}
+
+.helios-side-tab[data-position="right"] .partial-position-btn svg {
+    transform: scaleX(-1);
+}
+
+.helios-side-tab[data-position="left"] .partial-position-btn:hover svg {
+    transform: scaleX(1);
+    color: rgba(96, 165, 250, 1);
+}
+
+.helios-side-tab[data-position="right"] .partial-position-btn:hover svg {
+    transform: scaleX(-1);
+    color: rgba(96, 165, 250, 1);
+}
+
 /* Pinyin Toggle Slider (Chinese only) - matches action button style exactly */
 .pinyin-toggle-container {
     display: flex;
@@ -808,6 +956,11 @@
     transform: translateX(-6px);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
     border-color: rgba(168, 85, 247, 0.2);
+}
+
+/* Left-side pinyin toggle hover */
+.helios-side-tab[data-position="left"] .pinyin-toggle-container:hover {
+    transform: translateX(6px);
 }
 
 .pinyin-toggle-content {
@@ -959,6 +1112,15 @@
     pointer-events: none;
 }
 
+/* Left-side closed state */
+.helios-side-tab[data-position="left"][data-state="closed"] .side-tab-partial {
+    transform: translateX(-100%);
+}
+
+.helios-side-tab[data-position="left"][data-state="closed"] .side-tab-full {
+    transform: translateX(-100%);
+}
+
 /* Partial State */
 .helios-side-tab[data-state="partial"] .side-tab-peek {
     opacity: 0 !important;
@@ -978,6 +1140,15 @@
     pointer-events: none;
 }
 
+/* Left-side partial state */
+.helios-side-tab[data-position="left"][data-state="partial"] .side-tab-peek {
+    transform: translateY(-50%) translateX(-100%) !important;
+}
+
+.helios-side-tab[data-position="left"][data-state="partial"] .side-tab-full {
+    transform: translateX(-100%);
+}
+
 /* Full State */
 .helios-side-tab[data-state="full"] .side-tab-peek {
     opacity: 0 !important;
@@ -995,6 +1166,15 @@
     transform: translateX(0);
     opacity: 1;
     pointer-events: auto;
+}
+
+/* Left-side full state */
+.helios-side-tab[data-position="left"][data-state="full"] .side-tab-peek {
+    transform: translateY(-50%) translateX(-100%) !important;
+}
+
+.helios-side-tab[data-position="left"][data-state="full"] .side-tab-partial {
+    transform: translateX(-100%);
 }
 
 /* ================================================

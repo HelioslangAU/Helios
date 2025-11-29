@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Helios",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "A browser extension for language learning with subtitle reading, popup dictionary, vocab tracking, and Anki integration",
 
 
@@ -103,6 +103,7 @@
         "src/ui/popup/popup.css",
         "dictionaries/**/*",
         "freq-dict/*",
+        "OnboardingVocab/**/*",
         "src/ui/settings/helios-settings.html",
         "src/settings/helios-settings.js",
         "src/settings/settings-storage.js",
