@@ -537,11 +537,50 @@ class OnboardingPage {
         languageNameElement.textContent = this.selectedLanguage.name;
       }
 
+      // Update recommended content based on selected language
+      this.updateRecommendedContent();
+
       // Show success step
       this.showStep('success');
     } catch (error) {
       console.error('Error completing onboarding:', error);
       alert('An error occurred. Please try again.');
+    }
+  }
+
+  updateRecommendedContent() {
+    const recommendedContentElement = document.getElementById('recommended-content');
+    if (!recommendedContentElement) {
+      return;
+    }
+
+    // Map language codes to YouTube video URLs
+    const recommendedVideos = {
+      'zh': 'https://www.youtube.com/watch?v=MFHyPvev_n8',
+      'fr': 'https://www.youtube.com/watch?v=c2SUQVjklVA&list=PLXweyiR2fMMf-ZrjCNNKWoeq8L6tlSFUV',
+      'es': 'https://www.youtube.com/watch?v=5Ga566gw01Q',
+      'en': 'https://www.youtube.com/watch?v=ceqDj5VsJew&list=PLKt7dWUJknRj2eI3IuVPdyqDvlal7zwAo'
+    };
+
+    const videoUrl = recommendedVideos[this.selectedLanguage.code];
+    
+    if (videoUrl) {
+      recommendedContentElement.innerHTML = `
+        <h3>🎬 Recommended Content</h3>
+        <p class="recommended-description">
+          Start your learning journey with this recommended content:
+        </p>
+        <a href="${videoUrl}" target="_blank" rel="noopener noreferrer" class="recommended-link">
+          <span class="link-icon">📺</span>
+          <span class="link-text">Watch Recommended Video</span>
+          <svg class="link-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+        </a>
+      `;
+    } else {
+      // Fallback: show nothing or a generic message if language not supported
+      recommendedContentElement.innerHTML = '';
     }
   }
 

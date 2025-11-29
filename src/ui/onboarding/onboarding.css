@@ -1834,6 +1834,76 @@ body {
   font-weight: 600;
 }
 
+/* Recommended Content Section */
+.recommended-content {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 107, 71, 0.15);
+  border-radius: 16px;
+  padding: 32px;
+  margin: 40px 0;
+  text-align: center;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.recommended-content h3 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #f8fafc;
+  margin-bottom: 12px;
+  letter-spacing: -0.5px;
+}
+
+.recommended-description {
+  font-size: 16px;
+  color: #94a3b8;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.recommended-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: #f8fafc;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 16px;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.recommended-link::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.1), transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.recommended-link:hover::before {
+  opacity: 1;
+}
+
+.recommended-link:hover {
+  border-color: rgba(255, 107, 71, 0.5);
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(255, 107, 71, 0.2);
+}
+
+.recommended-link:hover .link-arrow {
+  opacity: 1;
+  transform: translate(4px, -4px);
+}
+
 /* Try It Out Section */
 .try-it-out {
   background: rgba(255, 255, 255, 0.03);
