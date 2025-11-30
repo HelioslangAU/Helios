@@ -151,7 +151,7 @@ class OffscreenDictionaryService {
       
       switch (message.action) {
         case 'DICT_LOAD':
-          response = await this.handleLoadDictionary(message.languageCode);
+          response = await this.handleLoadDictionary(message.languageCode, message.nativeLanguageCode);
           break;
         
         case 'DICT_GET_DEFINITION':
@@ -203,7 +203,7 @@ class OffscreenDictionaryService {
     }
   }
 
-  async handleLoadDictionary(languageCode) {
+  async handleLoadDictionary(languageCode, nativeLanguageCode = null) {
     try {
       // If already loading the same language, wait for existing promise
       if (this.isLoading && this.currentLanguage === languageCode && this.loadPromise) {
@@ -265,7 +265,7 @@ class OffscreenDictionaryService {
 
             // If not in IndexedDB, download and process
             console.log(`📚 Dictionary not found in IndexedDB for ${languageCode}, downloading...`);
-            await this.downloadAndProcessDictionary(languageCode);
+            await this.downloadAndProcessDictionary(languageCode, nativeLanguageCode);
             const size = Object.keys(this.dictionaryManager.dictionary).length;
             console.log(`✅ Dictionary loaded for ${languageCode}: ${size} entries`);
             return { 
@@ -295,15 +295,28 @@ class OffscreenDictionaryService {
   /**
    * Download dictionary zip file, unzip, and process it
    */
-  async downloadAndProcessDictionary(languageCode) {
+  async downloadAndProcessDictionary(languageCode, nativeLanguageCode = null) {
     try {
       const adapter = this.languageRegistry.getAdapter();
       if (!adapter) {
         throw new Error('No language adapter available');
       }
 
-      // Get download URL from adapter
-      const downloadUrl = adapter.getDictionaryDownloadUrl();
+      // Get native language code from parameter or storage
+      if (!nativeLanguageCode) {
+        try {
+          const result = await chrome.storage.local.get(['nativeLanguage']);
+          nativeLanguageCode = result.nativeLanguage || 'en';
+        } catch (error) {
+          console.warn('Could not get native language from storage, defaulting to English:', error);
+          nativeLanguageCode = 'en';
+        }
+      }
+
+      // Get download URL from adapter (may be async, pass native language)
+      const downloadUrl = typeof adapter.getDictionaryDownloadUrl === 'function' 
+        ? await adapter.getDictionaryDownloadUrl(nativeLanguageCode) 
+        : adapter.getDictionaryDownloadUrl();
       console.log(`📥 Downloading dictionary from: ${downloadUrl}`);
 
       // Download the zip file

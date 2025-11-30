@@ -20,18 +20,26 @@ class OnboardingController {
   /**
    * Save language selection and complete onboarding
    * @param {string} languageCode - Selected language code
+   * @param {string|null} nativeLanguageCode - Selected native language code (optional)
    * @returns {Promise<void>}
    */
-  async completeOnboarding(languageCode) {
+  async completeOnboarding(languageCode, nativeLanguageCode = null) {
     if (!languageCode) {
       throw new Error('Language code is required to complete onboarding');
     }
 
     try {
-      // Save language preference to storage
-      await chrome.storage.local.set({
+      // Save language preferences to storage
+      const settingsToSave = {
         targetLanguage: languageCode
-      });
+      };
+      
+      // Only save native language if provided (not Chinese, which doesn't need it)
+      if (nativeLanguageCode) {
+        settingsToSave.nativeLanguage = nativeLanguageCode;
+      }
+      
+      await chrome.storage.local.set(settingsToSave);
 
       // Mark onboarding as complete
       await this.firstRunDetector.markOnboardingComplete();
