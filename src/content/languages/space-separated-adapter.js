@@ -530,7 +530,7 @@ class SpanishLanguageAdapter extends SpaceSeparatedLanguageAdapter {
   }
 
   getDictionaryPath() {
-    return 'dictionaries/Spanish/';
+    return;
   }
 
   /**
@@ -601,7 +601,7 @@ class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
   }
 
   getDictionaryPath() {
-    return 'dictionaries/French/';
+    return;
   }
 
   /**

@@ -234,7 +234,13 @@ class ChineseLanguageAdapter extends BaseLanguageAdapter {
    * @returns {string} - Path to CEDICT file
    */
   getDictionaryPath() {
-    return 'dictionaries/Chinese/cedict_ts.u8';
+    return;
+  }
+
+  getDictionaryDownloadUrl() {
+    const config = this.getConfig();
+    const languageCode = config.code;
+    return `https://www.mdbg.net/chinese/export/cedict/cedict_1_0_ts_utf-8_mdbg.zip`;
   }
 
   /**

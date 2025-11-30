@@ -847,9 +847,12 @@ class OnboardingPage {
       this.languageRegistry.setLanguage(this.selectedLanguage.code);
 
       // Initialize managers
-      // Create new dictionaryBridge for new language
-      this.dictionaryBridge = new DictionaryBridge();
-      await this.dictionaryBridge.ensureOffscreenDocument();
+      // Reuse existing dictionaryBridge if it exists (from startDictionaryLoading)
+      // Otherwise create a new one
+      if (!this.dictionaryBridge) {
+        this.dictionaryBridge = new DictionaryBridge();
+        await this.dictionaryBridge.ensureOffscreenDocument();
+      }
       
       this.dictionaryManager = new DictionaryManagerProxy(this.languageRegistry);
       this.vocabManager = new VocabManager();
@@ -858,9 +861,29 @@ class OnboardingPage {
       this.frequencyManager = new FrequencyManager();
 
       // Load dictionary and resources
-      // Dictionary may already be loading from language selection, but wait for it to complete
+      // Dictionary may already be loading from language selection (via startDictionaryLoading)
+      // Check if dictionary is already loaded before calling loadDictionary again
+      let dictionaryLoadPromise;
+      if (this.dictionaryLoaded) {
+        // Already marked as loaded, no need to load again
+        console.log('📚 Dictionary already loaded, skipping reload');
+        dictionaryLoadPromise = Promise.resolve();
+      } else {
+        // Check if dictionary is actually loaded in offscreen
+        const isLoaded = await this.dictionaryBridge.isDictionaryLoaded();
+        if (isLoaded) {
+          console.log('📚 Dictionary already loaded in offscreen, skipping reload');
+          this.dictionaryLoaded = true;
+          dictionaryLoadPromise = Promise.resolve();
+        } else {
+          // Not loaded yet, load it now
+          console.log('📚 Dictionary not loaded yet, loading now...');
+          dictionaryLoadPromise = this.dictionaryManager.loadDictionary();
+        }
+      }
+      
       await Promise.all([
-        this.dictionaryManager.loadDictionary(),
+        dictionaryLoadPromise,
         this.vocabManager.loadKnownWords(),
         this.frequencyManager.loadFrequencyList()
       ]);

@@ -414,6 +414,17 @@ class BaseLanguageAdapter {
     return null;
   }
 
+  /**
+   * Get the dictionary download URL for this language
+   * Returns a URL that points to a zip file containing the dictionary
+   * @returns {string} - URL to download the dictionary zip file
+   */
+  getDictionaryDownloadUrl() {
+    const config = this.getConfig();
+    const languageCode = config.code;
+    return `https://pub-c3d38cca4dc2403b88934c56748f5144.r2.dev/releases/latest/kty-${languageCode}-en.zip`;
+  }
+
 }
 
 // Export for use in other modules
