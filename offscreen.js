@@ -122,8 +122,14 @@ class OffscreenDictionaryService {
     try {
       // Get current language from storage
       const result = await chrome.storage.local.get(['targetLanguage']);
-      const targetLanguage = result.targetLanguage || 'zh'; // Default to Chinese
       
+      // Don't load dictionary if no language is selected yet (e.g., during onboarding)
+      if (!result.targetLanguage) {
+        console.log('📚 No target language set yet, skipping initial dictionary load');
+        return;
+      }
+      
+      const targetLanguage = result.targetLanguage;
       console.log(`📚 Loading initial dictionary for language: ${targetLanguage}`);
       await this.handleLoadDictionary(targetLanguage);
     } catch (error) {

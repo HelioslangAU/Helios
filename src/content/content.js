@@ -67,7 +67,7 @@ class ChineseLanguageLearningExtension {
     // Load settings first to get target language
     this.settings = new SettingsSync({
       onLoaded: (s) => {
-        const targetLanguage = s?.targetLanguage || 'en';
+        const targetLanguage = s?.targetLanguage;
         console.log(`🌍 Loading extension with target language: ${targetLanguage}`);
         console.log('📋 All settings received:', s);
         this.languageRegistry.setLanguage(targetLanguage);
