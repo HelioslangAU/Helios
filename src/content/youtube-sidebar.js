@@ -1281,7 +1281,7 @@ class YouTubeSidebar {
         
         const dictionary = window.dictionaryManager?.dictionary || {};
         // Use language-aware word extraction
-        const extractedWords = adapter.extractWords(entry.text, dictionary);
+        const extractedWords = await adapter.extractWords(entry.text, dictionary);
 
         // Check if language uses spaces between words (not CJK languages)
         const currentLang = window.languageRegistry?.getCurrentLanguage();

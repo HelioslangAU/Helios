@@ -27,6 +27,45 @@ class ChineseLanguageAdapter extends BaseLanguageAdapter {
       ...config
     };
     this.setConfig(baseConfig);
+    
+    // Initialize jieba for Chinese word segmentation
+    this.jieba = null;
+    this.jiebaInitialized = false;
+    this._initJieba();
+  }
+
+  /**
+   * Initialize jieba word segmentation library
+   * @private
+   */
+  async _initJieba() {
+    try {
+      if (typeof Jieba !== 'undefined') {
+        this.jieba = new Jieba();
+        await this.jieba.init();
+        // Verify jieba is actually ready - check cache exists and trie is populated
+        if (this.jieba.initialized && 
+            this.jieba._cache_ && 
+            this.jieba._cache_.trie && 
+            Object.keys(this.jieba._cache_.trie).length > 0) {
+          this.jiebaInitialized = true;
+          console.log('Jieba initialized successfully');
+          // Test jieba after successful initialization
+          try {
+            const testResult = await this.jieba.cut("我不知道.");
+            console.log('Jieba test result:', testResult);
+          } catch (testError) {
+            console.error('Jieba test failed:', testError);
+          }
+        } else {
+          console.warn('Jieba instance created but not fully initialized. Cache:', this.jieba._cache_);
+        }
+      } else {
+        console.warn('Jieba class not found. Make sure lib/jieba/jieba.js is loaded.');
+      }
+    } catch (error) {
+      console.error('Failed to initialize jieba:', error);
+    }
   }
 
   /**
@@ -46,12 +85,84 @@ class ChineseLanguageAdapter extends BaseLanguageAdapter {
    * Extract Chinese words from text with positions
    * @param {string} text - Text to process
    * @param {Object} dictionary - Dictionary to validate against
-   * @returns {Array} - Array of {word, start, end, isTargetLang} objects
+   * @returns {Promise<Array>} - Array of {word, start, end, isTargetLang} objects
    */
-  extractWords(text, dictionary) {
+  async extractWords(text, dictionary) {
     const words = [];
+    
+    // Use jieba for word segmentation if available
+    if (this.jieba && this.jiebaInitialized) {
+      try {
+        // First, split text into chunks of target characters and non-target characters
+        // while preserving their original positions
+        const chunks = [];
+        let i = 0;
+        
+        while (i < text.length) {
+          if (this.isTargetCharacter(text[i])) {
+            // Collect consecutive target characters
+            const start = i;
+            let targetText = '';
+            while (i < text.length && this.isTargetCharacter(text[i])) {
+              targetText += text[i];
+              i++;
+            }
+            chunks.push({
+              text: targetText,
+              start: start,
+              isTargetLang: true
+            });
+          } else {
+            // Collect consecutive non-target characters
+            const start = i;
+            let nonTargetText = '';
+            while (i < text.length && !this.isTargetCharacter(text[i])) {
+              nonTargetText += text[i];
+              i++;
+            }
+            chunks.push({
+              text: nonTargetText,
+              start: start,
+              isTargetLang: false
+            });
+          }
+        }
+        
+        // Process each chunk
+        for (const chunk of chunks) {
+          if (chunk.isTargetLang && chunk.text.length > 0) {
+            // Use jieba.cut only on target character chunks
+            const segments = await this.jieba.cut(chunk.text);
+            let chunkPos = 0;
+            
+            for (const segment of segments) {
+              const start = chunk.start + chunkPos;
+              const end = start + segment.length;
+              
+              words.push({
+                word: segment,
+                start: start,
+                end: end,
+                isTargetLang: true
+              });
+              
+              chunkPos += segment.length;
+            }
+          } 
+        }
+        // if (words.length != 0) {
+        //   console.log('Jieba words:', words);
+        // }
+        return words;
+      
+      } catch (error) {
+        console.error('Error using jieba.cut:', error);
+        // Fall through to fallback implementation
+      }
+    }
+    
+    // Fallback: original implementation if jieba is not available
     let i = 0;
-
     while (i < text.length) {
       if (this.isTargetCharacter(text[i])) {
         let longestWord = null;

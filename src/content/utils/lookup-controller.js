@@ -36,7 +36,7 @@ class LookupController {
     // Skip if not activated and not on a subtitle word
     if (!isSubtitleWord && !this.activation.isActive()) return;
 
-    const characterInfo = this.pageProcessor.getCharacterAtPosition(event);
+    const characterInfo = await this.pageProcessor.getCharacterAtPosition(event);
 
     if (characterInfo?.word) {
       // Skip if already showing this exact word (prevent unnecessary re-renders)
@@ -53,7 +53,7 @@ class LookupController {
       this.highlightManager.removeLookupHighlight();
 
       // Re-check position after removing old highlight (DOM might have changed)
-      const newCharacterInfo = this.pageProcessor.getCharacterAtPosition(event);
+      const newCharacterInfo = await this.pageProcessor.getCharacterAtPosition(event);
       if (!newCharacterInfo) {
         this.popup.scheduleHidePopup?.();
         this.currentWord = null;

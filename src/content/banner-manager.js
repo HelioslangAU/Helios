@@ -37,8 +37,8 @@ class BannerManager {
         this.sideTabInstance = new HeliosSideTab();
 
         // Calculate and update initial stats
-        const comprehension = window.pageProcessor.calculateComprehensionPercentage();
-        const pageWords = this.calculatePageWordsCount();
+        const comprehension = await window.pageProcessor.calculateComprehensionPercentage();
+        const pageWords = await this.calculatePageWordsCount();
 
         this.updateStats({
             knownWords: window.vocabManager.getKnownWordsCount(),
@@ -85,7 +85,7 @@ class BannerManager {
      * Otherwise, returns page word count
      * @returns {number}
      */
-    calculatePageWordsCount() {
+    async calculatePageWordsCount() {
         try {
             // First, check if video subtitles are active
             const subtitleText = this.getVideoSubtitleText();
@@ -94,7 +94,7 @@ class BannerManager {
                 // Video subtitles are active - calculate words from subtitle text
                 const adapter = window.languageRegistry?.getAdapter();
                 if (adapter) {
-                    const words = adapter.extractWords(subtitleText, window.dictionaryManager?.dictionary || {});
+                    const words = await adapter.extractWords(subtitleText, window.dictionaryManager?.dictionary || {});
                     return words.length;
                 }
                 return 0;
@@ -107,7 +107,7 @@ class BannerManager {
             for (const textNode of textNodes) {
                 const adapter = window.languageRegistry?.getAdapter();
                 if (adapter) {
-                    const words = adapter.extractWords(textNode.textContent, window.dictionaryManager?.dictionary || {});
+                    const words = await adapter.extractWords(textNode.textContent, window.dictionaryManager?.dictionary || {});
                     totalWords += words.length;
                 }
             }
@@ -234,11 +234,11 @@ class BannerManager {
             clearTimeout(this.refreshTimeout);
         }
 
-        this.refreshTimeout = setTimeout(() => {
+        this.refreshTimeout = setTimeout(async () => {
             try {
                 // Recalculate comprehension and page words
-                const comprehension = window.pageProcessor?.calculateComprehensionPercentage() || 0;
-                const pageWords = this.calculatePageWordsCount();
+                const comprehension = await window.pageProcessor?.calculateComprehensionPercentage() || 0;
+                const pageWords = await this.calculatePageWordsCount();
                 const knownWords = window.vocabManager?.getKnownWordsCount() || 0;
 
                 // Update all stats

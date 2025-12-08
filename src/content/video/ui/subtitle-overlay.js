@@ -630,7 +630,7 @@ class SubtitleOverlay {
         
         const dictionary = window.dictionaryManager?.dictionary || {};
         // Use language-aware word extraction
-        const extractedWords = adapter.extractWords(subtitle.text, dictionary);
+        const extractedWords = await adapter.extractWords(subtitle.text, dictionary);
 
         // Check if language uses spaces between words (not CJK languages)
         const currentLang = window.languageRegistry?.getCurrentLanguage();

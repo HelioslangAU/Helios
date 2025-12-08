@@ -136,10 +136,13 @@ class LanguageRegistry {
    * Extract words from text using current language
    * @param {string} text - Text to process
    * @param {Object} dictionary - Dictionary to validate against
-   * @returns {Array} - Array of word objects
+   * @returns {Promise<Array>} - Array of word objects
    */
-  extractWords(text, dictionary) {
-    return this.currentAdapter ? this.currentAdapter.extractWords(text, dictionary) : [];
+  async extractWords(text, dictionary) {
+    if (!this.currentAdapter) return [];
+    const result = this.currentAdapter.extractWords(text, dictionary);
+    // Handle both sync and async adapters
+    return result instanceof Promise ? await result : result;
   }
 
   /**
