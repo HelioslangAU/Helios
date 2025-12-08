@@ -508,6 +508,16 @@ class PageProcessor {
             return NodeFilter.FILTER_REJECT;
           }
 
+          // Skip Helios subtitle overlay to avoid re-wrapping YouTube subtitles
+          if (parent.closest('[data-helios-subtitle-overlay="true"]')) {
+            return NodeFilter.FILTER_REJECT;
+          }
+
+          // Skip Helios YouTube subtitle sidebar/panel to avoid double-wrapping
+          if (parent.closest('[data-helios-panel="true"]')) {
+            return NodeFilter.FILTER_REJECT;
+          }
+
           // Don't process popup content - check if ANY ancestor is the popup
           if (parent.closest('.chinese-lang-extension-popup')) {
             return NodeFilter.FILTER_REJECT;
@@ -529,6 +539,11 @@ class PageProcessor {
   async processTextNodeForUnknownWords(textNode) {
     // Safety check: NEVER process popup content
     if (textNode.parentElement && textNode.parentElement.closest('.chinese-lang-extension-popup')) {
+      return;
+    }
+
+    // Avoid double-wrapping if this text node already sits inside a processed span
+    if (textNode.parentElement && textNode.parentElement.closest('span[data-word]')) {
       return;
     }
 

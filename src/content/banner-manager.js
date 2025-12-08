@@ -2,6 +2,11 @@ class BannerManager {
     constructor() {
         this.sideTab = null;
         this.sideTabInstance = null;
+        this.lastStats = {
+            knownWords: 0,
+            comprehension: 100,
+            pageWords: 0
+        };
         this.init();
     }
 
@@ -203,22 +208,49 @@ class BannerManager {
      */
     updateStats(stats) {
         if (!this.sideTabInstance) return;
-        this.sideTabInstance.updateStats(stats);
+
+        const safeStats = {};
+
+        if (stats.knownWords !== undefined) {
+            const val = Number(stats.knownWords);
+            if (Number.isFinite(val)) {
+                this.lastStats.knownWords = val;
+            }
+            safeStats.knownWords = this.lastStats.knownWords;
+        }
+
+        if (stats.comprehension !== undefined) {
+            const val = Number(stats.comprehension);
+            if (Number.isFinite(val)) {
+                this.lastStats.comprehension = val;
+            }
+            safeStats.comprehension = this.lastStats.comprehension;
+        }
+
+        if (stats.pageWords !== undefined) {
+            const val = Number(stats.pageWords);
+            if (Number.isFinite(val)) {
+                this.lastStats.pageWords = val;
+            }
+            safeStats.pageWords = this.lastStats.pageWords;
+        }
+
+        this.sideTabInstance.updateStats(safeStats);
     }
 
     updateComprehension(comprehension) {
         if (!this.sideTabInstance) return;
-        this.sideTabInstance.updateStats({ comprehension });
+        this.updateStats({ comprehension });
     }
 
     updateKnownWords(knownWords) {
         if (!this.sideTabInstance) return;
-        this.sideTabInstance.updateStats({ knownWords });
+        this.updateStats({ knownWords });
     }
 
     updatePageWords(pageWords) {
         if (!this.sideTabInstance) return;
-        this.sideTabInstance.updateStats({ pageWords });
+        this.updateStats({ pageWords });
     }
 
     /**
@@ -237,9 +269,13 @@ class BannerManager {
         this.refreshTimeout = setTimeout(async () => {
             try {
                 // Recalculate comprehension and page words
-                const comprehension = await window.pageProcessor?.calculateComprehensionPercentage() || 0;
-                const pageWords = await this.calculatePageWordsCount();
-                const knownWords = window.vocabManager?.getKnownWordsCount() || 0;
+                const comprehensionRaw = await window.pageProcessor?.calculateComprehensionPercentage();
+                const pageWordsRaw = await this.calculatePageWordsCount();
+                const knownWordsRaw = window.vocabManager?.getKnownWordsCount();
+
+                const comprehension = Number.isFinite(comprehensionRaw) ? comprehensionRaw : this.lastStats.comprehension;
+                const pageWords = Number.isFinite(pageWordsRaw) ? pageWordsRaw : this.lastStats.pageWords;
+                const knownWords = Number.isFinite(knownWordsRaw) ? knownWordsRaw : this.lastStats.knownWords;
 
                 // Update all stats
                 this.updateStats({

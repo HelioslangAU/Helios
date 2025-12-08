@@ -51,12 +51,6 @@ class ChineseLanguageAdapter extends BaseLanguageAdapter {
           this.jiebaInitialized = true;
           console.log('Jieba initialized successfully');
           // Test jieba after successful initialization
-          try {
-            const testResult = await this.jieba.cut("我不知道.");
-            console.log('Jieba test result:', testResult);
-          } catch (testError) {
-            console.error('Jieba test failed:', testError);
-          }
         } else {
           console.warn('Jieba instance created but not fully initialized. Cache:', this.jieba._cache_);
         }
