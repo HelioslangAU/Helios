@@ -735,6 +735,63 @@ class PageProcessor {
     const element = document.elementFromPoint(event.clientX, event.clientY);
     if (!element) return null;
 
+    const adapter = this.languageRegistry.getAdapter();
+    const isCharacterBased = adapter && adapter.getScanResolution() === 'char';
+
+    // OPTIMIZATION: Check if we clicked on a processed word span
+    // For character-based languages, we still need character-level detection within the span
+    const wordSpan = element.closest('span[data-word]');
+    if (wordSpan && wordSpan.hasAttribute('data-word')) {
+      const rect = wordSpan.getBoundingClientRect();
+      
+      // Verify the click is actually within this span's bounds
+      if (event.clientX >= rect.left && event.clientX <= rect.right &&
+          event.clientY >= rect.top && event.clientY <= rect.bottom) {
+        const textNodes = this.getTextNodes(wordSpan);
+        if (textNodes.length > 0) {
+          const textNode = textNodes[0];
+          const textContent = textNode.textContent;
+          
+          // For character-based languages, detect which character was clicked
+          // and find the longest word starting from that character
+          if (isCharacterBased && adapter.isTargetCharacter) {
+            const range = document.createRange();
+            for (let i = 0; i < textContent.length; i++) {
+              if (!adapter.isTargetCharacter(textContent[i])) continue;
+              
+              range.setStart(textNode, i);
+              range.setEnd(textNode, i + 1);
+              const charRect = range.getBoundingClientRect();
+              
+              if (event.clientX >= charRect.left && event.clientX <= charRect.right &&
+                  event.clientY >= charRect.top && event.clientY <= charRect.bottom) {
+                // Found the clicked character - find longest word from this position
+                const wordResult = this.findLongestWordFromPosition(textNode, i);
+                if (wordResult) return wordResult;
+                
+                // Fall back to single character
+                return {
+                  word: textContent[i],
+                  textNode: textNode,
+                  start: i,
+                  end: i + 1
+                };
+              }
+            }
+          } else {
+            // For non-character-based languages, return the whole word
+            const word = wordSpan.getAttribute('data-word');
+            return {
+              word: word,
+              textNode: textNode,
+              start: 0,
+              end: textContent.length
+            };
+          }
+        }
+      }
+    }
+
     const textNodes = this.getTextNodes(element);
 
     for (const textNode of textNodes) {
@@ -798,6 +855,47 @@ class PageProcessor {
 
     // For character-based languages, use character-by-character detection
     if (isCharacterBased) {
+      // OPTIMIZATION: First check if we're clicking on an already-processed word span
+      // But still do character-level detection within the span to find the longest word
+      const allSpans = container.querySelectorAll('span[data-word]');
+      for (const span of allSpans) {
+        const rect = span.getBoundingClientRect();
+        if (x >= rect.left && x <= rect.right &&
+            y >= rect.top && y <= rect.bottom) {
+          const textNodes = this.getTextNodes(span);
+          if (textNodes.length > 0) {
+            const textNode = textNodes[0];
+            const textContent = textNode.textContent;
+            
+            // Do character-by-character detection within this span
+            const range = document.createRange();
+            for (let i = 0; i < textContent.length; i++) {
+              if (!adapter.isTargetCharacter || !adapter.isTargetCharacter(textContent[i])) continue;
+              
+              range.setStart(textNode, i);
+              range.setEnd(textNode, i + 1);
+              const charRect = range.getBoundingClientRect();
+              
+              if (x >= charRect.left && x <= charRect.right &&
+                  y >= charRect.top && y <= charRect.bottom) {
+                // Found the clicked character - find longest word from this position
+                const wordResult = this.findLongestWordFromPosition(textNode, i);
+                if (wordResult) return wordResult;
+                
+                // Fall back to single character
+                return {
+                  word: textContent[i],
+                  textNode: textNode,
+                  start: i,
+                  end: i + 1
+                };
+              }
+            }
+          }
+        }
+      }
+
+      // Fallback to character-by-character detection if no processed span found
       const allTextNodes = this.getTextNodes(container);
 
       for (const node of allTextNodes) {
@@ -974,6 +1072,26 @@ class PageProcessor {
 
     let { offsetNode: textNode, offset } = caret;
     if (textNode.nodeType !== Node.TEXT_NODE) return null;
+
+    // OPTIMIZATION: Check if the text node is inside a processed word span
+    // This avoids calling extractWords (which uses jieba) for already-processed words
+    const parentSpan = textNode.parentElement?.closest('span[data-word]');
+    if (parentSpan && parentSpan.hasAttribute('data-word')) {
+      const word = parentSpan.getAttribute('data-word');
+      const wordText = parentSpan.textContent;
+      const textContent = textNode.textContent;
+      
+      // Find word position in text node
+      const wordIndex = textContent.indexOf(wordText);
+      if (wordIndex !== -1 && offset >= wordIndex && offset < wordIndex + wordText.length) {
+        return {
+          word: word,
+          textNode: textNode,
+          start: wordIndex,
+          end: wordIndex + wordText.length
+        };
+      }
+    }
 
     const adapter = this.languageRegistry.getAdapter();
     if (!adapter) return null;

@@ -31,6 +31,12 @@ class ChineseLanguageAdapter extends BaseLanguageAdapter {
     // Initialize jieba for Chinese word segmentation
     this.jieba = null;
     this.jiebaInitialized = false;
+    
+    // Cache for jieba results to avoid re-processing same text
+    // This significantly improves popup responsiveness during page processing
+    this.jiebaCache = new Map();
+    this.jiebaCacheMaxSize = 1000; // Limit cache size to prevent memory issues
+    
     this._initJieba();
   }
 
@@ -125,8 +131,23 @@ class ChineseLanguageAdapter extends BaseLanguageAdapter {
         // Process each chunk
         for (const chunk of chunks) {
           if (chunk.isTargetLang && chunk.text.length > 0) {
-            // Use jieba.cut only on target character chunks
-            const segments = await this.jieba.cut(chunk.text);
+            // Check cache first to avoid re-processing same text
+            let segments;
+            if (this.jiebaCache.has(chunk.text)) {
+              segments = this.jiebaCache.get(chunk.text);
+            } else {
+              // Use jieba.cut only on target character chunks
+              segments = await this.jieba.cut(chunk.text);
+              
+              // Cache the result (with size limit)
+              if (this.jiebaCache.size >= this.jiebaCacheMaxSize) {
+                // Remove oldest entry (simple FIFO)
+                const firstKey = this.jiebaCache.keys().next().value;
+                this.jiebaCache.delete(firstKey);
+              }
+              this.jiebaCache.set(chunk.text, segments);
+            }
+            
             let chunkPos = 0;
             
             for (const segment of segments) {
