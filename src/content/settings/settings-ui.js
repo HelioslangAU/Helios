@@ -508,8 +508,87 @@ class HeliosSettingsUI {
         "\n"
       );
 
+    // Get and display extension version
+    const extensionVersion = tabElement.querySelector("#extension-version");
+    if (extensionVersion && chrome.runtime && chrome.runtime.getManifest) {
+      const currentVersion = chrome.runtime.getManifest().version;
+      extensionVersion.textContent = currentVersion;
+      
+      // Track version changes to get actual last update date
+      this.updateExtensionUpdateDate(currentVersion);
+    }
+
+    // Display last update date
     const lastUpdated = tabElement.querySelector("#last-updated");
-    if (lastUpdated) lastUpdated.textContent = new Date().toLocaleDateString();
+    if (lastUpdated) {
+      this.displayLastUpdateDate(lastUpdated);
+    }
+  }
+
+  /**
+   * Track extension version changes and store update date
+   * @param {string} currentVersion - Current extension version from manifest
+   */
+  async updateExtensionUpdateDate(currentVersion) {
+    try {
+      if (!chrome.storage || !chrome.storage.local) return;
+
+      const result = await chrome.storage.local.get(['extensionVersion', 'extensionLastUpdateDate']);
+      const storedVersion = result.extensionVersion;
+      
+      // If version changed or not stored, update the stored version and date
+      if (storedVersion !== currentVersion) {
+        const updateDate = new Date().toISOString();
+        await chrome.storage.local.set({
+          extensionVersion: currentVersion,
+          extensionLastUpdateDate: updateDate
+        });
+      }
+    } catch (error) {
+      console.error('Error updating extension update date:', error);
+    }
+  }
+
+  /**
+   * Display the last update date from storage
+   * @param {HTMLElement} element - Element to display the date in
+   */
+  async displayLastUpdateDate(element) {
+    try {
+      if (!chrome.storage || !chrome.storage.local) {
+        element.textContent = '-';
+        return;
+      }
+
+      const result = await chrome.storage.local.get('extensionLastUpdateDate');
+      if (result.extensionLastUpdateDate) {
+        const updateDate = new Date(result.extensionLastUpdateDate);
+        element.textContent = this.formatDateDDMMYYYY(updateDate);
+      } else {
+        // Fallback: if no stored date, use current date (first time)
+        const currentDate = new Date();
+        element.textContent = this.formatDateDDMMYYYY(currentDate);
+        // Store it for future reference
+        await chrome.storage.local.set({
+          extensionLastUpdateDate: new Date().toISOString()
+        });
+      }
+    } catch (error) {
+      console.error('Error displaying last update date:', error);
+      element.textContent = '-';
+    }
+  }
+
+  /**
+   * Format date as DD/MM/YYYY
+   * @param {Date} date - Date object to format
+   * @returns {string} Formatted date string
+   */
+  formatDateDDMMYYYY(date) {
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
   }
 }
 
