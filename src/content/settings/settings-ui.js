@@ -263,6 +263,51 @@ class HeliosSettingsUI {
         }
       });
     }
+
+    // Hotkey settings - only allow single character input
+    const hotkeyMarkUnknown = document.getElementById("hotkey-mark-unknown");
+    if (hotkeyMarkUnknown) {
+      hotkeyMarkUnknown.addEventListener("input", (e) => {
+        // Only allow single character
+        if (e.target.value.length > 1) {
+          e.target.value = e.target.value.slice(-1);
+        }
+        console.log("Hotkey mark unknown changed:", e.target.value);
+      });
+    }
+
+    const hotkeyMarkIgnored = document.getElementById("hotkey-mark-ignored");
+    if (hotkeyMarkIgnored) {
+      hotkeyMarkIgnored.addEventListener("input", (e) => {
+        // Only allow single character
+        if (e.target.value.length > 1) {
+          e.target.value = e.target.value.slice(-1);
+        }
+        console.log("Hotkey mark ignored changed:", e.target.value);
+      });
+    }
+
+    const hotkeyMarkKnown = document.getElementById("hotkey-mark-known");
+    if (hotkeyMarkKnown) {
+      hotkeyMarkKnown.addEventListener("input", (e) => {
+        // Only allow single character
+        if (e.target.value.length > 1) {
+          e.target.value = e.target.value.slice(-1);
+        }
+        console.log("Hotkey mark known changed:", e.target.value);
+      });
+    }
+
+    const hotkeyAnkiAdd = document.getElementById("hotkey-anki-add");
+    if (hotkeyAnkiAdd) {
+      hotkeyAnkiAdd.addEventListener("input", (e) => {
+        // Only allow single character
+        if (e.target.value.length > 1) {
+          e.target.value = e.target.value.slice(-1);
+        }
+        console.log("Hotkey anki add changed:", e.target.value);
+      });
+    }
   }
 
   setupAnkiEventListeners() {
@@ -423,6 +468,30 @@ class HeliosSettingsUI {
     if (autoCloseDelay) {
       autoCloseDelay.value = this.manager.settings.autoCloseDelay;
       console.log("🔍 Set auto-close delay:", this.manager.settings.autoCloseDelay);
+    }
+
+    const hotkeyMarkUnknown = tabElement.querySelector("#hotkey-mark-unknown");
+    if (hotkeyMarkUnknown) {
+      hotkeyMarkUnknown.value = this.manager.settings.hotkeyMarkUnknown || "1";
+      console.log("🔍 Set hotkey mark unknown:", this.manager.settings.hotkeyMarkUnknown);
+    }
+
+    const hotkeyMarkIgnored = tabElement.querySelector("#hotkey-mark-ignored");
+    if (hotkeyMarkIgnored) {
+      hotkeyMarkIgnored.value = this.manager.settings.hotkeyMarkIgnored || "2";
+      console.log("🔍 Set hotkey mark ignored:", this.manager.settings.hotkeyMarkIgnored);
+    }
+
+    const hotkeyMarkKnown = tabElement.querySelector("#hotkey-mark-known");
+    if (hotkeyMarkKnown) {
+      hotkeyMarkKnown.value = this.manager.settings.hotkeyMarkKnown || "3";
+      console.log("🔍 Set hotkey mark known:", this.manager.settings.hotkeyMarkKnown);
+    }
+
+    const hotkeyAnkiAdd = tabElement.querySelector("#hotkey-anki-add");
+    if (hotkeyAnkiAdd) {
+      hotkeyAnkiAdd.value = this.manager.settings.hotkeyAnkiAdd || "q";
+      console.log("🔍 Set hotkey anki add:", this.manager.settings.hotkeyAnkiAdd);
     }
 
     const highlightStyle = tabElement.querySelector("#highlight-style");

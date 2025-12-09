@@ -134,6 +134,7 @@ class MultiCardPopupManager extends PopupManager {
     }
 
     this.popup = popup;
+    this.currentCharacter = displayCharacter; // Track current character for hotkeys
 
     // Apply settings to the popup
     this.settingsManager.onPopupCreated(popup);

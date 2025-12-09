@@ -36,6 +36,10 @@ class HeliosSettingsManager {
       highlightColor: "orange",
       highlightIntensity: "normal",
       hideKnownSites: false,
+      hotkeyMarkUnknown: "1",
+      hotkeyMarkIgnored: "2",
+      hotkeyMarkKnown: "3",
+      hotkeyAnkiAdd: "q",
 
       // Anki
       ankiDeck: "",

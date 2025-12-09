@@ -14,6 +14,7 @@ class PopupManager {
     this.popup = null;
     this.capturedSentence = null;
     this.hideTimeout = null;
+    this.currentCharacter = null; // Track the word currently shown in popup
 
     // Mouse tracking flags
     this.isMouseOverPopup = false;
@@ -142,6 +143,7 @@ class PopupManager {
       }
 
       this.popup = popup;
+      this.currentCharacter = character; // Track current character for hotkeys
 
       // Apply settings to the popup
       this.settingsManager.onPopupCreated(popup);
@@ -204,6 +206,11 @@ class PopupManager {
     clearTimeout(this.hideTimeout);
     this.settingsManager.onPopupDestroyed();
 
+    // Clean up keyboard listener
+    if (PopupEventHandler && PopupEventHandler.cleanupKeyboardListener) {
+      PopupEventHandler.cleanupKeyboardListener();
+    }
+
     if (this.popup?.parentNode) {
       this.popup.remove();
     }
@@ -218,11 +225,16 @@ class PopupManager {
         popup.remove();
       }
     });
+    // Clean up keyboard listener
+    if (PopupEventHandler && PopupEventHandler.cleanupKeyboardListener) {
+      PopupEventHandler.cleanupKeyboardListener();
+    }
     this._resetState();
   }
 
   _resetState() {
     this.popup = null;
+    this.currentCharacter = null; // Clear current character
     this.isMouseOverPopup = false;
     this.isSubtitleWordPopup = false; // Reset subtitle word flag
     // Clear any pending timers
