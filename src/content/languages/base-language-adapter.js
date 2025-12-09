@@ -235,6 +235,8 @@ class BaseLanguageAdapter {
       /alternate\s+spelling\s+of\s+(.+?)(?:\s*\[|;|$)/i,
       // Other common patterns
       /see\s+also\s*[:：]?\s*(.+?)(?:\s*\[|;|$)/i,
+      /see\s*[:：]?\s*(.+?)(?:\s*\[|;|$)/i,
+
     ];
 
     for (const pattern of variantPatterns) {
