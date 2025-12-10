@@ -46,7 +46,17 @@ class ChineseLanguageLearningExtension {
 
     // Initialize language registry first
     this.languageRegistry = new LanguageRegistry();
-    this.languageRegistry.initializeDefaultAdapters();
+    
+    // Get target language first, then initialize only that adapter
+    const settingsCheck = await chrome.storage.local.get(['targetLanguage']);
+    const targetLanguage = settingsCheck.targetLanguage || 'zh'; // default to Chinese
+    
+    // Initialize only the target language adapter for better performance
+    this.languageRegistry.initializeLanguageAdapter(targetLanguage);
+    if (targetLanguage) {
+      this.languageRegistry.setLanguage(targetLanguage);
+    }
+    
     window.languageRegistry = this.languageRegistry;
 
     // Core managers - use DictionaryManagerProxy for offscreen dictionary

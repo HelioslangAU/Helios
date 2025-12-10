@@ -103,7 +103,7 @@ class DictionaryStorage {
 class OffscreenDictionaryService {
   constructor() {
     this.languageRegistry = new LanguageRegistry();
-    this.languageRegistry.initializeDefaultAdapters();
+    // Don't initialize all adapters - will initialize target language when needed
     this.dictionaryManager = new DictionaryManager(this.languageRegistry);
     this.storage = new DictionaryStorage();
     this.currentLanguage = null;
@@ -130,6 +130,8 @@ class OffscreenDictionaryService {
       }
       
       const targetLanguage = result.targetLanguage;
+      // Initialize only the target language adapter
+      this.languageRegistry.initializeLanguageAdapter(targetLanguage);
       console.log(`📚 Loading initial dictionary for language: ${targetLanguage}`);
       await this.handleLoadDictionary(targetLanguage);
     } catch (error) {

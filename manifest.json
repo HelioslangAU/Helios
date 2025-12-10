@@ -27,6 +27,7 @@
         "src/config/paths.js",
         "src/content/config/constants.js",
         "src/content/utils/activation-controller.js",
+        "src/content/utils/shortcut-helper.js",
         "src/content/utils/text-scanner.js",
         "src/content/utils/lookup-controller.js",
         "src/content/utils/language-switch-coordinator.js",

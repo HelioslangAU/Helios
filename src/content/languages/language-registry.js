@@ -32,9 +32,12 @@ class LanguageRegistry {
    * @returns {boolean} - True if language was switched successfully
    */
   setLanguage(languageCode) {
+    // Lazy-load adapter if not already initialized
     if (!this.adapters.has(languageCode)) {
-      console.error(`Language adapter not found: ${languageCode}`);
-      return false;
+      if (!this.initializeLanguageAdapter(languageCode)) {
+        console.error(`Language adapter not found and could not be initialized: ${languageCode}`);
+        return false;
+      }
     }
 
     const previousLanguage = this.currentLanguageCode;
@@ -229,7 +232,57 @@ class LanguageRegistry {
   }
 
   /**
-   * Initialize default language adapters
+   * Initialize a specific language adapter
+   * @param {string} languageCode - Language code to initialize (e.g., 'zh', 'en', 'es', 'fr')
+   * @returns {boolean} - True if adapter was initialized successfully
+   */
+  initializeLanguageAdapter(languageCode) {
+    // If already initialized, return true
+    if (this.adapters.has(languageCode)) {
+      return true;
+    }
+
+    let adapter = null;
+
+    switch (languageCode) {
+      case 'zh':
+        if (typeof ChineseLanguageAdapter !== 'undefined') {
+          adapter = new ChineseLanguageAdapter();
+        }
+        break;
+      case 'en':
+        if (typeof EnglishLanguageAdapter !== 'undefined') {
+          adapter = new EnglishLanguageAdapter();
+        }
+        break;
+      case 'es':
+        if (typeof SpanishLanguageAdapter !== 'undefined') {
+          adapter = new SpanishLanguageAdapter();
+        }
+        break;
+      case 'fr':
+        if (typeof FrenchLanguageAdapter !== 'undefined') {
+          adapter = new FrenchLanguageAdapter();
+        }
+        break;
+      default:
+        console.warn(`Unknown language code: ${languageCode}`);
+        return false;
+    }
+
+    if (adapter) {
+      this.register(languageCode, adapter);
+      console.log(`Initialized language adapter: ${languageCode}`);
+      return true;
+    }
+
+    console.warn(`Language adapter class not available for: ${languageCode}`);
+    return false;
+  }
+
+  /**
+   * Initialize default language adapters (all languages)
+   * Use initializeLanguageAdapter() for better performance when only one language is needed
    */
   initializeDefaultAdapters() {
     // Register Chinese adapter
