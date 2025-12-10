@@ -209,7 +209,9 @@ class YouTubeSidebar {
     });
 
     // Setup hotkeys
-    this._setupHotkeys();
+    this._setupHotkeys().catch(err => {
+      console.error('[Helios YouTube Sidebar] Error setting up hotkeys:', err);
+    });
 
     // Setup scroll detection to prevent auto-scroll during user page scrolling
     this._setupScrollDetection();
@@ -408,8 +410,17 @@ class YouTubeSidebar {
   /**
    * Setup keyboard hotkeys (Migaku-style)
    */
-  _setupHotkeys() {
-    document.addEventListener('keydown', (e) => {
+  async _setupHotkeys() {
+    // Load shortcuts from unified system
+    const navShortcuts = await ShortcutHelper.getVideoNavigationShortcuts();
+
+    // Remove existing listener if any
+    if (this._hotkeyListener) {
+      document.removeEventListener('keydown', this._hotkeyListener);
+    }
+
+    // Create new listener with current shortcut config
+    this._hotkeyListener = async (e) => {
       // Only trigger if hotkeys are enabled and we're on YouTube watch page
       if (!this.settings.hotkeysEnabled || !window.location.pathname.includes('/watch')) {
         return;
@@ -420,42 +431,32 @@ class YouTubeSidebar {
         return;
       }
 
-      // Normalize key name for arrow keys
-      let keyName = e.key;
-      if (keyName.startsWith('Arrow')) {
-        keyName = keyName.substring(5); // "ArrowLeft" -> "Left"
-      }
-      const key = keyName.toLowerCase();
-
-      // Check if this key combination matches any of our hotkeys
-      const matchesHotkey = (hotkey) => {
-        return hotkey.key === key &&
-               hotkey.shift === e.shiftKey &&
-               (hotkey.ctrl === (e.ctrlKey || e.metaKey)) &&
-               hotkey.alt === e.altKey;
-      };
+      // Reload shortcuts in case they were updated
+      const currentNavShortcuts = await ShortcutHelper.getVideoNavigationShortcuts();
 
       // Previous subtitle
-      if (matchesHotkey(this.settings.hotkeys.previous)) {
+      if (ShortcutHelper.matchesSingleKeyShortcut(e, currentNavShortcuts.previous)) {
         e.preventDefault();
         this._jumpToPreviousSubtitle();
       }
       // Next subtitle
-      else if (matchesHotkey(this.settings.hotkeys.next)) {
+      else if (ShortcutHelper.matchesSingleKeyShortcut(e, currentNavShortcuts.next)) {
         e.preventDefault();
         this._jumpToNextSubtitle();
       }
       // Jump to current subtitle start
-      else if (matchesHotkey(this.settings.hotkeys.restart)) {
+      else if (ShortcutHelper.matchesSingleKeyShortcut(e, currentNavShortcuts.restart)) {
         e.preventDefault();
         this._jumpToCurrentSubtitleStart();
       }
       // Toggle subtitle visibility (overlay)
-      else if (matchesHotkey(this.settings.hotkeys.toggle)) {
+      else if (ShortcutHelper.matchesSingleKeyShortcut(e, currentNavShortcuts.toggle)) {
         e.preventDefault();
         this._toggleSubtitleOverlay();
       }
-    });
+    };
+
+    document.addEventListener('keydown', this._hotkeyListener);
   }
 
   /**
@@ -1281,7 +1282,7 @@ class YouTubeSidebar {
         
         const dictionary = window.dictionaryManager?.dictionary || {};
         // Use language-aware word extraction
-        const extractedWords = adapter.extractWords(entry.text, dictionary);
+        const extractedWords = await adapter.extractWords(entry.text, dictionary);
 
         // Check if language uses spaces between words (not CJK languages)
         const currentLang = window.languageRegistry?.getCurrentLanguage();
@@ -1767,27 +1768,25 @@ class YouTubeSidebar {
    */
   async _loadSettings() {
     try {
+      // Load unified shortcuts first
+      const navShortcuts = await ShortcutHelper.getVideoNavigationShortcuts();
+      
+      // Update local settings with unified shortcuts (for backward compatibility)
+      this.settings.hotkeys = {
+        previous: navShortcuts.previous,
+        next: navShortcuts.next,
+        restart: navShortcuts.restart,
+        toggle: navShortcuts.toggle
+      };
+
+      // Also load local settings (for other settings like hotkeysEnabled, etc.)
       const result = await chrome.storage.local.get(['ytSidebarSettings']);
       if (result.ytSidebarSettings) {
         const loaded = result.ytSidebarSettings;
 
-        // Migrate old hotkey format (string) to new format (object with modifiers)
-        if (loaded.hotkeys) {
-          Object.keys(loaded.hotkeys).forEach(key => {
-            const hotkey = loaded.hotkeys[key];
-            // If it's a string (old format), convert to new format
-            if (typeof hotkey === 'string') {
-              loaded.hotkeys[key] = {
-                key: hotkey,
-                shift: false,
-                ctrl: false,
-                alt: false
-              };
-            }
-          });
-        }
-
-        this.settings = { ...this.settings, ...loaded };
+        // Don't override hotkeys from unified system, but keep other settings
+        const { hotkeys, ...otherSettings } = loaded;
+        this.settings = { ...this.settings, ...otherSettings };
       }
     } catch (error) {
       console.error('[Helios YouTube Sidebar] Failed to load settings:', error);

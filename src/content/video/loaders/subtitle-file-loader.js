@@ -12,11 +12,11 @@ class SubtitleFileLoader {
   /**
    * Initialize the loader
    */
-  init() {
+  async init() {
     this._createDropZone();
     this._createFileInput();
     this._setupDragAndDrop();
-    this._setupKeyboardShortcut();
+    await this._setupKeyboardShortcut();
   }
 
   /**
@@ -100,14 +100,30 @@ class SubtitleFileLoader {
   /**
    * Setup keyboard shortcut for opening file picker
    */
-  _setupKeyboardShortcut() {
-    document.addEventListener('keydown', (e) => {
-      // Ctrl/Cmd + Shift + L = Load subtitles
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'L') {
+  async _setupKeyboardShortcut() {
+    // Load shortcut configuration
+    const shortcuts = await ShortcutHelper.getVideoShortcuts();
+    const loadShortcut = shortcuts.loadSubtitles;
+
+    // Remove existing listener if any
+    if (this._keyboardListener) {
+      document.removeEventListener('keydown', this._keyboardListener);
+    }
+
+    // Create new listener with current shortcut config
+    this._keyboardListener = (e) => {
+      // Don't trigger if user is typing in an input field
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+        return;
+      }
+
+      if (ShortcutHelper.matchesVideoShortcut(e, loadShortcut)) {
         e.preventDefault();
         this.openFilePicker();
       }
-    });
+    };
+
+    document.addEventListener('keydown', this._keyboardListener);
   }
 
   /**

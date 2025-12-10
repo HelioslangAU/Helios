@@ -27,12 +27,14 @@
         "src/config/paths.js",
         "src/content/config/constants.js",
         "src/content/utils/activation-controller.js",
+        "src/content/utils/shortcut-helper.js",
         "src/content/utils/text-scanner.js",
         "src/content/utils/lookup-controller.js",
         "src/content/utils/language-switch-coordinator.js",
         "src/content/settings/settings-sync.js",
         "src/content/utils/feature-toggle.js",
         "src/content/utils/asbplayer-integration.js",
+        "lib/jieba/jieba.js",
         "src/content/languages/base-language-adapter.js",
         "src/content/languages/chinese-adapter.js",
         "src/content/languages/space-separated-adapter.js",
@@ -134,7 +136,9 @@
         "src/ui/video/subtitle-selector.css",
         "src/content/video/youtube/youtube-page-script.js",
         "src/ui/youtube-sidebar/youtube-sidebar.html",
-        "src/ui/youtube-sidebar/youtube-sidebar.css"
+        "src/ui/youtube-sidebar/youtube-sidebar.css",
+        "lib/jieba/dict.txt.big",
+        "lib/jieba/*"
       ],
       "matches": ["<all_urls>"]
     }

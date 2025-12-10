@@ -629,7 +629,7 @@ class BackgroundService {
       dataMap = {
         expression: wordData.character,
         expressionRubyTxt: `${wordData.character}[${pinyinWithNumbers};]`,
-        reading: pinyinWithNumbers,
+        reading: wordData.pinyin,
         meaning: wordData.definition,
         sentence: wordData.sentence,
         traditional: wordData.traditional,

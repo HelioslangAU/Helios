@@ -14,6 +14,9 @@ class HeliosSettingsUI {
       case "popup":
         this.setupPopupEventListeners();
         break;
+      case "shortcuts":
+        this.setupShortcutsEventListeners();
+        break;
       case "anki":
         this.setupAnkiEventListeners();
         break;
@@ -265,6 +268,492 @@ class HeliosSettingsUI {
     }
   }
 
+  setupShortcutsEventListeners() {
+    console.log("Setting up shortcuts event listeners");
+
+    // Popup shortcuts (now use click-to-record)
+    const popupShortcutIds = [
+      "hotkey-mark-unknown",
+      "hotkey-mark-ignored",
+      "hotkey-mark-known",
+      "hotkey-anki-add"
+    ];
+
+    // Setup click-to-record for popup shortcuts
+    popupShortcutIds.forEach((shortcutId) => {
+      const element = document.getElementById(shortcutId);
+      if (!element) return;
+
+      // On focus/click, enable recording
+      element.addEventListener("focus", () => {
+        element.removeAttribute("readonly");
+        element.value = "";
+        element.placeholder = "Press any key...";
+        this.clearShortcutError(shortcutId);
+      });
+
+      // Capture keypress and update shortcut
+      element.addEventListener("keydown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Ignore modifier keys alone
+        if (["Shift", "Control", "Alt", "Meta"].includes(e.key)) {
+          return;
+        }
+
+        // Normalize key names for special keys
+        let keyName = e.key;
+        if (keyName.startsWith("Arrow")) {
+          keyName = keyName.substring(5); // "ArrowLeft" -> "Left"
+        }
+
+        const newHotkey = {
+          key: keyName.toLowerCase(),
+          shift: e.shiftKey,
+          ctrl: e.ctrlKey || e.metaKey, // Meta (Cmd) treated as Ctrl
+          alt: e.altKey,
+          meta: false
+        };
+
+        // Check for conflicts with other shortcuts (popup + video)
+        const allShortcutIds = [...popupShortcutIds, "video-load", "video-panel", "video-youtube", 
+          "video-nav-previous", "video-nav-next", "video-nav-restart", "video-nav-toggle"];
+        const conflict = this.checkVideoShortcutConflict(shortcutId, newHotkey, allShortcutIds);
+        if (conflict) {
+          this.showShortcutError(shortcutId, `This shortcut conflicts with: ${conflict}`);
+          element.blur();
+          element.setAttribute("readonly", "true");
+          return;
+        }
+
+        // Check for Chrome conflicts (only for single keys without modifiers)
+        if (!newHotkey.ctrl && !newHotkey.shift && !newHotkey.alt) {
+          if (this.isChromeShortcutConflict(newHotkey.key)) {
+            this.showShortcutError(shortcutId, "This key conflicts with Chrome shortcuts");
+            element.blur();
+            element.setAttribute("readonly", "true");
+            return;
+          }
+        }
+
+        // Update display
+        const displayText = this.formatHotkeyDisplay(newHotkey);
+        element.value = displayText;
+        element.blur();
+        element.setAttribute("readonly", "true");
+
+        // Save settings
+        this.manager.storage.saveSettings();
+      });
+
+      // Handle blur - restore readonly
+      element.addEventListener("blur", () => {
+        element.setAttribute("readonly", "true");
+        // Restore value if empty
+        if (!element.value) {
+          const currentShortcut = this.getCurrentPopupShortcut(shortcutId);
+          if (currentShortcut) {
+            element.value = this.formatHotkeyDisplay(currentShortcut);
+          }
+        }
+      });
+    });
+
+    // Video shortcuts (all use click-to-record)
+    const videoShortcutIds = [
+      "video-load",
+      "video-panel",
+      "video-youtube",
+      "video-nav-previous",
+      "video-nav-next",
+      "video-nav-restart",
+      "video-nav-toggle"
+    ];
+
+    // Setup click-to-record for all video shortcuts
+    videoShortcutIds.forEach((shortcutId) => {
+      const element = document.getElementById(shortcutId);
+      if (!element) return;
+
+      // On focus/click, enable recording
+      element.addEventListener("focus", () => {
+        element.removeAttribute("readonly");
+        element.value = "";
+        element.placeholder = "Press any key...";
+        this.clearShortcutError(shortcutId);
+      });
+
+      // Capture keypress and update shortcut
+      element.addEventListener("keydown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Ignore modifier keys alone
+        if (["Shift", "Control", "Alt", "Meta"].includes(e.key)) {
+          return;
+        }
+
+        // Normalize key names for special keys
+        let keyName = e.key;
+        if (keyName.startsWith("Arrow")) {
+          keyName = keyName.substring(5); // "ArrowLeft" -> "Left"
+        }
+
+        const newHotkey = {
+          key: keyName.toLowerCase(),
+          shift: e.shiftKey,
+          ctrl: e.ctrlKey || e.metaKey, // Meta (Cmd) treated as Ctrl
+          alt: e.altKey,
+          meta: false
+        };
+
+        // Check for conflicts with other shortcuts
+        const conflict = this.checkVideoShortcutConflict(shortcutId, newHotkey, videoShortcutIds);
+        if (conflict) {
+          this.showShortcutError(shortcutId, `This shortcut conflicts with: ${conflict}`);
+          element.blur();
+          element.setAttribute("readonly", "true");
+          return;
+        }
+
+        // Check for Chrome conflicts (only for single keys without modifiers)
+        if (!newHotkey.ctrl && !newHotkey.shift && !newHotkey.alt) {
+          if (this.isChromeShortcutConflict(newHotkey.key)) {
+            this.showShortcutError(shortcutId, "This key conflicts with Chrome shortcuts");
+            element.blur();
+            element.setAttribute("readonly", "true");
+            return;
+          }
+        }
+
+        // Update display
+        const displayText = this.formatHotkeyDisplay(newHotkey);
+        element.value = displayText;
+        element.blur();
+        element.setAttribute("readonly", "true");
+
+        // Save settings
+        this.manager.storage.saveSettings();
+      });
+
+      // Handle blur - restore readonly
+      element.addEventListener("blur", () => {
+        element.setAttribute("readonly", "true");
+        // Restore value if empty
+        if (!element.value) {
+          const currentShortcut = this.getCurrentVideoShortcut(shortcutId);
+          if (currentShortcut) {
+            element.value = this.formatHotkeyDisplay(currentShortcut);
+          }
+        }
+      });
+    });
+  }
+
+  /**
+   * Validate a popup shortcut key (single character)
+   * @param {string} shortcutId - The ID of the shortcut input
+   * @param {string} value - The shortcut value
+   * @param {string[]} allShortcutIds - All shortcut IDs to check for overlaps
+   */
+  validatePopupShortcut(shortcutId, value, allShortcutIds) {
+    const errorElement = document.getElementById(`error-${shortcutId.replace("hotkey-", "")}`);
+    if (!errorElement) return;
+
+    // Clear previous error
+    this.clearShortcutError(shortcutId);
+
+    if (!value || value.trim() === "") {
+      this.showShortcutError(shortcutId, "Shortcut cannot be empty");
+      return false;
+    }
+
+    const normalizedValue = value.toLowerCase().trim();
+
+    // Check for overlap with other shortcuts
+    for (const otherId of allShortcutIds) {
+      if (otherId === shortcutId) continue;
+      
+      const otherInput = document.getElementById(otherId);
+      if (otherInput && otherInput.value.toLowerCase().trim() === normalizedValue) {
+        this.showShortcutError(shortcutId, `This shortcut conflicts with another shortcut`);
+        return false;
+      }
+    }
+
+    // Check for Chrome shortcut conflicts
+    if (this.isChromeShortcutConflict(normalizedValue)) {
+      this.showShortcutError(shortcutId, `This key conflicts with Chrome shortcuts`);
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Format hotkey object for display (e.g., "Ctrl+Shift+L")
+   * @param {Object} hotkey - Hotkey configuration object
+   * @returns {string} - Formatted display string
+   */
+  formatHotkeyDisplay(hotkey) {
+    if (!hotkey || !hotkey.key) return "";
+    
+    const parts = [];
+    if (hotkey.ctrl) parts.push("Ctrl");
+    if (hotkey.shift) parts.push("Shift");
+    if (hotkey.alt) parts.push("Alt");
+
+    // Capitalize first letter of key for display
+    const keyDisplay = hotkey.key.charAt(0).toUpperCase() + hotkey.key.slice(1);
+    parts.push(keyDisplay);
+
+    return parts.join("+");
+  }
+
+  /**
+   * Get current video shortcut configuration from input value
+   * @param {string} shortcutId - The ID of the shortcut input
+   * @returns {Object|null} - Shortcut configuration or null
+   */
+  getCurrentVideoShortcut(shortcutId) {
+    const element = document.getElementById(shortcutId);
+    if (!element || !element.value) return null;
+
+    // Parse the display string back to config
+    return this.parseHotkeyDisplay(element.value);
+  }
+
+  /**
+   * Get current popup shortcut configuration from input value
+   * @param {string} shortcutId - The ID of the shortcut input
+   * @returns {Object|null} - Shortcut configuration or null
+   */
+  getCurrentPopupShortcut(shortcutId) {
+    const element = document.getElementById(shortcutId);
+    if (!element || !element.value) {
+      // Fallback to settings
+      const shortcuts = this.manager.settings.shortcuts || {};
+      const popupShortcuts = shortcuts.popup || {};
+      const legacyMap = {
+        "hotkey-mark-unknown": "markUnknown",
+        "hotkey-mark-ignored": "markIgnored",
+        "hotkey-mark-known": "markKnown",
+        "hotkey-anki-add": "ankiAdd"
+      };
+      const key = legacyMap[shortcutId];
+      if (key && popupShortcuts[key]) {
+        return popupShortcuts[key];
+      }
+      // Return default as single key
+      const defaults = {
+        "hotkey-mark-unknown": { key: "1", ctrl: false, shift: false, alt: false, meta: false },
+        "hotkey-mark-ignored": { key: "2", ctrl: false, shift: false, alt: false, meta: false },
+        "hotkey-mark-known": { key: "3", ctrl: false, shift: false, alt: false, meta: false },
+        "hotkey-anki-add": { key: "q", ctrl: false, shift: false, alt: false, meta: false }
+      };
+      return defaults[shortcutId] || null;
+    }
+
+    // Parse the display string back to config
+    return this.parseHotkeyDisplay(element.value);
+  }
+
+  /**
+   * Parse hotkey display string to configuration object
+   * @param {string} displayString - Display string like "Ctrl+Shift+L"
+   * @returns {Object} - Hotkey configuration object
+   */
+  parseHotkeyDisplay(displayString) {
+    if (!displayString) return null;
+
+    const parts = displayString.split("+").map(p => p.trim());
+    const key = parts[parts.length - 1].toLowerCase();
+    const ctrl = parts.includes("Ctrl");
+    const shift = parts.includes("Shift");
+    const alt = parts.includes("Alt");
+
+    return { key, ctrl, shift, alt, meta: false };
+  }
+
+  /**
+   * Check if a video shortcut conflicts with others
+   * @param {string} shortcutId - Current shortcut ID
+   * @param {Object} newHotkey - New hotkey configuration
+   * @param {Array} allShortcutIds - All shortcut IDs to check
+   * @returns {string|null} - Conflicting shortcut ID or null
+   */
+  checkVideoShortcutConflict(shortcutId, newHotkey, allShortcutIds) {
+    for (const otherId of allShortcutIds) {
+      if (otherId === shortcutId) continue;
+
+      const otherElement = document.getElementById(otherId);
+      if (!otherElement || !otherElement.value) continue;
+
+      const otherHotkey = this.parseHotkeyDisplay(otherElement.value);
+      if (!otherHotkey) continue;
+
+      if (
+        otherHotkey.key === newHotkey.key &&
+        otherHotkey.ctrl === newHotkey.ctrl &&
+        otherHotkey.shift === newHotkey.shift &&
+        otherHotkey.alt === newHotkey.alt
+      ) {
+        return otherId;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Validate a video shortcut (with modifiers) - Legacy method, kept for compatibility
+   * @param {string} shortcutId - The ID of the shortcut
+   * @param {Object} shortcut - Shortcut configuration object
+   * @param {Array} allShortcuts - All video shortcuts to check for overlaps
+   */
+  validateVideoShortcut(shortcutId, shortcut, allShortcuts) {
+    const errorElement = document.getElementById(`error-${shortcutId}`);
+    if (!errorElement) return;
+
+    // Clear previous error
+    this.clearShortcutError(shortcutId);
+
+    const keyInput = document.getElementById(shortcut.keyId);
+    const ctrlCheckbox = document.getElementById(shortcut.ctrlId);
+    const shiftCheckbox = document.getElementById(shortcut.shiftId);
+
+    if (!keyInput || !ctrlCheckbox || !shiftCheckbox) return;
+
+    const key = keyInput.value.trim().toUpperCase();
+    const ctrl = ctrlCheckbox.checked;
+    const shift = shiftCheckbox.checked;
+
+    if (!key) {
+      this.showShortcutError(shortcutId, "Key cannot be empty");
+      return false;
+    }
+
+    // Check for overlap with other video shortcuts
+    for (const otherShortcut of allShortcuts) {
+      if (otherShortcut.id === shortcutId) continue;
+
+      const otherKeyInput = document.getElementById(otherShortcut.keyId);
+      const otherCtrlCheckbox = document.getElementById(otherShortcut.ctrlId);
+      const otherShiftCheckbox = document.getElementById(otherShortcut.shiftId);
+
+      if (otherKeyInput && otherCtrlCheckbox && otherShiftCheckbox) {
+        const otherKey = otherKeyInput.value.trim().toUpperCase();
+        const otherCtrl = otherCtrlCheckbox.checked;
+        const otherShift = otherShiftCheckbox.checked;
+
+        if (key === otherKey && ctrl === otherCtrl && shift === otherShift) {
+          this.showShortcutError(shortcutId, "This shortcut conflicts with another shortcut");
+          return false;
+        }
+      }
+    }
+
+    // Check for Chrome conflicts (video shortcuts use Ctrl+Shift, which are generally safe)
+    // But we should warn about very common ones
+    if (ctrl && shift) {
+      const commonConflicts = ["W", "T", "N", "R"]; // Close tab, New tab, New window, Reload
+      if (commonConflicts.includes(key)) {
+        this.showShortcutError(shortcutId, `Warning: ${key} is commonly used by Chrome`);
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Check if a key conflicts with Chrome's built-in shortcuts
+   * @param {string} key - The key to check
+   * @returns {boolean} - True if conflict exists
+   */
+  isChromeShortcutConflict(key) {
+    const normalizedKey = key.toLowerCase().trim();
+    
+    // Function keys (F1-F12) - Chrome uses these for various functions
+    if (/^f([1-9]|1[0-2])$/.test(normalizedKey)) {
+      return true;
+    }
+    
+    // Special navigation/control keys that Chrome intercepts
+    const specialKeys = [
+      "escape", "esc", "enter", "return", "tab", "backspace", 
+      "delete", "del", "insert", "home", "end", "pageup", 
+      "pagedown", "arrowup", "arrowdown", "arrowleft", "arrowright"
+    ];
+    
+    if (specialKeys.includes(normalizedKey)) {
+      return true;
+    }
+    
+    // Note: Single character keys (letters, numbers, symbols) without modifiers
+    // are generally safe as Chrome shortcuts typically require Ctrl/Cmd modifiers.
+    // We allow these to be used as shortcuts.
+    
+    return false;
+  }
+
+  /**
+   * Show error message for a shortcut
+   * @param {string} shortcutId - The ID of the shortcut input
+   * @param {string} message - Error message to display
+   */
+  showShortcutError(shortcutId, message) {
+    // Handle both popup shortcuts (hotkey-*) and video shortcuts (video-*)
+    let errorId = shortcutId.replace("hotkey-", "");
+    if (shortcutId.startsWith("video-")) {
+      errorId = shortcutId;
+    }
+    
+    const errorElement = document.getElementById(`error-${errorId}`);
+    if (errorElement) {
+      errorElement.textContent = message;
+      errorElement.style.display = "block";
+      
+      // Find and mark the input as error
+      const input = document.getElementById(shortcutId);
+      if (!input && shortcutId.startsWith("video-")) {
+        // For video shortcuts, find the key input
+        const keyInput = document.getElementById(`${shortcutId}-key`);
+        if (keyInput) keyInput.classList.add("error");
+      } else if (input) {
+        input.classList.add("error");
+      }
+    }
+  }
+
+  /**
+   * Clear error message for a shortcut
+   * @param {string} shortcutId - The ID of the shortcut input
+   */
+  clearShortcutError(shortcutId) {
+    // Handle both popup shortcuts (hotkey-*) and video shortcuts (video-*)
+    let errorId = shortcutId.replace("hotkey-", "");
+    if (shortcutId.startsWith("video-")) {
+      errorId = shortcutId;
+    }
+    
+    const errorElement = document.getElementById(`error-${errorId}`);
+    if (errorElement) {
+      errorElement.textContent = "";
+      errorElement.style.display = "none";
+      
+      // Find and remove error class
+      const input = document.getElementById(shortcutId);
+      if (!input && shortcutId.startsWith("video-")) {
+        // For video shortcuts, find the key input
+        const keyInput = document.getElementById(`${shortcutId}-key`);
+        if (keyInput) keyInput.classList.remove("error");
+      } else if (input) {
+        input.classList.remove("error");
+      }
+    }
+  }
+
   setupAnkiEventListeners() {
     document
       .getElementById("test-anki-connection")
@@ -334,6 +823,9 @@ class HeliosSettingsUI {
         break;
       case "popup":
         this.updatePopupUI(tabElement);
+        break;
+      case "shortcuts":
+        this.updateShortcutsUI(tabElement);
         break;
       case "anki":
         this.updateAnkiUI(tabElement);
@@ -450,6 +942,90 @@ class HeliosSettingsUI {
     }
   }
 
+  updateShortcutsUI(tabElement) {
+    console.log("🔍 Updating shortcuts UI with settings:", this.manager.settings);
+
+    // Get shortcuts from new structure or fallback to legacy
+    const shortcuts = this.manager.settings.shortcuts || {};
+    const popupShortcuts = shortcuts.popup || {};
+    const videoShortcuts = shortcuts.video || {};
+
+    // Update popup shortcuts (now use click-to-record format)
+    const hotkeyMarkUnknown = tabElement.querySelector("#hotkey-mark-unknown");
+    if (hotkeyMarkUnknown) {
+      const shortcut = popupShortcuts.markUnknown || 
+        (this.manager.settings.hotkeyMarkUnknown ? 
+          { key: this.manager.settings.hotkeyMarkUnknown, ctrl: false, shift: false, alt: false, meta: false } : 
+          { key: "1", ctrl: false, shift: false, alt: false, meta: false });
+      hotkeyMarkUnknown.value = this.formatHotkeyDisplay(shortcut);
+      console.log("🔍 Set hotkey mark unknown:", hotkeyMarkUnknown.value);
+    }
+
+    const hotkeyMarkIgnored = tabElement.querySelector("#hotkey-mark-ignored");
+    if (hotkeyMarkIgnored) {
+      const shortcut = popupShortcuts.markIgnored || 
+        (this.manager.settings.hotkeyMarkIgnored ? 
+          { key: this.manager.settings.hotkeyMarkIgnored, ctrl: false, shift: false, alt: false, meta: false } : 
+          { key: "2", ctrl: false, shift: false, alt: false, meta: false });
+      hotkeyMarkIgnored.value = this.formatHotkeyDisplay(shortcut);
+      console.log("🔍 Set hotkey mark ignored:", hotkeyMarkIgnored.value);
+    }
+
+    const hotkeyMarkKnown = tabElement.querySelector("#hotkey-mark-known");
+    if (hotkeyMarkKnown) {
+      const shortcut = popupShortcuts.markKnown || 
+        (this.manager.settings.hotkeyMarkKnown ? 
+          { key: this.manager.settings.hotkeyMarkKnown, ctrl: false, shift: false, alt: false, meta: false } : 
+          { key: "3", ctrl: false, shift: false, alt: false, meta: false });
+      hotkeyMarkKnown.value = this.formatHotkeyDisplay(shortcut);
+      console.log("🔍 Set hotkey mark known:", hotkeyMarkKnown.value);
+    }
+
+    const hotkeyAnkiAdd = tabElement.querySelector("#hotkey-anki-add");
+    if (hotkeyAnkiAdd) {
+      const shortcut = popupShortcuts.ankiAdd || 
+        (this.manager.settings.hotkeyAnkiAdd ? 
+          { key: this.manager.settings.hotkeyAnkiAdd, ctrl: false, shift: false, alt: false, meta: false } : 
+          { key: "q", ctrl: false, shift: false, alt: false, meta: false });
+      hotkeyAnkiAdd.value = this.formatHotkeyDisplay(shortcut);
+      console.log("🔍 Set hotkey anki add:", hotkeyAnkiAdd.value);
+    }
+
+    // Update video shortcuts (all use click-to-record format)
+    const loadShortcut = videoShortcuts.loadSubtitles || { key: "L", ctrl: true, shift: true, alt: false, meta: false };
+    const panelShortcut = videoShortcuts.togglePanel || { key: "S", ctrl: true, shift: true, alt: false, meta: false };
+    const youtubeShortcut = videoShortcuts.loadYouTube || { key: "Y", ctrl: true, shift: true, alt: false, meta: false };
+
+    const videoLoad = tabElement.querySelector("#video-load");
+    if (videoLoad) videoLoad.value = this.formatHotkeyDisplay(loadShortcut);
+
+    const videoPanel = tabElement.querySelector("#video-panel");
+    if (videoPanel) videoPanel.value = this.formatHotkeyDisplay(panelShortcut);
+
+    const videoYoutube = tabElement.querySelector("#video-youtube");
+    if (videoYoutube) videoYoutube.value = this.formatHotkeyDisplay(youtubeShortcut);
+
+    // Update video navigation shortcuts
+    const videoNavShortcuts = shortcuts.videoNavigation || {};
+    const navPrevious = videoNavShortcuts.previous || { key: "A", ctrl: false, shift: false, alt: false, meta: false };
+    const navNext = videoNavShortcuts.next || { key: "D", ctrl: false, shift: false, alt: false, meta: false };
+    const navRestart = videoNavShortcuts.restart || { key: "S", ctrl: false, shift: false, alt: false, meta: false };
+    const navToggle = videoNavShortcuts.toggle || { key: "W", ctrl: false, shift: false, alt: false, meta: false };
+
+    const videoNavPrevious = tabElement.querySelector("#video-nav-previous");
+    if (videoNavPrevious) videoNavPrevious.value = this.formatHotkeyDisplay(navPrevious);
+
+    const videoNavNext = tabElement.querySelector("#video-nav-next");
+    if (videoNavNext) videoNavNext.value = this.formatHotkeyDisplay(navNext);
+
+    const videoNavRestart = tabElement.querySelector("#video-nav-restart");
+    if (videoNavRestart) videoNavRestart.value = this.formatHotkeyDisplay(navRestart);
+
+    const videoNavToggle = tabElement.querySelector("#video-nav-toggle");
+    if (videoNavToggle) videoNavToggle.value = this.formatHotkeyDisplay(navToggle);
+
+  }
+
   updateAnkiUI(tabElement) {
     const ankiDeck = tabElement.querySelector("#anki-deck-select");
     if (ankiDeck) ankiDeck.value = this.manager.settings.ankiDeck;
@@ -508,8 +1084,87 @@ class HeliosSettingsUI {
         "\n"
       );
 
+    // Get and display extension version
+    const extensionVersion = tabElement.querySelector("#extension-version");
+    if (extensionVersion && chrome.runtime && chrome.runtime.getManifest) {
+      const currentVersion = chrome.runtime.getManifest().version;
+      extensionVersion.textContent = currentVersion;
+      
+      // Track version changes to get actual last update date
+      this.updateExtensionUpdateDate(currentVersion);
+    }
+
+    // Display last update date
     const lastUpdated = tabElement.querySelector("#last-updated");
-    if (lastUpdated) lastUpdated.textContent = new Date().toLocaleDateString();
+    if (lastUpdated) {
+      this.displayLastUpdateDate(lastUpdated);
+    }
+  }
+
+  /**
+   * Track extension version changes and store update date
+   * @param {string} currentVersion - Current extension version from manifest
+   */
+  async updateExtensionUpdateDate(currentVersion) {
+    try {
+      if (!chrome.storage || !chrome.storage.local) return;
+
+      const result = await chrome.storage.local.get(['extensionVersion', 'extensionLastUpdateDate']);
+      const storedVersion = result.extensionVersion;
+      
+      // If version changed or not stored, update the stored version and date
+      if (storedVersion !== currentVersion) {
+        const updateDate = new Date().toISOString();
+        await chrome.storage.local.set({
+          extensionVersion: currentVersion,
+          extensionLastUpdateDate: updateDate
+        });
+      }
+    } catch (error) {
+      console.error('Error updating extension update date:', error);
+    }
+  }
+
+  /**
+   * Display the last update date from storage
+   * @param {HTMLElement} element - Element to display the date in
+   */
+  async displayLastUpdateDate(element) {
+    try {
+      if (!chrome.storage || !chrome.storage.local) {
+        element.textContent = '-';
+        return;
+      }
+
+      const result = await chrome.storage.local.get('extensionLastUpdateDate');
+      if (result.extensionLastUpdateDate) {
+        const updateDate = new Date(result.extensionLastUpdateDate);
+        element.textContent = this.formatDateDDMMYYYY(updateDate);
+      } else {
+        // Fallback: if no stored date, use current date (first time)
+        const currentDate = new Date();
+        element.textContent = this.formatDateDDMMYYYY(currentDate);
+        // Store it for future reference
+        await chrome.storage.local.set({
+          extensionLastUpdateDate: new Date().toISOString()
+        });
+      }
+    } catch (error) {
+      console.error('Error displaying last update date:', error);
+      element.textContent = '-';
+    }
+  }
+
+  /**
+   * Format date as DD/MM/YYYY
+   * @param {Date} date - Date object to format
+   * @returns {string} Formatted date string
+   */
+  formatDateDDMMYYYY(date) {
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
   }
 }
 

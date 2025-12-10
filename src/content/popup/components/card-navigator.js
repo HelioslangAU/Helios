@@ -70,6 +70,9 @@ class CardNavigator {
         ? newCard.character
         : this.popupManager.originalCharacter;
 
+      // Update currentCharacter in popup manager for hotkey support
+      this.popupManager.currentCharacter = displayCharacter;
+
       const isKnown = this.popupManager.vocabManager.isWordKnown(displayCharacter);
       const isIgnored = this.popupManager.vocabManager.isWordIgnored(displayCharacter);
       const frequency = this.popupManager.frequencyManager?.getFrequency(displayCharacter);

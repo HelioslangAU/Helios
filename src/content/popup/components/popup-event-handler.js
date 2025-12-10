@@ -3,6 +3,9 @@
  * Centralizes event handling for clean separation of concerns
  */
 class PopupEventHandler {
+  static keyboardListener = null; // Track current keyboard listener
+  static currentManagers = null; // Track current managers for keyboard handler
+
   static setupEvents(popup, character, managers, options = {}) {
     const { isMultiCard = false, currentCard = null, cardNavigator = null } = options;
 
@@ -22,6 +25,9 @@ class PopupEventHandler {
     if (isMultiCard && cardNavigator) {
       this.setupNavigationEvents(popup, cardNavigator);
     }
+
+    // Keyboard shortcuts for marking words
+    this.setupKeyboardEvents(popup, character, managers, isMultiCard, currentCard);
   }
 
   static setupMouseEvents(popup, managers) {
@@ -97,6 +103,256 @@ class PopupEventHandler {
     });
   }
 
+  static setupKeyboardEvents(popup, character, managers, isMultiCard, currentCard) {
+    // Remove any existing keyboard listener
+    if (this.keyboardListener) {
+      document.removeEventListener("keydown", this.keyboardListener, true);
+      this.keyboardListener = null;
+    }
+
+    // Load hotkey settings once when popup is shown (synchronously if possible, async otherwise)
+    this.loadHotkeySettings().then((hotkeySettings) => {
+      // Store current managers and hotkey settings for keyboard handler
+      this.currentManagers = { managers, isMultiCard, currentCard, character, hotkeySettings };
+
+      // Create new keyboard listener with capture phase to override YouTube shortcuts
+      this.keyboardListener = (e) => {
+        this.handleKeyboardEvent(e, managers, isMultiCard, currentCard, hotkeySettings);
+      };
+
+      // Add keyboard listener to document with capture phase (true = capture phase)
+      // This ensures our handler runs before YouTube's handlers
+      document.addEventListener("keydown", this.keyboardListener, true);
+    });
+  }
+
+  static async loadHotkeySettings() {
+    let hotkeySettings = {
+      hotkeyMarkUnknown: { key: "1", ctrl: false, shift: false, alt: false, meta: false },
+      hotkeyMarkIgnored: { key: "2", ctrl: false, shift: false, alt: false, meta: false },
+      hotkeyMarkKnown: { key: "3", ctrl: false, shift: false, alt: false, meta: false },
+      hotkeyAnkiAdd: { key: "q", ctrl: false, shift: false, alt: false, meta: false }
+    };
+
+    try {
+      if (chrome.storage && chrome.storage.local) {
+        // Try to load from unified shortcuts structure first
+        const shortcutsResult = await chrome.storage.local.get(['shortcuts']);
+        if (shortcutsResult.shortcuts && shortcutsResult.shortcuts.popup) {
+          const popupShortcuts = shortcutsResult.shortcuts.popup;
+          hotkeySettings = {
+            hotkeyMarkUnknown: typeof popupShortcuts.markUnknown === 'object' 
+              ? popupShortcuts.markUnknown 
+              : { key: popupShortcuts.markUnknown || "1", ctrl: false, shift: false, alt: false, meta: false },
+            hotkeyMarkIgnored: typeof popupShortcuts.markIgnored === 'object'
+              ? popupShortcuts.markIgnored
+              : { key: popupShortcuts.markIgnored || "2", ctrl: false, shift: false, alt: false, meta: false },
+            hotkeyMarkKnown: typeof popupShortcuts.markKnown === 'object'
+              ? popupShortcuts.markKnown
+              : { key: popupShortcuts.markKnown || "3", ctrl: false, shift: false, alt: false, meta: false },
+            hotkeyAnkiAdd: typeof popupShortcuts.ankiAdd === 'object'
+              ? popupShortcuts.ankiAdd
+              : { key: popupShortcuts.ankiAdd || "q", ctrl: false, shift: false, alt: false, meta: false }
+          };
+        } else {
+          // Fallback to legacy format (single character strings)
+          const result = await chrome.storage.local.get([
+            "hotkeyMarkUnknown",
+            "hotkeyMarkIgnored",
+            "hotkeyMarkKnown",
+            "hotkeyAnkiAdd"
+          ]);
+          hotkeySettings = {
+            hotkeyMarkUnknown: { key: result.hotkeyMarkUnknown || "1", ctrl: false, shift: false, alt: false, meta: false },
+            hotkeyMarkIgnored: { key: result.hotkeyMarkIgnored || "2", ctrl: false, shift: false, alt: false, meta: false },
+            hotkeyMarkKnown: { key: result.hotkeyMarkKnown || "3", ctrl: false, shift: false, alt: false, meta: false },
+            hotkeyAnkiAdd: { key: result.hotkeyAnkiAdd || "q", ctrl: false, shift: false, alt: false, meta: false }
+          };
+        }
+      }
+    } catch (error) {
+      console.warn("Failed to load hotkey settings:", error);
+    }
+
+    return hotkeySettings;
+  }
+
+  static handleKeyboardEvent(event, managers, isMultiCard, currentCard, hotkeySettings) {
+    // Check if popup is visible
+    if (!managers.popupManager || !managers.popupManager.popup) {
+      return;
+    }
+
+    // Ignore if user is typing in input fields, textareas, or contenteditable elements
+    const target = event.target;
+    if (
+      target.tagName === "INPUT" ||
+      target.tagName === "TEXTAREA" ||
+      target.isContentEditable
+    ) {
+      return;
+    }
+
+    // Use provided hotkey settings or fallback to defaults
+    const settings = hotkeySettings || {
+      hotkeyMarkUnknown: "1",
+      hotkeyMarkIgnored: "2",
+      hotkeyMarkKnown: "3",
+      hotkeyAnkiAdd: "q"
+    };
+
+    // Helper to check if a shortcut matches the current keypress
+    const matchesShortcut = (shortcut) => {
+      if (!shortcut) return false;
+      
+      // Handle both string (legacy) and object (new format) shortcuts
+      if (typeof shortcut === 'string') {
+        return event.key.toLowerCase() === shortcut.toLowerCase() &&
+               !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey;
+      }
+      
+      // Object format with modifiers
+      const keyMatch = event.key.toLowerCase() === shortcut.key.toLowerCase();
+      const ctrlMatch = shortcut.ctrl ? (event.ctrlKey || event.metaKey) : (!event.ctrlKey && !event.metaKey);
+      const shiftMatch = shortcut.shift ? event.shiftKey : !event.shiftKey;
+      const altMatch = shortcut.alt ? event.altKey : !event.altKey;
+      
+      return keyMatch && ctrlMatch && shiftMatch && altMatch;
+    };
+
+    // Determine which action to take based on pressed key
+    let targetState = null;
+    let isAnkiAction = false;
+    
+    if (matchesShortcut(settings.hotkeyMarkUnknown)) {
+      targetState = "unknown";
+    } else if (matchesShortcut(settings.hotkeyMarkIgnored)) {
+      targetState = "ignored";
+    } else if (matchesShortcut(settings.hotkeyMarkKnown)) {
+      targetState = "known";
+    } else if (matchesShortcut(settings.hotkeyAnkiAdd)) {
+      isAnkiAction = true;
+    }
+
+    // If no matching hotkey, ignore the event
+    if (!targetState && !isAnkiAction) {
+      return;
+    }
+
+    // CRITICAL: Prevent default and stop ALL propagation immediately
+    // This must happen BEFORE any async operations to override YouTube's shortcuts
+    event.preventDefault();
+    event.stopImmediatePropagation(); // Stop all other handlers, including YouTube's
+    
+    // Execute the appropriate action
+    if (isAnkiAction) {
+      this.executeAnkiKeyboardAction(managers, isMultiCard, currentCard);
+    } else {
+      this.executeKeyboardAction(targetState, managers, isMultiCard, currentCard);
+    }
+  }
+
+  static async executeKeyboardAction(targetState, managers, isMultiCard, currentCard) {
+
+    // Get the character to mark (handle multi-card mode)
+    let targetCharacter;
+    if (isMultiCard) {
+      // For multi-card mode, get the current card from cardNavigator
+      const cardNavigator = managers.popupManager.cardNavigator;
+      if (cardNavigator && cardNavigator.currentCards && cardNavigator.currentCards.length > 0) {
+        const currentCardIndex = cardNavigator.currentCardIndex || 0;
+        const currentCard = cardNavigator.currentCards[currentCardIndex];
+        if (currentCard) {
+          targetCharacter = currentCard.isCharacterCard
+            ? currentCard.character
+            : managers.popupManager.originalCharacter;
+        } else {
+          targetCharacter = managers.popupManager.originalCharacter;
+        }
+      } else {
+        // Fallback to originalCharacter if cardNavigator not available
+        targetCharacter = managers.popupManager.originalCharacter;
+      }
+    } else {
+      // For single card mode, use currentCharacter
+      targetCharacter = managers.popupManager.currentCharacter;
+    }
+
+    if (!targetCharacter) {
+      console.warn("No character to mark");
+      return;
+    }
+
+    // Execute the appropriate action
+    switch (targetState) {
+      case "unknown":
+        await this.handleMarkUnknown(targetCharacter);
+        break;
+      case "ignored":
+        await this.handleMarkIgnored(targetCharacter);
+        break;
+      case "known":
+        await this.handleMarkKnown(targetCharacter);
+        break;
+    }
+
+    // Update button state
+    const markButton = managers.popupManager.popup.querySelector(
+      ".mark-known-btn, .mark-ignore-btn, .mark-unknown-btn"
+    );
+    if (markButton) {
+      this.updateMarkButton(markButton, targetState);
+    }
+
+    // Optionally hide popup (based on persistent mode)
+    if (managers.settingsManager && !managers.settingsManager.shouldPreventAutoHide()) {
+      managers.popupManager.hidePopup();
+    }
+  }
+
+  static async executeAnkiKeyboardAction(managers, isMultiCard, currentCard) {
+    // Get the character to add to Anki (handle multi-card mode)
+    let targetCharacter;
+    if (isMultiCard) {
+      // For multi-card mode, get the current card from cardNavigator
+      const cardNavigator = managers.popupManager.cardNavigator;
+      if (cardNavigator && cardNavigator.currentCards && cardNavigator.currentCards.length > 0) {
+        const currentCardIndex = cardNavigator.currentCardIndex || 0;
+        const currentCard = cardNavigator.currentCards[currentCardIndex];
+        if (currentCard) {
+          // Use the card for Anki add
+          await this.handleMultiCardAnkiAdd(currentCard, managers);
+          return;
+        } else {
+          targetCharacter = managers.popupManager.originalCharacter;
+        }
+      } else {
+        // Fallback to originalCharacter if cardNavigator not available
+        targetCharacter = managers.popupManager.originalCharacter;
+      }
+    } else {
+      // For single card mode, use currentCharacter
+      targetCharacter = managers.popupManager.currentCharacter;
+    }
+
+    if (!targetCharacter) {
+      console.warn("No character to add to Anki");
+      return;
+    }
+
+    // Execute Anki add action
+    await this.handleAnkiAdd(targetCharacter, managers);
+  }
+
+  static cleanupKeyboardListener() {
+    if (this.keyboardListener) {
+      // Remove with capture phase flag to match how we added it
+      document.removeEventListener("keydown", this.keyboardListener, true);
+      this.keyboardListener = null;
+      this.currentManagers = null;
+    }
+  }
+
   static getCurrentMarkState(button) {
     if (button.classList.contains("mark-ignore-btn")) return "known";
     if (button.classList.contains("mark-unknown-btn")) return "ignored";
@@ -118,8 +374,8 @@ class PopupEventHandler {
         ? currentCard.character 
         : managers.popupManager.originalCharacter;
     } else {
-      // For single card mode, use the original character
-      targetCharacter = managers.popupManager.originalCharacter || character;
+      // For single card mode, use currentCharacter (set when popup is shown)
+      targetCharacter = managers.popupManager.currentCharacter || character;
     }
     
     switch (targetState) {

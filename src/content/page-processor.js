@@ -36,8 +36,8 @@ class PageProcessor {
     // Listen for when subtitles are loaded (only fires once when subtitles are first loaded)
     document.addEventListener('helios-subtitles-loaded', () => {
       // Recalculate comprehension when subtitles are loaded
-      setTimeout(() => {
-        this.calculateComprehensionPercentage();
+      setTimeout(async () => {
+        await this.calculateComprehensionPercentage();
         // Notify sidebar after calculation
         this.notifySidebarUpdate();
         console.log('📊 Comprehension recalculated after subtitle load');
@@ -151,25 +151,27 @@ class PageProcessor {
 
       // Calculate comprehension immediately after visible content is processed
       // This gives quick feedback to banner/stats even before full page is done
-      this.calculateComprehensionPercentage();
-      // Notify sidebar after calculation
-      this.notifySidebarUpdate();
+      this.calculateComprehensionPercentage().then(() => {
+        // Notify sidebar after calculation
+        this.notifySidebarUpdate();
+      });
     }
 
     // Process hidden nodes in background batches
     if (hiddenNodes.length > 0) {
-      this.processBatchedTextNodesAsync(hiddenNodes, () => {
+      this.processBatchedTextNodesAsync(hiddenNodes, async () => {
         // Recalculate comprehension after all processing is complete
-        this.calculateComprehensionPercentage();
+        await this.calculateComprehensionPercentage();
         // Notify sidebar after calculation
         this.notifySidebarUpdate();
         console.log(`📊 Full page comprehension calculated`);
       });
     } else if (visibleNodes.length === 0) {
       // If there are no nodes at all, still calculate
-      this.calculateComprehensionPercentage();
-      // Notify sidebar after calculation
-      this.notifySidebarUpdate();
+      this.calculateComprehensionPercentage().then(() => {
+        // Notify sidebar after calculation
+        this.notifySidebarUpdate();
+      });
     }
   }
 
@@ -341,15 +343,15 @@ class PageProcessor {
   /**
    * Calculate comprehension percentage from subtitle text
    * @param {string} subtitleText - Combined subtitle text
-   * @returns {number} - Comprehension percentage
+   * @returns {Promise<number>} - Comprehension percentage
    */
-  calculateSubtitleComprehension(subtitleText) {
+  async calculateSubtitleComprehension(subtitleText) {
     if (!subtitleText || !subtitleText.trim()) {
       return 100; // If no text, consider comprehension 100%
     }
 
     const adapter = this.languageRegistry.getAdapter();
-    const words = adapter ? adapter.extractWords(subtitleText, this.dictionaryManager.dictionary) : [];
+    const words = adapter ? await adapter.extractWords(subtitleText, this.dictionaryManager.dictionary) : [];
     
     let totalWords = words.length;
     let knownWords = words.filter(({ word }) => this.vocabManager.isWordKnown(word)).length;
@@ -363,13 +365,13 @@ class PageProcessor {
     return Math.round((knownWords / totalWords) * 100);
   }
 
-  calculateComprehensionPercentage() {
+  async calculateComprehensionPercentage() {
     // First, check if video subtitles are active
     const subtitleText = this.getVideoSubtitleText();
     
     if (subtitleText !== null) {
       // Video subtitles are active - calculate based on subtitle text only
-      const percentage = this.calculateSubtitleComprehension(subtitleText);
+      const percentage = await this.calculateSubtitleComprehension(subtitleText);
       // NOTE: Do NOT call notifySidebarUpdate() here - let the caller decide when to notify
       // This prevents circular calls with refreshData()
       return percentage;
@@ -382,7 +384,7 @@ class PageProcessor {
 
     for (const textNode of textNodes) {
         const adapter = this.languageRegistry.getAdapter();
-        const words = adapter ? adapter.extractWords(textNode.textContent, this.dictionaryManager.dictionary) : [];
+        const words = adapter ? await adapter.extractWords(textNode.textContent, this.dictionaryManager.dictionary) : [];
         for (const { word } of words) {
             totalWords++;
             if (this.vocabManager.isWordKnown(word)) {
@@ -443,17 +445,17 @@ class PageProcessor {
         this.processPageForUnknownWords();
 
         // Recalculate comprehension
-        this.calculateComprehensionPercentage();
+        this.calculateComprehensionPercentage().then(() => {});
 
         this.isReprocessing = false;
       });
     }, 50); // 50ms debounce
   }
 
-  analyzeASBPlayerSubtitlesComprehension(subtitlesText) {
+  async analyzeASBPlayerSubtitlesComprehension(subtitlesText) {
   // subtitlesText: string containing all subtitles for the video
   const adapter = this.languageRegistry.getAdapter();
-  const words = adapter ? adapter.extractWords(subtitlesText, this.dictionaryManager.dictionary) : [];
+  const words = adapter ? await adapter.extractWords(subtitlesText, this.dictionaryManager.dictionary) : [];
   let totalWords = words.length;
   let knownWords = words.filter(({ word }) => this.vocabManager.isWordKnown(word)).length;
   if (totalWords === 0) return 100;
@@ -506,6 +508,16 @@ class PageProcessor {
             return NodeFilter.FILTER_REJECT;
           }
 
+          // Skip Helios subtitle overlay to avoid re-wrapping YouTube subtitles
+          if (parent.closest('[data-helios-subtitle-overlay="true"]')) {
+            return NodeFilter.FILTER_REJECT;
+          }
+
+          // Skip Helios YouTube subtitle sidebar/panel to avoid double-wrapping
+          if (parent.closest('[data-helios-panel="true"]')) {
+            return NodeFilter.FILTER_REJECT;
+          }
+
           // Don't process popup content - check if ANY ancestor is the popup
           if (parent.closest('.chinese-lang-extension-popup')) {
             return NodeFilter.FILTER_REJECT;
@@ -530,6 +542,11 @@ class PageProcessor {
       return;
     }
 
+    // Avoid double-wrapping if this text node already sits inside a processed span
+    if (textNode.parentElement && textNode.parentElement.closest('span[data-word]')) {
+      return;
+    }
+
     const text = textNode.textContent;
     if (!text) return;
 
@@ -544,7 +561,7 @@ class PageProcessor {
       }
     }
 
-    const words = adapter.extractWords(text, this.dictionaryManager.dictionary);
+    const words = await adapter.extractWords(text, this.dictionaryManager.dictionary);
     if (words.length === 0) return;
 
     const fragment = document.createDocumentFragment();
@@ -629,10 +646,10 @@ class PageProcessor {
   }
 
   // Legacy method - now handled by language adapters
-  extractChineseWords(text) {
+  async extractChineseWords(text) {
     console.warn('extractChineseWords is deprecated. Use language adapters instead.');
     const adapter = this.languageRegistry.getAdapter();
-    return adapter ? adapter.extractWords(text, this.dictionaryManager.dictionary) : [];
+    return adapter ? await adapter.extractWords(text, this.dictionaryManager.dictionary) : [];
   }
 
   updateWordStyling(word, isKnownOrIgnored) {
@@ -664,8 +681,8 @@ class PageProcessor {
     
     // Recalculate comprehension after word status change
     // This ensures comprehension updates immediately when words are marked as known/ignored
-    setTimeout(() => {
-      this.calculateComprehensionPercentage();
+    setTimeout(async () => {
+      await this.calculateComprehensionPercentage();
     }, 50);
   }
 
@@ -702,26 +719,83 @@ class PageProcessor {
     return adapter ? adapter.isTargetCharacter(char) : false;
   }
 
-  getCharacterAtPosition(event) {
+  async getCharacterAtPosition(event) {
     try {
-      const accurateResult = this.getCharacterAtPositionAccurate(event);
+      const accurateResult = await this.getCharacterAtPositionAccurate(event);
       if (accurateResult) return accurateResult;
       
-      return this.getCharacterAtPositionFallback(event);
+      return await this.getCharacterAtPositionFallback(event);
     } catch (error) {
       console.error('Error getting character at position:', error);
       return null;
     }
   }
 
-  getCharacterAtPositionAccurate(event) {
+  async getCharacterAtPositionAccurate(event) {
     const element = document.elementFromPoint(event.clientX, event.clientY);
     if (!element) return null;
+
+    const adapter = this.languageRegistry.getAdapter();
+    const isCharacterBased = adapter && adapter.getScanResolution() === 'char';
+
+    // OPTIMIZATION: Check if we clicked on a processed word span
+    // For character-based languages, we still need character-level detection within the span
+    const wordSpan = element.closest('span[data-word]');
+    if (wordSpan && wordSpan.hasAttribute('data-word')) {
+      const rect = wordSpan.getBoundingClientRect();
+      
+      // Verify the click is actually within this span's bounds
+      if (event.clientX >= rect.left && event.clientX <= rect.right &&
+          event.clientY >= rect.top && event.clientY <= rect.bottom) {
+        const textNodes = this.getTextNodes(wordSpan);
+        if (textNodes.length > 0) {
+          const textNode = textNodes[0];
+          const textContent = textNode.textContent;
+          
+          // For character-based languages, detect which character was clicked
+          // and find the longest word starting from that character
+          if (isCharacterBased && adapter.isTargetCharacter) {
+            const range = document.createRange();
+            for (let i = 0; i < textContent.length; i++) {
+              if (!adapter.isTargetCharacter(textContent[i])) continue;
+              
+              range.setStart(textNode, i);
+              range.setEnd(textNode, i + 1);
+              const charRect = range.getBoundingClientRect();
+              
+              if (event.clientX >= charRect.left && event.clientX <= charRect.right &&
+                  event.clientY >= charRect.top && event.clientY <= charRect.bottom) {
+                // Found the clicked character - find longest word from this position using jieba
+                const wordResult = await this.findLongestWord(textNode, i);
+                if (wordResult) return wordResult;
+                
+                // Fall back to single character
+                return {
+                  word: textContent[i],
+                  textNode: textNode,
+                  start: i,
+                  end: i + 1
+                };
+              }
+            }
+          } else {
+            // For non-character-based languages, return the whole word
+            const word = wordSpan.getAttribute('data-word');
+            return {
+              word: word,
+              textNode: textNode,
+              start: 0,
+              end: textContent.length
+            };
+          }
+        }
+      }
+    }
 
     const textNodes = this.getTextNodes(element);
 
     for (const textNode of textNodes) {
-      const result = this.checkTextNodeAtPosition(textNode, event.clientX, event.clientY);
+      const result = await this.checkTextNodeAtPosition(textNode, event.clientX, event.clientY);
       if (result) return result;
     }
 
@@ -758,7 +832,7 @@ class PageProcessor {
     return baseText;
   }
 
-  checkTextNodeAtPosition(textNode, x, y) {
+  async checkTextNodeAtPosition(textNode, x, y) {
     if (!textNode || !textNode.parentElement) return null;
 
     const adapter = this.languageRegistry.getAdapter();
@@ -781,6 +855,47 @@ class PageProcessor {
 
     // For character-based languages, use character-by-character detection
     if (isCharacterBased) {
+      // OPTIMIZATION: First check if we're clicking on an already-processed word span
+      // But still do character-level detection within the span to find the longest word
+      const allSpans = container.querySelectorAll('span[data-word]');
+      for (const span of allSpans) {
+        const rect = span.getBoundingClientRect();
+        if (x >= rect.left && x <= rect.right &&
+            y >= rect.top && y <= rect.bottom) {
+          const textNodes = this.getTextNodes(span);
+          if (textNodes.length > 0) {
+            const textNode = textNodes[0];
+            const textContent = textNode.textContent;
+            
+            // Do character-by-character detection within this span
+            const range = document.createRange();
+            for (let i = 0; i < textContent.length; i++) {
+              if (!adapter.isTargetCharacter || !adapter.isTargetCharacter(textContent[i])) continue;
+              
+              range.setStart(textNode, i);
+              range.setEnd(textNode, i + 1);
+              const charRect = range.getBoundingClientRect();
+              
+              if (x >= charRect.left && x <= charRect.right &&
+                  y >= charRect.top && y <= charRect.bottom) {
+                // Found the clicked character - find longest word from this position using jieba
+                const wordResult = await this.findLongestWord(textNode, i);
+                if (wordResult) return wordResult;
+                
+                // Fall back to single character
+                return {
+                  word: textContent[i],
+                  textNode: textNode,
+                  start: i,
+                  end: i + 1
+                };
+              }
+            }
+          }
+        }
+      }
+
+      // Fallback to character-by-character detection if no processed span found
       const allTextNodes = this.getTextNodes(container);
 
       for (const node of allTextNodes) {
@@ -798,8 +913,8 @@ class PageProcessor {
           if (x >= rect.left && x <= rect.right &&
               y >= rect.top && y <= rect.bottom) {
 
-            // Try to find longest word starting from this character
-            const wordResult = this.findLongestWordFromPosition(node, i);
+            // Try to find longest word starting from this character using jieba
+            const wordResult = await this.findLongestWord(node, i);
             if (wordResult) return wordResult;
 
             // Fall back to single character
@@ -816,7 +931,7 @@ class PageProcessor {
     }
 
     // For word-based languages, use word boundaries
-    const words = adapter.extractWords(text, this.dictionaryManager.dictionary);
+    const words = await adapter.extractWords(text, this.dictionaryManager.dictionary);
     let currentOffset = 0;
 
     for (const wordData of words) {
@@ -854,54 +969,53 @@ class PageProcessor {
     return null;
   }
 
-  findLongestWordFromPosition(textNode, startOffset) {
-    const text = textNode.textContent;
-    const adapter = this.languageRegistry.getAdapter();
-    if (!adapter) return null;
-    
-    // Try to find longest word starting from this position
-    for (let len = Math.min(5, text.length - startOffset); len >= 1; len--) {
-      const candidate = text.substring(startOffset, startOffset + len);
-      
-      // Check if all characters are target language characters
-      const allTargetChars = adapter.isTargetCharacter 
-        ? [...candidate].every(c => adapter.isTargetCharacter(c))
-        : true;
-      
-      if (allTargetChars && this.dictionaryManager.dictionary[candidate]) {
-        return { 
-          word: candidate, 
-          textNode, 
-          start: startOffset, 
-          end: startOffset + len 
-        };
-      }
-    }
-    
-    return null;
-  }
-
-  findLongestWord(textNode, startOffset) {
+  async findLongestWord(textNode, startOffset) {
     const text = textNode.textContent;
     const adapter = this.languageRegistry.getAdapter();
     if (!adapter) return null;
 
-    // Use adapter's extractWords method to find all words
-    const words = adapter.extractWords(text, this.dictionaryManager.dictionary);
-    
-    // Find the word that contains the startOffset position
-    for (const wordData of words) {
-      if (startOffset >= wordData.start && startOffset < wordData.end) {
+    const isCharacterBased = adapter.getScanResolution() === 'char';
+
+    // For character-based languages, find words starting from the position
+    if (isCharacterBased) {
+      // Extract the remaining text from the hovered position
+      const remainingText = text.substring(startOffset);
+      if (remainingText.length === 0) return null;
+      
+      // Use jieba to segment the remaining text to find words starting from this position
+      const words = await adapter.extractWords(remainingText, this.dictionaryManager.dictionary);
+      
+      // Return the first word found (jieba segments in order, so first is the word starting at position)
+      if (words.length > 0) {
         return {
-          word: wordData.word,
+          word: words[0].word,
           textNode,
-          start: wordData.start,
-          end: wordData.end
+          start: startOffset,
+          end: startOffset + words[0].word.length
         };
       }
+      
+      // No word found starting from this position
+      return null;
+    } else {
+      // For non-character-based languages (space-separated), find the word containing the position
+      // This preserves the original behavior for languages with spaces
+      const words = await adapter.extractWords(text, this.dictionaryManager.dictionary);
+      
+      // Find the word that contains the startOffset position
+      for (const wordData of words) {
+        if (startOffset >= wordData.start && startOffset < wordData.end) {
+          return {
+            word: wordData.word,
+            textNode,
+            start: wordData.start,
+            end: wordData.end
+          };
+        }
+      }
+      
+      return null;
     }
-    
-    return null;
   }
 
   getTextNodes(element) {
@@ -931,7 +1045,7 @@ class PageProcessor {
     return textNodes;
   }
 
-  getCharacterAtPositionFallback(event) {
+  async getCharacterAtPositionFallback(event) {
     const offsets = [
       { x: 0, y: 0 },
       { x: -2, y: 0 },
@@ -941,7 +1055,7 @@ class PageProcessor {
     ];
     
     for (const offset of offsets) {
-      const result = this.tryGetCharacterAtPoint(
+      const result = await this.tryGetCharacterAtPoint(
         event.clientX + offset.x, 
         event.clientY + offset.y
       );
@@ -951,18 +1065,38 @@ class PageProcessor {
     return null;
   }
 
-  tryGetCharacterAtPoint(x, y) {
+  async tryGetCharacterAtPoint(x, y) {
     const caret = document.caretPositionFromPoint?.(x, y);
     if (!caret?.offsetNode) return null;
 
     let { offsetNode: textNode, offset } = caret;
     if (textNode.nodeType !== Node.TEXT_NODE) return null;
 
+    // OPTIMIZATION: Check if the text node is inside a processed word span
+    // This avoids calling extractWords (which uses jieba) for already-processed words
+    const parentSpan = textNode.parentElement?.closest('span[data-word]');
+    if (parentSpan && parentSpan.hasAttribute('data-word')) {
+      const word = parentSpan.getAttribute('data-word');
+      const wordText = parentSpan.textContent;
+      const textContent = textNode.textContent;
+      
+      // Find word position in text node
+      const wordIndex = textContent.indexOf(wordText);
+      if (wordIndex !== -1 && offset >= wordIndex && offset < wordIndex + wordText.length) {
+        return {
+          word: word,
+          textNode: textNode,
+          start: wordIndex,
+          end: wordIndex + wordText.length
+        };
+      }
+    }
+
     const adapter = this.languageRegistry.getAdapter();
     if (!adapter) return null;
 
     // Use adapter's extractWords method to find all words
-    const words = adapter.extractWords(textNode.textContent, this.dictionaryManager.dictionary);
+    const words = await adapter.extractWords(textNode.textContent, this.dictionaryManager.dictionary);
     
     // Find the word that contains the offset position
     for (const wordData of words) {

@@ -8,7 +8,9 @@ class OnboardingPage {
     this.currentStep = 'hero';
     this.controller = new OnboardingController();
     this.languageSelector = null;
+    this.nativeLanguageSelector = null;
     this.selectedLanguage = null;
+    this.selectedNativeLanguage = null;
     this.selectedLevel = null;
     this.shouldImportWords = true;
     this.vocabManager = null;
@@ -75,12 +77,25 @@ class OnboardingPage {
       this.showStep('hero');
     });
     document.getElementById('btn-lang-next')?.addEventListener('click', () => {
+      this.goToNativeLanguageSelection();
+    });
+
+    // Step 3: Native language selection - Back/Next buttons
+    document.getElementById('btn-native-lang-back')?.addEventListener('click', () => {
+      this.showStep('language');
+    });
+    document.getElementById('btn-native-lang-next')?.addEventListener('click', () => {
       this.goToTutorial();
     });
 
-    // Step 3: Popup feature - Back/Next buttons
+    // Step 4: Popup feature - Back/Next buttons
     document.getElementById('btn-popup-back')?.addEventListener('click', () => {
-      this.showStep('language');
+      // Go back to native language selection if not Chinese, otherwise to language selection
+      if (this.selectedLanguage && this.selectedLanguage.code === 'zh') {
+        this.showStep('language');
+      } else {
+        this.showStep('native-language');
+      }
     });
     document.getElementById('btn-popup-next')?.addEventListener('click', () => {
       this.showStep('level');
@@ -98,7 +113,7 @@ class OnboardingPage {
       this.handleLevelSelection();
     });
 
-    // Step 7: Success - Start Learning button
+    // Step 6: Success - Start Learning button
     document.getElementById('btn-start-learning')?.addEventListener('click', () => {
       this.startUsingExtension();
     });
@@ -149,6 +164,106 @@ class OnboardingPage {
     if (nextBtn) {
       nextBtn.disabled = false;
     }
+  }
+
+  goToNativeLanguageSelection() {
+    if (!this.selectedLanguage) {
+      alert('Please select a language before continuing');
+      return;
+    }
+
+    // Skip native language selection if target language is Chinese
+    if (this.selectedLanguage.code === 'zh') {
+      console.log('Target language is Chinese, skipping native language selection');
+      // Set a default or skip - Chinese uses its own dictionary URL
+      this.selectedNativeLanguage = null;
+      this.goToTutorial();
+      return;
+    }
+
+    // Show native language selection step
+    this.showStep('native-language');
+    this.initializeNativeLanguageSelector();
+  }
+
+  getLanguageFlag(code) {
+    const flags = {
+      'en': '🇬🇧',
+      'es': '🇪🇸',
+      'fr': '🇫🇷',
+      'zh': '🇨🇳',
+      'vi': '🇻🇳',
+      'ko': '🇰🇷',
+      'ja': '🇯🇵',
+      'de': '🇩🇪'
+    };
+    return flags[code] || '🌐';
+  }
+
+  initializeNativeLanguageSelector() {
+    if (this.nativeLanguageSelector) {
+      return; // Already initialized
+    }
+
+    const container = document.getElementById('native-language-selector-container');
+    if (!container) {
+      console.error('Native language selector container not found');
+      return;
+    }
+
+    // Define native languages with their codes
+    const nativeLanguages = [
+      { code: 'en', name: 'English', displayName: 'English' },
+      { code: 'es', name: 'Spanish', displayName: 'Spanish (Español)' },
+      { code: 'fr', name: 'French', displayName: 'French (Français)' },
+      { code: 'zh', name: 'Chinese', displayName: 'Chinese (中文)' },
+      { code: 'vi', name: 'Vietnamese', displayName: 'Vietnamese (Tiếng Việt)' },
+      { code: 'ko', name: 'Korean', displayName: 'Korean (한국어)' },
+      { code: 'ja', name: 'Japanese', displayName: 'Japanese (日本語)' },
+      { code: 'de', name: 'German', displayName: 'German (Deutsch)' }
+    ];
+
+    // Create language selector UI using same structure as language selector
+    container.innerHTML = '';
+    const grid = document.createElement('div');
+    grid.className = 'language-grid';
+
+    nativeLanguages.forEach(lang => {
+      const langCard = document.createElement('div');
+      langCard.className = 'language-card';
+      langCard.dataset.code = lang.code;
+      langCard.innerHTML = `
+        <div class="language-flag">${this.getLanguageFlag(lang.code)}</div>
+        <div class="language-info">
+          <div class="language-name">${lang.displayName}</div>
+        </div>
+        <div class="language-select-indicator">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="11" stroke="currentColor" stroke-width="2"/>
+            <path d="M7 12l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      `;
+      langCard.addEventListener('click', () => {
+        // Remove selected class from all options
+        grid.querySelectorAll('.language-card').forEach(opt => {
+          opt.classList.remove('selected');
+        });
+        // Add selected class to clicked option
+        langCard.classList.add('selected');
+        this.selectedNativeLanguage = lang;
+        
+        // Enable next button
+        const nextBtn = document.getElementById('btn-native-lang-next');
+        if (nextBtn) {
+          nextBtn.disabled = false;
+        }
+      });
+      grid.appendChild(langCard);
+    });
+
+    container.appendChild(grid);
+    this.nativeLanguageSelector = grid;
   }
 
   resetPopupSystem() {
@@ -219,9 +334,11 @@ class OnboardingPage {
           await this.dictionaryBridge.ensureOffscreenDocument();
         } else {
           // Fallback: send message directly to background/offscreen
+          const nativeLangCode = this.selectedNativeLanguage ? this.selectedNativeLanguage.code : null;
           chrome.runtime.sendMessage({
             action: 'DICT_LOAD',
-            languageCode: languageCode
+            languageCode: languageCode,
+            nativeLanguageCode: nativeLangCode
           }, (response) => {
             if (chrome.runtime.lastError) {
               console.warn('Could not trigger dictionary loading:', chrome.runtime.lastError);
@@ -235,7 +352,8 @@ class OnboardingPage {
       
       // Start loading dictionary (this is async but we don't wait for it)
       // It will load in the background while user selects level
-      this.dictionaryBridge.loadDictionary(languageCode).then(result => {
+      const nativeLangCode = this.selectedNativeLanguage ? this.selectedNativeLanguage.code : null;
+      this.dictionaryBridge.loadDictionary(languageCode, nativeLangCode).then(result => {
         if (result.success) {
           console.log(`✅ Dictionary loaded for ${languageCode}: ${result.size} entries`);
           this.dictionaryLoaded = true;
@@ -250,9 +368,11 @@ class OnboardingPage {
       // Don't block the user flow if dictionary loading fails
       // Try fallback method
       try {
+        const nativeLangCode = this.selectedNativeLanguage ? this.selectedNativeLanguage.code : null;
         chrome.runtime.sendMessage({
           action: 'DICT_LOAD',
-          languageCode: languageCode
+          languageCode: languageCode,
+          nativeLanguageCode: nativeLangCode
         });
       } catch (e) {
         // Ignore - dictionary will load later when popup system initializes
@@ -529,7 +649,10 @@ class OnboardingPage {
 
   async completeOnboardingFlow() {
     try {
-      await this.controller.completeOnboarding(this.selectedLanguage.code);
+      await this.controller.completeOnboarding(
+        this.selectedLanguage.code, 
+        this.selectedNativeLanguage ? this.selectedNativeLanguage.code : null
+      );
 
       // Update success step with selected language
       const languageNameElement = document.getElementById('selected-language-name');
@@ -788,10 +911,11 @@ class OnboardingPage {
     const stepIndex = {
       'hero': 0,
       'language': 1,
-      'loading': 2, // Same as popup since it's transitional
-      'popup': 2,
-      'level': 3,
-      'success': 4
+      'native-language': 2,
+      'loading': 3, // Same as popup since it's transitional
+      'popup': 3,
+      'level': 4,
+      'success': 5
     };
 
     const currentIndex = stepIndex[stepName] ?? 0;
@@ -847,9 +971,12 @@ class OnboardingPage {
       this.languageRegistry.setLanguage(this.selectedLanguage.code);
 
       // Initialize managers
-      // Create new dictionaryBridge for new language
-      this.dictionaryBridge = new DictionaryBridge();
-      await this.dictionaryBridge.ensureOffscreenDocument();
+      // Reuse existing dictionaryBridge if it exists (from startDictionaryLoading)
+      // Otherwise create a new one
+      if (!this.dictionaryBridge) {
+        this.dictionaryBridge = new DictionaryBridge();
+        await this.dictionaryBridge.ensureOffscreenDocument();
+      }
       
       this.dictionaryManager = new DictionaryManagerProxy(this.languageRegistry);
       this.vocabManager = new VocabManager();
@@ -858,9 +985,30 @@ class OnboardingPage {
       this.frequencyManager = new FrequencyManager();
 
       // Load dictionary and resources
-      // Dictionary may already be loading from language selection, but wait for it to complete
+      // Dictionary may already be loading from language selection (via startDictionaryLoading)
+      // Check if dictionary is already loaded before calling loadDictionary again
+      let dictionaryLoadPromise;
+      if (this.dictionaryLoaded) {
+        // Already marked as loaded, no need to load again
+        console.log('📚 Dictionary already loaded, skipping reload');
+        dictionaryLoadPromise = Promise.resolve();
+      } else {
+        // Check if dictionary is actually loaded in offscreen
+        const isLoaded = await this.dictionaryBridge.isDictionaryLoaded();
+        if (isLoaded) {
+          console.log('📚 Dictionary already loaded in offscreen, skipping reload');
+          this.dictionaryLoaded = true;
+          dictionaryLoadPromise = Promise.resolve();
+        } else {
+          // Not loaded yet, load it now
+          console.log('📚 Dictionary not loaded yet, loading now...');
+          const nativeLangCode = this.selectedNativeLanguage ? this.selectedNativeLanguage.code : null;
+          dictionaryLoadPromise = this.dictionaryManager.loadDictionary(this.selectedLanguage.code, nativeLangCode);
+        }
+      }
+      
       await Promise.all([
-        this.dictionaryManager.loadDictionary(),
+        dictionaryLoadPromise,
         this.vocabManager.loadKnownWords(),
         this.frequencyManager.loadFrequencyList()
       ]);

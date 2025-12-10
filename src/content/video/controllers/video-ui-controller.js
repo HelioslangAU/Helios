@@ -56,12 +56,16 @@ class VideoUIController {
   /**
    * Initialize UI controls
    */
-  init() {
+  async init() {
     if (this.isInitialized) return;
 
     this.subtitleSelector = new SubtitleSelectorModal();
     // this._createLoadButton(); // Removed - using YouTube sidebar instead
-    this._setupKeyboardShortcuts();
+    try {
+      await this._setupKeyboardShortcuts();
+    } catch (err) {
+      console.error('[VideoUIController] Error setting up keyboard shortcuts:', err);
+    }
     this._setupAutoLoad();
     this._setupLanguageChangeListener();
 
@@ -320,21 +324,41 @@ class VideoUIController {
   /**
    * Setup keyboard shortcuts
    */
-  _setupKeyboardShortcuts() {
-    document.addEventListener('keydown', (e) => {
-      // Ctrl/Cmd + Shift + S = Toggle subtitle panel
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'S') {
-        e.preventDefault();
-        this._toggleSubtitlePanel();
+  async _setupKeyboardShortcuts() {
+    // Load shortcut configuration
+    const shortcuts = await ShortcutHelper.getVideoShortcuts();
+    const panelShortcut = shortcuts.togglePanel;
+    const youtubeShortcut = shortcuts.loadYouTube;
+
+    // Remove existing listener if any
+    if (this._keyboardListener) {
+      document.removeEventListener('keydown', this._keyboardListener);
+    }
+
+    // Create new listener with current shortcut config
+    this._keyboardListener = (e) => {
+      // Don't trigger if user is typing in an input field
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+        return;
       }
 
-      // Ctrl/Cmd + Shift + Y = Auto-load YouTube subtitles
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'Y') {
+      // Toggle subtitle panel
+      if (ShortcutHelper.matchesVideoShortcut(e, panelShortcut)) {
+        e.preventDefault();
+        this._toggleSubtitlePanel();
+        return;
+      }
+
+      // Auto-load YouTube subtitles
+      if (ShortcutHelper.matchesVideoShortcut(e, youtubeShortcut)) {
         e.preventDefault();
         this.hasAutoLoaded = false;
         this.autoLoadSubtitles();
+        return;
       }
-    });
+    };
+
+    document.addEventListener('keydown', this._keyboardListener);
   }
 
   /**

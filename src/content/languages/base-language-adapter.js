@@ -235,6 +235,8 @@ class BaseLanguageAdapter {
       /alternate\s+spelling\s+of\s+(.+?)(?:\s*\[|;|$)/i,
       // Other common patterns
       /see\s+also\s*[:：]?\s*(.+?)(?:\s*\[|;|$)/i,
+      /see\s*[:：]?\s*(.+?)(?:\s*\[|;|$)/i,
+
     ];
 
     for (const pattern of variantPatterns) {
@@ -412,6 +414,19 @@ class BaseLanguageAdapter {
   getOnboardingVocabPath(level) {
     // Default implementation - override in language adapters when available
     return null;
+  }
+
+  /**
+   * Get the dictionary download URL for this language
+   * Returns a URL that points to a zip file containing the dictionary
+   * @param {string|null} nativeLanguageCode - Native language code (optional, defaults to 'en')
+   * @returns {string} - URL to download the dictionary zip file
+   */
+  getDictionaryDownloadUrl(nativeLanguageCode = 'en') {
+    const config = this.getConfig();
+    const languageCode = config.code;
+    const nativeLangCode = nativeLanguageCode || 'en';
+    return `https://pub-c3d38cca4dc2403b88934c56748f5144.r2.dev/releases/latest/kty-${languageCode}-${nativeLangCode}.zip`;
   }
 
 }

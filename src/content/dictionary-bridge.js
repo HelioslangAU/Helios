@@ -65,13 +65,24 @@ class DictionaryBridge {
    * Load dictionary for a language
    * Only loads if not already loaded for this specific language
    */
-  async loadDictionary(languageCode) {
+  async loadDictionary(languageCode, nativeLanguageCode = null) {
     try {
+      // Get native language from storage if not provided
+      if (!nativeLanguageCode) {
+        try {
+          const result = await chrome.storage.local.get(['nativeLanguage']);
+          nativeLanguageCode = result.nativeLanguage || null;
+        } catch (error) {
+          console.warn('Could not get native language from storage:', error);
+        }
+      }
+      
       // Always send DICT_LOAD - the offscreen document will check if it's already loaded
       // for this specific language and skip if needed, or load if it's a different language
       const response = await this.sendToOffscreen({
         action: 'DICT_LOAD',
-        languageCode: languageCode
+        languageCode: languageCode,
+        nativeLanguageCode: nativeLanguageCode
       });
       
       // Clear cache when loading a new dictionary (offscreen handles checking if reload is needed)
@@ -393,20 +404,20 @@ class DictionaryManagerProxy {
   /**
    * Load dictionary for current language
    */
-  async loadDictionary() {
+  async loadDictionary(languageCode = null, nativeLanguageCode = null) {
     if (this.isLoading) {
       return;
     }
 
     try {
       this.isLoading = true;
-      const currentLang = this.languageRegistry.getCurrentLanguage();
+      const currentLang = languageCode || this.languageRegistry.getCurrentLanguage();
       if (!currentLang) {
         console.warn('No language set in registry');
         return;
       }
 
-      await this.bridge.loadDictionary(currentLang);
+      await this.bridge.loadDictionary(currentLang, nativeLanguageCode);
       console.log(`✅ Dictionary loaded via offscreen for ${currentLang}`);
     } catch (error) {
       console.error('Error loading dictionary:', error);

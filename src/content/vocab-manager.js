@@ -229,7 +229,7 @@ class VocabManager {
     this.getCurrentLanguageKnownWords().add(normalizedWord);
     await this.saveKnownWords();
     console.log(`Marked word as known (${this.currentLanguage}):`, normalizedWord);
-    this.notifySidebarUpdate();
+    this.notifySidebarUpdate(normalizedWord, true);
   }
 
   async markWordAsUnknown(word) {
@@ -238,7 +238,7 @@ class VocabManager {
     this.getCurrentLanguageKnownWords().delete(normalizedWord);
     await this.saveKnownWords();
     console.log(`Marked word as unknown (${this.currentLanguage}):`, normalizedWord);
-    this.notifySidebarUpdate();
+    this.notifySidebarUpdate(normalizedWord, false);
   }
 
   async markWordAsIgnored(word) {
@@ -247,6 +247,7 @@ class VocabManager {
     this.getCurrentLanguageIgnoredWords().add(normalizedWord);
     await this.saveKnownWords();
     console.log(`Marked word as ignored (${this.currentLanguage}):`, normalizedWord);
+    this.notifySidebarUpdate(normalizedWord, true);
   }
 
   async markWordAsUnignored(word) {
@@ -255,6 +256,7 @@ class VocabManager {
     this.getCurrentLanguageIgnoredWords().delete(normalizedWord);
     await this.saveKnownWords();
     console.log(`Marked word as unignored (${this.currentLanguage}):`, normalizedWord);
+    this.notifySidebarUpdate(normalizedWord, false);
   }
 
   isWordKnown(word) {
@@ -334,10 +336,10 @@ class VocabManager {
     });
     await this.saveKnownWords();
     console.log(`Marked multiple words as unknown (${this.currentLanguage}):`, words);
-    this.notifySidebarUpdate();
+    this.notifySidebarUpdate(words, false);
   }
 
-  notifySidebarUpdate() {
+  notifySidebarUpdate(changedWords = null, isKnownOrIgnored = true) {
     // Notify sidebar manager of vocabulary changes
     if (window.sidebarManager && window.sidebarManager.onVocabUpdate) {
       // Use a small delay to ensure processing is complete
@@ -346,9 +348,12 @@ class VocabManager {
       }, 100);
     }
 
-    // Also trigger page reprocess to update highlighting instantly
-    if (window.pageProcessor && window.pageProcessor.reprocessPage) {
-      // Use requestAnimationFrame for instant visual update
+    // Also trigger page highlight update, but avoid full reprocess when we know the words
+    if (changedWords && window.pageProcessor && window.pageProcessor.updateWordStyling) {
+      const wordsArray = Array.isArray(changedWords) ? changedWords : [changedWords];
+      wordsArray.forEach(word => window.pageProcessor.updateWordStyling(word, isKnownOrIgnored));
+    } else if (window.pageProcessor && window.pageProcessor.reprocessPage) {
+      // Fallback: full reprocess when we don't know which words changed
       requestAnimationFrame(() => {
         window.pageProcessor.reprocessPage();
       });
