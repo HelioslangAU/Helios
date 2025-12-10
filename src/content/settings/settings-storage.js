@@ -141,6 +141,10 @@ class HeliosSettingsStorage {
       "work-incognito": "workIncognito",
       "debug-mode": "debugMode",
       "show-metrics": "showMetrics",
+      "hotkey-mark-unknown": "hotkeyMarkUnknown",
+      "hotkey-mark-ignored": "hotkeyMarkIgnored",
+      "hotkey-mark-known": "hotkeyMarkKnown",
+      "hotkey-anki-add": "hotkeyAnkiAdd",
     };
 
     const settingKey = keyMap[elementId] || elementId;
