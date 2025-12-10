@@ -65,7 +65,8 @@ class PathsConfig {
       ANKI_SETTINGS: 'src/ui/settings/anki-settings.html',
       VOCABULARY_SETTINGS: 'src/ui/settings/vocabulary-settings.html',
       ADVANCED_SETTINGS: 'src/ui/settings/advanced-settings.html',
-      POPUP_SETTINGS: 'src/ui/settings/popup-settings.html'
+      POPUP_SETTINGS: 'src/ui/settings/popup-settings.html',
+      SHORTCUTS_SETTINGS: 'src/ui/settings/shortcuts-settings.html'
     };
 
     // JavaScript modules

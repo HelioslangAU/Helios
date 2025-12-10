@@ -128,26 +128,47 @@ class PopupEventHandler {
 
   static async loadHotkeySettings() {
     let hotkeySettings = {
-      hotkeyMarkUnknown: "1",
-      hotkeyMarkIgnored: "2",
-      hotkeyMarkKnown: "3",
-      hotkeyAnkiAdd: "q"
+      hotkeyMarkUnknown: { key: "1", ctrl: false, shift: false, alt: false, meta: false },
+      hotkeyMarkIgnored: { key: "2", ctrl: false, shift: false, alt: false, meta: false },
+      hotkeyMarkKnown: { key: "3", ctrl: false, shift: false, alt: false, meta: false },
+      hotkeyAnkiAdd: { key: "q", ctrl: false, shift: false, alt: false, meta: false }
     };
 
     try {
       if (chrome.storage && chrome.storage.local) {
-        const result = await chrome.storage.local.get([
-          "hotkeyMarkUnknown",
-          "hotkeyMarkIgnored",
-          "hotkeyMarkKnown",
-          "hotkeyAnkiAdd"
-        ]);
-        hotkeySettings = {
-          hotkeyMarkUnknown: result.hotkeyMarkUnknown || "1",
-          hotkeyMarkIgnored: result.hotkeyMarkIgnored || "2",
-          hotkeyMarkKnown: result.hotkeyMarkKnown || "3",
-          hotkeyAnkiAdd: result.hotkeyAnkiAdd || "q"
-        };
+        // Try to load from unified shortcuts structure first
+        const shortcutsResult = await chrome.storage.local.get(['shortcuts']);
+        if (shortcutsResult.shortcuts && shortcutsResult.shortcuts.popup) {
+          const popupShortcuts = shortcutsResult.shortcuts.popup;
+          hotkeySettings = {
+            hotkeyMarkUnknown: typeof popupShortcuts.markUnknown === 'object' 
+              ? popupShortcuts.markUnknown 
+              : { key: popupShortcuts.markUnknown || "1", ctrl: false, shift: false, alt: false, meta: false },
+            hotkeyMarkIgnored: typeof popupShortcuts.markIgnored === 'object'
+              ? popupShortcuts.markIgnored
+              : { key: popupShortcuts.markIgnored || "2", ctrl: false, shift: false, alt: false, meta: false },
+            hotkeyMarkKnown: typeof popupShortcuts.markKnown === 'object'
+              ? popupShortcuts.markKnown
+              : { key: popupShortcuts.markKnown || "3", ctrl: false, shift: false, alt: false, meta: false },
+            hotkeyAnkiAdd: typeof popupShortcuts.ankiAdd === 'object'
+              ? popupShortcuts.ankiAdd
+              : { key: popupShortcuts.ankiAdd || "q", ctrl: false, shift: false, alt: false, meta: false }
+          };
+        } else {
+          // Fallback to legacy format (single character strings)
+          const result = await chrome.storage.local.get([
+            "hotkeyMarkUnknown",
+            "hotkeyMarkIgnored",
+            "hotkeyMarkKnown",
+            "hotkeyAnkiAdd"
+          ]);
+          hotkeySettings = {
+            hotkeyMarkUnknown: { key: result.hotkeyMarkUnknown || "1", ctrl: false, shift: false, alt: false, meta: false },
+            hotkeyMarkIgnored: { key: result.hotkeyMarkIgnored || "2", ctrl: false, shift: false, alt: false, meta: false },
+            hotkeyMarkKnown: { key: result.hotkeyMarkKnown || "3", ctrl: false, shift: false, alt: false, meta: false },
+            hotkeyAnkiAdd: { key: result.hotkeyAnkiAdd || "q", ctrl: false, shift: false, alt: false, meta: false }
+          };
+        }
       }
     } catch (error) {
       console.warn("Failed to load hotkey settings:", error);
@@ -180,20 +201,36 @@ class PopupEventHandler {
       hotkeyAnkiAdd: "q"
     };
 
-    // Normalize the pressed key (case-insensitive)
-    const pressedKey = event.key.toLowerCase();
+    // Helper to check if a shortcut matches the current keypress
+    const matchesShortcut = (shortcut) => {
+      if (!shortcut) return false;
+      
+      // Handle both string (legacy) and object (new format) shortcuts
+      if (typeof shortcut === 'string') {
+        return event.key.toLowerCase() === shortcut.toLowerCase() &&
+               !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey;
+      }
+      
+      // Object format with modifiers
+      const keyMatch = event.key.toLowerCase() === shortcut.key.toLowerCase();
+      const ctrlMatch = shortcut.ctrl ? (event.ctrlKey || event.metaKey) : (!event.ctrlKey && !event.metaKey);
+      const shiftMatch = shortcut.shift ? event.shiftKey : !event.shiftKey;
+      const altMatch = shortcut.alt ? event.altKey : !event.altKey;
+      
+      return keyMatch && ctrlMatch && shiftMatch && altMatch;
+    };
 
     // Determine which action to take based on pressed key
     let targetState = null;
     let isAnkiAction = false;
     
-    if (pressedKey === settings.hotkeyMarkUnknown.toLowerCase()) {
+    if (matchesShortcut(settings.hotkeyMarkUnknown)) {
       targetState = "unknown";
-    } else if (pressedKey === settings.hotkeyMarkIgnored.toLowerCase()) {
+    } else if (matchesShortcut(settings.hotkeyMarkIgnored)) {
       targetState = "ignored";
-    } else if (pressedKey === settings.hotkeyMarkKnown.toLowerCase()) {
+    } else if (matchesShortcut(settings.hotkeyMarkKnown)) {
       targetState = "known";
-    } else if (pressedKey === settings.hotkeyAnkiAdd.toLowerCase()) {
+    } else if (matchesShortcut(settings.hotkeyAnkiAdd)) {
       isAnkiAction = true;
     }
 

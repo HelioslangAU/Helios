@@ -41,9 +41,9 @@ class VideoFeatureManager {
 
     // Initialize all components
     this.videoDetector.start();
-    this.fileLoader.init();
+    await this.fileLoader.init();
     // this.panelController.init(); // Disabled - using YouTube sidebar
-    this.uiController.init();
+    await this.uiController.init();
 
     // Setup integration event listeners
     this._setupIntegrationEvents();

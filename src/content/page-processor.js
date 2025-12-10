@@ -765,8 +765,8 @@ class PageProcessor {
               
               if (event.clientX >= charRect.left && event.clientX <= charRect.right &&
                   event.clientY >= charRect.top && event.clientY <= charRect.bottom) {
-                // Found the clicked character - find longest word from this position
-                const wordResult = this.findLongestWordFromPosition(textNode, i);
+                // Found the clicked character - find longest word from this position using jieba
+                const wordResult = await this.findLongestWord(textNode, i);
                 if (wordResult) return wordResult;
                 
                 // Fall back to single character
@@ -878,8 +878,8 @@ class PageProcessor {
               
               if (x >= charRect.left && x <= charRect.right &&
                   y >= charRect.top && y <= charRect.bottom) {
-                // Found the clicked character - find longest word from this position
-                const wordResult = this.findLongestWordFromPosition(textNode, i);
+                // Found the clicked character - find longest word from this position using jieba
+                const wordResult = await this.findLongestWord(textNode, i);
                 if (wordResult) return wordResult;
                 
                 // Fall back to single character
@@ -913,8 +913,8 @@ class PageProcessor {
           if (x >= rect.left && x <= rect.right &&
               y >= rect.top && y <= rect.bottom) {
 
-            // Try to find longest word starting from this character
-            const wordResult = this.findLongestWordFromPosition(node, i);
+            // Try to find longest word starting from this character using jieba
+            const wordResult = await this.findLongestWord(node, i);
             if (wordResult) return wordResult;
 
             // Fall back to single character
@@ -969,54 +969,53 @@ class PageProcessor {
     return null;
   }
 
-  findLongestWordFromPosition(textNode, startOffset) {
-    const text = textNode.textContent;
-    const adapter = this.languageRegistry.getAdapter();
-    if (!adapter) return null;
-    
-    // Try to find longest word starting from this position
-    for (let len = Math.min(5, text.length - startOffset); len >= 1; len--) {
-      const candidate = text.substring(startOffset, startOffset + len);
-      
-      // Check if all characters are target language characters
-      const allTargetChars = adapter.isTargetCharacter 
-        ? [...candidate].every(c => adapter.isTargetCharacter(c))
-        : true;
-      
-      if (allTargetChars && this.dictionaryManager.dictionary[candidate]) {
-        return { 
-          word: candidate, 
-          textNode, 
-          start: startOffset, 
-          end: startOffset + len 
-        };
-      }
-    }
-    
-    return null;
-  }
-
   async findLongestWord(textNode, startOffset) {
     const text = textNode.textContent;
     const adapter = this.languageRegistry.getAdapter();
     if (!adapter) return null;
 
-    // Use adapter's extractWords method to find all words
-    const words = await adapter.extractWords(text, this.dictionaryManager.dictionary);
-    
-    // Find the word that contains the startOffset position
-    for (const wordData of words) {
-      if (startOffset >= wordData.start && startOffset < wordData.end) {
+    const isCharacterBased = adapter.getScanResolution() === 'char';
+
+    // For character-based languages, find words starting from the position
+    if (isCharacterBased) {
+      // Extract the remaining text from the hovered position
+      const remainingText = text.substring(startOffset);
+      if (remainingText.length === 0) return null;
+      
+      // Use jieba to segment the remaining text to find words starting from this position
+      const words = await adapter.extractWords(remainingText, this.dictionaryManager.dictionary);
+      
+      // Return the first word found (jieba segments in order, so first is the word starting at position)
+      if (words.length > 0) {
         return {
-          word: wordData.word,
+          word: words[0].word,
           textNode,
-          start: wordData.start,
-          end: wordData.end
+          start: startOffset,
+          end: startOffset + words[0].word.length
         };
       }
+      
+      // No word found starting from this position
+      return null;
+    } else {
+      // For non-character-based languages (space-separated), find the word containing the position
+      // This preserves the original behavior for languages with spaces
+      const words = await adapter.extractWords(text, this.dictionaryManager.dictionary);
+      
+      // Find the word that contains the startOffset position
+      for (const wordData of words) {
+        if (startOffset >= wordData.start && startOffset < wordData.end) {
+          return {
+            word: wordData.word,
+            textNode,
+            start: wordData.start,
+            end: wordData.end
+          };
+        }
+      }
+      
+      return null;
     }
-    
-    return null;
   }
 
   getTextNodes(element) {

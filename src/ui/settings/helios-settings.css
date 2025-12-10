@@ -281,9 +281,9 @@ body::before {
 /* Section Cards */
 .section-card {
   background: var(--helios-bg-glass);
-  border-radius: 20px;
-  padding: 32px;
-  margin-bottom: 24px;
+  border-radius: 16px;
+  padding: 20px 24px;
+  margin-bottom: 16px;
   border: 1px solid var(--helios-border);
   backdrop-filter: var(--helios-blur);
   box-shadow: var(--helios-shadow-soft);
@@ -308,21 +308,22 @@ body::before {
 }
 
 .section-title {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 800;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   color: var(--helios-text-primary);
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   letter-spacing: -0.3px;
 }
 
 .section-description {
   color: var(--helios-text-muted);
-  margin-bottom: 24px;
-  line-height: 1.6;
+  margin-bottom: 16px;
+  line-height: 1.5;
   font-weight: 500;
+  font-size: 13px;
 }
 
 /* Form Elements */
@@ -700,6 +701,230 @@ input:checked + .toggle-slider:before {
   margin-top: 12px;
   line-height: 1.6;
   padding: 16px 20px;
+}
+
+/* Shortcuts List Styles */
+.shortcuts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.shortcut-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 14px 18px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 10px;
+  border: 1px solid var(--helios-border);
+  transition: all 0.3s ease;
+}
+
+.shortcut-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--helios-border-hover);
+}
+
+.shortcut-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.shortcut-label .form-label {
+  margin-bottom: 4px;
+  font-weight: 600;
+  color: var(--helios-text-primary);
+  font-size: 14px;
+}
+
+.shortcut-label .help-text {
+  margin-top: 2px;
+  padding: 0;
+  font-size: 11px;
+  color: var(--helios-text-muted);
+  line-height: 1.4;
+}
+
+.shortcut-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 120px;
+}
+
+/* Unified shortcut input styling for all shortcuts */
+.shortcut-input,
+.shortcut-record-input {
+  width: 180px;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 500;
+  text-transform: none;
+  padding: 10px 14px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  user-select: none;
+  color: var(--helios-text-primary);
+  background: var(--helios-bg-secondary);
+  border: 1px solid var(--helios-border);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.shortcut-input[readonly],
+.shortcut-record-input[readonly] {
+  background: var(--helios-bg-secondary);
+  cursor: pointer;
+}
+
+.shortcut-input[readonly]:hover,
+.shortcut-record-input[readonly]:hover {
+  background: var(--helios-bg-tertiary);
+  border-color: var(--helios-border-hover);
+}
+
+.shortcut-input:not([readonly]),
+.shortcut-record-input:not([readonly]) {
+  background: var(--helios-bg-tertiary);
+  border-color: var(--helios-accent-primary);
+  box-shadow: 0 0 0 3px var(--helios-accent-glow);
+}
+
+.shortcut-input:focus,
+.shortcut-record-input:focus {
+  outline: none;
+  border-color: var(--helios-accent-primary);
+  box-shadow: 0 0 0 3px var(--helios-accent-glow);
+}
+
+.shortcut-input.error,
+.shortcut-record-input.error {
+  border-color: var(--helios-anki-error);
+  background: rgba(244, 67, 54, 0.1);
+}
+
+.shortcut-input.error:focus,
+.shortcut-record-input.error:focus {
+  box-shadow: 0 0 0 3px rgba(244, 67, 54, 0.2);
+}
+
+.shortcut-error {
+  display: none;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--helios-anki-error);
+  text-align: right;
+  max-width: 200px;
+}
+
+.shortcuts-info {
+  margin-top: 20px;
+}
+
+.info-box {
+  padding: 16px;
+  background: rgba(255, 107, 71, 0.08);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 107, 71, 0.2);
+}
+
+.info-box strong {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--helios-accent-primary);
+  font-size: 13px;
+}
+
+.info-box ul {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.info-box ul li {
+  padding: 4px 0;
+  padding-left: 18px;
+  position: relative;
+  font-size: 12px;
+  color: var(--helios-text-secondary);
+  line-height: 1.5;
+}
+
+.info-box ul li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: var(--helios-accent-primary);
+  font-weight: bold;
+}
+
+/* Video Shortcuts Styles - Unified with other shortcuts */
+.video-shortcut {
+  /* Removed orange background to match other shortcuts */
+}
+
+.video-shortcut-inputs {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.modifier-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--helios-text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.modifier-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--helios-accent-primary);
+}
+
+.modifier-label span {
+  font-weight: 500;
+}
+
+.video-key-input {
+  width: 60px;
+  margin-left: 4px;
+}
+
+@media (max-width: 768px) {
+  .shortcut-item {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .shortcut-input-wrapper {
+    width: 100%;
+    align-items: flex-start;
+  }
+
+  .shortcut-input,
+  .shortcut-record-input {
+    width: 100%;
+    max-width: 180px;
+  }
+
+  .video-shortcut-inputs {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .shortcut-error {
+    text-align: left;
+  }
+}
   background: rgba(255, 107, 71, 0.05);
   border-radius: 12px;
   border-left: 4px solid var(--helios-accent-primary);

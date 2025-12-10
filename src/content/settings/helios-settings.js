@@ -36,6 +36,32 @@ class HeliosSettingsManager {
       highlightColor: "orange",
       highlightIntensity: "normal",
       hideKnownSites: false,
+      
+      // Keyboard Shortcuts - Unified structure
+      shortcuts: {
+        // Popup shortcuts (single character, no modifiers)
+        popup: {
+          markUnknown: "1",
+          markIgnored: "2",
+          markKnown: "3",
+          ankiAdd: "q"
+        },
+        // Video shortcuts (with modifiers: ctrl, shift, alt, meta)
+        video: {
+          loadSubtitles: { key: "L", ctrl: true, shift: true, alt: false, meta: false },
+          togglePanel: { key: "S", ctrl: true, shift: true, alt: false, meta: false },
+          loadYouTube: { key: "Y", ctrl: true, shift: true, alt: false, meta: false }
+        },
+        // Video navigation shortcuts (single character, no modifiers)
+        videoNavigation: {
+          previous: { key: "A", ctrl: false, shift: false, alt: false, meta: false },
+          next: { key: "D", ctrl: false, shift: false, alt: false, meta: false },
+          restart: { key: "S", ctrl: false, shift: false, alt: false, meta: false },
+          toggle: { key: "W", ctrl: false, shift: false, alt: false, meta: false }
+        }
+      },
+      
+      // Legacy shortcuts (for backward compatibility)
       hotkeyMarkUnknown: "1",
       hotkeyMarkIgnored: "2",
       hotkeyMarkKnown: "3",
@@ -100,7 +126,7 @@ class HeliosSettingsManager {
       let initialTab = 'general';
       try {
         const savedTab = localStorage.getItem('helios-active-settings-tab');
-        if (savedTab && ['general', 'popup', 'anki', 'vocabulary', 'advanced'].includes(savedTab)) {
+        if (savedTab && ['general', 'popup', 'shortcuts', 'anki', 'vocabulary', 'advanced'].includes(savedTab)) {
           initialTab = savedTab;
           console.log("🔍 DEBUG: Restoring saved tab:", initialTab);
         }
@@ -334,6 +360,7 @@ class HeliosSettingsManager {
     const displayNames = {
       general: "General Settings",
       popup: "Popup & Display Settings",
+      shortcuts: "Keyboard Shortcuts",
       anki: "Anki Integration",
       vocabulary: "Vocabulary Management",
       advanced: "Advanced Settings",

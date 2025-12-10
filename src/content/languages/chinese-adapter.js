@@ -11,7 +11,7 @@ class ChineseLanguageAdapter extends BaseLanguageAdapter {
       code: 'zh',
       name: 'Chinese',
       displayName: 'Chinese (中文)',
-      maxWordLength: 5,
+      maxWordLength: 10,
       hasSpaces: false,
       script: 'han',
       direction: 'ltr',
@@ -56,6 +56,7 @@ class ChineseLanguageAdapter extends BaseLanguageAdapter {
             Object.keys(this.jieba._cache_.trie).length > 0) {
           this.jiebaInitialized = true;
           console.log('Jieba initialized successfully');
+          console.log(await this.jieba.cut('不敢出来丢人现眼'));
           // Test jieba after successful initialization
         } else {
           console.warn('Jieba instance created but not fully initialized. Cache:', this.jieba._cache_);

@@ -82,6 +82,12 @@ class HeliosSettingsStorage {
   }
 
   collectTabFormData(tabElement, formData) {
+    // Special handling for shortcuts tab
+    if (tabElement.id === "shortcuts") {
+      this.collectShortcutsData(tabElement, formData);
+      return;
+    }
+
     // Collect all form inputs from the tab
     tabElement
       .querySelectorAll("input, select, textarea")
@@ -108,6 +114,92 @@ class HeliosSettingsStorage {
           console.log(`🔍 Collected ${id}: ${element.value}`);
         }
       });
+  }
+
+  /**
+   * Collect shortcuts data in unified structure
+   */
+  collectShortcutsData(tabElement, formData) {
+    // Initialize shortcuts structure
+    formData.shortcuts = {
+      popup: {},
+      video: {}
+    };
+
+    // Collect popup shortcuts (now use click-to-record format)
+    const popupShortcuts = {
+      "hotkey-mark-unknown": "markUnknown",
+      "hotkey-mark-ignored": "markIgnored",
+      "hotkey-mark-known": "markKnown",
+      "hotkey-anki-add": "ankiAdd"
+    };
+
+    Object.entries(popupShortcuts).forEach(([elementId, shortcutKey]) => {
+      const element = tabElement.querySelector(`#${elementId}`);
+      if (element && element.value) {
+        const parsed = this.parseHotkeyFromDisplay(element.value);
+        if (parsed) {
+          formData.shortcuts.popup[shortcutKey] = parsed;
+          // Also save legacy format for backward compatibility (just the key)
+          formData[`hotkey${shortcutKey.charAt(0).toUpperCase() + shortcutKey.slice(1)}`] = parsed.key || "";
+        }
+      }
+    });
+
+    // Collect video shortcuts (all use click-to-record format)
+    const videoShortcutMap = {
+      "video-load": "loadSubtitles",
+      "video-panel": "togglePanel",
+      "video-youtube": "loadYouTube"
+    };
+
+    Object.entries(videoShortcutMap).forEach(([elementId, shortcutKey]) => {
+      const element = tabElement.querySelector(`#${elementId}`);
+      if (element && element.value) {
+        const parsed = this.parseHotkeyFromDisplay(element.value);
+        if (parsed) {
+          formData.shortcuts.video[shortcutKey] = parsed;
+        }
+      }
+    });
+
+    // Collect video navigation shortcuts
+    formData.shortcuts.videoNavigation = {};
+    const videoNavShortcuts = {
+      "video-nav-previous": "previous",
+      "video-nav-next": "next",
+      "video-nav-restart": "restart",
+      "video-nav-toggle": "toggle"
+    };
+
+    Object.entries(videoNavShortcuts).forEach(([elementId, shortcutKey]) => {
+      const element = tabElement.querySelector(`#${elementId}`);
+      if (element && element.value) {
+        const parsed = this.parseHotkeyFromDisplay(element.value);
+        if (parsed) {
+          formData.shortcuts.videoNavigation[shortcutKey] = parsed;
+        }
+      }
+    });
+
+    console.log("🔍 Collected shortcuts data:", formData.shortcuts);
+  }
+
+  /**
+   * Parse hotkey display string to configuration object
+   * @param {string} displayString - Display string like "Ctrl+Shift+L"
+   * @returns {Object|null} - Hotkey configuration object
+   */
+  parseHotkeyFromDisplay(displayString) {
+    if (!displayString) return null;
+
+    const parts = displayString.split("+").map(p => p.trim());
+    const key = parts[parts.length - 1].toLowerCase();
+    const ctrl = parts.includes("Ctrl");
+    const shift = parts.includes("Shift");
+    const alt = parts.includes("Alt");
+
+    return { key, ctrl, shift, alt, meta: false };
   }
 
   getSettingKey(elementId) {
