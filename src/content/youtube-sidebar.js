@@ -1173,25 +1173,35 @@ class YouTubeSidebar {
   _extractPotentialWords(text) {
     const words = [];
     const currentLang = window.languageRegistry?.getCurrentLanguage();
+    const adapter = window.languageRegistry?.getAdapter();
     
     if (currentLang && ['zh', 'ja', 'ko'].includes(currentLang)) {
-      // For CJK languages, extract unique characters and common sequences (1-3 chars)
+      // For CJK languages, extract unique characters and sequences up to maxWordLength
+      // This ensures longer words (like idioms and chengyus) are preloaded
       const seen = new Set();
+      const maxWordLength = adapter?.getConfig()?.maxWordLength || 10;
       
       // Extract single characters
       for (let i = 0; i < text.length; i++) {
         const char = text[i];
-        if (char.trim() && !seen.has(char)) {
-          words.push(char);
-          seen.add(char);
+        if (adapter?.isTargetCharacter && adapter.isTargetCharacter(char)) {
+          if (!seen.has(char)) {
+            words.push(char);
+            seen.add(char);
+          }
         }
       }
       
-      // Extract 2-3 character sequences (most common word lengths)
-      for (let len = 2; len <= 3; len++) {
+      // Extract sequences from 2 to maxWordLength characters
+      // This ensures longer words (4+ characters like idioms/chengyus) are preloaded
+      for (let len = 2; len <= maxWordLength; len++) {
         for (let i = 0; i <= text.length - len; i++) {
           const candidate = text.substring(i, i + len);
-          if (candidate.trim() && !seen.has(candidate)) {
+          // Only include sequences that are all target language characters
+          if (adapter?.isTargetCharacter && 
+              [...candidate].every(c => adapter.isTargetCharacter(c)) &&
+              candidate.trim() && 
+              !seen.has(candidate)) {
             words.push(candidate);
             seen.add(candidate);
           }
