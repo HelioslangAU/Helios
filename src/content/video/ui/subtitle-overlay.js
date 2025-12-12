@@ -553,14 +553,12 @@ class SubtitleOverlay {
       const seen = new Set();
       const maxWordLength = adapter?.getConfig()?.maxWordLength || 10;
       
-      // Extract single characters
+      // Extract single characters (keep everything from subtitles except whitespace)
       for (let i = 0; i < text.length; i++) {
         const char = text[i];
-        if (adapter?.isTargetCharacter && adapter.isTargetCharacter(char)) {
-          if (!seen.has(char)) {
-            words.push(char);
-            seen.add(char);
-          }
+        if (char.trim() && !seen.has(char)) {
+          words.push(char);
+          seen.add(char);
         }
       }
       
@@ -569,11 +567,8 @@ class SubtitleOverlay {
       for (let len = 2; len <= maxWordLength; len++) {
         for (let i = 0; i <= text.length - len; i++) {
           const candidate = text.substring(i, i + len);
-          // Only include sequences that are all target language characters
-          if (adapter?.isTargetCharacter && 
-              [...candidate].every(c => adapter.isTargetCharacter(c)) &&
-              candidate.trim() && 
-              !seen.has(candidate)) {
+          // Keep sequences as they appear in subtitles (skip only whitespace and duplicates)
+          if (candidate.trim() && !seen.has(candidate)) {
             words.push(candidate);
             seen.add(candidate);
           }

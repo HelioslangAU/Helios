@@ -164,7 +164,15 @@ class ChineseLanguageAdapter extends BaseLanguageAdapter {
               
               chunkPos += segment.length;
             }
-          } 
+          } else if (!chunk.isTargetLang && chunk.text.length > 0) {
+            // Preserve non-target text (e.g., English, numbers, punctuation)
+            words.push({
+              word: chunk.text,
+              start: chunk.start,
+              end: chunk.start + chunk.text.length,
+              isTargetLang: false
+            });
+          }
         }
         // if (words.length != 0) {
         //   console.log('Jieba words:', words);
