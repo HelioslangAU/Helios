@@ -294,6 +294,18 @@ class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
                 partOfSpeech: baseEntry.partOfSpeech || '',
                 grammar: baseEntry.grammar || ''
               }));
+              
+              // Add this non-lemma word to the base/lemma entry's variations list
+              for (const baseEntry of foundBaseEntries) {
+                // Initialize variations array if it doesn't exist
+                if (!baseEntry.variations) {
+                  baseEntry.variations = [];
+                }
+                // Add the non-lemma word if it's not already in the variations list
+                if (!baseEntry.variations.includes(word)) {
+                  baseEntry.variations.push(word);
+                }
+              }
             }
           }
         }
