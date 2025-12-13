@@ -89,19 +89,36 @@ class PopupContentBuilder {
     // Frequency box
     if (frequency && showFrequency) {
       const formattedFreq = frequency.toLocaleString();
-      boxes.push(`<span class="info-box info-box-frequency">${formattedFreq}</span>`);
+      boxes.push(`<span class="info-box info-box-frequency" title="frequency">${formattedFreq}</span>`);
     }
     
     // Part of Speech box
     if (entry.partOfSpeech && entry.partOfSpeech.trim()) {
-      boxes.push(`<span class="info-box info-box-pos">${entry.partOfSpeech.trim()}</span>`);
+      const pos = entry.partOfSpeech.trim();
+      // Expand common abbreviations for tooltip
+      const posExpansions = {
+        'n': 'noun',
+        'v': 'verb',
+        'adj': 'adjective',
+        'adv': 'adverb',
+        'pron': 'pronoun',
+        'prep': 'preposition',
+        'conj': 'conjunction',
+        'interj': 'interjection',
+        'art': 'article',
+        'num': 'numeral'
+      };
+      const posTooltip = posExpansions[pos.toLowerCase()] || pos;
+      boxes.push(`<span class="info-box info-box-pos" title="${posTooltip}">${pos}</span>`);
     }
     
     // Gender box (only for gendered languages)
     if (languageCode && this.languageUsesGender(languageCode)) {
       const gender = this.extractGender(entry.grammar);
       if (gender) {
-        boxes.push(`<span class="info-box info-box-gender-${gender}">${gender === 'masc' ? 'm' : gender === 'fem' ? 'f' : 'n'}</span>`);
+        const genderLabel = gender === 'masc' ? 'masculine' : gender === 'fem' ? 'feminine' : 'neutral';
+        const genderSymbol = gender === 'masc' ? 'm' : gender === 'fem' ? 'f' : 'n';
+        boxes.push(`<span class="info-box info-box-gender-${gender}" title="${genderLabel}">${genderSymbol}</span>`);
       }
     }
     
@@ -109,7 +126,7 @@ class PopupContentBuilder {
     if (entry.variations && Array.isArray(entry.variations) && entry.variations.length > 0) {
       const lemma = entry.variations[0];
       if (lemma) {
-        boxes.push(`<span class="info-box info-box-lemma">${lemma}</span>`);
+        boxes.push(`<span class="info-box info-box-lemma" title="lemma">${lemma}</span>`);
       }
     }
     
