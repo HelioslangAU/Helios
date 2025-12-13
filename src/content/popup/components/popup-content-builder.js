@@ -73,6 +73,18 @@ class PopupContentBuilder {
   }
 
   /**
+   * Check if entry is a non-lemma word based on grammar field
+   * @param {Object} entry - Dictionary entry
+   * @returns {boolean} - True if entry is non-lemma
+   */
+  static isNonLemma(entry) {
+    if (!entry || !entry.grammar || typeof entry.grammar !== 'string') return false;
+    
+    const grammarLower = entry.grammar.toLowerCase().trim();
+    return grammarLower === 'non-lemma' || grammarLower.includes('non-lemma');
+  }
+
+  /**
    * Create info boxes for extra information
    * @param {Object} entry - Dictionary entry
    * @param {number|null} frequency - Word frequency
@@ -122,8 +134,8 @@ class PopupContentBuilder {
       }
     }
     
-    // Lemma box (for non-lemma entries)
-    if (entry.variations && Array.isArray(entry.variations) && entry.variations.length > 0) {
+    // Lemma box (only for non-lemma entries as indicated in grammar)
+    if (this.isNonLemma(entry) && entry.variations && Array.isArray(entry.variations) && entry.variations.length > 0) {
       const lemma = entry.variations[0];
       if (lemma) {
         boxes.push(`<span class="info-box info-box-lemma" title="lemma">${lemma}</span>`);
