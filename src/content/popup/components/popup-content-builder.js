@@ -34,6 +34,91 @@ class PopupContentBuilder {
     return `FREQUENCY: ${frequency.toLocaleString()}`;
   }
 
+  /**
+   * Extract gender from grammar field
+   * @param {string} grammar - Grammar field content
+   * @returns {string|null} - 'masc', 'fem', 'neut', or null
+   */
+  static extractGender(grammar) {
+    if (!grammar || typeof grammar !== 'string') return null;
+    
+    const grammarLower = grammar.toLowerCase().trim();
+    
+    // Check for masculine patterns
+    if (/\b(m|masc|masculine)\b/.test(grammarLower)) {
+      return 'masc';
+    }
+    
+    // Check for feminine patterns
+    if (/\b(f|fem|feminine)\b/.test(grammarLower)) {
+      return 'fem';
+    }
+    
+    // Check for neutral patterns
+    if (/\b(n|neut|neutral)\b/.test(grammarLower)) {
+      return 'neut';
+    }
+    
+    return null;
+  }
+
+  /**
+   * Check if language uses gender
+   * @param {string} languageCode - Language code
+   * @returns {boolean} - True if language uses gender
+   */
+  static languageUsesGender(languageCode) {
+    const genderedLanguages = ['fr', 'es', 'it', 'pt', 'de', 'ru'];
+    return genderedLanguages.includes(languageCode);
+  }
+
+  /**
+   * Create info boxes for extra information
+   * @param {Object} entry - Dictionary entry
+   * @param {number|null} frequency - Word frequency
+   * @param {Object} settings - Settings object
+   * @param {string|null} languageCode - Language code
+   * @returns {string} - HTML string for info boxes
+   */
+  static createInfoBoxes(entry, frequency, settings = {}, languageCode = null) {
+    if (!entry) return '';
+    
+    const boxes = [];
+    const showFrequency = settings.showFrequency !== false;
+    
+    // Frequency box
+    if (frequency && showFrequency) {
+      const formattedFreq = frequency.toLocaleString();
+      boxes.push(`<span class="info-box info-box-frequency">${formattedFreq}</span>`);
+    }
+    
+    // Part of Speech box
+    if (entry.partOfSpeech && entry.partOfSpeech.trim()) {
+      boxes.push(`<span class="info-box info-box-pos">${entry.partOfSpeech.trim()}</span>`);
+    }
+    
+    // Gender box (only for gendered languages)
+    if (languageCode && this.languageUsesGender(languageCode)) {
+      const gender = this.extractGender(entry.grammar);
+      if (gender) {
+        boxes.push(`<span class="info-box info-box-gender-${gender}">${gender === 'masc' ? 'm' : gender === 'fem' ? 'f' : 'n'}</span>`);
+      }
+    }
+    
+    // Lemma box (for non-lemma entries)
+    if (entry.variations && Array.isArray(entry.variations) && entry.variations.length > 0) {
+      const lemma = entry.variations[0];
+      if (lemma) {
+        boxes.push(`<span class="info-box info-box-lemma">${lemma}</span>`);
+      }
+    }
+    
+    // Return container with boxes if any exist
+    if (boxes.length === 0) return '';
+    
+    return `<div class="info-boxes-container">${boxes.join('')}</div>`;
+  }
+
   static createBasicContent(character, dictionaryData, vocabManager, frequencyManager, settings = {}, languageCode = null, dictionary = null) {
     const { matches, isKnown, isIgnored, frequency } = dictionaryData;
     const lengthClass = this.getWordLengthClass(character);
@@ -56,17 +141,18 @@ class PopupContentBuilder {
     }
 
     const pinyin = safeMatches[0].pinyin;
+    const firstEntry = safeMatches[0];
     const definitionsHtml = this.createDefinitionsHtml(safeMatches, dictionary);
     const pronunciationBtn = this.createPronunciationButton(character, pinyin);
-    const showFrequency = settings.showFrequency !== false;
+    const infoBoxes = this.createInfoBoxes(firstEntry, frequency, settings, languageCode);
 
     return `
       <div class="popup-content">
         <div class="character-container">
           <div class="character highlight ${combinedClasses}">${pinyin ? `<ruby>${character}<rt>${pinyin}</rt></ruby>` : character}</div>
           ${pronunciationBtn}
-          ${formattedFrequency && showFrequency ? `<div class="frequency">${formattedFrequency}</div>` : ""}
         </div>
+        ${infoBoxes}
         <div class="definitions-scroll">${definitionsHtml}</div>
         <div class="popup-buttons">
           ${this.createMarkButton(isKnown, isIgnored)}
@@ -81,21 +167,21 @@ class PopupContentBuilder {
     // Use card's pinyin if available (may be empty string), otherwise fall back to first entry's pinyin
     // This ensures each card shows its own pinyin corresponding to its entries
     const pinyin = (cardPinyin !== undefined && cardPinyin !== null) ? cardPinyin : (entries && entries.length > 0 ? entries[0].pinyin : null);
+    const firstEntry = entries && entries.length > 0 ? entries[0] : null;
     const lengthClass = this.getWordLengthClass(displayCharacter);
     const languageClass = languageCode ? this.getLanguageClass(languageCode) : '';
     const combinedClasses = `${lengthClass} ${languageClass}`.trim();
-    const formattedFrequency = this.formatFrequency(frequency);
     const definitionsHtml = this.createDefinitionsHtml(entries, dictionary);
     const pronunciationBtn = this.createPronunciationButton(displayCharacter, pinyin);
-    const showFrequency = settings.showFrequency !== false;
+    const infoBoxes = this.createInfoBoxes(firstEntry, frequency, settings, languageCode);
 
     return `
       <div class="popup-content">
         <div class="character-container">
           <div class="character highlight ${combinedClasses}">${pinyin ? `<ruby>${displayCharacter}<rt>${pinyin}</rt></ruby>` : displayCharacter}</div>
           ${pronunciationBtn}
-          ${formattedFrequency && showFrequency ? `<div class="frequency">${formattedFrequency}</div>` : ""}
         </div>
+        ${infoBoxes}
         <div class="definitions-scroll">${definitionsHtml}</div>
         <div class="popup-buttons">
           <button class="${this.getMarkButtonClass(isKnown, isIgnored)}" data-card-id="${displayCharacter}-${pinyin}">
@@ -112,20 +198,20 @@ class PopupContentBuilder {
     // Use card's pinyin if available (may be empty string), otherwise fall back to first entry's pinyin
     // This ensures each card shows its own pinyin corresponding to its entries
     const pinyin = (cardPinyin !== undefined && cardPinyin !== null) ? cardPinyin : (entries && entries.length > 0 ? entries[0].pinyin : null);
+    const firstEntry = entries && entries.length > 0 ? entries[0] : null;
     const lengthClass = this.getWordLengthClass(displayCharacter);
     const languageClass = languageCode ? this.getLanguageClass(languageCode) : '';
     const combinedClasses = `${lengthClass} ${languageClass}`.trim();
-    const formattedFrequency = this.formatFrequency(frequency);
     const definitionsHtml = this.createDefinitionsHtml(entries, dictionary);
     const pronunciationBtn = this.createPronunciationButton(displayCharacter, pinyin, pinyin);
-    const showFrequency = settings.showFrequency !== false;
+    const infoBoxes = this.createInfoBoxes(firstEntry, frequency, settings, languageCode);
 
     return `
       <div class="character-container">
         <div class="character highlight ${combinedClasses}">${pinyin ? `<ruby>${displayCharacter}<rt>${pinyin}</rt></ruby>` : displayCharacter}</div>
         ${pronunciationBtn}
-        ${formattedFrequency && showFrequency ? `<div class="frequency">${formattedFrequency}</div>` : ""}
       </div>
+      ${infoBoxes}
       <div class="definitions-scroll">${definitionsHtml}</div>
       <div class="popup-buttons">
         <button class="${this.getMarkButtonClass(isKnown, isIgnored)}" data-card-id="${displayCharacter}-${pinyin}">

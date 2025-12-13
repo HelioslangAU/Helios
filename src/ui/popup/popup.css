@@ -111,7 +111,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 18px;
+  margin-bottom: 6px;
   max-height: 80px;
   overflow: visible;
   width: 100%;
@@ -252,6 +252,71 @@
   letter-spacing: 0.5px;
   display: inline-block;
   width: fit-content;
+}
+
+/* Info Boxes Container - Modular Information Tags */
+.info-boxes-container {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+  margin-top: 0px;
+  align-items: center;
+}
+
+/* Base Info Box Style - Compact Tag/Chip */
+.info-box {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  border: 0.5px solid;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+/* Frequency Info Box - Orange Accent */
+.info-box-frequency {
+  background: rgba(255, 140, 71, 0.15);
+  border-color: rgba(255, 140, 71, 0.3);
+  color: #ff8c47;
+}
+
+/* Part of Speech Info Box - Neutral */
+.info-box-pos {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: var(--popup-text-secondary);
+}
+
+/* Gender Info Boxes - Color Coded */
+.info-box-gender-masc {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #60a5fa;
+}
+
+.info-box-gender-fem {
+  background: rgba(236, 72, 153, 0.15);
+  border-color: rgba(236, 72, 153, 0.3);
+  color: #f472b6;
+}
+
+.info-box-gender-neut {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: var(--popup-text-muted);
+}
+
+/* Lemma Info Box - Reference Style */
+.info-box-lemma {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--popup-text-secondary);
+  font-style: italic;
 }
 
 /* Definitions Scroll - Orange Glass Scrollbar */
