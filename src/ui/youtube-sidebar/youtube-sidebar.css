@@ -15,13 +15,13 @@
   --helios-shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.3);
 }
 
-/* Main Container */
+/* Main Container - positioned within the theater container */
 .helios-youtube-sidebar {
   position: absolute !important;
   top: 0 !important;
-  right: -420px !important; /* Position in the margin area created by page-manager */
+  right: 0 !important; /* Positioned at the right edge of ytd-watch-flexy */
   width: 420px !important;
-  height: 600px !important; /* Default, will be dynamically adjusted */
+  height: 600px !important; /* Default, will be dynamically adjusted to match video player */
   background: var(--helios-bg-primary);
   display: flex;
   flex-direction: column;
@@ -32,6 +32,7 @@
   overflow: hidden;
 }
 
+/* Hidden state - slide off to the right */
 .helios-youtube-sidebar.hidden {
   transform: translateX(100%);
 }
@@ -391,78 +392,44 @@
   color: #ff6666;
 }
 
-/* Video Container Adjustments - ALWAYS push content, NEVER cover */
-/* Use multiple selectors for maximum compatibility with YouTube's dynamic updates */
+/* ============================================================================
+   VIDEO CONTAINER ADJUSTMENTS - PUSH VIDEO LEFT APPROACH
+   ============================================================================
 
-/* Primary page manager adjustment */
-#page-manager.helios-sidebar-active {
-  margin-right: 420px !important;
-  transition: margin-right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative !important; /* Required for absolute positioning of sidebar */
-}
+   Strategy:
+   - Force theater mode when sidebar is active
+   - PUSH video player left by 420px (maintain resolution)
+   - Sidebar fills the space on the right
+   - Video maintains its size/resolution, just repositioned
 
-#page-manager.helios-sidebar-active.helios-sidebar-hidden {
-  margin-right: 0 !important;
-}
+   Key approach:
+   - Use margin-left: -420px to push video player left
+   - Video stays same size, just shifted to fit sidebar
+   ============================================================================ */
 
-/* Theater mode adjustments - stronger specificity */
-ytd-watch-flexy[theater] #page-manager.helios-sidebar-active {
-  margin-right: 420px !important;
+/* Main layout state - applied to body when sidebar is active */
+body.helios-sidebar-active ytd-watch-flexy[theater] {
   position: relative !important;
 }
 
-ytd-watch-flexy[theater] #page-manager.helios-sidebar-active.helios-sidebar-hidden {
-  margin-right: 0 !important;
+/* Constrain the full bleed container to make space for sidebar */
+body.helios-sidebar-active ytd-watch-flexy[theater] #full-bleed-container {
+  max-width: calc(100% - 420px) !important;
+  margin-left: 0 !important;
+  margin-right: auto !important;
+  transition: max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Fullscreen mode adjustments */
-ytd-watch-flexy[fullscreen] #page-manager.helios-sidebar-active {
-  margin-right: 420px !important;
-  position: relative !important;
+/* Also constrain the player theater container */
+body.helios-sidebar-active ytd-watch-flexy[theater] #player-theater-container {
+  max-width: calc(100vw - 420px) !important;
+  width: calc(100vw - 420px) !important;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Double-enforce with body selector for maximum priority */
-body #page-manager.helios-sidebar-active {
-  margin-right: 420px !important;
-  position: relative !important;
-}
-
-body ytd-watch-flexy[theater] #page-manager.helios-sidebar-active {
-  margin-right: 420px !important;
-  position: relative !important;
-}
-
-/* Force adjust all content containers */
-#page-manager.helios-sidebar-active #primary {
-  max-width: 100% !important;
-  width: 100% !important;
-}
-
-#page-manager.helios-sidebar-active #secondary {
-  max-width: 100% !important;
-  width: 100% !important;
-}
-
-/* Adjust ytd-watch-flexy element */
-#page-manager.helios-sidebar-active ytd-watch-flexy {
-  max-width: 100% !important;
-  width: 100% !important;
-}
-
-/* Adjust player containers */
-#page-manager.helios-sidebar-active #player-container-outer,
-#page-manager.helios-sidebar-active #player-container,
-#page-manager.helios-sidebar-active #player {
-  max-width: 100% !important;
-  width: 100% !important;
-}
-
-/* Ensure video player resizes correctly */
-#page-manager.helios-sidebar-active .html5-video-player,
-#page-manager.helios-sidebar-active .html5-video-container,
-#page-manager.helios-sidebar-active video {
-  max-width: 100% !important;
-  width: 100% !important;
+/* Hide the default view/theater mode button when sidebar is active */
+body.helios-sidebar-active ytd-watch-flexy[theater] .ytp-size-button {
+  display: none !important;
 }
 
 /* Animations */
@@ -487,45 +454,20 @@ body ytd-watch-flexy[theater] #page-manager.helios-sidebar-active {
 .yt-subtitle-item:nth-child(4) { animation-delay: 0.14s; }
 .yt-subtitle-item:nth-child(5) { animation-delay: 0.17s; }
 
-/* Responsive */
+/* Responsive adjustments for smaller screens */
 @media (max-width: 1280px) {
   .helios-youtube-sidebar {
-    width: 380px;
+    width: 380px !important;
   }
 
-  #page-manager.helios-sidebar-active {
-    margin-right: 380px !important;
-    position: relative !important;
+  body.helios-sidebar-active ytd-watch-flexy[theater] #full-bleed-container {
+    max-width: calc(100% - 380px) !important;
   }
 
-  ytd-watch-flexy[theater] #page-manager.helios-sidebar-active {
-    margin-right: 380px !important;
-    position: relative !important;
+  body.helios-sidebar-active ytd-watch-flexy[theater] #player-theater-container {
+    max-width: calc(100vw - 380px) !important;
+    width: calc(100vw - 380px) !important;
   }
-}
-
-/* Additional body-level adjustments using :has() for browsers that support it */
-/* This provides an extra layer of enforcement */
-body:has(.helios-youtube-sidebar:not(.hidden)) #page-manager {
-  margin-right: 420px !important;
-  position: relative !important;
-}
-
-body:has(.helios-youtube-sidebar:not(.hidden)) ytd-watch-flexy[theater] #page-manager {
-  margin-right: 420px !important;
-  position: relative !important;
-}
-
-/* Fallback: Force margin using attribute selector directly on html */
-html:has(.helios-youtube-sidebar:not(.hidden)) #page-manager {
-  margin-right: 420px !important;
-  position: relative !important;
-}
-
-/* Nuclear option: Apply to all watch pages when sidebar exists */
-ytd-app:has(.helios-youtube-sidebar:not(.hidden)) #page-manager {
-  margin-right: 420px !important;
-  position: relative !important;
 }
 
 /* Settings Styles */

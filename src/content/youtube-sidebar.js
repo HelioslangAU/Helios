@@ -1,6 +1,11 @@
 /**
  * Helios YouTube Sidebar Controller
  * Manages the YouTube-specific sidebar with subtitle list
+ *
+ * Refactored to use modular architecture:
+ * - TheaterModeController: Manages theater mode state (loaded via manifest.json)
+ * - YouTubeLayoutManager: Handles page layout modifications (loaded via manifest.json)
+ * - SidebarPositioner: Manages sidebar positioning and synchronization (loaded via manifest.json)
  */
 class YouTubeSidebar {
   constructor() {
@@ -11,10 +16,12 @@ class YouTubeSidebar {
     this.videoBinding = null;
     this.isVisible = false;
     this.activeIndex = -1;
-    this.layoutObserver = null; // Observer to maintain layout during YouTube navigation
     this.currentSecondarySubtitles = []; // Store secondary subtitles for sidebar display
-    this.resizeObserver = null; // Observer to sync sidebar height with video player
-    this.resizeHandler = null; // Window resize handler for cleanup
+
+    // Modular components (NEW!)
+    this.theaterModeController = new TheaterModeController();
+    this.layoutManager = new YouTubeLayoutManager();
+    this.sidebarPositioner = null; // Created after sidebar element exists
 
     // Scroll detection for preventing auto-scroll during user interaction
     this.userIsScrollingPage = false; // Flag to track if user is scrolling the main page
@@ -76,13 +83,13 @@ class YouTubeSidebar {
     this._setupEventListeners();
     this._setupNavigationListener();
 
+    // Set up theater mode change observer
+    this.theaterModeController.observeTheaterModeChanges();
+
     // Only show sidebar and adjust layout if on watch page
     if (this.isWatchPage()) {
-      this._enableTheaterMode();
-      this._adjustVideoLayout();
-      this.show();
-      // Sync sidebar height with video player
-      setTimeout(() => this._syncSidebarToVideoHeight(), 500);
+      // Show sidebar (this will force theater mode and activate layout)
+      await this.show();
     } else {
       this.hide();
     }
@@ -106,11 +113,16 @@ class YouTubeSidebar {
       link.href = chrome.runtime.getURL('src/ui/youtube-sidebar/youtube-sidebar.css');
       document.head.appendChild(link);
 
-      // Wait for page-manager and inject sidebar into it
+      // Wait for ytd-watch-flexy and inject sidebar into it
+      // This way the sidebar is positioned within the theater container
       const injectSidebar = () => {
-        const pageManager = document.querySelector('#page-manager');
-        if (pageManager) {
-          pageManager.appendChild(this.sidebar);
+        const watchFlexy = document.querySelector('ytd-watch-flexy');
+        if (watchFlexy) {
+          watchFlexy.appendChild(this.sidebar);
+          console.log('[Helios YouTube Sidebar] Injected into ytd-watch-flexy');
+
+          // Initialize sidebar positioner now that sidebar element exists
+          this.sidebarPositioner = new SidebarPositioner(this.sidebar, this.layoutManager);
         } else {
           setTimeout(injectSidebar, 100);
         }
@@ -230,12 +242,9 @@ class YouTubeSidebar {
 
         // Show sidebar only on watch pages
         if (this.isWatchPage()) {
-          this.show();
-          // Re-enable theater mode and adjust layout when navigating to watch page
-          setTimeout(() => {
-            this._enableTheaterMode();
-            this._adjustVideoLayout();
-            this._syncSidebarToVideoHeight();
+          // Show sidebar (will force theater mode automatically)
+          setTimeout(async () => {
+            await this.show();
           }, 100);
         } else {
           this.hide();
@@ -341,71 +350,8 @@ class YouTubeSidebar {
    * Sync sidebar height and position to match video player
    * Makes the sidebar feel integrated into YouTube instead of an overlay
    */
-  _syncSidebarToVideoHeight() {
-    if (!this.sidebar) return;
-
-    const syncHeight = () => {
-      // Find the video player container and page-manager
-      const videoPlayer = document.querySelector('.html5-video-player');
-      const pageManager = document.querySelector('#page-manager');
-
-      // Try different containers in order of preference
-      const ytdWatchFlexy = document.querySelector('ytd-watch-flexy');
-      const playerContainer = document.querySelector('#player-container');
-      const playerContainerOuter = document.querySelector('#player-container-outer');
-
-      if (!videoPlayer || !pageManager) {
-        // Retry after a short delay if not found
-        setTimeout(syncHeight, 100);
-        return;
-      }
-
-      const playerRect = videoPlayer.getBoundingClientRect();
-
-      // Set sidebar height to match video player height EXACTLY
-      this.sidebar.style.setProperty('height', `${playerRect.height}px`, 'important');
-
-      // Calculate position using getBoundingClientRect (actual visual position)
-      // Since sidebar is absolutely positioned within page-manager, we need the
-      // visual offset of the video relative to page-manager
-      const pageManagerRect = pageManager.getBoundingClientRect();
-      const topRelativeToPageManager = playerRect.top - pageManagerRect.top;
-
-      this.sidebar.style.setProperty('top', `${topRelativeToPageManager}px`, 'important');
-
-      console.log(`[Helios YouTube Sidebar] Sync complete - Height: ${playerRect.height}px, Top: ${topRelativeToPageManager}px, Video top: ${playerRect.top}px, PageManager top: ${pageManagerRect.top}px`);
-    };
-
-    // Initial sync
-    syncHeight();
-
-    // Setup ResizeObserver to keep sidebar synced when video player resizes
-    if (this.resizeObserver) {
-      this.resizeObserver.disconnect();
-    }
-
-    const videoPlayer = document.querySelector('.html5-video-player');
-    if (videoPlayer) {
-      this.resizeObserver = new ResizeObserver(() => {
-        syncHeight();
-      });
-
-      this.resizeObserver.observe(videoPlayer);
-
-      // Also observe the player container for theater mode changes
-      const playerContainer = document.querySelector('#player-container');
-      if (playerContainer) {
-        this.resizeObserver.observe(playerContainer);
-      }
-    }
-
-    // Only sync on window resize, NOT on scroll
-    const resizeHandler = () => syncHeight();
-    window.addEventListener('resize', resizeHandler);
-
-    // Store handler for cleanup
-    this.resizeHandler = resizeHandler;
-  }
+  // OLD METHOD REMOVED: _syncSidebarToVideoHeight()
+  // Now handled by SidebarPositioner.start()
 
   /**
    * Setup keyboard hotkeys (Migaku-style)
@@ -918,80 +864,12 @@ class YouTubeSidebar {
   }
 
   /**
-   * Enable YouTube theater mode
+   * OLD METHODS REMOVED - Now handled by modular components:
+   * - _enableTheaterMode() -> TheaterModeController.enable()
+   * - _adjustVideoLayout() -> YouTubeLayoutManager.activate()
+   * - _setupLayoutObserver() -> YouTubeLayoutManager (internal)
+   * - _syncSidebarToVideoHeight() -> SidebarPositioner.start()
    */
-  _enableTheaterMode() {
-    // Wait for YouTube to be ready
-    setTimeout(() => {
-      const ytdWatchFlexy = document.querySelector('ytd-watch-flexy');
-      if (ytdWatchFlexy && !ytdWatchFlexy.hasAttribute('theater')) {
-        // Click the theater mode button
-        const theaterButton = document.querySelector('button.ytp-size-button');
-        if (theaterButton) {
-          theaterButton.click();
-          console.log('[Helios YouTube Sidebar] Enabled theater mode');
-        }
-      }
-    }, 1000);
-  }
-
-  /**
-   * Adjust video layout to accommodate sidebar
-   * CRITICAL: Always push video, never cover it
-   */
-  _adjustVideoLayout() {
-    // Wait for page-manager to exist (YouTube uses dynamic loading)
-    const checkAndAdjust = () => {
-      const pageManager = document.querySelector('#page-manager');
-      if (pageManager) {
-        pageManager.classList.add('helios-sidebar-active');
-        pageManager.classList.remove('helios-sidebar-hidden');
-
-        // Also directly set the margin and position to ensure it applies
-        pageManager.style.marginRight = '420px';
-        pageManager.style.position = 'relative';
-        pageManager.style.transition = 'margin-right 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
-
-        console.log('[Helios YouTube Sidebar] Video layout adjusted - sidebar will push video');
-
-        // Setup observer to re-enforce layout on YouTube SPA navigation
-        this._setupLayoutObserver(pageManager);
-      } else {
-        // Retry after a short delay
-        setTimeout(checkAndAdjust, 100);
-      }
-    };
-    checkAndAdjust();
-  }
-
-  /**
-   * Setup MutationObserver to maintain layout during YouTube navigation
-   */
-  _setupLayoutObserver(pageManager) {
-    if (this.layoutObserver) return; // Already setup
-
-    this.layoutObserver = new MutationObserver(() => {
-      // Re-enforce classes and styles when YouTube modifies the DOM
-      if (this.isVisible && !pageManager.classList.contains('helios-sidebar-active')) {
-        pageManager.classList.add('helios-sidebar-active');
-        pageManager.classList.remove('helios-sidebar-hidden');
-        pageManager.style.marginRight = '420px';
-        pageManager.style.position = 'relative';
-        console.log('[Helios YouTube Sidebar] Layout re-enforced after DOM change');
-      }
-    });
-
-    // Observe the entire ytd-app for changes (catches SPA navigation)
-    const ytdApp = document.querySelector('ytd-app');
-    if (ytdApp) {
-      this.layoutObserver.observe(ytdApp, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ['class']
-      });
-    }
-  }
 
   /**
    * Update subtitles in sidebar
@@ -1653,42 +1531,52 @@ class YouTubeSidebar {
 
   /**
    * Show sidebar
+   * Uses the new modular architecture to cleanly handle layout and positioning
+   * IMPORTANT: Forces theater mode before showing sidebar
    */
-  show() {
-    if (this.sidebar) {
-      this.sidebar.classList.remove('hidden');
-      this.isVisible = true;
+  async show() {
+    if (!this.sidebar) return;
 
-      // Adjust video layout
-      const pageManager = document.querySelector('#page-manager');
-      if (pageManager) {
-        pageManager.classList.add('helios-sidebar-active');
-        pageManager.classList.remove('helios-sidebar-hidden');
-        pageManager.style.marginRight = '420px';
-        pageManager.style.position = 'relative';
-      }
+    console.log('[Helios YouTube Sidebar] Showing sidebar');
 
-      // Sync sidebar height with video player
-      setTimeout(() => this._syncSidebarToVideoHeight(), 100);
+    // CRITICAL: Force theater mode FIRST (sidebar only works in theater mode)
+    const theaterEnabled = await this.theaterModeController.enable();
+    if (!theaterEnabled) {
+      console.warn('[Helios YouTube Sidebar] Failed to enable theater mode, sidebar may not display correctly');
+    }
+
+    // Remove hidden class from sidebar
+    this.sidebar.classList.remove('hidden');
+    this.isVisible = true;
+
+    // Activate layout manager (pushes video left to make room for sidebar)
+    this.layoutManager.activate();
+
+    // Start sidebar positioner (syncs height and position with video player)
+    if (this.sidebarPositioner) {
+      this.sidebarPositioner.start();
     }
   }
 
   /**
    * Hide sidebar
+   * Properly cleans up all layout modifications and returns to normal theater mode
    */
   hide() {
-    if (this.sidebar) {
-      this.sidebar.classList.add('hidden');
-      this.isVisible = false;
+    if (!this.sidebar) return;
 
-      // Remove video layout adjustment
-      const pageManager = document.querySelector('#page-manager');
-      if (pageManager) {
-        pageManager.classList.remove('helios-sidebar-active');
-        pageManager.classList.remove('helios-sidebar-hidden');
-        pageManager.style.marginRight = '0';
-        pageManager.style.position = '';
-      }
+    console.log('[Helios YouTube Sidebar] Hiding sidebar');
+
+    // Add hidden class to sidebar
+    this.sidebar.classList.add('hidden');
+    this.isVisible = false;
+
+    // Deactivate layout manager (restores normal theater mode)
+    this.layoutManager.deactivate();
+
+    // Stop sidebar positioner
+    if (this.sidebarPositioner) {
+      this.sidebarPositioner.stop();
     }
   }
 
