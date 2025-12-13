@@ -34,7 +34,7 @@ class PopupContentBuilder {
     return `FREQUENCY: ${frequency.toLocaleString()}`;
   }
 
-  static createBasicContent(character, dictionaryData, vocabManager, frequencyManager, settings = {}, languageCode = null) {
+  static createBasicContent(character, dictionaryData, vocabManager, frequencyManager, settings = {}, languageCode = null, dictionary = null) {
     const { matches, isKnown, isIgnored, frequency } = dictionaryData;
     const lengthClass = this.getWordLengthClass(character);
     const languageClass = languageCode ? this.getLanguageClass(languageCode) : '';
@@ -56,7 +56,7 @@ class PopupContentBuilder {
     }
 
     const pinyin = safeMatches[0].pinyin;
-    const definitionsHtml = this.createDefinitionsHtml(safeMatches);
+    const definitionsHtml = this.createDefinitionsHtml(safeMatches, dictionary);
     const pronunciationBtn = this.createPronunciationButton(character, pinyin);
     const showFrequency = settings.showFrequency !== false;
 
@@ -76,7 +76,7 @@ class PopupContentBuilder {
     `;
   }
 
-  static createCardContent(displayCharacter, card, isKnown, isIgnored, frequency, settings = {}, languageCode = null) {
+  static createCardContent(displayCharacter, card, isKnown, isIgnored, frequency, settings = {}, languageCode = null, dictionary = null) {
     const { pinyin: cardPinyin, entries } = card;
     // Use card's pinyin if available (may be empty string), otherwise fall back to first entry's pinyin
     // This ensures each card shows its own pinyin corresponding to its entries
@@ -85,7 +85,7 @@ class PopupContentBuilder {
     const languageClass = languageCode ? this.getLanguageClass(languageCode) : '';
     const combinedClasses = `${lengthClass} ${languageClass}`.trim();
     const formattedFrequency = this.formatFrequency(frequency);
-    const definitionsHtml = this.createDefinitionsHtml(entries);
+    const definitionsHtml = this.createDefinitionsHtml(entries, dictionary);
     const pronunciationBtn = this.createPronunciationButton(displayCharacter, pinyin);
     const showFrequency = settings.showFrequency !== false;
 
@@ -107,7 +107,7 @@ class PopupContentBuilder {
     `;
   }
 
-  static createCardContentInner(displayCharacter, card, isKnown, isIgnored, frequency, settings = {}, languageCode = null) {
+  static createCardContentInner(displayCharacter, card, isKnown, isIgnored, frequency, settings = {}, languageCode = null, dictionary = null) {
     const { pinyin: cardPinyin, entries } = card;
     // Use card's pinyin if available (may be empty string), otherwise fall back to first entry's pinyin
     // This ensures each card shows its own pinyin corresponding to its entries
@@ -116,7 +116,7 @@ class PopupContentBuilder {
     const languageClass = languageCode ? this.getLanguageClass(languageCode) : '';
     const combinedClasses = `${lengthClass} ${languageClass}`.trim();
     const formattedFrequency = this.formatFrequency(frequency);
-    const definitionsHtml = this.createDefinitionsHtml(entries);
+    const definitionsHtml = this.createDefinitionsHtml(entries, dictionary);
     const pronunciationBtn = this.createPronunciationButton(displayCharacter, pinyin, pinyin);
     const showFrequency = settings.showFrequency !== false;
 
@@ -136,16 +136,91 @@ class PopupContentBuilder {
     `;
   }
 
-  static createDefinitionsHtml(entries) {
-    return entries
-      .map((entry) => {
-        const defs = entry.definition.split(";").map(d => d.trim()).filter(Boolean);
-        const bullets = defs.length > 1
-          ? `<ul class="definition-list">${defs.map(d => `<li>${d}</li>`).join("")}</ul>`
-          : `<div class="definition">${defs[0]}</div>`;
-        return `<div class="definition-block">${bullets}</div>`;
-      })
-      .join("");
+  static createDefinitionsHtml(entries, dictionary = null) {
+    const processedEntries = [];
+    
+    for (const entry of entries) {
+      // Check if this is a non-lemma entry with morphology and variations
+      // Check for non-empty morphology string and variations array
+      const hasMorphology = entry.morphology && typeof entry.morphology === 'string' && entry.morphology.trim().length > 0;
+      const hasVariations = entry.variations && Array.isArray(entry.variations) && entry.variations.length > 0;
+      
+      if (hasMorphology && hasVariations && dictionary) {
+        // Get the base form (lemma) first
+        const baseForm = entry.variations[0];
+        
+        // First, add the morphology as its own entry with "of [baseForm]"
+        const morphologyDefs = entry.morphology.split(";").map(d => d.trim()).filter(Boolean);
+        if (morphologyDefs.length > 0) {
+          // Append "of [baseForm]" to each morphology definition
+          const morphologyWithBase = baseForm 
+            ? morphologyDefs.map(d => `${d} of ${baseForm}`)
+            : morphologyDefs;
+          
+          const morphologyBullets = morphologyWithBase.length > 1
+            ? `<ul class="definition-list">${morphologyWithBase.map(d => `<li>${d}</li>`).join("")}</ul>`
+            : `<div class="definition">${morphologyWithBase[0]}</div>`;
+          processedEntries.push(`<div class="definition-block">${morphologyBullets}</div>`);
+        }
+        
+        // Then, add the base word (lemma) definitions
+        if (baseForm && dictionary) {
+          const normalizedBaseForm = baseForm.toLowerCase().trim();
+          let baseFormEntries = dictionary[normalizedBaseForm];
+          
+          // If normalized lookup fails, try the base form as-is (for case-sensitive languages)
+          if (!baseFormEntries && baseForm !== normalizedBaseForm) {
+            baseFormEntries = dictionary[baseForm];
+          }
+          
+          // Also try with trimmed base form in case there are whitespace issues
+          if (!baseFormEntries) {
+            const trimmedBaseForm = baseForm.trim();
+            if (trimmedBaseForm !== baseForm) {
+              baseFormEntries = dictionary[trimmedBaseForm.toLowerCase()] || dictionary[trimmedBaseForm];
+            }
+          }
+          
+          if (baseFormEntries && Array.isArray(baseFormEntries) && baseFormEntries.length > 0) {
+            // Add all definitions from the base form
+            for (const baseEntry of baseFormEntries) {
+              if (baseEntry.definition) {
+                const baseDefs = baseEntry.definition.split(";").map(d => d.trim()).filter(Boolean);
+                if (baseDefs.length > 0) {
+                  const baseBullets = baseDefs.length > 1
+                    ? `<ul class="definition-list">${baseDefs.map(d => `<li>${d}</li>`).join("")}</ul>`
+                    : `<div class="definition">${baseDefs[0]}</div>`;
+                  processedEntries.push(`<div class="definition-block">${baseBullets}</div>`);
+                }
+              }
+            }
+          }
+        }
+        
+        // If the entry also has its own definition (not empty), show it too
+        if (entry.definition && entry.definition.trim().length > 0) {
+          const defs = entry.definition.split(";").map(d => d.trim()).filter(Boolean);
+          if (defs.length > 0) {
+            const bullets = defs.length > 1
+              ? `<ul class="definition-list">${defs.map(d => `<li>${d}</li>`).join("")}</ul>`
+              : `<div class="definition">${defs[0]}</div>`;
+            processedEntries.push(`<div class="definition-block">${bullets}</div>`);
+          }
+        }
+      } else {
+        // Regular entry processing - only show if it doesn't have the {baseForm} annotation
+        // (which means it was already processed by card-manager for empty definitions)
+        const defs = entry.definition ? entry.definition.split(";").map(d => d.trim()).filter(Boolean) : [];
+        if (defs.length > 0) {
+          const bullets = defs.length > 1
+            ? `<ul class="definition-list">${defs.map(d => `<li>${d}</li>`).join("")}</ul>`
+            : `<div class="definition">${defs[0]}</div>`;
+          processedEntries.push(`<div class="definition-block">${bullets}</div>`);
+        }
+      }
+    }
+    
+    return processedEntries.join("");
   }
 
   static createPronunciationButton(character, pinyin, ttsText = null) {

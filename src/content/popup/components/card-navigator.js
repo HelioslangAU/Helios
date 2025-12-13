@@ -86,7 +86,8 @@ class CardNavigator {
         isIgnored,
         frequency,
         this.popupManager.settingsManager.settings,
-        currentLanguage
+        currentLanguage,
+        this.popupManager.dictionaryManager.dictionary
       );
 
       popupContent.classList.remove("sliding-out");

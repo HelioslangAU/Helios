@@ -192,22 +192,22 @@ class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
           if (content.type === 'structured-content') {
             for (const section of content.content) {
               // Extract grammar information
-              // if (section.content && Array.isArray(section.content)) {
-              //   for (const item of section.content) {
-              //     if (item.data?.content === 'details-entry-Grammar') {
-              //       const grammarContent = item.content.find(c => c.data?.content === 'Grammar-content');
-              //       if (grammarContent) {
-              //         grammar = grammarContent.content || '';
-              //       }
-              //     }
-              //     // if (item.data?.content === 'details-entry-Morphemes') {
-              //     //   const morphContent = item.content.find(c => c.data?.content === 'Morphemes-content');
-              //     //   if (morphContent) {
-              //     //     morphology = morphContent.content || '';
-              //     //   }
-              //     // }
-              //   }
-              // }
+              if (section.content && Array.isArray(section.content)) {
+                for (const item of section.content) {
+                  if (item.data?.content === 'details-entry-Grammar') {
+                    const grammarContent = item.content.find(c => c.data?.content === 'Grammar-content');
+                    if (grammarContent) {
+                      grammar = grammarContent.content || '';
+                    }
+                  }
+                  if (item.data?.content === 'details-entry-Morphemes') {
+                    const morphContent = item.content.find(c => c.data?.content === 'Morphemes-content');
+                    if (morphContent) {
+                      morphology = morphContent.content || '';
+                    }
+                  }
+                }
+              }
                       // Extract definitions from glosses
               if (section.data?.content === 'glosses' && Array.isArray(section.content)) {
                 for (const li of section.content) {
@@ -251,14 +251,30 @@ class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
 
         // If this is a non-lemma entry (variation of another word)
         if (grammarInfo === 'non-lemma' && Array.isArray(entry[5])) {
-          // Add base forms to variations so we can find their definitions
+          const morphologyParts = [];
+          
+          // Extract base forms and morphology from mappings
           for (const mapping of entry[5]) {
             if (Array.isArray(mapping) && mapping.length > 0) {
               const baseForm = mapping[0];
               if (baseForm && !newEntry.variations.includes(baseForm)) {
                 newEntry.variations.push(baseForm);
               }
+              
+              // Extract morphology from the second element (array of morphology strings)
+              if (mapping.length > 1 && Array.isArray(mapping[1])) {
+                for (const morphString of mapping[1]) {
+                  if (typeof morphString === 'string' && morphString.trim()) {
+                    morphologyParts.push(morphString.trim());
+                  }
+                }
+              }
             }
+          }
+          
+          // Set morphology if we found any morphology information
+          if (morphologyParts.length > 0) {
+            newEntry.morphology = morphologyParts.join('; ');
           }
         }
 
