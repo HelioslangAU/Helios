@@ -232,10 +232,15 @@ class OnboardingPage {
       const langCard = document.createElement('div');
       langCard.className = 'language-card';
       langCard.dataset.code = lang.code;
+      const isBeta = lang.code !== 'en';
+      const betaTag = isBeta ? '<span class="beta-tag">BETA</span>' : '';
       langCard.innerHTML = `
         <div class="language-flag">${this.getLanguageFlag(lang.code)}</div>
         <div class="language-info">
-          <div class="language-name">${lang.displayName}</div>
+          <div class="language-name">
+            ${lang.displayName}
+            ${betaTag}
+          </div>
         </div>
         <div class="language-select-indicator">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
