@@ -36,6 +36,13 @@ class YouTubeLayoutManager {
 
     // Set up observer to maintain layout if YouTube fights back
     this._setupLayoutMaintenanceObserver();
+
+    // FORCE YouTube to recalculate the video player size
+    // This is the "nudge" that makes the video actually shrink to make room for sidebar
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+      console.log('[Helios Layout] Forced video player resize for sidebar activation');
+    }, 100);
   }
 
   /**
@@ -47,7 +54,7 @@ class YouTubeLayoutManager {
 
     console.log('[Helios Layout] Deactivating sidebar layout');
 
-    // Remove the layout class - CSS handles the rest
+    // Remove the layout class FIRST
     document.body.classList.remove('helios-sidebar-active');
 
     this.isActive = false;
@@ -55,8 +62,50 @@ class YouTubeLayoutManager {
     // Clean up all observers
     this._disconnectAllObservers();
 
-    // Remove any inline styles that may have been added
+    // AGGRESSIVELY reset the containers to YouTube's default theater mode
+    const fullBleed = document.querySelector('#full-bleed-container');
+    const theaterContainer = document.querySelector('#player-theater-container');
+    const watchFlexy = document.querySelector('ytd-watch-flexy');
+
+    if (fullBleed) {
+      // Remove ALL our modifications
+      fullBleed.style.cssText = '';
+      void fullBleed.offsetHeight; // Force reflow
+    }
+
+    if (theaterContainer) {
+      // Remove ALL our modifications
+      theaterContainer.style.cssText = '';
+      void theaterContainer.offsetHeight; // Force reflow
+    }
+
+    // Remove any inline styles that may have been added to other elements
     this._cleanupInlineStyles();
+
+    // FORCE YouTube to recalculate layout by toggling theater mode off and back on
+    // This is the "nudge" that makes YouTube reset everything
+    if (watchFlexy && watchFlexy.hasAttribute('theater')) {
+      console.log('[Helios Layout] Forcing YouTube layout refresh');
+
+      // Temporarily exit theater mode
+      watchFlexy.removeAttribute('theater');
+      void watchFlexy.offsetHeight; // Force reflow
+
+      // Immediately re-enter theater mode
+      setTimeout(() => {
+        watchFlexy.setAttribute('theater', '');
+        void watchFlexy.offsetHeight; // Force reflow
+
+        // FORCE the video player to resize by dispatching a resize event
+        // This makes YouTube recalculate the video dimensions
+        setTimeout(() => {
+          window.dispatchEvent(new Event('resize'));
+          console.log('[Helios Layout] Layout refresh complete - video player resized');
+        }, 100);
+      }, 50);
+    }
+
+    console.log('[Helios Layout] Video containers reset to default YouTube state');
   }
 
   /**
@@ -111,13 +160,16 @@ class YouTubeLayoutManager {
       document.querySelector('#page-manager'),
       document.querySelector('ytd-watch-flexy'),
       document.querySelector('#primary'),
-      document.querySelector('#secondary')
+      document.querySelector('#secondary'),
+      document.querySelector('#full-bleed-container'),
+      document.querySelector('#player-theater-container')
     ];
 
     elementsToClean.forEach(element => {
       if (element) {
         // Remove specific properties we may have set
         element.style.removeProperty('margin-right');
+        element.style.removeProperty('margin-left');
         element.style.removeProperty('position');
         element.style.removeProperty('max-width');
         element.style.removeProperty('width');

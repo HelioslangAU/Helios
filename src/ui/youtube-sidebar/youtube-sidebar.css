@@ -407,29 +407,47 @@
    - Video stays same size, just shifted to fit sidebar
    ============================================================================ */
 
-/* Main layout state - applied to body when sidebar is active */
+/* ============================================================================
+   STATE 1: SIDEBAR ACTIVE - Push video left, make space for 420px sidebar
+   ============================================================================ */
 body.helios-sidebar-active ytd-watch-flexy[theater] {
   position: relative !important;
 }
 
-/* Constrain the full bleed container to make space for sidebar */
 body.helios-sidebar-active ytd-watch-flexy[theater] #full-bleed-container {
   max-width: calc(100% - 420px) !important;
-  margin-left: 0 !important;
-  margin-right: auto !important;
-  transition: max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
-/* Also constrain the player theater container */
 body.helios-sidebar-active ytd-watch-flexy[theater] #player-theater-container {
   max-width: calc(100vw - 420px) !important;
   width: calc(100vw - 420px) !important;
-  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important, width 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
-/* Hide the default view/theater mode button when sidebar is active */
 body.helios-sidebar-active ytd-watch-flexy[theater] .ytp-size-button {
   display: none !important;
+}
+
+/* ============================================================================
+   STATE 2: SIDEBAR CLOSED - Return to normal YouTube theater mode
+   ============================================================================ */
+body:not(.helios-sidebar-active) ytd-watch-flexy[theater] #full-bleed-container {
+  max-width: unset !important;
+  width: unset !important;
+  margin: unset !important;
+  padding: unset !important;
+}
+
+body:not(.helios-sidebar-active) ytd-watch-flexy[theater] #player-theater-container {
+  max-width: unset !important;
+  width: unset !important;
+  margin: unset !important;
+  padding: unset !important;
+}
+
+body:not(.helios-sidebar-active) ytd-watch-flexy[theater] .ytp-size-button {
+  display: block !important;
 }
 
 /* Animations */
@@ -467,6 +485,20 @@ body.helios-sidebar-active ytd-watch-flexy[theater] .ytp-size-button {
   body.helios-sidebar-active ytd-watch-flexy[theater] #player-theater-container {
     max-width: calc(100vw - 380px) !important;
     width: calc(100vw - 380px) !important;
+  }
+
+  body:not(.helios-sidebar-active) ytd-watch-flexy[theater] #full-bleed-container {
+    max-width: unset !important;
+    width: unset !important;
+    margin: unset !important;
+    padding: unset !important;
+  }
+
+  body:not(.helios-sidebar-active) ytd-watch-flexy[theater] #player-theater-container {
+    max-width: unset !important;
+    width: unset !important;
+    margin: unset !important;
+    padding: unset !important;
   }
 }
 
