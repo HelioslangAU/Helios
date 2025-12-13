@@ -276,6 +276,26 @@ class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
           if (morphologyParts.length > 0) {
             newEntry.morphology = morphologyParts.join('; ');
           }
+          
+          // Look up and store base form (lemma) definitions to avoid lookups on hover
+          if (newEntry.variations.length > 0) {
+            const baseForm = newEntry.variations[0];
+            const normalizedBaseForm = baseForm.toLowerCase().trim();
+            const baseFormEntries = dictionary[normalizedBaseForm];
+            
+            // If normalized lookup fails, try the base form as-is
+            const foundBaseEntries = baseFormEntries || dictionary[baseForm];
+            
+            if (foundBaseEntries && Array.isArray(foundBaseEntries) && foundBaseEntries.length > 0) {
+              // Store the base form definitions in the entry
+              newEntry.baseFormDefinitions = foundBaseEntries.map(baseEntry => ({
+                definition: baseEntry.definition || '',
+                translation: baseEntry.translation || '',
+                partOfSpeech: baseEntry.partOfSpeech || '',
+                grammar: baseEntry.grammar || ''
+              }));
+            }
+          }
         }
 
         // Check for duplicates before adding

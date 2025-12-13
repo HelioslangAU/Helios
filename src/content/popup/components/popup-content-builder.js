@@ -149,22 +149,23 @@ class PopupContentBuilder {
         // Get the base form (lemma) first
         const baseForm = entry.variations[0];
         
-        // First, add the morphology as its own entry with "of [baseForm]"
-        const morphologyDefs = entry.morphology.split(";").map(d => d.trim()).filter(Boolean);
-        if (morphologyDefs.length > 0) {
-          // Append "of [baseForm]" to each morphology definition
-          const morphologyWithBase = baseForm 
-            ? morphologyDefs.map(d => `${d} of ${baseForm}`)
-            : morphologyDefs;
-          
-          const morphologyBullets = morphologyWithBase.length > 1
-            ? `<ul class="definition-list">${morphologyWithBase.map(d => `<li>${d}</li>`).join("")}</ul>`
-            : `<div class="definition">${morphologyWithBase[0]}</div>`;
-          processedEntries.push(`<div class="definition-block">${morphologyBullets}</div>`);
-        }
-        
-        // Then, add the base word (lemma) definitions
-        if (baseForm && dictionary) {
+        // First, add the base word (lemma) definitions
+        // Use stored baseFormDefinitions if available (avoids dictionary lookup)
+        if (entry.baseFormDefinitions && Array.isArray(entry.baseFormDefinitions) && entry.baseFormDefinitions.length > 0) {
+          // Use the pre-stored base form definitions
+          for (const baseEntry of entry.baseFormDefinitions) {
+            if (baseEntry.definition) {
+              const baseDefs = baseEntry.definition.split(";").map(d => d.trim()).filter(Boolean);
+              if (baseDefs.length > 0) {
+                const baseBullets = baseDefs.length > 1
+                  ? `<ul class="definition-list">${baseDefs.map(d => `<li>${d}</li>`).join("")}</ul>`
+                  : `<div class="definition">${baseDefs[0]}</div>`;
+                processedEntries.push(`<div class="definition-block">${baseBullets}</div>`);
+              }
+            }
+          }
+        } else if (baseForm && dictionary) {
+          // Fallback to dictionary lookup if baseFormDefinitions not available
           const normalizedBaseForm = baseForm.toLowerCase().trim();
           let baseFormEntries = dictionary[normalizedBaseForm];
           
@@ -195,6 +196,20 @@ class PopupContentBuilder {
               }
             }
           }
+        }
+        
+        // Then, add the morphology as its own entry with "of [baseForm]"
+        const morphologyDefs = entry.morphology.split(";").map(d => d.trim()).filter(Boolean);
+        if (morphologyDefs.length > 0) {
+          // Append "of [baseForm]" to each morphology definition
+          const morphologyWithBase = baseForm 
+            ? morphologyDefs.map(d => `${d} of ${baseForm}`)
+            : morphologyDefs;
+          
+          const morphologyBullets = morphologyWithBase.length > 1
+            ? `<ul class="definition-list">${morphologyWithBase.map(d => `<li>${d}</li>`).join("")}</ul>`
+            : `<div class="definition">${morphologyWithBase[0]}</div>`;
+          processedEntries.push(`<div class="definition-block">${morphologyBullets}</div>`);
         }
         
         // If the entry also has its own definition (not empty), show it too
