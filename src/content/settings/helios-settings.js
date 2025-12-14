@@ -60,7 +60,12 @@ class HeliosSettingsManager {
           toggle: { key: "W", ctrl: false, shift: false, alt: false, meta: false }
         }
       },
-      
+
+      // Video Navigation Behavior
+      videoNavigationBehavior: {
+        autoPlayAfterNav: false  // Auto-play after A/S/D navigation (when video is paused)
+      },
+
       // Legacy shortcuts (for backward compatibility)
       hotkeyMarkUnknown: "1",
       hotkeyMarkIgnored: "2",

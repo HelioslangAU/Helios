@@ -37,6 +37,8 @@ class YouTubeSidebar {
       dualSubtitlesEnabled: false,
       secondarySubtitleLanguage: null,
       pauseOnHover: true,
+      // Navigation behavior settings
+      autoPlayAfterNav: false,  // Auto-play after A/S/D navigation (when video is paused)
       hotkeys: {
         previous: { key: 'a', shift: false, ctrl: false, alt: false },
         next: { key: 'd', shift: false, ctrl: false, alt: false },
@@ -142,6 +144,9 @@ class YouTubeSidebar {
       this.secondaryLanguageSelect = this.sidebar.querySelector('#yt-secondary-language-select');
       this.secondaryLanguageContainer = this.sidebar.querySelector('#yt-secondary-language-container');
       this.pauseOnHoverToggle = this.sidebar.querySelector('#yt-pause-on-hover-toggle');
+
+      // Navigation behavior settings elements
+      this.autoPlayToggle = this.sidebar.querySelector('#yt-auto-play-toggle');
 
       // Get hotkey input elements
       this.hotkeyPrevInput = this.sidebar.querySelector('#yt-hotkey-prev');
@@ -683,6 +688,15 @@ class YouTubeSidebar {
         console.log(`[Helios YouTube Sidebar] Pause on hover ${e.target.checked ? 'enabled' : 'disabled'}`);
       });
     }
+
+    // Auto-play after navigation toggle
+    if (this.autoPlayToggle) {
+      this.autoPlayToggle.addEventListener('change', (e) => {
+        this.settings.autoPlayAfterNav = e.target.checked;
+        this._saveSettings();
+        console.log(`[Helios YouTube Sidebar] Auto-play after navigation ${e.target.checked ? 'enabled' : 'disabled'}`);
+      });
+    }
   }
 
   /**
@@ -843,6 +857,11 @@ class YouTubeSidebar {
 
     if (this.pauseOnHoverToggle) {
       this.pauseOnHoverToggle.checked = this.settings.pauseOnHover;
+    }
+
+    // Apply navigation behavior settings to UI
+    if (this.autoPlayToggle) {
+      this.autoPlayToggle.checked = this.settings.autoPlayAfterNav || false;
     }
 
     // Apply hotkey values to inputs
@@ -1595,12 +1614,20 @@ class YouTubeSidebar {
     if (!this.videoBinding) return;
 
     const currentTime = this.videoBinding.videoElement.currentTime * 1000;
+    const wasPlaying = !this.videoBinding.videoElement.paused;
     const subtitleCollection = this.videoBinding.getSubtitles();
-    const previousSubtitle = subtitleCollection.getPreviousSubtitle(currentTime);
+    const targetSubtitle = subtitleCollection.getPreviousSubtitle(currentTime);
 
-    if (previousSubtitle) {
-      this.videoBinding.seekTo(previousSubtitle.start);
+    if (targetSubtitle) {
+      this.videoBinding.seekTo(targetSubtitle.start);
       console.log('[Helios Hotkeys] Jumped to previous subtitle');
+
+      // Smart playback handling
+      if (wasPlaying || this.settings.autoPlayAfterNav) {
+        setTimeout(() => {
+          this.videoBinding.videoElement.play();
+        }, 100);
+      }
     }
   }
 
@@ -1611,29 +1638,62 @@ class YouTubeSidebar {
     if (!this.videoBinding) return;
 
     const currentTime = this.videoBinding.videoElement.currentTime * 1000;
+    const wasPlaying = !this.videoBinding.videoElement.paused;
     const subtitleCollection = this.videoBinding.getSubtitles();
     const nextSubtitle = subtitleCollection.getNextSubtitle(currentTime);
 
     if (nextSubtitle) {
       this.videoBinding.seekTo(nextSubtitle.start);
-      console.log('[Helios Hotkeys] Jumped to next subtitle');
+      console.log('[Helios Hotkeys] Jumped to next subtitle:', {
+        from: currentTime / 1000,
+        to: nextSubtitle.start / 1000,
+        subtitle: nextSubtitle
+      });
+
+      // Smart playback handling
+      if (wasPlaying || this.settings.autoPlayAfterNav) {
+        setTimeout(() => {
+          this.videoBinding.videoElement.play();
+        }, 100);
+      }
+    } else {
+      console.warn('[Helios Hotkeys] No next subtitle found. Current time:', currentTime / 1000);
     }
   }
 
   /**
-   * Hotkey: Jump to current subtitle start
+   * Hotkey: Jump to current subtitle start (S key)
+   * Always restarts current subtitle, or goes to previous if in a gap
    */
   _jumpToCurrentSubtitleStart() {
     if (!this.videoBinding || this.currentSubtitles.length === 0) return;
 
     const currentTime = this.videoBinding.videoElement.currentTime * 1000;
-    const activeSubtitle = this.currentSubtitles.find(entry =>
+    const wasPlaying = !this.videoBinding.videoElement.paused;
+
+    // Try to find the currently active subtitle
+    let targetSubtitle = this.currentSubtitles.find(entry =>
       currentTime >= entry.start && currentTime <= entry.end
     );
 
-    if (activeSubtitle) {
-      this.videoBinding.seekTo(activeSubtitle.start);
-      console.log('[Helios Hotkeys] Jumped to current subtitle start');
+    // If no active subtitle (in a gap), go to the previous subtitle
+    if (!targetSubtitle) {
+      const previousSubs = this.currentSubtitles.filter(entry => entry.end < currentTime);
+      if (previousSubs.length > 0) {
+        targetSubtitle = previousSubs[previousSubs.length - 1];
+      }
+    }
+
+    if (targetSubtitle) {
+      this.videoBinding.seekTo(targetSubtitle.start);
+      console.log('[Helios Hotkeys] Jumped to subtitle start:', targetSubtitle);
+
+      // Smart playback handling
+      if (wasPlaying || this.settings.autoPlayAfterNav) {
+        setTimeout(() => {
+          this.videoBinding.videoElement.play();
+        }, 100);
+      }
     }
   }
 
