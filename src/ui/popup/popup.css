@@ -319,6 +319,46 @@
   font-style: italic;
 }
 
+/* Instant Tooltips for Info Boxes */
+.info-box {
+  position: relative;
+  cursor: help;
+}
+
+.info-box::after {
+  content: attr(title);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: var(--popup-bg-secondary, rgba(20, 20, 25, 0.95));
+  color: var(--popup-text-primary, rgba(255, 255, 255, 0.95));
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.05s ease, transform 0.05s ease;
+  z-index: 1000;
+  border: 0.5px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.info-box:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  transition: opacity 0s ease, transform 0s ease;
+}
+
+/* Hide native browser tooltip when custom tooltip is shown */
+.info-box:hover {
+  pointer-events: auto;
+}
+
 /* Definitions Scroll - Orange Glass Scrollbar */
 .definitions-scroll {
   flex: 1;
