@@ -17,8 +17,9 @@ class HeliosSettingsManager {
     // Default settings
     this.defaultSettings = {
       // General
+      // Note: targetLanguage is intentionally not set here - it should remain
+      // blank/null until the user completes onboarding and selects their language
 
-      targetLanguage: "en",
       extensionEnabled: true,
       activationKey: "Shift",
       autoHighlight: true,

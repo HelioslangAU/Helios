@@ -226,6 +226,51 @@ class VocabManager {
   async markWordAsKnown(word) {
     const normalizedWord = this.normalizeWord(word);
     if (!normalizedWord) return;
+    
+    // Check if this is a non-lemma word (grammar field will say "non-lemma")
+    const dictionary = window.dictionaryManager?.dictionary || {};
+    const wordEntries = dictionary[normalizedWord];
+    
+    if (wordEntries && Array.isArray(wordEntries) && wordEntries.length > 0) {
+      // Check if any entry has grammar field set to "non-lemma"
+      const nonLemmaEntry = wordEntries.find(entry => 
+        entry.grammar === 'non-lemma'
+      );
+      
+      if (nonLemmaEntry) {
+        // This is a non-lemma word - get base form from variations
+        if (nonLemmaEntry.variations && Array.isArray(nonLemmaEntry.variations) && nonLemmaEntry.variations.length > 0) {
+          const baseForm = nonLemmaEntry.variations[0];
+          const normalizedBaseForm = this.normalizeWord(baseForm);
+          
+          if (normalizedBaseForm) {
+            // Remove non-lemma word from known words if it's there (shouldn't be, but to be safe)
+            this.getCurrentLanguageKnownWords().delete(normalizedWord);
+            
+            // Check if base form is already known
+            const isBaseFormKnown = this.isWordKnown(normalizedBaseForm);
+            
+            if (!isBaseFormKnown) {
+              // Add base form to known words
+              this.getCurrentLanguageKnownWords().add(normalizedBaseForm);
+              console.log(`Marked base form as known (${this.currentLanguage}):`, normalizedBaseForm);
+            } else {
+              console.log(`Base form already known (${this.currentLanguage}):`, normalizedBaseForm);
+            }
+            
+            // Always add the non-lemma word to ignored words
+            this.getCurrentLanguageIgnoredWords().add(normalizedWord);
+            console.log(`Marked non-lemma word as ignored (${this.currentLanguage}):`, normalizedWord);
+            
+            await this.saveKnownWords();
+            this.notifySidebarUpdate(normalizedBaseForm, true);
+            return;
+          }
+        }
+      }
+    }
+    
+    // If not a non-lemma word, proceed with normal marking
     this.getCurrentLanguageKnownWords().add(normalizedWord);
     await this.saveKnownWords();
     console.log(`Marked word as known (${this.currentLanguage}):`, normalizedWord);

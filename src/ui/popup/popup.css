@@ -1,7 +1,7 @@
 /* Clean Minimalistic Popup - Black with Orange Accents */
 
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap");
 
 :root {
   /* Original Clean Color Palette */
@@ -111,7 +111,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 18px;
+  margin-bottom: 6px;
   max-height: 80px;
   overflow: visible;
   width: 100%;
@@ -167,7 +167,7 @@
 .character.highlight.lang-french,
 .character.highlight.lang-english,
 .character.highlight.lang-spanish {
-  font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-weight: 600;
   letter-spacing: 0.5px;
   line-height: 1.2;
@@ -254,6 +254,111 @@
   width: fit-content;
 }
 
+/* Info Boxes Container - Modular Information Tags */
+.info-boxes-container {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+  margin-top: 0px;
+  align-items: center;
+}
+
+/* Base Info Box Style - Compact Tag/Chip */
+.info-box {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  border: 0.5px solid;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+/* Frequency Info Box - Orange Accent */
+.info-box-frequency {
+  background: rgba(255, 140, 71, 0.15);
+  border-color: rgba(255, 140, 71, 0.3);
+  color: #ff8c47;
+}
+
+/* Part of Speech Info Box - Neutral */
+.info-box-pos {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: var(--popup-text-secondary);
+}
+
+/* Gender Info Boxes - Color Coded */
+.info-box-gender-masc {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #60a5fa;
+}
+
+.info-box-gender-fem {
+  background: rgba(236, 72, 153, 0.15);
+  border-color: rgba(236, 72, 153, 0.3);
+  color: #f472b6;
+}
+
+.info-box-gender-neut {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: var(--popup-text-muted);
+}
+
+/* Lemma Info Box - Reference Style */
+.info-box-lemma {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--popup-text-secondary);
+  font-style: italic;
+}
+
+/* Instant Tooltips for Info Boxes */
+.info-box {
+  position: relative;
+  cursor: help;
+}
+
+.info-box::after {
+  content: attr(title);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: var(--popup-bg-secondary, rgba(20, 20, 25, 0.95));
+  color: var(--popup-text-primary, rgba(255, 255, 255, 0.95));
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.05s ease, transform 0.05s ease;
+  z-index: 1000;
+  border: 0.5px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.info-box:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  transition: opacity 0s ease, transform 0s ease;
+}
+
+/* Hide native browser tooltip when custom tooltip is shown */
+.info-box:hover {
+  pointer-events: auto;
+}
+
 /* Definitions Scroll - Orange Glass Scrollbar */
 .definitions-scroll {
   flex: 1;
@@ -290,7 +395,7 @@
 .definition-block {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
   border-radius: 12px;
-  padding: 16px 18px;
+  padding: 10px 12px;
   margin-bottom: 10px;
   border: 0.5px solid rgba(255, 255, 255, 0.08);
   transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1),

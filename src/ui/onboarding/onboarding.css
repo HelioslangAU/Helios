@@ -1359,11 +1359,63 @@ body {
 
 .language-name {
   color: #f8fafc !important;
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 4px !important;
 }
 
 .language-native,
 .language-description {
   color: #94a3b8 !important;
+}
+
+/* Beta Tag */
+.beta-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  background: linear-gradient(135deg, rgba(255, 179, 71, 0.2), rgba(255, 143, 71, 0.2));
+  border: 1px solid rgba(255, 179, 71, 0.4);
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #ffb347;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  vertical-align: middle;
+  box-shadow: 0 2px 4px rgba(255, 179, 71, 0.15);
+}
+
+/* Beta Tooltip */
+.beta-tooltip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+  padding: 16px 20px;
+  background: rgba(255, 107, 71, 0.08);
+  border: 1px solid rgba(255, 107, 71, 0.2);
+  border-radius: 12px;
+  font-size: 14px;
+  color: #94a3b8;
+  line-height: 1.6;
+}
+
+.beta-tooltip-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.beta-tooltip-text {
+  flex: 1;
+}
+
+.beta-tooltip-highlight {
+  color: #ffb347;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 /* Level Selector */

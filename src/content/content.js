@@ -42,6 +42,9 @@ class ChineseLanguageLearningExtension {
       return; // EXIT EARLY - don't initialize anything
     }
 
+    // Inject font links to ensure Montserrat loads properly
+    this._injectFontLinks();
+
     console.log("🔍 Initializing Language Learning Extension...");
 
     // Initialize language registry first
@@ -208,6 +211,29 @@ class ChineseLanguageLearningExtension {
     }
 
     console.log("🔍 Language Learning Extension initialized successfully");
+  }
+
+  _injectFontLinks() {
+    // Check if fonts are already injected
+    if (document.getElementById('helios-montserrat-font')) {
+      return; // Already injected
+    }
+
+    // Inject Montserrat font link
+    const montserratLink = document.createElement('link');
+    montserratLink.id = 'helios-montserrat-font';
+    montserratLink.rel = 'stylesheet';
+    montserratLink.href = 'https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap';
+    document.head.appendChild(montserratLink);
+
+    // Also inject Inter font (for Chinese)
+    if (!document.getElementById('helios-inter-font')) {
+      const interLink = document.createElement('link');
+      interLink.id = 'helios-inter-font';
+      interLink.rel = 'stylesheet';
+      interLink.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap';
+      document.head.appendChild(interLink);
+    }
   }
 
   _registerScanner() {

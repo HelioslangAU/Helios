@@ -29,9 +29,12 @@ class OnboardingController {
     }
 
     try {
-      // Save language preferences to storage
+      // Save language preferences and mark onboarding complete atomically
+      // This prevents race conditions where setupInitialData might run between saves
       const settingsToSave = {
-        targetLanguage: languageCode
+        targetLanguage: languageCode,
+        hasCompletedOnboarding: true,
+        onboardingCompletedDate: new Date().toISOString()
       };
       
       // Only save native language if provided (not Chinese, which doesn't need it)
@@ -39,10 +42,8 @@ class OnboardingController {
         settingsToSave.nativeLanguage = nativeLanguageCode;
       }
       
+      // Save everything in a single atomic operation
       await chrome.storage.local.set(settingsToSave);
-
-      // Mark onboarding as complete
-      await this.firstRunDetector.markOnboardingComplete();
 
       // Notify background script about language selection
       // This will reload settings on all open tabs
