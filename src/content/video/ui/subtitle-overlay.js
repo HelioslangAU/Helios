@@ -28,8 +28,8 @@ class SubtitleOverlay {
     // Position maintenance interval (ASB Player approach - simple 1-second updates only)
     this.positionMaintenanceInterval = null;
 
-    // Load pause on hover setting
-    this._loadPauseOnHoverSetting();
+    // Load settings (pause on hover + saved position)
+    this._loadSettings();
 
     this._init();
     this._setupFullscreenListener();
@@ -188,12 +188,15 @@ class SubtitleOverlay {
       }
     });
 
-    // Mouse up - stop dragging
+    // Mouse up - stop dragging and save position (ASBplayer-style)
     document.addEventListener('mouseup', () => {
       if (this.isDragging) {
         this.isDragging = false;
         this.container.style.cursor = 'move';
         this.container.style.userSelect = 'text';
+
+        // Save position to storage for persistence across videos
+        this._savePosition();
       }
     });
 
@@ -215,6 +218,9 @@ class SubtitleOverlay {
       this.customOffsetX = 0;
       this.customOffsetY = 0;
       this._updatePosition();
+
+      // Save reset position to storage
+      this._savePosition();
     });
   }
 
@@ -354,16 +360,54 @@ class SubtitleOverlay {
   }
 
   /**
-   * Load pause on hover setting from storage
+   * Load settings from storage (pause on hover + saved subtitle position)
+   * Follows ASBplayer's approach of using chrome.storage for persistent subtitle positioning
    */
-  async _loadPauseOnHoverSetting() {
+  async _loadSettings() {
     try {
-      const result = await chrome.storage.local.get(['ytSidebarSettings']);
+      const result = await chrome.storage.local.get(['ytSidebarSettings', 'subtitlePosition']);
+
+      // Load pause on hover setting
       if (result.ytSidebarSettings && result.ytSidebarSettings.pauseOnHover !== undefined) {
         this.pauseOnHover = result.ytSidebarSettings.pauseOnHover;
       }
+
+      // Load saved subtitle position (ASBplayer-style)
+      if (result.subtitlePosition) {
+        this.customOffsetX = result.subtitlePosition.offsetX || 0;
+        this.customOffsetY = result.subtitlePosition.offsetY || 0;
+        this.contentPositionOffset = result.subtitlePosition.bottomOffset || 75;
+        this.hasCustomPosition = result.subtitlePosition.hasCustomPosition || false;
+
+        console.log('[Helios Subtitle Overlay] Restored saved position:', {
+          offsetX: this.customOffsetX,
+          offsetY: this.customOffsetY,
+          bottomOffset: this.contentPositionOffset,
+          hasCustomPosition: this.hasCustomPosition
+        });
+      }
     } catch (error) {
-      console.error('[Helios Subtitle Overlay] Failed to load pause on hover setting:', error);
+      console.error('[Helios Subtitle Overlay] Failed to load settings:', error);
+    }
+  }
+
+  /**
+   * Save current subtitle position to storage (ASBplayer-style persistence)
+   */
+  async _savePosition() {
+    try {
+      const positionData = {
+        offsetX: this.customOffsetX,
+        offsetY: this.customOffsetY,
+        bottomOffset: this.contentPositionOffset,
+        hasCustomPosition: this.hasCustomPosition
+      };
+
+      await chrome.storage.local.set({ subtitlePosition: positionData });
+
+      console.log('[Helios Subtitle Overlay] Saved position:', positionData);
+    } catch (error) {
+      console.error('[Helios Subtitle Overlay] Failed to save position:', error);
     }
   }
 
