@@ -25,9 +25,8 @@ class SubtitleOverlay {
     this.customOffsetY = 0;
     this.hasCustomPosition = false;
 
-    // Observers for event-driven updates
-    this.resizeObserver = null;
-    this.intersectionObserver = null;
+    // Position maintenance interval (ASB Player approach - simple 1-second updates only)
+    this.positionMaintenanceInterval = null;
 
     // Load pause on hover setting
     this._loadPauseOnHoverSetting();
@@ -57,57 +56,17 @@ class SubtitleOverlay {
   }
 
   /**
-   * Setup event-driven position updates using ResizeObserver and IntersectionObserver
+   * Setup position updates - ASB Player approach (simple 1-second interval only)
    */
   _setupEventDrivenUpdates() {
-    // Watch for video element size/position changes
-    this.resizeObserver = new ResizeObserver(() => {
+    // ASB Player uses ONLY a 1-second interval - no scroll/resize/intersection observers!
+    // This prevents competing updates and glitching during scroll
+    this.positionMaintenanceInterval = setInterval(() => {
       if (!this.isFullscreen) {
-        this._updatePosition();
+        this._applyContainerStyles();
       }
-    });
-    this.resizeObserver.observe(this.videoElement);
-
-    // Watch for video visibility changes (scrolling, etc.)
-    this.intersectionObserver = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          this._updatePosition();
-        } else {
-          // Hide subtitles when video is not visible
-          this.container.style.display = 'none';
-        }
-      });
-    }, {
-      threshold: 0.1 // Trigger when at least 10% of video is visible
-    });
-    this.intersectionObserver.observe(this.videoElement);
-
-    // Also listen for window resize and scroll events as fallback
-    window.addEventListener('resize', this._handleWindowResize);
-    window.addEventListener('scroll', this._handleWindowScroll, true); // Use capture for better performance
+    }, 1000); // Every second, like ASB Player
   }
-
-  /**
-   * Handle window resize event
-   */
-  _handleWindowResize = () => {
-    if (!this.isFullscreen) {
-      this._updatePosition();
-    }
-  };
-
-  /**
-   * Handle window scroll event (debounced)
-   */
-  _handleWindowScroll = () => {
-    if (!this.isFullscreen && !this.scrollTimeout) {
-      this.scrollTimeout = setTimeout(() => {
-        this._updatePosition();
-        this.scrollTimeout = null;
-      }, 50);
-    }
-  };
 
   /**
    * Update overlay position based on video element (ASB Player style)
@@ -123,29 +82,68 @@ class SubtitleOverlay {
 
     this.container.style.display = '';
 
-    // Position fixed to viewport
-    this.container.style.position = 'fixed';
+    // Position absolute to document (NOT viewport) - like ASB Player
+    this.container.style.position = 'absolute';
+
+    // Calculate absolute position with scroll compensation (ASB Player technique)
+    const clampedY = Math.max(rect.top + window.scrollY, 0);
+    const clampedHeight = Math.min(
+      clampedY + rect.height,
+      window.innerHeight + window.scrollY
+    );
 
     if (this.hasCustomPosition) {
-      // Use custom dragged position
+      // Use custom dragged position with scroll compensation
       this.container.style.left = (rect.left + rect.width / 2 + this.customOffsetX) + 'px';
-      this.container.style.top = (rect.top + rect.height - this.contentPositionOffset + this.customOffsetY) + 'px';
+      this.container.style.top = (clampedHeight - this.contentPositionOffset + this.customOffsetY) + 'px';
     } else {
       // Default position: center horizontally on video
       const videoCenter = rect.left + rect.width / 2;
       this.container.style.left = videoCenter + 'px';
 
-      // Calculate top position: video bottom - offset (like ASB Player)
-      const bottomPosition = rect.top + rect.height - this.contentPositionOffset;
-      this.container.style.top = Math.max(bottomPosition, 0) + 'px';
+      // Calculate top position from document top (not viewport) - this prevents glitching during scroll
+      this.container.style.top = (clampedHeight - this.contentPositionOffset) + 'px';
     }
 
-    this.container.style.transform = 'translateX(-50%)';
-    this.container.style.zIndex = '2147483647';
+    this.container.style.bottom = '';
+    this.container.style.transform = 'translate(-50%, -100%)'; // ASB Player style centering
+    this.container.style.zIndex = '2015'; // Below YouTube banner (2020) but above video
     this.container.style.pointerEvents = 'auto'; // Changed to auto for dragging
     this.container.style.width = 'auto';
 
     // Match video width like ASB Player (with some padding)
+    this.container.style.maxWidth = (rect.width * 0.9) + 'px';
+  }
+
+  /**
+   * Lightweight method to update only position/size styles (ASB Player pattern)
+   * Called by continuous maintenance interval to ensure position stays correct
+   */
+  _applyContainerStyles() {
+    const rect = this.videoElement.getBoundingClientRect();
+
+    // Don't update if video is not visible
+    if (rect.width === 0 || rect.height === 0) {
+      return;
+    }
+
+    // Calculate absolute position with scroll compensation
+    const clampedY = Math.max(rect.top + window.scrollY, 0);
+    const clampedHeight = Math.min(
+      clampedY + rect.height,
+      window.innerHeight + window.scrollY
+    );
+
+    // Update position based on whether custom position is set
+    if (this.hasCustomPosition) {
+      this.container.style.left = (rect.left + rect.width / 2 + this.customOffsetX) + 'px';
+      this.container.style.top = (clampedHeight - this.contentPositionOffset + this.customOffsetY) + 'px';
+    } else {
+      this.container.style.left = (rect.left + rect.width / 2) + 'px';
+      this.container.style.top = (clampedHeight - this.contentPositionOffset) + 'px';
+    }
+
+    // Update max width to match video width
     this.container.style.maxWidth = (rect.width * 0.9) + 'px';
   }
 
@@ -838,28 +836,16 @@ class SubtitleOverlay {
    * Destroy overlay and cleanup
    */
   destroy() {
-    // Disconnect observers
-    if (this.resizeObserver) {
-      this.resizeObserver.disconnect();
-      this.resizeObserver = null;
-    }
-    if (this.intersectionObserver) {
-      this.intersectionObserver.disconnect();
-      this.intersectionObserver = null;
-    }
-
-    // Remove event listeners
-    window.removeEventListener('resize', this._handleWindowResize);
-    window.removeEventListener('scroll', this._handleWindowScroll, true);
-
     // Clear any pending timeouts
-    if (this.scrollTimeout) {
-      clearTimeout(this.scrollTimeout);
-      this.scrollTimeout = null;
-    }
     if (this.resumeTimeout) {
       clearTimeout(this.resumeTimeout);
       this.resumeTimeout = null;
+    }
+
+    // Clear position maintenance interval (ASB Player pattern)
+    if (this.positionMaintenanceInterval) {
+      clearInterval(this.positionMaintenanceInterval);
+      this.positionMaintenanceInterval = null;
     }
 
     // Remove from DOM
