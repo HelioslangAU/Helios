@@ -246,6 +246,13 @@ class YouTubeSubtitleLoader {
 
     if (tracks.length === 0) {
       console.warn('[Helios YouTube] No subtitle tracks available for this video');
+
+      // Clear existing subtitles from video binding and sidebar
+      const binding = this.videoDetector.getPrimaryBinding();
+      if (binding) {
+        binding.loadSubtitles([]);  // Load empty array to clear
+      }
+
       return false;
     }
 
@@ -271,10 +278,17 @@ class YouTubeSubtitleLoader {
       selectedTrack = tracks.find(t => t.language.startsWith(preferredLanguage));
     }
 
-    // NO FALLBACK - if no matching language, don't load anything
+    // NO FALLBACK - if no matching language, clear existing subtitles
     if (!selectedTrack) {
       console.log('[Helios YouTube] No captions available for target language:', preferredLanguage);
-      console.log('[Helios YouTube] Not loading any captions (user must manually select)');
+      console.log('[Helios YouTube] Clearing existing subtitles');
+
+      // Clear existing subtitles from video binding and sidebar
+      const binding = this.videoDetector.getPrimaryBinding();
+      if (binding) {
+        binding.loadSubtitles([]);  // Load empty array to clear
+      }
+
       return false;
     }
 

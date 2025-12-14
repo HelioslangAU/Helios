@@ -75,6 +75,26 @@ class YouTubeSidebar {
   }
 
   /**
+   * Check if an advertisement is currently playing
+   * @returns {boolean}
+   */
+  _isAdPlaying() {
+    // YouTube adds .ad-showing class to video container during ads
+    const playerContainer = document.querySelector('.html5-video-player');
+    if (playerContainer && playerContainer.classList.contains('ad-showing')) {
+      return true;
+    }
+
+    // Additional check: YouTube's ad module
+    const adModule = document.querySelector('.video-ads');
+    if (adModule && adModule.offsetParent !== null) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
    * Initialize sidebar
    */
   async _init() {
@@ -1380,6 +1400,11 @@ class YouTubeSidebar {
    */
   _updateActiveSubtitle(currentTime) {
     if (!this.listContainer || this.currentSubtitles.length === 0) return;
+
+    // Don't update during ads
+    if (this._isAdPlaying()) {
+      return;
+    }
 
     // Find active subtitle
     const activeEntry = this.currentSubtitles.find(entry =>

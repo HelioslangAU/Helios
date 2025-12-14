@@ -12,6 +12,7 @@ class SubtitleOverlay {
     this.isFullscreen = false;
     this.offsetMs = 0;
     this.contentPositionOffset = 75; // Distance from bottom like ASB Player
+    this.subtitleSize = 36; // Font size in pixels (ASBplayer default: 36px)
     this.pauseOnHover = false; // Pause video when hovering over subtitle words
     this.pausedByHover = false; // Track if video is currently paused by hover feature
     this.resumeTimeout = null; // Timeout for delayed resume
@@ -25,6 +26,10 @@ class SubtitleOverlay {
     this.customOffsetY = 0;
     this.hasCustomPosition = false;
 
+    // Resizing state
+    this.isResizing = false;
+    this.resizeStartSize = 0;
+
     // Position maintenance interval (ASB Player approach - simple 1-second updates only)
     this.positionMaintenanceInterval = null;
 
@@ -35,6 +40,8 @@ class SubtitleOverlay {
     this._setupFullscreenListener();
     this._setupEventDrivenUpdates();
     this._setupDragging();
+    this._setupResizeHandle();
+    this._setupResizeShortcuts();
     this._setupShiftKeyInterception();
     this._setupVocabUpdateListener();
     this._setupPopupListener();
@@ -47,6 +54,49 @@ class SubtitleOverlay {
     this.container = document.createElement('div');
     this.container.className = 'helios-subtitle-overlay';
     this.container.setAttribute('data-helios-subtitle-overlay', 'true');
+
+    // Create resize handle in bottom-right corner
+    this.resizeHandle = document.createElement('div');
+    this.resizeHandle.className = 'helios-subtitle-resize-handle';
+    this.resizeHandle.innerHTML = '⇲'; // Diagonal resize arrow
+    this.resizeHandle.style.cssText = `
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      width: 24px;
+      height: 24px;
+      cursor: nwse-resize;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: rgba(255, 255, 255, 0.8);
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 4px;
+      user-select: none;
+      z-index: 2147483647;
+      opacity: 0;
+      transition: opacity 0.2s;
+      pointer-events: auto;
+    `;
+    this.container.appendChild(this.resizeHandle);
+
+    // Show resize handle on hover
+    this.container.addEventListener('mouseenter', () => {
+      if (!this.isDragging) {
+        this.resizeHandle.style.opacity = '1';
+      }
+    });
+    this.container.addEventListener('mouseleave', () => {
+      if (!this.isResizing) {
+        this.resizeHandle.style.opacity = '0';
+      }
+    });
+
+    // Keep handle visible when hovering over it
+    this.resizeHandle.addEventListener('mouseenter', () => {
+      this.resizeHandle.style.opacity = '1';
+    });
 
     // Append to body like ASB Player
     document.body.appendChild(this.container);
@@ -225,6 +275,139 @@ class SubtitleOverlay {
   }
 
   /**
+   * Setup resize handle for dragging to resize subtitles
+   */
+  _setupResizeHandle() {
+    if (!this.resizeHandle) return;
+
+    let resizeStartY = 0;
+    let resizeStartSize = 0;
+
+    // Mouse down on resize handle - start resizing
+    this.resizeHandle.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.isResizing = true;
+      resizeStartY = e.clientY;
+      resizeStartSize = this.subtitleSize;
+      this.resizeHandle.style.opacity = '1';
+      document.body.style.cursor = 'nwse-resize';
+    });
+
+    // Mouse move - resize
+    document.addEventListener('mousemove', (e) => {
+      if (this.isResizing) {
+        // Calculate size change based on vertical movement
+        // Moving down = smaller, moving up = larger (inverted because subtitles are at bottom)
+        const deltaY = resizeStartY - e.clientY; // Inverted
+        const sizeChange = Math.round(deltaY / 5); // 5px mouse movement = 1px font size change
+
+        const newSize = Math.max(12, Math.min(100, resizeStartSize + sizeChange)); // Clamp between 12-100px
+
+        if (newSize !== this.subtitleSize) {
+          this.subtitleSize = newSize;
+          this._applySubtitleSize();
+        }
+      }
+    });
+
+    // Mouse up - stop resizing
+    document.addEventListener('mouseup', () => {
+      if (this.isResizing) {
+        this.isResizing = false;
+        document.body.style.cursor = '';
+        this.resizeHandle.style.opacity = '0';
+        this._saveSize();
+        this._showSizeNotification();
+      }
+    });
+  }
+
+  /**
+   * Setup keyboard shortcuts for resizing subtitles
+   * Similar to ASBplayer, but with keyboard support for font size adjustment
+   */
+  _setupResizeShortcuts() {
+    document.addEventListener('keydown', (e) => {
+      // Only work on YouTube watch pages
+      if (!window.location.pathname.includes('/watch')) {
+        return;
+      }
+
+      // Don't trigger if typing in an input field
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+        return;
+      }
+
+      // Increase subtitle size: Shift + = (or Shift + +)
+      // Use both key and code to handle different keyboard layouts
+      if (e.shiftKey && (e.key === '=' || e.key === '+' || e.code === 'Equal')) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        this._increaseSubtitleSize();
+      }
+      // Decrease subtitle size: Shift + - (or Shift + _)
+      // Use both key and code to handle different keyboard layouts
+      else if (e.shiftKey && (e.key === '-' || e.key === '_' || e.code === 'Minus')) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        this._decreaseSubtitleSize();
+      }
+    }, true); // Use capture phase to intercept before YouTube
+  }
+
+  /**
+   * Increase subtitle font size by 2px (like ASBplayer's 20px position increment, but for size)
+   */
+  _increaseSubtitleSize() {
+    this.subtitleSize += 2;
+    this._applySubtitleSize();
+    this._saveSize();
+    this._showSizeNotification();
+  }
+
+  /**
+   * Decrease subtitle font size by 2px (minimum 12px for readability)
+   */
+  _decreaseSubtitleSize() {
+    this.subtitleSize = Math.max(12, this.subtitleSize - 2);
+    this._applySubtitleSize();
+    this._saveSize();
+    this._showSizeNotification();
+  }
+
+  /**
+   * Apply current subtitle size to all subtitle elements
+   */
+  _applySubtitleSize() {
+    // Apply to primary subtitles
+    const primarySubtitles = this.container.querySelectorAll('.helios-subtitle-primary');
+    primarySubtitles.forEach(el => {
+      el.style.fontSize = this.subtitleSize + 'px';
+    });
+
+    // Apply to secondary subtitles (slightly smaller)
+    const secondarySubtitles = this.container.querySelectorAll('.helios-subtitle-secondary');
+    secondarySubtitles.forEach(el => {
+      el.style.fontSize = (this.subtitleSize * 0.8) + 'px';
+    });
+  }
+
+  /**
+   * Show temporary notification about current subtitle size
+   */
+  _showSizeNotification() {
+    // Dispatch event to show notification via video notification system
+    const event = new CustomEvent('helios-video-notification', {
+      detail: {
+        message: `Subtitle size: ${this.subtitleSize}px`,
+        type: 'info'
+      }
+    });
+    document.dispatchEvent(event);
+  }
+
+  /**
    * Setup shift key interception for subtitle words
    * No longer needed - kept as empty method for backward compatibility
    */
@@ -360,12 +543,12 @@ class SubtitleOverlay {
   }
 
   /**
-   * Load settings from storage (pause on hover + saved subtitle position)
-   * Follows ASBplayer's approach of using chrome.storage for persistent subtitle positioning
+   * Load settings from storage (pause on hover + saved subtitle position + size)
+   * Follows ASBplayer's approach of using chrome.storage for persistent subtitle settings
    */
   async _loadSettings() {
     try {
-      const result = await chrome.storage.local.get(['ytSidebarSettings', 'subtitlePosition']);
+      const result = await chrome.storage.local.get(['ytSidebarSettings', 'subtitlePosition', 'subtitleSize']);
 
       // Load pause on hover setting
       if (result.ytSidebarSettings && result.ytSidebarSettings.pauseOnHover !== undefined) {
@@ -385,6 +568,12 @@ class SubtitleOverlay {
           bottomOffset: this.contentPositionOffset,
           hasCustomPosition: this.hasCustomPosition
         });
+      }
+
+      // Load saved subtitle size (ASBplayer-style)
+      if (result.subtitleSize !== undefined) {
+        this.subtitleSize = result.subtitleSize;
+        console.log('[Helios Subtitle Overlay] Restored subtitle size:', this.subtitleSize + 'px');
       }
     } catch (error) {
       console.error('[Helios Subtitle Overlay] Failed to load settings:', error);
@@ -408,6 +597,18 @@ class SubtitleOverlay {
       console.log('[Helios Subtitle Overlay] Saved position:', positionData);
     } catch (error) {
       console.error('[Helios Subtitle Overlay] Failed to save position:', error);
+    }
+  }
+
+  /**
+   * Save current subtitle size to storage (ASBplayer-style persistence)
+   */
+  async _saveSize() {
+    try {
+      await chrome.storage.local.set({ subtitleSize: this.subtitleSize });
+      console.log('[Helios Subtitle Overlay] Saved subtitle size:', this.subtitleSize + 'px');
+    } catch (error) {
+      console.error('[Helios Subtitle Overlay] Failed to save size:', error);
     }
   }
 
@@ -658,6 +859,7 @@ class SubtitleOverlay {
       const primarySubtitleEl = document.createElement('div');
       primarySubtitleEl.className = 'helios-subtitle-text helios-subtitle-primary';
       primarySubtitleEl.setAttribute('data-subtitle-index', subtitle.index);
+      primarySubtitleEl.style.fontSize = this.subtitleSize + 'px'; // Apply saved font size (ASBplayer-style)
 
       // Extract words using language adapter (handles Chinese, English, etc.)
       const adapter = window.languageRegistry?.getAdapter();
@@ -768,6 +970,7 @@ class SubtitleOverlay {
           const secondarySubtitleEl = document.createElement('div');
           secondarySubtitleEl.className = 'helios-subtitle-text helios-subtitle-secondary';
           secondarySubtitleEl.textContent = matchingSecondary.text;
+          secondarySubtitleEl.style.fontSize = (this.subtitleSize * 0.8) + 'px'; // Secondary subtitles 80% of primary size
           secondarySubtitleEl.style.userSelect = 'text';
           dualContainer.appendChild(secondarySubtitleEl);
         }

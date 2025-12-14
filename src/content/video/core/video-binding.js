@@ -75,6 +75,12 @@ class VideoBinding {
    * Update displayed subtitles based on current video time
    */
   _updateSubtitles() {
+    // Check if an ad is currently playing (YouTube specific)
+    if (this._isAdPlaying()) {
+      this.overlay.clear();
+      return;
+    }
+
     const currentTime = this.videoElement.currentTime * 1000; // Convert to milliseconds
     const activeSubtitles = this.subtitleCollection.getSubtitlesAt(currentTime);
 
@@ -86,6 +92,35 @@ class VideoBinding {
 
     // Notify listeners of time update
     this._notifyTimeUpdate(currentTime);
+  }
+
+  /**
+   * Check if an advertisement is currently playing (YouTube specific)
+   * @returns {boolean}
+   */
+  _isAdPlaying() {
+    // Check for YouTube ad indicators
+    if (window.location.hostname.includes('youtube.com')) {
+      // YouTube adds .ad-showing class to video container during ads
+      const playerContainer = document.querySelector('.html5-video-player');
+      if (playerContainer && playerContainer.classList.contains('ad-showing')) {
+        return true;
+      }
+
+      // Additional check: YouTube's ad module
+      const adModule = document.querySelector('.video-ads');
+      if (adModule && adModule.offsetParent !== null) {
+        return true;
+      }
+
+      // Check if video is in an ad container
+      const videoAd = document.querySelector('.ad-showing video');
+      if (videoAd === this.videoElement) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /**

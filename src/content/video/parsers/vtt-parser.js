@@ -46,7 +46,20 @@ class VTTParser {
       i++;
     }
 
-    return entries;
+    // Remove duplicates (YouTube sometimes has duplicate subtitle entries)
+    // Keep only unique entries based on start time + text combination
+    const uniqueEntries = [];
+    const seen = new Set();
+
+    for (const entry of entries) {
+      const key = `${entry.start}:${entry.text}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueEntries.push(entry);
+      }
+    }
+
+    return uniqueEntries;
   }
 
   /**
