@@ -1,5 +1,16 @@
-/* Helios YouTube Sidebar - Minimal Design */
+/* ============================================================================
+   Helios YouTube Sidebar - Minimal Design
 
+   Architecture:
+   - Sidebar is positioned absolutely within ytd-watch-flexy
+   - CSS classes control layout state (helios-sidebar-active on body)
+   - JavaScript handles dynamic positioning and sizing
+   - Modular design supports future platform expansion
+   ============================================================================ */
+
+/* ============================================================================
+   CSS Variables / Theme
+   ============================================================================ */
 :root {
   --helios-bg-primary: #0a0a0b;
   --helios-bg-secondary: #151518;
@@ -15,7 +26,9 @@
   --helios-shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.3);
 }
 
-/* Main Container - positioned within the theater container */
+/* ============================================================================
+   Sidebar Container
+   ============================================================================ */
 .helios-youtube-sidebar {
   position: absolute !important;
   top: 0 !important;
@@ -37,7 +50,9 @@
   transform: translateX(100%);
 }
 
-/* Header Bar */
+/* ============================================================================
+   Sidebar Header
+   ============================================================================ */
 .yt-sidebar-header {
   display: flex;
   justify-content: space-between;
@@ -74,7 +89,9 @@
   display: block;
 }
 
-/* Subtitle Section */
+/* ============================================================================
+   Subtitle Section
+   ============================================================================ */
 .yt-subtitle-section {
   flex: 1;
   display: flex;
@@ -83,7 +100,9 @@
   padding: 24px 20px 20px 20px;
 }
 
-/* Settings Section */
+/* ============================================================================
+   Settings Section
+   ============================================================================ */
 .yt-settings-section {
   flex: 1;
   display: flex;
@@ -502,7 +521,9 @@ body:not(.helios-sidebar-active) ytd-watch-flexy[theater] .ytp-size-button {
   }
 }
 
-/* Settings Styles */
+/* ============================================================================
+   Settings Detailed Styles
+   ============================================================================ */
 .yt-setting-group {
   margin-bottom: 32px;
   padding-bottom: 24px;

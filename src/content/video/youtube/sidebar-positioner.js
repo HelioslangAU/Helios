@@ -17,6 +17,10 @@ class SidebarPositioner {
     this.resizeObserver = null;
     this.intersectionObserver = null;
     this.isActive = false;
+    this.syncDebounceTimer = null;
+
+    // Timing constants
+    this.SYNC_DEBOUNCE_DELAY = 16; // ~60fps for smooth updates
   }
 
   /**
@@ -52,10 +56,26 @@ class SidebarPositioner {
   }
 
   /**
-   * Synchronize sidebar position with video player
+   * Synchronize sidebar position with video player (debounced)
    * @private
    */
   _syncPosition() {
+    // Debounce to avoid excessive updates
+    if (this.syncDebounceTimer) {
+      clearTimeout(this.syncDebounceTimer);
+    }
+
+    this.syncDebounceTimer = setTimeout(() => {
+      this._syncPositionImmediate();
+      this.syncDebounceTimer = null;
+    }, this.SYNC_DEBOUNCE_DELAY);
+  }
+
+  /**
+   * Immediately synchronize sidebar position (no debounce)
+   * @private
+   */
+  _syncPositionImmediate() {
     const videoPlayer = this.layoutManager.getVideoPlayerContainer();
     const watchFlexy = document.querySelector('ytd-watch-flexy');
 
@@ -168,7 +188,12 @@ class SidebarPositioner {
    * Useful after layout changes or when sidebar visibility changes
    */
   forceSync() {
-    this._syncPosition();
+    // Clear any pending debounced sync and do it immediately
+    if (this.syncDebounceTimer) {
+      clearTimeout(this.syncDebounceTimer);
+      this.syncDebounceTimer = null;
+    }
+    this._syncPositionImmediate();
   }
 
   /**

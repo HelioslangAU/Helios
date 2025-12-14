@@ -37,11 +37,9 @@ class TheaterModeController {
       return false;
     }
 
-    // Click the button
+    // Click the button and wait for theater mode to activate
     theaterButton.click();
-
-    // Wait for theater mode to activate
-    return this._waitForTheaterMode();
+    return this._waitForTheaterMode(true);
   }
 
   /**
@@ -62,74 +60,42 @@ class TheaterModeController {
       return false;
     }
 
-    // Click the button
+    // Click the button and wait for theater mode to deactivate
     theaterButton.click();
-
-    // Wait for theater mode to deactivate
-    return this._waitForTheaterModeOff();
+    return this._waitForTheaterMode(false);
   }
 
   /**
-   * Wait for theater mode to activate
+   * Wait for theater mode to reach expected state
    * @private
+   * @param {boolean} expectedState - Expected theater mode state
    * @returns {Promise<boolean>}
    */
-  _waitForTheaterMode() {
+  _waitForTheaterMode(expectedState = true) {
     return new Promise((resolve) => {
-      const checkTheaterMode = () => {
-        if (this.isActive()) {
-          this.isTheaterMode = true;
-          this._notifyTheaterModeChange(true);
+      let attempts = 0;
+      const maxAttempts = 20; // 2 seconds total (20 * 100ms)
+
+      const checkState = () => {
+        const currentState = this.isActive();
+
+        if (currentState === expectedState) {
+          this.isTheaterMode = expectedState;
+          this._notifyTheaterModeChange(expectedState);
           resolve(true);
           return;
         }
 
-        // Retry up to 20 times (2 seconds total)
-        if (!this.theaterCheckCount) this.theaterCheckCount = 0;
-        this.theaterCheckCount++;
-
-        if (this.theaterCheckCount < 20) {
-          setTimeout(checkTheaterMode, 100);
+        attempts++;
+        if (attempts < maxAttempts) {
+          setTimeout(checkState, 100);
         } else {
-          this.theaterCheckCount = 0;
-          console.warn('[Helios] Theater mode activation timeout');
+          console.warn(`[Helios] Theater mode ${expectedState ? 'activation' : 'deactivation'} timeout`);
           resolve(false);
         }
       };
 
-      checkTheaterMode();
-    });
-  }
-
-  /**
-   * Wait for theater mode to deactivate
-   * @private
-   * @returns {Promise<boolean>}
-   */
-  _waitForTheaterModeOff() {
-    return new Promise((resolve) => {
-      const checkTheaterMode = () => {
-        if (!this.isActive()) {
-          this.isTheaterMode = false;
-          this._notifyTheaterModeChange(false);
-          resolve(true);
-          return;
-        }
-
-        // Retry up to 20 times (2 seconds total)
-        if (!this.theaterOffCheckCount) this.theaterOffCheckCount = 0;
-        this.theaterOffCheckCount++;
-
-        if (this.theaterOffCheckCount < 20) {
-          setTimeout(checkTheaterMode, 100);
-        } else {
-          this.theaterOffCheckCount = 0;
-          console.warn('[Helios] Theater mode deactivation timeout');
-          resolve(false);
-        }
-      };
-
-      checkTheaterMode();
+      checkState();
     });
   }
 

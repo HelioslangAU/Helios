@@ -49,9 +49,6 @@ class YouTubeSidebar {
     this.pausedByHover = false;
     this.resumeTimeout = null;
 
-    // Current track tracking
-    this.currentTrack = null;
-
     // Load settings from storage
     this._loadSettings();
 
