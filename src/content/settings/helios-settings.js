@@ -66,6 +66,22 @@ class HeliosSettingsManager {
         autoPlayAfterNav: false  // Auto-play after A/S/D navigation (when video is paused)
       },
 
+      // Video Player Settings
+      videoPlayer: {
+        hotkeysEnabled: true,
+        dualSubtitlesEnabled: false,
+        secondarySubtitleLanguage: null,
+        pauseOnHover: true,
+        pauseAtEnd: false,
+        autoPlayAfterNav: false,
+        hotkeys: {
+          previous: { key: "a", shift: false, ctrl: false, alt: false },
+          next: { key: "d", shift: false, ctrl: false, alt: false },
+          restart: { key: "s", shift: false, ctrl: false, alt: false },
+          toggle: { key: "w", shift: false, ctrl: false, alt: false }
+        }
+      },
+
       // Legacy shortcuts (for backward compatibility)
       hotkeyMarkUnknown: "1",
       hotkeyMarkIgnored: "2",
@@ -131,7 +147,7 @@ class HeliosSettingsManager {
       let initialTab = 'general';
       try {
         const savedTab = localStorage.getItem('helios-active-settings-tab');
-        if (savedTab && ['general', 'popup', 'shortcuts', 'anki', 'vocabulary', 'advanced'].includes(savedTab)) {
+        if (savedTab && ['general', 'popup', 'shortcuts', 'video-player', 'anki', 'vocabulary', 'advanced'].includes(savedTab)) {
           initialTab = savedTab;
           console.log("🔍 DEBUG: Restoring saved tab:", initialTab);
         }
@@ -161,6 +177,21 @@ class HeliosSettingsManager {
       });
 
       console.log("🔍 DEBUG: Helios Settings Manager initialized successfully");
+
+      // Listen for storage changes from other sources (like YouTube sidebar)
+      chrome.storage.onChanged.addListener((changes, areaName) => {
+        if (areaName === 'local' && (changes.videoPlayer || changes.ytSidebarSettings)) {
+          console.log("🔍 DEBUG: Storage changed externally, reloading settings");
+          this.storage.loadAllSettings().then(() => {
+            // Update any currently loaded tabs
+            this.loadedTabs.forEach((tabName) => {
+              if (this.ui) {
+                this.ui.updateTabUI(tabName);
+              }
+            });
+          });
+        }
+      });
     } catch (error) {
       console.error("🔍 DEBUG: Error initializing settings:", error);
       console.error("🔍 DEBUG: Error details:", error.message);
@@ -366,6 +397,7 @@ class HeliosSettingsManager {
       general: "General Settings",
       popup: "Popup & Display Settings",
       shortcuts: "Keyboard Shortcuts",
+      "video-player": "Video Player Settings",
       anki: "Anki Integration",
       vocabulary: "Vocabulary Management",
       advanced: "Advanced Settings",

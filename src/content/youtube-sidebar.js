@@ -59,6 +59,19 @@ class YouTubeSidebar {
     // Load settings from storage
     this._loadSettings();
 
+    // Listen for storage changes to sync settings from main settings page
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName === 'local' && (changes.videoPlayer || changes.ytSidebarSettings)) {
+        console.log('[Helios YouTube Sidebar] Storage changed, reloading settings');
+        this._loadSettings().then(() => {
+          // Update UI elements to reflect new settings
+          if (this.sidebar) {
+            this._applySettingsToUI();
+          }
+        });
+      }
+    });
+
     if (this.isYouTubePage()) {
       this._init();
     }
@@ -174,20 +187,14 @@ class YouTubeSidebar {
       // Navigation behavior settings elements
       this.autoPlayToggle = this.sidebar.querySelector('#yt-auto-play-toggle');
 
-      // Get hotkey input elements
-      this.hotkeyPrevInput = this.sidebar.querySelector('#yt-hotkey-prev');
-      this.hotkeyNextInput = this.sidebar.querySelector('#yt-hotkey-next');
-      this.hotkeyRestartInput = this.sidebar.querySelector('#yt-hotkey-restart');
-      this.hotkeyToggleInput = this.sidebar.querySelector('#yt-hotkey-toggle');
-
       // Setup header button listeners
       this._setupHeaderButtons();
 
       // Setup settings listeners
       this._setupSettingsListeners();
 
-      // Setup hotkey input listeners
-      this._setupHotkeyInputs();
+      // Setup hotkey input listeners (commented out - hotkeys now configured in main settings)
+      // this._setupHotkeyInputs();
 
       // Apply loaded settings to UI
       this._applySettingsToUI();
@@ -935,19 +942,7 @@ class YouTubeSidebar {
       this.autoPlayToggle.checked = this.settings.autoPlayAfterNav || false;
     }
 
-    // Apply hotkey values to inputs
-    if (this.hotkeyPrevInput) {
-      this.hotkeyPrevInput.value = this._formatHotkeyDisplay(this.settings.hotkeys.previous);
-    }
-    if (this.hotkeyNextInput) {
-      this.hotkeyNextInput.value = this._formatHotkeyDisplay(this.settings.hotkeys.next);
-    }
-    if (this.hotkeyRestartInput) {
-      this.hotkeyRestartInput.value = this._formatHotkeyDisplay(this.settings.hotkeys.restart);
-    }
-    if (this.hotkeyToggleInput) {
-      this.hotkeyToggleInput.value = this._formatHotkeyDisplay(this.settings.hotkeys.toggle);
-    }
+    // Hotkey inputs removed - configure in main settings Video Player tab
   }
 
   /**
@@ -1822,25 +1817,17 @@ class YouTubeSidebar {
    */
   async _loadSettings() {
     try {
-      // Load unified shortcuts first
-      const navShortcuts = await ShortcutHelper.getVideoNavigationShortcuts();
-      
-      // Update local settings with unified shortcuts (for backward compatibility)
-      this.settings.hotkeys = {
-        previous: navShortcuts.previous,
-        next: navShortcuts.next,
-        restart: navShortcuts.restart,
-        toggle: navShortcuts.toggle
-      };
+      // Load from new unified videoPlayer settings (preferred)
+      const result = await chrome.storage.local.get(['videoPlayer', 'ytSidebarSettings']);
 
-      // Also load local settings (for other settings like hotkeysEnabled, etc.)
-      const result = await chrome.storage.local.get(['ytSidebarSettings']);
-      if (result.ytSidebarSettings) {
-        const loaded = result.ytSidebarSettings;
-
-        // Don't override hotkeys from unified system, but keep other settings
-        const { hotkeys, ...otherSettings } = loaded;
-        this.settings = { ...this.settings, ...otherSettings };
+      if (result.videoPlayer) {
+        // Use new unified settings
+        this.settings = { ...this.settings, ...result.videoPlayer };
+        console.log('[Helios YouTube Sidebar] Loaded settings from videoPlayer:', this.settings);
+      } else if (result.ytSidebarSettings) {
+        // Fallback to old settings (for backward compatibility)
+        this.settings = { ...this.settings, ...result.ytSidebarSettings };
+        console.log('[Helios YouTube Sidebar] Loaded settings from ytSidebarSettings:', this.settings);
       }
     } catch (error) {
       console.error('[Helios YouTube Sidebar] Failed to load settings:', error);
@@ -1852,8 +1839,12 @@ class YouTubeSidebar {
    */
   async _saveSettings() {
     try {
-      await chrome.storage.local.set({ ytSidebarSettings: this.settings });
-      console.log('[Helios YouTube Sidebar] Settings saved');
+      // Save to both new and old locations for backward compatibility
+      await chrome.storage.local.set({
+        videoPlayer: this.settings,
+        ytSidebarSettings: this.settings
+      });
+      console.log('[Helios YouTube Sidebar] Settings saved to both videoPlayer and ytSidebarSettings');
     } catch (error) {
       console.error('[Helios YouTube Sidebar] Failed to save settings:', error);
     }
