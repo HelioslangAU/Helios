@@ -90,17 +90,17 @@ class VideoFeatureManager {
       this.panelController.toggle();
     });
 
-    // Auto-load YouTube subtitles
-    document.addEventListener('helios-autoload-youtube-subtitles', async () => {
-      if (this.youtubeLoader.isYouTubePage()) {
-        // Get current language
-        let language = 'en';
-        if (window.languageRegistry) {
-          language = window.languageRegistry.getCurrentLanguage();
-        }
-        await this.youtubeLoader.autoLoadSubtitles(language);
-      }
-    });
+    // Auto-load YouTube subtitles - DISABLED (now handled by VideoUIController)
+    // document.addEventListener('helios-autoload-youtube-subtitles', async () => {
+    //   if (this.youtubeLoader.isYouTubePage()) {
+    //     // Get current language
+    //     let language = 'en';
+    //     if (window.languageRegistry) {
+    //       language = window.languageRegistry.getCurrentLanguage();
+    //     }
+    //     await this.youtubeLoader.autoLoadSubtitles(language);
+    //   }
+    // });
 
     // Integrate subtitle text selection with main lookup system
     document.addEventListener('helios-subtitle-selection', (e) => {
@@ -158,48 +158,12 @@ class VideoFeatureManager {
 
   /**
    * Setup YouTube auto-load with delay
+   * DISABLED - now handled by VideoUIController
    */
   _setupYouTubeAutoLoad() {
-    // Wait for YouTube player to be ready
-    let attempts = 0;
-    const maxAttempts = 10;
-
-    const tryAutoLoad = async () => {
-      attempts++;
-
-      const binding = this.videoDetector.getPrimaryBinding();
-      if (binding && binding.hasValidSource()) {
-        // Auto-load after 2 seconds
-        setTimeout(async () => {
-          // Get current language from Helios settings
-          let language = 'en'; // default
-
-          // Try to get from language registry
-          if (window.languageRegistry) {
-            const currentLang = window.languageRegistry.getCurrentLanguage();
-            // Map Helios language codes to YouTube language codes
-            const langMap = {
-              'zh': 'zh', // Chinese (will match zh-Hans or zh-Hant)
-              'en': 'en',
-              'ja': 'ja',
-              'es': 'es',
-              'fr': 'fr',
-              'de': 'de',
-              'ko': 'ko'
-            };
-            language = langMap[currentLang] || currentLang;
-            console.log('[Helios Video] Using language for YouTube subtitles:', language);
-          }
-
-          await this.youtubeLoader.autoLoadSubtitles(language);
-        }, 2000);
-      } else if (attempts < maxAttempts) {
-        setTimeout(tryAutoLoad, 1000);
-      }
-    };
-
-    // Start trying after initial delay
-    setTimeout(tryAutoLoad, 3000);
+    // OLD CODE - Now handled by VideoUIController.autoLoadSubtitles()
+    // This method is disabled to prevent conflicts with the new loading system
+    console.log('[Helios Video] YouTube auto-load handled by VideoUIController');
   }
 
   /**

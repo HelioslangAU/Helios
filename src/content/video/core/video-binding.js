@@ -8,6 +8,11 @@ class VideoBinding {
     this.overlay = new SubtitleOverlay(videoElement);
     this.updateInterval = null;
     this.isBound = false;
+
+    // Loading state management
+    this.isLoadingSubtitles = false;
+    this.wasPausedBeforeLoading = false;
+    this.loadingIndicator = null;
   }
 
   /**
@@ -18,9 +23,24 @@ class VideoBinding {
 
     this._setupEventListeners();
     this._startSubtitleSync();
+    this._setupSidebarReadyListener();
 
     this.isBound = true;
     console.log('[Helios Video] Bound to video element:', this.videoElement);
+  }
+
+  /**
+   * Setup listener for sidebar ready event
+   */
+  _setupSidebarReadyListener() {
+    document.addEventListener('helios-sidebar-ready', () => {
+      // Sidebar has finished loading and scrolling to position
+      // Now we can resume the video if it was playing
+      if (this.isLoadingSubtitles) {
+        console.log('[Helios Video] Sidebar ready - finishing subtitle load');
+        this.finishLoadingSubtitles();
+      }
+    });
   }
 
   /**
@@ -124,18 +144,82 @@ class VideoBinding {
   }
 
   /**
+   * Start loading subtitles - pause video if not ad, show loading indicator
+   */
+  startLoadingSubtitles() {
+    if (this.isLoadingSubtitles) return;
+
+    this.isLoadingSubtitles = true;
+    const isAd = this._isAdPlaying();
+
+    if (!isAd) {
+      // Only pause video if it's not an ad
+      this.wasPausedBeforeLoading = this.videoElement.paused;
+      if (!this.wasPausedBeforeLoading) {
+        this.videoElement.pause();
+        console.log('[Helios Video] Paused video for subtitle loading');
+      }
+
+      // Show loading indicator
+      this._showLoadingIndicator();
+    } else {
+      console.log('[Helios Video] Ad detected - loading subtitles silently in background');
+    }
+  }
+
+  /**
+   * Finish loading subtitles - resume video if it was playing, hide loading indicator
+   */
+  finishLoadingSubtitles() {
+    if (!this.isLoadingSubtitles) return;
+
+    this.isLoadingSubtitles = false;
+    const isAd = this._isAdPlaying();
+
+    if (!isAd) {
+      // Hide loading indicator
+      this._hideLoadingIndicator();
+
+      // Resume video if it was playing before
+      if (!this.wasPausedBeforeLoading) {
+        this.videoElement.play().catch(err => {
+          console.warn('[Helios Video] Could not auto-resume video:', err);
+        });
+        console.log('[Helios Video] Resumed video after subtitle loading');
+      }
+    }
+
+    this.wasPausedBeforeLoading = false;
+  }
+
+  /**
    * Load subtitles from entries
    * @param {SubtitleEntry[]} entries - Subtitle entries
    * @param {Object} track - Optional track information
    */
   loadSubtitles(entries, track = null) {
     this.subtitleCollection = new SubtitleCollection(entries);
+
+    // Sync to current video position
+    const currentTime = this.videoElement.currentTime * 1000;
     this._updateSubtitles();
 
-    console.log(`[Helios Video] Loaded ${entries.length} subtitles`);
+    console.log(`[Helios Video] Loaded ${entries.length} subtitles at time ${currentTime}ms`);
 
     // Notify that subtitles were loaded
     this._notifySubtitlesLoaded(entries, track);
+
+    // DON'T finish loading yet - wait for sidebar to scroll to position
+    // finishLoadingSubtitles() will be called when sidebar signals it's ready
+  }
+
+  /**
+   * Clear all subtitles (for new video)
+   */
+  clearSubtitles() {
+    this.subtitleCollection = new SubtitleCollection();
+    this.overlay.clear();
+    console.log('[Helios Video] Cleared all subtitles');
   }
 
   /**
@@ -219,11 +303,42 @@ class VideoBinding {
   }
 
   /**
+   * Show loading indicator on video
+   */
+  _showLoadingIndicator() {
+    if (this.loadingIndicator) return;
+
+    this.loadingIndicator = document.createElement('div');
+    this.loadingIndicator.className = 'helios-subtitle-loading-indicator';
+    this.loadingIndicator.innerHTML = `
+      <div class="helios-loading-spinner"></div>
+      <div class="helios-loading-text">Loading subtitles...</div>
+    `;
+
+    // Insert near video element
+    const videoContainer = this.videoElement.parentElement;
+    if (videoContainer) {
+      videoContainer.appendChild(this.loadingIndicator);
+    }
+  }
+
+  /**
+   * Hide loading indicator
+   */
+  _hideLoadingIndicator() {
+    if (this.loadingIndicator) {
+      this.loadingIndicator.remove();
+      this.loadingIndicator = null;
+    }
+  }
+
+  /**
    * Unbind from video element
    */
   unbind() {
     this._pauseSubtitleSync();
     this.overlay.destroy();
+    this._hideLoadingIndicator();
     this.isBound = false;
   }
 

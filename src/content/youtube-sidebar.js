@@ -956,18 +956,31 @@ class YouTubeSidebar {
   /**
    * Update subtitles in sidebar
    */
-  updateSubtitles(entries, track) {
+  async updateSubtitles(entries, track) {
     this.currentSubtitles = entries || [];
     this.currentTrack = track;
     this.currentSecondarySubtitles = []; // Reset secondary subtitles
 
     // Render subtitle list (async)
-    this._renderSubtitleList().catch(err => {
+    await this._renderSubtitleList().catch(err => {
       console.error('[Helios YouTube Sidebar] Error rendering subtitle list:', err);
     });
 
     // Update language dropdown with new video's available languages
     this._updateLanguageDropdown();
+
+    // Scroll to current subtitle position if video is not at start
+    if (this.videoBinding) {
+      const currentTime = this.videoBinding.videoElement.currentTime * 1000;
+      if (currentTime > 1000) { // If more than 1 second into video
+        this._updateActiveSubtitle(currentTime);
+        console.log('[Helios YouTube Sidebar] Scrolled to subtitle at', Math.floor(currentTime/1000), 'seconds');
+      }
+    }
+
+    // Signal that sidebar is ready (subtitles loaded and scrolled to position)
+    document.dispatchEvent(new CustomEvent('helios-sidebar-ready'));
+    console.log('[Helios YouTube Sidebar] Sidebar ready - subtitles positioned');
 
     // Load secondary subtitles if dual subtitles enabled
     if (this.settings.dualSubtitlesEnabled) {
