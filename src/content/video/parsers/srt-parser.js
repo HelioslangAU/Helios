@@ -27,12 +27,52 @@ class SRTParser {
       const end = this._parseTimestamp(timestampMatch[2]);
 
       // Remaining lines: text
-      const text = lines.slice(2).join('\n').trim();
+      let text = lines.slice(2).join('\n').trim();
+
+      // Clean any HTML tags that might be present in SRT files
+      text = this._cleanHTMLTags(text);
 
       entries.push(new SubtitleEntry({ index, start, end, text }));
     }
 
-    return entries;
+    // Remove only consecutive duplicate entries (matching asbplayer's conservative approach)
+    const deduplicated = [];
+    for (const entry of entries) {
+      if (deduplicated.length === 0 || !this._isSame(entry, deduplicated[deduplicated.length - 1])) {
+        deduplicated.push(entry);
+      }
+    }
+
+    return deduplicated;
+  }
+
+  /**
+   * Check if two subtitle entries are identical (same start, end, and text)
+   * @param {SubtitleEntry} a - First entry
+   * @param {SubtitleEntry} b - Second entry
+   * @returns {boolean}
+   */
+  static _isSame(a, b) {
+    return a.start === b.start && a.end === b.end && a.text === b.text;
+  }
+
+  /**
+   * Clean HTML tags from subtitle text (matches asbplayer's approach)
+   * @param {string} text
+   * @returns {string}
+   */
+  static _cleanHTMLTags(text) {
+    const helperElement = document.createElement('div');
+    helperElement.innerHTML = text;
+
+    // Remove <rt> element content (ruby text for furigana)
+    const rubyTextElements = [...helperElement.getElementsByTagName('rt')];
+    for (const rubyTextElement of rubyTextElements) {
+      rubyTextElement.remove();
+    }
+
+    // Extract clean text content, removing all HTML tags
+    return helperElement.textContent || helperElement.innerText || text;
   }
 
   /**

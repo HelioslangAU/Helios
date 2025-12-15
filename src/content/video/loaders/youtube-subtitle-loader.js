@@ -202,10 +202,9 @@ class YouTubeSubtitleLoader {
 
         const end = start + duration;
 
-        // Decode HTML entities and clean text
+        // Decode HTML entities (preserve original formatting)
         let text = node.textContent;
-        text = this._decodeHTMLEntities(text);
-        text = text.replace(/\n/g, ' ').trim();
+        text = this._decodeHTMLEntities(text).trim();
 
         if (i < 3) {
           console.log(`[Helios YouTube] Sample entry ${i}:`, { start, end, text: text.substring(0, 50) });
@@ -225,14 +224,24 @@ class YouTubeSubtitleLoader {
   }
 
   /**
-   * Decode HTML entities
+   * Decode HTML entities (matches asbplayer's approach)
+   * Properly handles HTML tags including ruby text (important for Japanese)
    * @param {string} text
    * @returns {string}
    */
   _decodeHTMLEntities(text) {
-    const textarea = document.createElement('textarea');
-    textarea.innerHTML = text;
-    return textarea.value;
+    const helperElement = document.createElement('div');
+    helperElement.innerHTML = text;
+
+    // Remove <rt> element content (ruby text for furigana)
+    // This prevents furigana from appearing in the subtitle text
+    const rubyTextElements = [...helperElement.getElementsByTagName('rt')];
+    for (const rubyTextElement of rubyTextElements) {
+      rubyTextElement.remove();
+    }
+
+    // Extract clean text content, removing all HTML tags
+    return helperElement.textContent || helperElement.innerText || '';
   }
 
   /**

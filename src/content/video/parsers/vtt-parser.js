@@ -37,7 +37,12 @@ class VTTParser {
             i++;
           }
 
-          const text = textLines.join('\n').trim();
+          let text = textLines.join('\n').trim();
+
+          // Remove VTT class tags (e.g., <c>, <c.classname>, </c>)
+          // This matches asbplayer's approach to clean formatting artifacts
+          text = text.replace(/<(\/)?c(\.[^>]*)?>/g, '');
+
           if (text) {
             entries.push(new SubtitleEntry({ index: index++, start, end, text }));
           }
@@ -46,20 +51,27 @@ class VTTParser {
       i++;
     }
 
-    // Remove duplicates (YouTube sometimes has duplicate subtitle entries)
-    // Keep only unique entries based on start time + text combination
-    const uniqueEntries = [];
-    const seen = new Set();
+    // Remove only consecutive duplicate entries (matching asbplayer's conservative approach)
+    // Only removes entries where start, end, AND text are ALL identical to the previous entry
+    const deduplicated = [];
 
     for (const entry of entries) {
-      const key = `${entry.start}:${entry.text}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        uniqueEntries.push(entry);
+      if (deduplicated.length === 0 || !this._isSame(entry, deduplicated[deduplicated.length - 1])) {
+        deduplicated.push(entry);
       }
     }
 
-    return uniqueEntries;
+    return deduplicated;
+  }
+
+  /**
+   * Check if two subtitle entries are identical (same start, end, and text)
+   * @param {SubtitleEntry} a - First entry
+   * @param {SubtitleEntry} b - Second entry
+   * @returns {boolean}
+   */
+  static _isSame(a, b) {
+    return a.start === b.start && a.end === b.end && a.text === b.text;
   }
 
   /**
