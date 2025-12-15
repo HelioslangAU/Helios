@@ -58,6 +58,16 @@ class HeliosSettingsAnki {
         { value: "sentence", label: "Sentence (The measurements must be precise)" },
         { value: "source", label: "Source URL" },
       ];
+    } else if (language === 'cs') {
+      // Czech-specific fields
+      return [
+        { value: "", label: "Not mapped" },
+        { value: "expression", label: "Word (přesný)" },
+        { value: "reading", label: "Pronunciation (/ˈprɛsniː/)" },
+        { value: "meaning", label: "Meaning (precise; accurate)" },
+        { value: "sentence", label: "Sentence (Musí být velmi přesný)" },
+        { value: "source", label: "Source URL" },
+      ];
     } else {
       // Generic fallback
       return [
@@ -436,6 +446,14 @@ class HeliosSettingsAnki {
         reading: "/prɪˈsaɪs/",
         meaning: "exact; accurate",
         sentence: "The measurements must be precise",
+        source: "https://example.com",
+      },
+      cs: {
+        "": "—",
+        expression: "přesný",
+        reading: "/ˈprɛsniː/",
+        meaning: "precise; accurate",
+        sentence: "Musí být velmi přesný",
         source: "https://example.com",
       },
     };

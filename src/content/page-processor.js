@@ -632,10 +632,12 @@ class PageProcessor {
         }
       }
     } else {
-      // For word-based languages, extract words using word boundaries
+      // For word-based languages, extract words using Unicode-aware word boundaries
       // Pattern allows apostrophes and hyphens within words (e.g., "don't", "M'appelle")
-      // This matches the pattern used in extractWords to ensure consistency
-      const wordRegex = /\b[\p{L}\p{M}]+(?:[''-][\p{L}\p{M}]+)*\b/gu;
+      // Uses Unicode-aware boundaries instead of \b to handle non-ASCII characters correctly
+      // (?<![\p{L}\p{M}]) = not preceded by a letter/mark (Unicode-aware start boundary)
+      // (?![\p{L}\p{M}]) = not followed by a letter/mark (Unicode-aware end boundary)
+      const wordRegex = /(?<![\p{L}\p{M}])[\p{L}\p{M}]+(?:[''-][\p{L}\p{M}]+)*(?![\p{L}\p{M}])/gu;
       let match;
       while ((match = wordRegex.exec(text)) !== null) {
         potentialWords.add(match[0].toLowerCase());

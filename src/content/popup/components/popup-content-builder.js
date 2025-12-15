@@ -68,7 +68,7 @@ class PopupContentBuilder {
    * @returns {boolean} - True if language uses gender
    */
   static languageUsesGender(languageCode) {
-    const genderedLanguages = ['fr', 'es', 'it', 'pt', 'de', 'ru'];
+    const genderedLanguages = ['fr', 'es', 'it', 'pt', 'de', 'ru', 'cs'];
     return genderedLanguages.includes(languageCode);
   }
 

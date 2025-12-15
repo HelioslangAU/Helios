@@ -43,9 +43,10 @@ class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
 
     // Use configured regex to find word boundaries and extract complete words
     // Pattern allows apostrophes and hyphens within words (e.g., "don't", "M'appelle")
-    // Note: Match pattern that includes apostrophes and ensures proper boundaries
-    // The pattern matches: letters followed by optional (apostrophe/hyphen + letters) groups
-    const wordRegex = new RegExp(`\\b[\\p{L}\\p{M}]+(?:[''-][\\p{L}\\p{M}]+)*\\b`, 'gu');
+    // Uses Unicode-aware boundaries instead of \b to handle non-ASCII characters correctly
+    // (?<![\p{L}\p{M}]) = not preceded by a letter/mark (Unicode-aware start boundary)
+    // (?![\p{L}\p{M}]) = not followed by a letter/mark (Unicode-aware end boundary)
+    const wordRegex = new RegExp(`(?<![\\p{L}\\p{M}])[\\p{L}\\p{M}]+(?:[''-][\\p{L}\\p{M}]+)*(?![\\p{L}\\p{M}])`, 'gu');
     let match;
     
     while ((match = wordRegex.exec(text)) !== null) {
@@ -507,9 +508,10 @@ class SpanishLanguageAdapter extends SpaceSeparatedLanguageAdapter {
   extractWords(text, dictionary) {
     const words = [];
     // Pattern allows apostrophes and hyphens within words (e.g., "no's", "d'accord")
-    // Note: Match pattern that includes apostrophes and ensures proper boundaries
-    // The pattern matches: letters followed by optional (apostrophe/hyphen + letters) groups
-    const wordRegex = new RegExp(`\\b[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]+(?:[''-][a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]+)*\\b`, 'g');
+    // Uses Unicode-aware boundaries instead of \b to handle non-ASCII characters correctly
+    // (?<![\p{L}\p{M}]) = not preceded by a letter/mark (Unicode-aware start boundary)
+    // (?![\p{L}\p{M}]) = not followed by a letter/mark (Unicode-aware end boundary)
+    const wordRegex = new RegExp(`(?<![\\p{L}\\p{M}])[\\p{L}\\p{M}]+(?:[''-][\\p{L}\\p{M}]+)*(?![\\p{L}\\p{M}])`, 'gu');
     let match;
     
     while ((match = wordRegex.exec(text)) !== null) {
@@ -831,17 +833,192 @@ class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
   }
 }
 
+/**
+ * Czech Language Adapter
+ */
+class CzechLanguageAdapter extends SpaceSeparatedLanguageAdapter {
+  constructor() {
+    super();
+    const baseConfig = {
+      code: 'cs',
+      name: 'Czech',
+      displayName: 'Czech (Čeština)',
+      maxWordLength: 25,
+      hasSpaces: true,
+      script: 'latin',
+      direction: 'ltr',
+      scanResolution: 'word',
+      caseSensitive: true,
+      characterRanges: [
+        { start: 0x0041, end: 0x005A }, // A-Z
+        { start: 0x0061, end: 0x007A }, // a-z
+        { start: 0x00C0, end: 0x00FF }, // Latin-1 Supplement (includes á, é, í, ó, ú, ý)
+        { start: 0x0100, end: 0x017F }, // Latin Extended-A (includes č, ď, ě, ň, ř, š, ť, ž, ů)
+      ],
+      wordBoundaryRegex: /\b/,
+      sentenceBoundaryRegex: /(?<=[.!?])\s+/,
+      numOfDicts: 23,
+    };
+    this.setConfig(baseConfig);
+  }
+
+  /**
+   * Override extractWords to handle Czech word variations
+   * @param {string} text - Text to process
+   * @param {Object} dictionary - Dictionary to validate against
+   * @returns {Array} - Array of {word, start, end} objects
+   */
+  extractWords(text, dictionary) {
+    const words = [];
+    // Pattern allows apostrophes and hyphens within words
+    // The pattern matches: letters followed by optional (apostrophe/hyphen + letters) groups
+    const wordRegex = new RegExp(`(?<![\\p{L}\\p{M}])[\\p{L}\\p{M}]+(?:[''-][\\p{L}\\p{M}]+)*(?![\\p{L}\\p{M}])`, 'gu');
+    let match;
+    
+    while ((match = wordRegex.exec(text)) !== null) {
+      const word = match[0];
+      const start = match.index;
+      const end = start + word.length;
+      
+      const dictionaryForm = this.findDictionaryForm(word, dictionary);
+      if (dictionaryForm) {
+        words.push({
+          word: word,
+          start: start,
+          end: end,
+          dictionaryForm: dictionaryForm // Store the base form for dictionary lookup
+        });
+      }
+    }
+    return words;
+  }
+
+  findDictionaryForm(word, dictionary) {
+    const normalizedWord = word.toLowerCase().trim();
+    
+    // First check exact match
+    if (dictionary[normalizedWord]) {
+      return normalizedWord;
+    }
+    
+    // Try common Czech suffixes (declension/conjugation endings)
+    const suffixes = [
+      'ích', 'ého', 'ému', 'ými', 'ách', 'ami',
+      'ou', 'ům', 'ách', 'em', 'ům', 'ma',
+      'ho', 'mu', 'mi', 'ch', 'ím',
+      'é', 'ě', 'i', 'y', 'u', 'a', 'ů'
+    ];
+    
+    for (const suffix of suffixes) {
+      if (normalizedWord.endsWith(suffix) && normalizedWord.length > suffix.length + 2) {
+        const stem = normalizedWord.slice(0, -suffix.length);
+        
+        // Try the stem as-is
+        if (dictionary[stem]) return stem;
+        
+        // Try common stem variations
+        const variations = [
+          stem + 'ý', stem + 'á', stem + 'é',
+          stem + 'it', stem + 'at', stem + 'et',
+          stem, stem + 'a', stem + 'o'
+        ];
+        
+        for (const variant of variations) {
+          if (dictionary[variant]) return variant;
+        }
+      }
+    }
+    
+    return null;
+  }
+
+  /**
+   * Parse JSON dictionary format from multiple term bank files
+   * @param {string} dictionaryText - Raw directory listing content
+   * @returns {Object} - Unified dictionary format
+   */
+  parseDictionary(dictionaryText) {
+    try {
+      const dictionary = {};
+      let processedEntries = 0;
+      let totalBanks = 0;
+
+      // Check if input is a directory listing
+      if (dictionaryText.includes('term_bank_')) {
+        // Split directory listing into lines
+        const files = dictionaryText.split('\n')
+          .map(line => line.trim())
+          .filter(line => line.startsWith('term_bank_'));
+        
+        // Process each term bank
+        for (const file of files) {
+          try {
+            const filePath = `${this.getDictionaryPath()}${file}`;
+            const bankContent = require(filePath);
+            
+            const entriesProcessed = this.processTermBank(bankContent, dictionary);
+            if (entriesProcessed > 0) {
+              processedEntries += entriesProcessed;
+              totalBanks++;
+            }
+          } catch (bankError) {
+            console.error(`Error processing term bank ${file}:`, bankError);
+          }
+        }
+
+        console.log(`Successfully processed ${totalBanks} term banks with ${processedEntries} total entries`);
+      } else {
+        console.error('Invalid dictionary format: Expected directory listing of term bank files');
+      }
+      
+      return dictionary;
+    } catch (error) {
+      console.error('Error parsing dictionary:', error);
+      return {};
+    }
+  }
+
+  getDictionaryPath() {
+    return;
+  }
+
+  /**
+   * Get proficiency level definitions for Czech (CEFR levels)
+   * @returns {Array<Object>} - Array of level definitions
+   */
+  getLevelDefinitions() {
+    return [
+      { level: 'A1', name: 'A1 (Beginner)', wordCount: 500 },
+      { level: 'A2', name: 'A2 (Elementary)', wordCount: 1000 },
+      { level: 'B1', name: 'B1 (Intermediate)', wordCount: 2000 },
+      { level: 'B2', name: 'B2 (Upper Intermediate)', wordCount: 4000 }
+    ];
+  }
+
+  /**
+   * Get the vocabulary file path for onboarding word lists
+   * @param {string} level - Proficiency level (e.g., 'A1', 'A2')
+   * @returns {string|null} - Path to vocabulary file or null if not available
+   */
+  getOnboardingVocabPath(level) {
+    const langCode = this.getLanguageCode();
+    return `OnboardingVocab/${langCode.charAt(0).toUpperCase() + langCode.slice(1)}5k.csv`;
+  }
+}
+
 // Export for use in other modules
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     SpaceSeparatedLanguageAdapter,
     EnglishLanguageAdapter,
     SpanishLanguageAdapter,
-    FrenchLanguageAdapter
+    FrenchLanguageAdapter,
+    CzechLanguageAdapter
   };
 } else {
   window.SpaceSeparatedLanguageAdapter = SpaceSeparatedLanguageAdapter;
   window.EnglishLanguageAdapter = EnglishLanguageAdapter;
   window.SpanishLanguageAdapter = SpanishLanguageAdapter;
   window.FrenchLanguageAdapter = FrenchLanguageAdapter;
+  window.CzechLanguageAdapter = CzechLanguageAdapter;
 }

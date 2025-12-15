@@ -513,6 +513,7 @@ class OffscreenDictionaryService {
   }
 
   async handleGetEntries(words) {
+    console.log(words);
     try {
       const entries = {};
       for (const word of words) {

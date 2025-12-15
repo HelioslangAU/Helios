@@ -265,6 +265,11 @@ class LanguageRegistry {
           adapter = new FrenchLanguageAdapter();
         }
         break;
+      case 'cs':
+        if (typeof CzechLanguageAdapter !== 'undefined') {
+          adapter = new CzechLanguageAdapter();
+        }
+        break;
       default:
         console.warn(`Unknown language code: ${languageCode}`);
         return false;
@@ -303,6 +308,11 @@ class LanguageRegistry {
     // Register French adapter
     if (typeof FrenchLanguageAdapter !== 'undefined') {
       this.register('fr', new FrenchLanguageAdapter());
+    }
+
+    // Register Czech adapter
+    if (typeof CzechLanguageAdapter !== 'undefined') {
+      this.register('cs', new CzechLanguageAdapter());
     }
 
     console.log(`Initialized ${this.adapters.size} language adapters`);

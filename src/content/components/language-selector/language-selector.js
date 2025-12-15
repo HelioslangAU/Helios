@@ -43,6 +43,13 @@ class LanguageSelector {
         nativeName: 'Français',
         flag: '🇫🇷',
         description: 'Master French vocabulary with detailed translations'
+      },
+      {
+        code: 'cs',
+        name: 'Czech',
+        nativeName: 'Čeština',
+        flag: '🇨🇿',
+        description: 'Learn Czech with contextual definitions and examples'
       }
     ];
   }
