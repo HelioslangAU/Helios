@@ -37,6 +37,7 @@ class YouTubeSidebar {
       dualSubtitlesEnabled: false,
       secondarySubtitleLanguage: null,
       pauseOnHover: true,
+      pauseAtEnd: false,  // Pause at the end of each subtitle
       // Navigation behavior settings
       autoPlayAfterNav: false,  // Auto-play after A/S/D navigation (when video is paused)
       hotkeys: {
@@ -50,6 +51,10 @@ class YouTubeSidebar {
     // Pause on hover state tracking
     this.pausedByHover = false;
     this.resumeTimeout = null;
+
+    // Pause at end state tracking
+    this.lastSubtitleIndex = -1;  // Track last subtitle to detect changes
+    this.pausedAtEnd = false;  // Track if we paused at subtitle end
 
     // Load settings from storage
     this._loadSettings();
@@ -164,6 +169,7 @@ class YouTubeSidebar {
       this.secondaryLanguageSelect = this.sidebar.querySelector('#yt-secondary-language-select');
       this.secondaryLanguageContainer = this.sidebar.querySelector('#yt-secondary-language-container');
       this.pauseOnHoverToggle = this.sidebar.querySelector('#yt-pause-on-hover-toggle');
+      this.pauseAtEndToggle = this.sidebar.querySelector('#yt-pause-at-end-toggle');
 
       // Navigation behavior settings elements
       this.autoPlayToggle = this.sidebar.querySelector('#yt-auto-play-toggle');
@@ -247,8 +253,40 @@ class YouTubeSidebar {
       console.error('[Helios YouTube Sidebar] Error setting up hotkeys:', err);
     });
 
+    // Block 't' key to prevent exiting theater mode when sidebar is visible
+    this._blockTheaterModeToggle();
+
     // Setup scroll detection to prevent auto-scroll during user page scrolling
     this._setupScrollDetection();
+  }
+
+  /**
+   * Block 't' key from toggling theater mode when sidebar is visible
+   * This prevents users from accidentally exiting theater mode, which breaks the sidebar layout
+   */
+  _blockTheaterModeToggle() {
+    document.addEventListener('keydown', (e) => {
+      // Only block 't' key when:
+      // 1. Sidebar is visible
+      // 2. User is not typing in an input field
+      // 3. Key is 't' without modifiers
+      if (
+        this.isVisible &&
+        e.key.toLowerCase() === 't' &&
+        !e.shiftKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !e.metaKey &&
+        e.target.tagName !== 'INPUT' &&
+        e.target.tagName !== 'TEXTAREA' &&
+        !e.target.isContentEditable
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        console.log('[Helios YouTube Sidebar] Blocked "t" key - sidebar requires theater mode');
+      }
+    }, true); // Use capture phase to intercept before YouTube's handlers
   }
 
   /**
@@ -709,6 +747,15 @@ class YouTubeSidebar {
       });
     }
 
+    // Pause at end toggle
+    if (this.pauseAtEndToggle) {
+      this.pauseAtEndToggle.addEventListener('change', (e) => {
+        this.settings.pauseAtEnd = e.target.checked;
+        this._saveSettings();
+        console.log(`[Helios YouTube Sidebar] Pause at end ${e.target.checked ? 'enabled' : 'disabled'}`);
+      });
+    }
+
     // Auto-play after navigation toggle
     if (this.autoPlayToggle) {
       this.autoPlayToggle.addEventListener('change', (e) => {
@@ -877,6 +924,10 @@ class YouTubeSidebar {
 
     if (this.pauseOnHoverToggle) {
       this.pauseOnHoverToggle.checked = this.settings.pauseOnHover;
+    }
+
+    if (this.pauseAtEndToggle) {
+      this.pauseAtEndToggle.checked = this.settings.pauseAtEnd;
     }
 
     // Apply navigation behavior settings to UI
@@ -1420,14 +1471,47 @@ class YouTubeSidebar {
         }
         this.activeIndex = -1;
       }
+
+      // Reset pause at end state when between subtitles
+      this.pausedAtEnd = false;
+
       return;
     }
 
     const newIndex = this.currentSubtitles.indexOf(activeEntry);
-    if (newIndex === this.activeIndex) return;
+    if (newIndex === this.activeIndex) {
+      // Same subtitle - check if we should pause at the end
+      if (this.settings.pauseAtEnd && this.videoBinding && !this.pausedAtEnd) {
+        // Calculate time remaining in subtitle (in milliseconds)
+        const timeRemaining = activeEntry.end - currentTime;
 
-    // Update active state
+        // Pause when we're within 150ms of the end (to account for 100ms update interval + buffer)
+        // This ensures we catch the pause even if timing is slightly off
+        if (timeRemaining <= 150 && timeRemaining >= 0) {
+          const video = this.videoBinding.videoElement;
+          if (!video.paused) {
+            video.pause();
+            this.pausedAtEnd = true;
+            console.log('[Helios YouTube Sidebar] Paused at end of subtitle');
+          }
+        }
+      }
+      return;
+    }
+
+    // Moving to a new subtitle
+    // If pause-at-end is enabled and we didn't pause yet (subtitle was too short), pause now
+    if (this.settings.pauseAtEnd && !this.pausedAtEnd && this.activeIndex !== -1 && this.videoBinding) {
+      const video = this.videoBinding.videoElement;
+      if (!video.paused) {
+        video.pause();
+        console.log('[Helios YouTube Sidebar] Paused at subtitle transition (caught missed pause)');
+      }
+    }
+
+    // Update active state - new subtitle
     this.activeIndex = newIndex;
+    this.pausedAtEnd = false;  // Reset for new subtitle
 
     const items = this.listContainer.querySelectorAll('.yt-subtitle-item');
     items.forEach((item, index) => {

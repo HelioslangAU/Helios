@@ -548,7 +548,7 @@ class SubtitleOverlay {
    */
   async _loadSettings() {
     try {
-      const result = await chrome.storage.local.get(['ytSidebarSettings', 'subtitlePosition', 'subtitleSize']);
+      const result = await chrome.storage.local.get(['ytSidebarSettings', 'subtitlePosition', 'subtitleSize', 'subtitleVisibility']);
 
       // Load pause on hover setting
       if (result.ytSidebarSettings && result.ytSidebarSettings.pauseOnHover !== undefined) {
@@ -574,6 +574,17 @@ class SubtitleOverlay {
       if (result.subtitleSize !== undefined) {
         this.subtitleSize = result.subtitleSize;
         console.log('[Helios Subtitle Overlay] Restored subtitle size:', this.subtitleSize + 'px');
+      }
+
+      // Load saved visibility state (persists across all videos)
+      if (result.subtitleVisibility !== undefined) {
+        this.isVisible = result.subtitleVisibility;
+        console.log('[Helios Subtitle Overlay] Restored visibility:', this.isVisible);
+
+        // Apply visibility state immediately if hidden
+        if (!this.isVisible) {
+          this.container.style.display = 'none';
+        }
       }
     } catch (error) {
       console.error('[Helios Subtitle Overlay] Failed to load settings:', error);
@@ -609,6 +620,18 @@ class SubtitleOverlay {
       console.log('[Helios Subtitle Overlay] Saved subtitle size:', this.subtitleSize + 'px');
     } catch (error) {
       console.error('[Helios Subtitle Overlay] Failed to save size:', error);
+    }
+  }
+
+  /**
+   * Save visibility state to storage (persists across all videos)
+   */
+  async _saveVisibility() {
+    try {
+      await chrome.storage.local.set({ subtitleVisibility: this.isVisible });
+      console.log('[Helios Subtitle Overlay] Saved visibility:', this.isVisible);
+    } catch (error) {
+      console.error('[Helios Subtitle Overlay] Failed to save visibility:', error);
     }
   }
 
@@ -764,6 +787,11 @@ class SubtitleOverlay {
    * @param {SubtitleEntry[]} subtitles - Subtitles to display
    */
   show(subtitles) {
+    // Don't show if overlay is toggled off
+    if (!this.isVisible) {
+      return;
+    }
+
     // Check if subtitles have actually changed
     const currentIndexes = subtitles.map(s => s.index);
     const hasChanged =
@@ -1067,7 +1095,12 @@ class SubtitleOverlay {
     this.isVisible = !this.isVisible;
 
     if (this.isVisible) {
-      // Show overlay by updating position
+      // Show overlay by re-rendering current subtitles and updating position
+      if (this.currentSubtitles.length > 0) {
+        this._render().catch(err => {
+          console.error('[Helios Subtitle Overlay] Error rendering subtitles:', err);
+        });
+      }
       this._updatePosition();
       console.log('[Helios Subtitle Overlay] Subtitles shown');
     } else {
@@ -1075,6 +1108,9 @@ class SubtitleOverlay {
       this.container.style.display = 'none';
       console.log('[Helios Subtitle Overlay] Subtitles hidden');
     }
+
+    // Save visibility state to persist across videos
+    this._saveVisibility();
 
     return this.isVisible;
   }

@@ -30,12 +30,44 @@ class TheaterModeController {
       return true;
     }
 
-    // Find and click the theater mode button
-    const theaterButton = document.querySelector('button.ytp-size-button');
+    // Retry finding the button in case player isn't ready yet
+    let theaterButton = null;
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    while (!theaterButton && attempts < maxAttempts) {
+      // Find theater mode button - try multiple selectors
+      theaterButton = document.querySelector('button.ytp-size-button');
+
+      // Fallback: try other common selectors
+      if (!theaterButton) {
+        theaterButton = document.querySelector('.ytp-size-button');
+      }
+      if (!theaterButton) {
+        // Try finding by title/aria-label
+        const buttons = document.querySelectorAll('button.ytp-button');
+        theaterButton = Array.from(buttons).find(btn =>
+          btn.getAttribute('title')?.toLowerCase().includes('theater') ||
+          btn.getAttribute('aria-label')?.toLowerCase().includes('theater')
+        );
+      }
+
+      if (!theaterButton) {
+        attempts++;
+        if (attempts < maxAttempts) {
+          // Wait 200ms before retrying
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
+    }
+
     if (!theaterButton) {
-      console.warn('[Helios] Theater mode button not found');
+      console.error('[Helios] Theater mode button not found after', maxAttempts, 'attempts');
+      console.log('[Helios] Available video controls:', document.querySelectorAll('.ytp-button'));
       return false;
     }
+
+    console.log('[Helios] Clicking theater mode button:', theaterButton);
 
     // Click the button and wait for theater mode to activate
     theaterButton.click();
