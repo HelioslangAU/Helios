@@ -551,9 +551,13 @@ class SubtitleOverlay {
   setSecondarySubtitles(subtitles) {
     this.secondarySubtitles = subtitles || [];
 
-    // Re-render to show dual subtitles
+    // Re-render to show dual subtitles (async to prevent lag)
     if (this.currentSubtitles.length > 0) {
-      this._render();
+      requestAnimationFrame(() => {
+        this._render().catch(err => {
+          console.error('[Helios Subtitle Overlay] Error rendering dual subtitles:', err);
+        });
+      });
     }
   }
 
@@ -563,9 +567,13 @@ class SubtitleOverlay {
   clearSecondarySubtitles() {
     this.secondarySubtitles = [];
 
-    // Re-render without secondary subtitles
+    // Re-render without secondary subtitles (async to prevent lag)
     if (this.currentSubtitles.length > 0) {
-      this._render();
+      requestAnimationFrame(() => {
+        this._render().catch(err => {
+          console.error('[Helios Subtitle Overlay] Error clearing dual subtitles:', err);
+        });
+      });
     }
   }
 
@@ -667,6 +675,18 @@ class SubtitleOverlay {
         setTimeout(async () => {
           await this._updateSubtitleUnderlining();
         }, 50);
+      }
+    });
+
+    // Listen for pinyin toggle to re-render subtitles with/without pinyin
+    document.addEventListener('helios-pinyin-toggled', () => {
+      // Re-render current subtitles to apply/remove pinyin
+      if (this.currentSubtitles.length > 0) {
+        requestAnimationFrame(() => {
+          this._render().catch(err => {
+            console.error('[Helios Subtitle Overlay] Error re-rendering after pinyin toggle:', err);
+          });
+        });
       }
     });
   }
@@ -1010,10 +1030,7 @@ class SubtitleOverlay {
           wordSpan.textContent = word;
           primarySubtitleEl.appendChild(wordSpan);
 
-          // Add space after word (except for last word) for languages that use spaces
-          if (usesSpaces && index < extractedWords.length - 1) {
-            primarySubtitleEl.appendChild(document.createTextNode(' '));
-          }
+          // No need to add spaces - extractWords already includes them as non-target segments
         });
       } else {
         // Fallback: display text as-is if no adapter available
@@ -1043,6 +1060,40 @@ class SubtitleOverlay {
 
       this.container.appendChild(dualContainer);
     }
+
+    // Apply pinyin immediately after rendering if enabled (prevents delay)
+    if (window.pinyinManager && window.pinyinManager.isEnabled()) {
+      // Process only the newly rendered subtitle container immediately (no delay)
+      const textNodes = this._getChineseTextNodes(this.container);
+      textNodes.forEach(node => {
+        if (window.pinyinManager.processTextNodeForPinyin) {
+          window.pinyinManager.processTextNodeForPinyin(node);
+        }
+      });
+    }
+  }
+
+  /**
+   * Get all Chinese text nodes within an element (helper for pinyin)
+   * @param {HTMLElement} element
+   * @returns {Node[]}
+   */
+  _getChineseTextNodes(element) {
+    const textNodes = [];
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) => {
+        const text = node.textContent.trim();
+        // Check if contains Chinese characters (U+4E00 to U+9FFF)
+        return /[\u4E00-\u9FFF]/.test(text) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+      }
+    });
+
+    let node;
+    while ((node = walker.nextNode())) {
+      textNodes.push(node);
+    }
+
+    return textNodes;
   }
 
   /**

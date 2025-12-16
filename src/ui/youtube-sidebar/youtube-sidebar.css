@@ -633,6 +633,61 @@ body:not(.helios-sidebar-active) ytd-watch-flexy[theater] .ytp-size-button {
   background: white;
 }
 
+/* Button Group for Caption Size */
+.yt-button-group {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.yt-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+}
+
+.yt-btn-secondary {
+  background: var(--helios-bg-secondary);
+  color: var(--helios-text-secondary);
+  border: 1px solid var(--helios-border);
+}
+
+.yt-btn-secondary:hover {
+  background: var(--helios-bg-card);
+  border-color: rgba(255, 107, 71, 0.2);
+  color: var(--helios-accent-primary);
+  transform: translateY(-1px);
+}
+
+.yt-btn-secondary:active {
+  transform: translateY(0);
+}
+
+.yt-btn svg {
+  flex-shrink: 0;
+}
+
+.yt-label {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.yt-label > span {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--helios-text-secondary);
+}
+
 /* Hotkey List */
 .yt-hotkey-list {
   margin-top: 16px;

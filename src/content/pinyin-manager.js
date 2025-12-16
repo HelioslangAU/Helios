@@ -37,6 +37,11 @@ class PinyinManager {
     if (window.sidebarManager) {
       window.sidebarManager.onPinyinToggle(this.pinyinEnabled);
     }
+
+    // Dispatch event for subtitle overlay to re-render with/without pinyin
+    document.dispatchEvent(new CustomEvent('helios-pinyin-toggled', {
+      detail: { enabled: this.pinyinEnabled }
+    }));
   }
 
   addPinyinToPage() {

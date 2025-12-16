@@ -188,6 +188,10 @@ class YouTubeSidebar {
       this.pauseOnHoverToggle = this.sidebar.querySelector('#yt-pause-on-hover-toggle');
       this.pauseAtEndToggle = this.sidebar.querySelector('#yt-pause-at-end-toggle');
 
+      // Caption size buttons
+      this.increaseSizeBtn = this.sidebar.querySelector('#yt-increase-size-btn');
+      this.decreaseSizeBtn = this.sidebar.querySelector('#yt-decrease-size-btn');
+
       // Navigation behavior settings elements
       this.autoPlayToggle = this.sidebar.querySelector('#yt-auto-play-toggle');
 
@@ -721,15 +725,12 @@ class YouTubeSidebar {
         if (e.target.checked) {
           this._loadSecondarySubtitles();
         } else {
-          // Clear secondary subtitles from both overlay and sidebar
+          // Clear secondary subtitles from overlay (no need to re-render sidebar)
           this.currentSecondarySubtitles = [];
           if (this.videoBinding && this.videoBinding.overlay) {
             this.videoBinding.overlay.clearSecondarySubtitles();
           }
-          // Re-render sidebar list without secondary subtitles
-          this._renderSubtitleList().catch(err => {
-            console.error('[Helios YouTube Sidebar] Error re-rendering subtitle list:', err);
-          });
+          // No need to re-render sidebar - dual subtitles only affect overlay
         }
       });
     }
@@ -773,6 +774,19 @@ class YouTubeSidebar {
       this.autoPlayToggle.addEventListener('change', (e) => {
         this.settings.autoPlayAfterNav = e.target.checked;
         this._saveSettings();
+      });
+    }
+
+    // Caption size buttons
+    if (this.increaseSizeBtn) {
+      this.increaseSizeBtn.addEventListener('click', () => {
+        this._adjustCaptionSize(5); // Increase by 5px
+      });
+    }
+
+    if (this.decreaseSizeBtn) {
+      this.decreaseSizeBtn.addEventListener('click', () => {
+        this._adjustCaptionSize(-5); // Decrease by 5px
       });
     }
   }
@@ -1189,10 +1203,7 @@ class YouTubeSidebar {
         this.videoBinding.overlay.setSecondarySubtitles(secondaryEntries);
       }
 
-      // Re-render sidebar list with dual subtitles
-      this._renderSubtitleList().catch(err => {
-        console.error('[Helios YouTube Sidebar] Error re-rendering subtitle list:', err);
-      });
+      // No need to re-render sidebar - dual subtitles only affect overlay display
     } catch (error) {
       console.error('[Helios YouTube Sidebar] Failed to load secondary subtitles:', error);
     }
@@ -1965,6 +1976,38 @@ class YouTubeSidebar {
     } catch (error) {
       console.error('[Helios YouTube Sidebar] Failed to save settings:', error);
     }
+  }
+
+  /**
+   * Adjust caption size by the given amount
+   * @param {number} delta - Amount to change size by (positive to increase, negative to decrease)
+   */
+  _adjustCaptionSize(delta) {
+    // Get current subtitle size from overlay or use default
+    if (!this.videoBinding || !this.videoBinding.overlay) {
+      this._showNotification('No video overlay available', 'error');
+      return;
+    }
+
+    const overlay = this.videoBinding.overlay;
+    const currentSize = overlay.subtitleSize || 40; // Default is 40px
+    const newSize = Math.max(20, Math.min(80, currentSize + delta)); // Clamp between 20px and 80px
+
+    // Update overlay subtitle size
+    overlay.subtitleSize = newSize;
+
+    // Save the new size to storage
+    overlay._saveSize();
+
+    // Re-render subtitles with new size
+    if (overlay.currentSubtitles && overlay.currentSubtitles.length > 0) {
+      overlay._render().catch(err => {
+        console.error('[Helios Subtitle Overlay] Error rendering subtitles:', err);
+      });
+    }
+
+    // Show feedback notification
+    this._showNotification(`Caption size: ${newSize}px`, 'success');
   }
 
   /**
