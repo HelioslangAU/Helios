@@ -385,8 +385,25 @@ class SubtitleOverlay {
   /**
    * Setup keyboard shortcuts for resizing subtitles
    * Similar to ASBplayer, but with keyboard support for font size adjustment
+   * Loads shortcuts from storage (videoNavigation settings)
    */
-  _setupResizeShortcuts() {
+  async _setupResizeShortcuts() {
+    // Load shortcuts from storage
+    let shortcuts;
+    if (window.ShortcutHelper) {
+      shortcuts = await window.ShortcutHelper.getVideoNavigationShortcuts();
+    } else {
+      // Fallback to defaults if ShortcutHelper not available
+      shortcuts = {
+        toggle: { key: "W", ctrl: false, shift: false, alt: false, meta: false },
+        increaseSize: { key: "Equal", ctrl: false, shift: true, alt: false, meta: false },
+        decreaseSize: { key: "Minus", ctrl: false, shift: true, alt: false, meta: false }
+      };
+    }
+
+    // Store shortcuts for later use
+    this.shortcuts = shortcuts;
+
     // Store handler for cleanup
     this._keyboardShortcutHandler = (e) => {
       // Only work on YouTube watch pages
@@ -399,28 +416,52 @@ class SubtitleOverlay {
         return;
       }
 
-      // Toggle subtitle visibility: 'w' key
-      if (e.key === 'w' || e.key === 'W') {
+      // Toggle subtitle visibility
+      if (this._matchesShortcut(e, shortcuts.toggle)) {
         e.preventDefault();
         e.stopImmediatePropagation();
         this.toggleVisibility();
       }
-      // Increase subtitle size: Shift + = (or Shift + +)
-      // Use both key and code to handle different keyboard layouts
-      else if (e.shiftKey && (e.key === '=' || e.key === '+' || e.code === 'Equal')) {
+      // Increase subtitle size
+      else if (this._matchesShortcut(e, shortcuts.increaseSize)) {
         e.preventDefault();
         e.stopImmediatePropagation();
         this._increaseSubtitleSize();
       }
-      // Decrease subtitle size: Shift + - (or Shift + _)
-      // Use both key and code to handle different keyboard layouts
-      else if (e.shiftKey && (e.key === '-' || e.key === '_' || e.code === 'Minus')) {
+      // Decrease subtitle size
+      else if (this._matchesShortcut(e, shortcuts.decreaseSize)) {
         e.preventDefault();
         e.stopImmediatePropagation();
         this._decreaseSubtitleSize();
       }
     };
     document.addEventListener('keydown', this._keyboardShortcutHandler, true); // Use capture phase to intercept before YouTube
+  }
+
+  /**
+   * Check if keyboard event matches a shortcut configuration
+   * @param {KeyboardEvent} e - Keyboard event
+   * @param {Object} shortcut - Shortcut config { key, ctrl, shift, alt, meta }
+   * @returns {boolean} - True if event matches shortcut
+   */
+  _matchesShortcut(e, shortcut) {
+    if (!shortcut || !shortcut.key) return false;
+
+    // Normalize key comparison
+    const eventKey = e.key.toUpperCase();
+    const configKey = shortcut.key.toUpperCase();
+    const eventCode = e.code ? e.code.toUpperCase() : '';
+
+    // Check if key or code matches (for keys like '=' which can be 'Equal' code)
+    const keyMatches = eventKey === configKey || eventCode === configKey;
+    if (!keyMatches) return false;
+
+    // Check modifiers match exactly
+    const ctrlMatches = (shortcut.ctrl || shortcut.meta) ? (e.ctrlKey || e.metaKey) : !e.ctrlKey && !e.metaKey;
+    const shiftMatches = shortcut.shift ? e.shiftKey : !e.shiftKey;
+    const altMatches = shortcut.alt ? e.altKey : !e.altKey;
+
+    return ctrlMatches && shiftMatches && altMatches;
   }
 
   /**
@@ -963,6 +1004,11 @@ class SubtitleOverlay {
    * Render current subtitles to DOM
    */
   async _render() {
+    // Don't render if overlay is hidden
+    if (!this.isVisible) {
+      return;
+    }
+
     // Clean up any popups/highlights before clearing DOM
     if (window.popupManager) {
       window.popupManager.hidePopup();
@@ -1230,7 +1276,8 @@ class SubtitleOverlay {
     this.isVisible = !this.isVisible;
 
     if (this.isVisible) {
-      // Show overlay by re-rendering current subtitles and updating position
+      // Show overlay - restore display and re-render current subtitles
+      this.container.style.display = '';
       if (this.currentSubtitles.length > 0) {
         this._render().catch(err => {
           console.error('[Helios Subtitle Overlay] Error rendering subtitles:', err);
@@ -1238,8 +1285,9 @@ class SubtitleOverlay {
       }
       this._updatePosition();
     } else {
-      // Hide overlay
+      // Hide overlay - set display none and clear content
       this.container.style.display = 'none';
+      this.container.innerHTML = '';
     }
 
     // Save visibility state to persist across videos

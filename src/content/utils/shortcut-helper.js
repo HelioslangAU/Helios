@@ -85,7 +85,7 @@ class ShortcutHelper {
     try {
       const result = await chrome.storage.local.get(['shortcuts']);
       const shortcuts = result.shortcuts || {};
-      
+
       // Return video navigation shortcuts with defaults
       // Handle both object format and display string format
       const navShortcuts = shortcuts.videoNavigation || {};
@@ -93,7 +93,9 @@ class ShortcutHelper {
         previous: { key: "A", ctrl: false, shift: false, alt: false, meta: false },
         next: { key: "D", ctrl: false, shift: false, alt: false, meta: false },
         restart: { key: "S", ctrl: false, shift: false, alt: false, meta: false },
-        toggle: { key: "W", ctrl: false, shift: false, alt: false, meta: false }
+        toggle: { key: "W", ctrl: false, shift: false, alt: false, meta: false },
+        increaseSize: { key: "Equal", ctrl: false, shift: true, alt: false, meta: false },
+        decreaseSize: { key: "Minus", ctrl: false, shift: true, alt: false, meta: false }
       };
 
       // If shortcuts are stored as display strings, parse them
@@ -118,7 +120,9 @@ class ShortcutHelper {
         previous: { key: "A", ctrl: false, shift: false, alt: false, meta: false },
         next: { key: "D", ctrl: false, shift: false, alt: false, meta: false },
         restart: { key: "S", ctrl: false, shift: false, alt: false, meta: false },
-        toggle: { key: "W", ctrl: false, shift: false, alt: false, meta: false }
+        toggle: { key: "W", ctrl: false, shift: false, alt: false, meta: false },
+        increaseSize: { key: "Equal", ctrl: false, shift: true, alt: false, meta: false },
+        decreaseSize: { key: "Minus", ctrl: false, shift: true, alt: false, meta: false }
       };
     }
   }
