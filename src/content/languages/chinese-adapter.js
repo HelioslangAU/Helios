@@ -139,7 +139,7 @@ class ChineseLanguageAdapter extends BaseLanguageAdapter {
             } else {
               // Use jieba.cut only on target character chunks
               segments = await this.jieba.cut(chunk.text);
-              
+
               // Cache the result (with size limit)
               if (this.jiebaCache.size >= this.jiebaCacheMaxSize) {
                 // Remove oldest entry (simple FIFO)
@@ -148,23 +148,31 @@ class ChineseLanguageAdapter extends BaseLanguageAdapter {
               }
               this.jiebaCache.set(chunk.text, segments);
             }
-            
+
             let chunkPos = 0;
-            
+
             for (const segment of segments) {
               const start = chunk.start + chunkPos;
               const end = start + segment.length;
-              
+
               words.push({
                 word: segment,
                 start: start,
                 end: end,
                 isTargetLang: true
               });
-              
+
               chunkPos += segment.length;
             }
-          } 
+          } else if (!chunk.isTargetLang && chunk.text.length > 0) {
+            // Add non-target language chunks (English, numbers, punctuation) as-is
+            words.push({
+              word: chunk.text,
+              start: chunk.start,
+              end: chunk.start + chunk.text.length,
+              isTargetLang: false
+            });
+          }
         }
         // if (words.length != 0) {
         //   console.log('Jieba words:', words);

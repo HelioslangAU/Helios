@@ -9,14 +9,41 @@ class SubtitleCollection {
 
   /**
    * Get all subtitles that should be shown at given time
-   * Returns ALL active subtitles without text-based filtering (matches asbplayer's approach)
+   * Deduplicates entries with identical text that overlap in time
    * @param {number} currentTime - Current video time in milliseconds
    * @returns {SubtitleEntry[]}
    */
   getSubtitlesAt(currentTime) {
-    // Return all active entries without any text-based deduplication
-    // This matches asbplayer's approach - they return all subtitles active at the timestamp
-    return this.entries.filter(entry => entry.isActiveAt(currentTime));
+    const activeEntries = this.entries.filter(entry => entry.isActiveAt(currentTime));
+
+    // If only one or no active entries, return as-is
+    if (activeEntries.length <= 1) {
+      return activeEntries;
+    }
+
+    // Deduplicate by text: if multiple entries have the same text,
+    // keep only the one with the longest duration
+    const textMap = new Map();
+
+    for (const entry of activeEntries) {
+      const normalizedText = entry.text.trim();
+
+      if (!textMap.has(normalizedText)) {
+        textMap.set(normalizedText, entry);
+      } else {
+        // If we already have this text, keep the entry with longer duration
+        const existing = textMap.get(normalizedText);
+        if (entry.getDuration() > existing.getDuration()) {
+          textMap.set(normalizedText, entry);
+        }
+      }
+    }
+
+    // Return deduplicated entries, preserving original time-based order
+    const deduplicatedEntries = Array.from(textMap.values());
+    deduplicatedEntries.sort((a, b) => a.start - b.start);
+
+    return deduplicatedEntries;
   }
 
   /**
