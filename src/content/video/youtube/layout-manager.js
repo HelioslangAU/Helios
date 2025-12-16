@@ -18,6 +18,10 @@ class YouTubeLayoutManager {
     this.observers = [];
     this.modifiedElements = new Set();
 
+    // Race condition protection
+    this.operationInProgress = false;
+    this.pendingOperation = null;
+
     // Timing constants for smooth transitions
     this.RESIZE_DELAY = 100; // ms delay before triggering resize
     this.THEATER_TOGGLE_DELAY = 50; // ms delay for theater mode toggle
@@ -27,65 +31,105 @@ class YouTubeLayoutManager {
    * Activate the sidebar layout modifications
    * This shrinks the video container to make room for the sidebar
    */
-  activate() {
+  async activate() {
     if (this.isActive) return;
 
-    console.log('[Helios Layout] Activating sidebar layout');
+    // If operation is in progress, queue this activation
+    if (this.operationInProgress) {
+      this.pendingOperation = 'activate';
+      return;
+    }
 
-    // Add the primary layout class to the body
-    // This triggers all CSS rules for the sidebar-active state
-    document.body.classList.add('helios-sidebar-active');
+    this.operationInProgress = true;
 
-    this.isActive = true;
+    try {
+      console.log('[Helios Layout] Activating sidebar layout');
 
-    // Set up observer to maintain layout if YouTube fights back
-    this._setupLayoutMaintenanceObserver();
+      // Add the primary layout class to the body
+      // This triggers all CSS rules for the sidebar-active state
+      document.body.classList.add('helios-sidebar-active');
 
-    // Force YouTube to recalculate the video player size
-    this._triggerVideoResize();
+      this.isActive = true;
+
+      // Set up observer to maintain layout if YouTube fights back
+      this._setupLayoutMaintenanceObserver();
+
+      // Force YouTube to recalculate the video player size
+      this._triggerVideoResize();
+    } finally {
+      this.operationInProgress = false;
+
+      // Process any pending operation
+      if (this.pendingOperation === 'deactivate') {
+        this.pendingOperation = null;
+        await this.deactivate();
+      } else {
+        this.pendingOperation = null;
+      }
+    }
   }
 
   /**
    * Deactivate the sidebar layout modifications
    * Returns the page to normal theater mode
    */
-  deactivate() {
+  async deactivate() {
     if (!this.isActive) return;
 
-    console.log('[Helios Layout] Deactivating sidebar layout');
-
-    // Remove the layout class FIRST
-    document.body.classList.remove('helios-sidebar-active');
-
-    this.isActive = false;
-
-    // Clean up all observers
-    this._disconnectAllObservers();
-
-    // AGGRESSIVELY reset the containers to YouTube's default theater mode
-    const fullBleed = document.querySelector('#full-bleed-container');
-    const theaterContainer = document.querySelector('#player-theater-container');
-    const watchFlexy = document.querySelector('ytd-watch-flexy');
-
-    if (fullBleed) {
-      // Remove ALL our modifications
-      fullBleed.style.cssText = '';
-      void fullBleed.offsetHeight; // Force reflow
+    // If operation is in progress, queue this deactivation
+    if (this.operationInProgress) {
+      this.pendingOperation = 'deactivate';
+      return;
     }
 
-    if (theaterContainer) {
-      // Remove ALL our modifications
-      theaterContainer.style.cssText = '';
-      void theaterContainer.offsetHeight; // Force reflow
+    this.operationInProgress = true;
+
+    try {
+      console.log('[Helios Layout] Deactivating sidebar layout');
+
+      // Remove the layout class FIRST
+      document.body.classList.remove('helios-sidebar-active');
+
+      this.isActive = false;
+
+      // Clean up all observers
+      this._disconnectAllObservers();
+
+      // AGGRESSIVELY reset the containers to YouTube's default theater mode
+      const fullBleed = document.querySelector('#full-bleed-container');
+      const theaterContainer = document.querySelector('#player-theater-container');
+      const watchFlexy = document.querySelector('ytd-watch-flexy');
+
+      if (fullBleed) {
+        // Remove ALL our modifications
+        fullBleed.style.cssText = '';
+        void fullBleed.offsetHeight; // Force reflow
+      }
+
+      if (theaterContainer) {
+        // Remove ALL our modifications
+        theaterContainer.style.cssText = '';
+        void theaterContainer.offsetHeight; // Force reflow
+      }
+
+      // Remove any inline styles that may have been added to other elements
+      this._cleanupInlineStyles();
+
+      // Force YouTube to recalculate layout by toggling theater mode
+      this._forceTheaterModeRefresh(watchFlexy);
+
+      console.log('[Helios Layout] Video containers reset to default YouTube state');
+    } finally {
+      this.operationInProgress = false;
+
+      // Process any pending operation
+      if (this.pendingOperation === 'activate') {
+        this.pendingOperation = null;
+        await this.activate();
+      } else {
+        this.pendingOperation = null;
+      }
     }
-
-    // Remove any inline styles that may have been added to other elements
-    this._cleanupInlineStyles();
-
-    // Force YouTube to recalculate layout by toggling theater mode
-    this._forceTheaterModeRefresh(watchFlexy);
-
-    console.log('[Helios Layout] Video containers reset to default YouTube state');
   }
 
   /**

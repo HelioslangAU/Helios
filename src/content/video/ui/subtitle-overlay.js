@@ -33,6 +33,10 @@ class SubtitleOverlay {
     // Position maintenance interval (ASB Player approach - simple 1-second updates only)
     this.positionMaintenanceInterval = null;
 
+    // URL monitoring for navigation cleanup
+    this.lastUrl = window.location.href;
+    this.urlCheckInterval = null;
+
     // Load settings (pause on hover + saved position)
     this._loadSettings();
 
@@ -45,6 +49,7 @@ class SubtitleOverlay {
     this._setupShiftKeyInterception();
     this._setupVocabUpdateListener();
     this._setupPopupListener();
+    this._setupUrlMonitoring();
   }
 
   /**
@@ -130,10 +135,16 @@ class SubtitleOverlay {
       return;
     }
 
-    this.container.style.display = '';
-
-    // Position absolute to document (NOT viewport) - like ASB Player
-    this.container.style.position = 'absolute';
+    // Batch all style updates to avoid forced reflows
+    const styles = {
+      display: '',
+      position: 'absolute',
+      bottom: '',
+      transform: 'translate(-50%, -100%)',
+      zIndex: '2015',
+      pointerEvents: 'auto',
+      width: 'auto'
+    };
 
     // Calculate absolute position with scroll compensation (ASB Player technique)
     const clampedY = Math.max(rect.top + window.scrollY, 0);
@@ -144,25 +155,22 @@ class SubtitleOverlay {
 
     if (this.hasCustomPosition) {
       // Use custom dragged position with scroll compensation
-      this.container.style.left = (rect.left + rect.width / 2 + this.customOffsetX) + 'px';
-      this.container.style.top = (clampedHeight - this.contentPositionOffset + this.customOffsetY) + 'px';
+      styles.left = (rect.left + rect.width / 2 + this.customOffsetX) + 'px';
+      styles.top = (clampedHeight - this.contentPositionOffset + this.customOffsetY) + 'px';
     } else {
       // Default position: center horizontally on video
       const videoCenter = rect.left + rect.width / 2;
-      this.container.style.left = videoCenter + 'px';
+      styles.left = videoCenter + 'px';
 
       // Calculate top position from document top (not viewport) - this prevents glitching during scroll
-      this.container.style.top = (clampedHeight - this.contentPositionOffset) + 'px';
+      styles.top = (clampedHeight - this.contentPositionOffset) + 'px';
     }
 
-    this.container.style.bottom = '';
-    this.container.style.transform = 'translate(-50%, -100%)'; // ASB Player style centering
-    this.container.style.zIndex = '2015'; // Below YouTube banner (2020) but above video
-    this.container.style.pointerEvents = 'auto'; // Changed to auto for dragging
-    this.container.style.width = 'auto';
-
     // Match video width like ASB Player (with some padding)
-    this.container.style.maxWidth = (rect.width * 0.9) + 'px';
+    styles.maxWidth = (rect.width * 0.9) + 'px';
+
+    // Apply all styles at once
+    Object.assign(this.container.style, styles);
   }
 
   /**
@@ -184,17 +192,23 @@ class SubtitleOverlay {
       window.innerHeight + window.scrollY
     );
 
+    // Batch style updates
+    const styles = {};
+
     // Update position based on whether custom position is set
     if (this.hasCustomPosition) {
-      this.container.style.left = (rect.left + rect.width / 2 + this.customOffsetX) + 'px';
-      this.container.style.top = (clampedHeight - this.contentPositionOffset + this.customOffsetY) + 'px';
+      styles.left = (rect.left + rect.width / 2 + this.customOffsetX) + 'px';
+      styles.top = (clampedHeight - this.contentPositionOffset + this.customOffsetY) + 'px';
     } else {
-      this.container.style.left = (rect.left + rect.width / 2) + 'px';
-      this.container.style.top = (clampedHeight - this.contentPositionOffset) + 'px';
+      styles.left = (rect.left + rect.width / 2) + 'px';
+      styles.top = (clampedHeight - this.contentPositionOffset) + 'px';
     }
 
     // Update max width to match video width
-    this.container.style.maxWidth = (rect.width * 0.9) + 'px';
+    styles.maxWidth = (rect.width * 0.9) + 'px';
+
+    // Apply all styles at once
+    Object.assign(this.container.style, styles);
   }
 
   /**
@@ -216,8 +230,8 @@ class SubtitleOverlay {
       this.container.style.userSelect = 'none';
     });
 
-    // Mouse move - drag
-    document.addEventListener('mousemove', (e) => {
+    // Mouse move - drag (store handler for cleanup)
+    this._dragMoveHandler = (e) => {
       if (this.isDragging) {
         const deltaX = e.clientX - this.dragStartX;
         const deltaY = e.clientY - this.dragStartY;
@@ -236,10 +250,11 @@ class SubtitleOverlay {
           this.container.style.top = (rect.top + rect.height - this.contentPositionOffset + this.customOffsetY) + 'px';
         }
       }
-    });
+    };
+    document.addEventListener('mousemove', this._dragMoveHandler);
 
     // Mouse up - stop dragging and save position (ASBplayer-style)
-    document.addEventListener('mouseup', () => {
+    this._dragUpHandler = () => {
       if (this.isDragging) {
         this.isDragging = false;
         this.container.style.cursor = 'move';
@@ -248,7 +263,8 @@ class SubtitleOverlay {
         // Save position to storage for persistence across videos
         this._savePosition();
       }
-    });
+    };
+    document.addEventListener('mouseup', this._dragUpHandler);
 
     // Set move cursor when hovering (if not on a word)
     this.container.addEventListener('mouseover', (e) => {
@@ -294,8 +310,8 @@ class SubtitleOverlay {
       document.body.style.cursor = 'nwse-resize';
     });
 
-    // Mouse move - resize
-    document.addEventListener('mousemove', (e) => {
+    // Mouse move - resize (store handler for cleanup)
+    this._resizeMoveHandler = (e) => {
       if (this.isResizing) {
         // Calculate size change based on vertical movement
         // Moving down = smaller, moving up = larger (inverted because subtitles are at bottom)
@@ -309,10 +325,11 @@ class SubtitleOverlay {
           this._applySubtitleSize();
         }
       }
-    });
+    };
+    document.addEventListener('mousemove', this._resizeMoveHandler);
 
-    // Mouse up - stop resizing
-    document.addEventListener('mouseup', () => {
+    // Mouse up - stop resizing (store handler for cleanup)
+    this._resizeUpHandler = () => {
       if (this.isResizing) {
         this.isResizing = false;
         document.body.style.cursor = '';
@@ -320,7 +337,8 @@ class SubtitleOverlay {
         this._saveSize();
         this._showSizeNotification();
       }
-    });
+    };
+    document.addEventListener('mouseup', this._resizeUpHandler);
   }
 
   /**
@@ -328,7 +346,8 @@ class SubtitleOverlay {
    * Similar to ASBplayer, but with keyboard support for font size adjustment
    */
   _setupResizeShortcuts() {
-    document.addEventListener('keydown', (e) => {
+    // Store handler for cleanup
+    this._keyboardShortcutHandler = (e) => {
       // Only work on YouTube watch pages
       if (!window.location.pathname.includes('/watch')) {
         return;
@@ -353,7 +372,8 @@ class SubtitleOverlay {
         e.stopImmediatePropagation();
         this._decreaseSubtitleSize();
       }
-    }, true); // Use capture phase to intercept before YouTube
+    };
+    document.addEventListener('keydown', this._keyboardShortcutHandler, true); // Use capture phase to intercept before YouTube
   }
 
   /**
@@ -420,23 +440,26 @@ class SubtitleOverlay {
    * Setup fullscreen change listener
    */
   _setupFullscreenListener() {
-    const fullscreenHandler = () => {
+    this._fullscreenHandler = () => {
       this.isFullscreen = !!(
         document.fullscreenElement ||
         document.webkitFullscreenElement ||
         document.mozFullScreenElement
       );
 
-      if (this.isFullscreen) {
-        this._handleFullscreen();
-      } else {
-        this._updatePosition();
-      }
+      // Use requestAnimationFrame for smooth transition
+      requestAnimationFrame(() => {
+        if (this.isFullscreen) {
+          this._handleFullscreen();
+        } else {
+          this._updatePosition();
+        }
+      });
     };
 
-    document.addEventListener('fullscreenchange', fullscreenHandler);
-    document.addEventListener('webkitfullscreenchange', fullscreenHandler);
-    document.addEventListener('mozfullscreenchange', fullscreenHandler);
+    document.addEventListener('fullscreenchange', this._fullscreenHandler);
+    document.addEventListener('webkitfullscreenchange', this._fullscreenHandler);
+    document.addEventListener('mozfullscreenchange', this._fullscreenHandler);
   }
 
   /**
@@ -457,12 +480,17 @@ class SubtitleOverlay {
     const rect = this.videoElement.getBoundingClientRect();
     const videoCenter = rect.left + rect.width / 2;
 
-    this.container.style.position = 'fixed';
-    this.container.style.left = videoCenter + 'px';
-    this.container.style.bottom = this.contentPositionOffset + 'px';
-    this.container.style.top = 'auto';
-    this.container.style.transform = 'translateX(-50%)';
-    this.container.style.maxWidth = (rect.width * 0.9) + 'px';
+    // Batch all style updates for smooth transition
+    const styles = {
+      position: 'fixed',
+      left: videoCenter + 'px',
+      bottom: this.contentPositionOffset + 'px',
+      top: 'auto',
+      transform: 'translateX(-50%)',
+      maxWidth: (rect.width * 0.9) + 'px'
+    };
+
+    Object.assign(this.container.style, styles);
   }
 
   /**
@@ -729,6 +757,31 @@ class SubtitleOverlay {
         }
       }
     });
+  }
+
+  /**
+   * Setup URL monitoring to detect navigation away from video pages
+   * Critical for YouTube SPA navigation - prevents captions persisting on non-watch pages
+   */
+  _setupUrlMonitoring() {
+    this.urlCheckInterval = setInterval(() => {
+      const currentUrl = window.location.href;
+
+      if (currentUrl !== this.lastUrl) {
+        // URL changed - check if we left a watch page
+        const wasWatchPage = this.lastUrl.includes('/watch');
+        const isWatchPage = currentUrl.includes('/watch');
+
+        if (wasWatchPage && !isWatchPage) {
+          // Navigated away from video - immediately hide and clear overlay
+          this.container.style.display = 'none';
+          this.clear();
+          console.log('[Helios Subtitle Overlay] Navigation detected - overlay hidden');
+        }
+
+        this.lastUrl = currentUrl;
+      }
+    }, 500); // Check every 500ms for navigation changes
   }
 
   /**
@@ -1129,6 +1182,55 @@ class SubtitleOverlay {
     if (this.positionMaintenanceInterval) {
       clearInterval(this.positionMaintenanceInterval);
       this.positionMaintenanceInterval = null;
+    }
+
+    // Clear URL monitoring interval
+    if (this.urlCheckInterval) {
+      clearInterval(this.urlCheckInterval);
+      this.urlCheckInterval = null;
+    }
+
+    // Remove all global event listeners to prevent memory leaks
+    if (this._dragMoveHandler) {
+      document.removeEventListener('mousemove', this._dragMoveHandler);
+      this._dragMoveHandler = null;
+    }
+
+    if (this._dragUpHandler) {
+      document.removeEventListener('mouseup', this._dragUpHandler);
+      this._dragUpHandler = null;
+    }
+
+    if (this._resizeMoveHandler) {
+      document.removeEventListener('mousemove', this._resizeMoveHandler);
+      this._resizeMoveHandler = null;
+    }
+
+    if (this._resizeUpHandler) {
+      document.removeEventListener('mouseup', this._resizeUpHandler);
+      this._resizeUpHandler = null;
+    }
+
+    if (this._keyboardShortcutHandler) {
+      document.removeEventListener('keydown', this._keyboardShortcutHandler);
+      this._keyboardShortcutHandler = null;
+    }
+
+    if (this._fullscreenHandler) {
+      document.removeEventListener('fullscreenchange', this._fullscreenHandler);
+      document.removeEventListener('webkitfullscreenchange', this._fullscreenHandler);
+      document.removeEventListener('mozfullscreenchange', this._fullscreenHandler);
+      this._fullscreenHandler = null;
+    }
+
+    if (this._vocabUpdateHandler) {
+      document.removeEventListener('helios-vocab-updated', this._vocabUpdateHandler);
+      this._vocabUpdateHandler = null;
+    }
+
+    if (this._pauseOnHoverHandler) {
+      document.removeEventListener('mousemove', this._pauseOnHoverHandler);
+      this._pauseOnHoverHandler = null;
     }
 
     // Remove from DOM

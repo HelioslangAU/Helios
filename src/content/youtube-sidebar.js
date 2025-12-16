@@ -31,6 +31,10 @@ class YouTubeSidebar {
     this.isAutoScrolling = false; // Flag to prevent detecting auto-scroll as user scroll
     this.mouseInScrollZone = false; // Flag to track if mouse is in the right 35% scroll zone
 
+    // Race condition protection for subtitle updates
+    this.isUpdatingSubtitles = false;
+    this.pendingSubtitleUpdate = null;
+
     // Settings
     this.settings = {
       hotkeysEnabled: true,
@@ -60,7 +64,8 @@ class YouTubeSidebar {
     this._loadSettings();
 
     // Listen for storage changes to sync settings from main settings page
-    chrome.storage.onChanged.addListener((changes, areaName) => {
+    // Store listener reference so we can remove it on destroy
+    this._storageChangeListener = (changes, areaName) => {
       if (areaName === 'local' && (changes.videoPlayer || changes.ytSidebarSettings)) {
         console.log('[Helios YouTube Sidebar] Storage changed, reloading settings');
         this._loadSettings().then(() => {
@@ -70,7 +75,8 @@ class YouTubeSidebar {
           }
         });
       }
-    });
+    };
+    chrome.storage.onChanged.addListener(this._storageChangeListener);
 
     if (this.isYouTubePage()) {
       this._init();
@@ -303,12 +309,20 @@ class YouTubeSidebar {
     let lastUrl = window.location.href;
 
     // Check URL changes periodically (YouTube is a SPA)
-    setInterval(() => {
+    // Store interval so we can clear it on destroy
+    this.navigationInterval = setInterval(() => {
       if (window.location.href !== lastUrl) {
+        const wasWatchPage = lastUrl.includes('/watch');
+        const isWatchPage = this.isWatchPage();
         lastUrl = window.location.href;
 
+        // Clear subtitle data when leaving a watch page OR entering a new watch page
+        if (wasWatchPage || isWatchPage) {
+          this._clearSubtitleData();
+        }
+
         // Show sidebar only on watch pages
-        if (this.isWatchPage()) {
+        if (isWatchPage) {
           // Show sidebar (will force theater mode automatically)
           setTimeout(async () => {
             await this.show();
@@ -957,35 +971,58 @@ class YouTubeSidebar {
    * Update subtitles in sidebar
    */
   async updateSubtitles(entries, track) {
-    // Deduplicate entries before storing to prevent duplicate subtitles in sidebar
-    this.currentSubtitles = this._deduplicateEntries(entries || []);
-    this.currentTrack = track;
-    this.currentSecondarySubtitles = []; // Reset secondary subtitles
-
-    // Render subtitle list (async)
-    await this._renderSubtitleList().catch(err => {
-      console.error('[Helios YouTube Sidebar] Error rendering subtitle list:', err);
-    });
-
-    // Update language dropdown with new video's available languages
-    this._updateLanguageDropdown();
-
-    // Scroll to current subtitle position if video is not at start
-    if (this.videoBinding) {
-      const currentTime = this.videoBinding.videoElement.currentTime * 1000;
-      if (currentTime > 1000) { // If more than 1 second into video
-        this._updateActiveSubtitle(currentTime);
-        console.log('[Helios YouTube Sidebar] Scrolled to subtitle at', Math.floor(currentTime/1000), 'seconds');
-      }
+    // Race condition protection: if already updating, queue this update
+    if (this.isUpdatingSubtitles) {
+      console.log('[Helios YouTube Sidebar] Update in progress, queueing new subtitle update');
+      this.pendingSubtitleUpdate = { entries, track };
+      return;
     }
 
-    // Signal that sidebar is ready (subtitles loaded and scrolled to position)
-    document.dispatchEvent(new CustomEvent('helios-sidebar-ready'));
-    console.log('[Helios YouTube Sidebar] Sidebar ready - subtitles positioned');
+    this.isUpdatingSubtitles = true;
 
-    // Load secondary subtitles if dual subtitles enabled
-    if (this.settings.dualSubtitlesEnabled) {
-      this._loadSecondarySubtitles();
+    try {
+      // Deduplicate entries before storing to prevent duplicate subtitles in sidebar
+      this.currentSubtitles = this._deduplicateEntries(entries || []);
+      this.currentTrack = track;
+      this.currentSecondarySubtitles = []; // Reset secondary subtitles
+
+      console.log(`[Helios YouTube Sidebar] Updating with ${this.currentSubtitles.length} deduplicated subtitles`);
+
+      // Render subtitle list (async)
+      await this._renderSubtitleList().catch(err => {
+        console.error('[Helios YouTube Sidebar] Error rendering subtitle list:', err);
+      });
+
+      // Update language dropdown with new video's available languages
+      this._updateLanguageDropdown();
+
+      // Scroll to current subtitle position if video is not at start
+      if (this.videoBinding) {
+        const currentTime = this.videoBinding.videoElement.currentTime * 1000;
+        if (currentTime > 1000) { // If more than 1 second into video
+          this._updateActiveSubtitle(currentTime);
+          console.log('[Helios YouTube Sidebar] Scrolled to subtitle at', Math.floor(currentTime/1000), 'seconds');
+        }
+      }
+
+      // Signal that sidebar is ready (subtitles loaded and scrolled to position)
+      document.dispatchEvent(new CustomEvent('helios-sidebar-ready'));
+      console.log('[Helios YouTube Sidebar] Sidebar ready - subtitles positioned');
+
+      // Load secondary subtitles if dual subtitles enabled
+      if (this.settings.dualSubtitlesEnabled) {
+        this._loadSecondarySubtitles();
+      }
+    } finally {
+      this.isUpdatingSubtitles = false;
+
+      // Process any pending update
+      if (this.pendingSubtitleUpdate) {
+        const { entries: pendingEntries, track: pendingTrack } = this.pendingSubtitleUpdate;
+        this.pendingSubtitleUpdate = null;
+        console.log('[Helios YouTube Sidebar] Processing queued subtitle update');
+        await this.updateSubtitles(pendingEntries, pendingTrack);
+      }
     }
   }
 
@@ -998,41 +1035,64 @@ class YouTubeSidebar {
       return [];
     }
 
-    const seen = new Map();
+    // CRITICAL: Sort FIRST by start time before deduplication
+    // This ensures we process entries in chronological order
+    const sortedEntries = [...entries].sort((a, b) => a.start - b.start);
+
+    const textGroups = new Map(); // Group entries by text
+
+    // Group all entries by their text content
+    for (const entry of sortedEntries) {
+      const normalizedText = entry.text.trim();
+      if (!textGroups.has(normalizedText)) {
+        textGroups.set(normalizedText, []);
+      }
+      textGroups.get(normalizedText).push(entry);
+    }
+
     const deduplicated = [];
 
-    for (const entry of entries) {
-      const normalizedText = entry.text.trim();
-      const key = `${normalizedText}`;
-
-      if (!seen.has(key)) {
-        // First time seeing this text
-        seen.set(key, entry);
-        deduplicated.push(entry);
+    // Process each text group
+    for (const [text, groupEntries] of textGroups.entries()) {
+      if (groupEntries.length === 1) {
+        // Only one entry with this text - keep it
+        deduplicated.push(groupEntries[0]);
       } else {
-        // We've seen this text before - check if times overlap
-        const existing = seen.get(key);
+        // Multiple entries with same text - need to deduplicate by time overlap
+        const kept = [];
 
-        // Check if entries overlap in time
-        const overlap = !(entry.end <= existing.start || entry.start >= existing.end);
+        for (const entry of groupEntries) {
+          // Check if this entry overlaps with any already kept entry
+          const overlapsWithKept = kept.some(keptEntry => {
+            // Two entries overlap if one starts before the other ends
+            return !(entry.end <= keptEntry.start || entry.start >= keptEntry.end);
+          });
 
-        if (overlap) {
-          // Times overlap - keep the one with longer duration
-          if (entry.getDuration() > existing.getDuration()) {
-            // Replace existing entry with this one
-            const index = deduplicated.indexOf(existing);
-            if (index !== -1) {
-              deduplicated[index] = entry;
-              seen.set(key, entry);
+          if (!overlapsWithKept) {
+            // No overlap with any kept entry - keep this one
+            kept.push(entry);
+          } else {
+            // Overlaps with at least one kept entry
+            // Replace the overlapping entry if this one has longer duration
+            const overlappingIndex = kept.findIndex(keptEntry => {
+              return !(entry.end <= keptEntry.start || entry.start >= keptEntry.end);
+            });
+
+            if (overlappingIndex !== -1) {
+              const overlapping = kept[overlappingIndex];
+              if (entry.getDuration() > overlapping.getDuration()) {
+                kept[overlappingIndex] = entry;
+              }
             }
           }
-          // Otherwise keep the existing one (do nothing)
-        } else {
-          // Times don't overlap - both are valid, add this one too
-          deduplicated.push(entry);
         }
+
+        deduplicated.push(...kept);
       }
     }
+
+    // Final sort by start time to ensure chronological order
+    deduplicated.sort((a, b) => a.start - b.start);
 
     return deduplicated;
   }
@@ -1951,9 +2011,105 @@ class YouTubeSidebar {
   }
 
   /**
+   * Clear all subtitle data when navigating to a new video
+   * This ensures old subtitles don't persist when loading a new video
+   */
+  _clearSubtitleData() {
+    console.log('[Helios YouTube Sidebar] Clearing subtitle data for new video');
+
+    // Clear the subtitle list container
+    if (this.subtitleListContainer) {
+      this.subtitleListContainer.innerHTML = '';
+    }
+
+    // Reset subtitle-related state
+    this.currentSubtitles = [];
+    this.currentVideoId = null;
+    // NOTE: Don't clear videoBinding - it's managed by the video detection system
+    // and is needed for auto-loading subtitles
+
+    // Show loading state
+    this._showLoadingState();
+  }
+
+  /**
+   * Show loading state in sidebar
+   */
+  _showLoadingState() {
+    if (!this.subtitleListContainer) return;
+
+    const loadingHTML = `
+      <div class="subtitle-loading-state" style="
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 200px;
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 14px;
+        gap: 12px;
+      ">
+        <div class="loading-spinner" style="
+          width: 32px;
+          height: 32px;
+          border: 3px solid rgba(255, 255, 255, 0.2);
+          border-top-color: #3ea6ff;
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+        "></div>
+        <div>Loading subtitles...</div>
+      </div>
+    `;
+
+    this.subtitleListContainer.innerHTML = loadingHTML;
+  }
+
+  /**
    * Destroy sidebar
    */
   destroy() {
+    // Clear navigation interval
+    if (this.navigationInterval) {
+      clearInterval(this.navigationInterval);
+      this.navigationInterval = null;
+    }
+
+    // Clear notification timeout
+    if (this.notificationTimeout) {
+      clearTimeout(this.notificationTimeout);
+      this.notificationTimeout = null;
+    }
+
+    // Remove hotkey listener
+    if (this._hotkeyListener) {
+      document.removeEventListener('keydown', this._hotkeyListener);
+      this._hotkeyListener = null;
+    }
+
+    // Remove storage change listener
+    if (this._storageChangeListener) {
+      chrome.storage.onChanged.removeListener(this._storageChangeListener);
+      this._storageChangeListener = null;
+    }
+
+    // Remove pause-on-hover listener
+    if (this._globalMouseMoveListener) {
+      document.removeEventListener('mousemove', this._globalMouseMoveListener);
+      this._globalMouseMoveListener = null;
+    }
+
+    // Cleanup theater mode controller
+    if (this.theaterModeController) {
+      this.theaterModeController.cleanup();
+      this.theaterModeController = null;
+    }
+
+    // Cleanup layout manager
+    if (this.layoutManager) {
+      this.layoutManager.cleanup();
+      this.layoutManager = null;
+    }
+
     // Disconnect layout observer
     if (this.layoutObserver) {
       this.layoutObserver.disconnect();
@@ -1981,6 +2137,12 @@ class YouTubeSidebar {
     if (this.sidebarScrollTimeout) {
       clearTimeout(this.sidebarScrollTimeout);
       this.sidebarScrollTimeout = null;
+    }
+
+    // Clear resume timeout from pause-on-hover
+    if (this.resumeTimeout) {
+      clearTimeout(this.resumeTimeout);
+      this.resumeTimeout = null;
     }
 
     if (this.sidebar && this.sidebar.parentElement) {

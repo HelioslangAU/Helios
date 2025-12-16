@@ -47,26 +47,21 @@ class VideoBinding {
    * Setup video event listeners
    */
   _setupEventListeners() {
-    this.videoElement.addEventListener('play', () => {
-      this._startSubtitleSync();
-    });
-
-    this.videoElement.addEventListener('pause', () => {
-      this._pauseSubtitleSync();
-    });
-
-    this.videoElement.addEventListener('seeked', () => {
-      this._updateSubtitles();
-    });
-
-    this.videoElement.addEventListener('emptied', () => {
-      this._pauseSubtitleSync();
-    });
-
-    this.videoElement.addEventListener('ended', () => {
+    // Store handlers so we can remove them later
+    this._playHandler = () => this._startSubtitleSync();
+    this._pauseHandler = () => this._pauseSubtitleSync();
+    this._seekedHandler = () => this._updateSubtitles();
+    this._emptiedHandler = () => this._pauseSubtitleSync();
+    this._endedHandler = () => {
       this._pauseSubtitleSync();
       this.overlay.clear();
-    });
+    };
+
+    this.videoElement.addEventListener('play', this._playHandler);
+    this.videoElement.addEventListener('pause', this._pauseHandler);
+    this.videoElement.addEventListener('seeked', this._seekedHandler);
+    this.videoElement.addEventListener('emptied', this._emptiedHandler);
+    this.videoElement.addEventListener('ended', this._endedHandler);
   }
 
   /**
@@ -336,9 +331,29 @@ class VideoBinding {
    * Unbind from video element
    */
   unbind() {
+    // Clean up subtitle sync
     this._pauseSubtitleSync();
+
+    // Remove all event listeners
+    if (this.videoElement && this._playHandler) {
+      this.videoElement.removeEventListener('play', this._playHandler);
+      this.videoElement.removeEventListener('pause', this._pauseHandler);
+      this.videoElement.removeEventListener('seeked', this._seekedHandler);
+      this.videoElement.removeEventListener('emptied', this._emptiedHandler);
+      this.videoElement.removeEventListener('ended', this._endedHandler);
+
+      // Clear handler references
+      this._playHandler = null;
+      this._pauseHandler = null;
+      this._seekedHandler = null;
+      this._emptiedHandler = null;
+      this._endedHandler = null;
+    }
+
+    // Clean up UI elements
     this.overlay.destroy();
     this._hideLoadingIndicator();
+
     this.isBound = false;
   }
 

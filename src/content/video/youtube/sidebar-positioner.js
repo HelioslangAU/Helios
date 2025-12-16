@@ -50,6 +50,12 @@ class SidebarPositioner {
 
     console.log('[Helios Positioner] Stopping sidebar positioning');
 
+    // Clear any pending sync timers
+    if (this.syncDebounceTimer) {
+      clearTimeout(this.syncDebounceTimer);
+      this.syncDebounceTimer = null;
+    }
+
     this._disconnectObservers();
 
     this.isActive = false;

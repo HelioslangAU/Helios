@@ -145,13 +145,16 @@ class HeliosToggleButton {
     });
 
     // Listen for sidebar visibility changes to update button state
-    document.addEventListener('helios-sidebar-visibility-changed', (e) => {
+    // Store handler so we can remove it on destroy
+    this._visibilityChangedHandler = (e) => {
       this._updateButtonState();
-    });
+    };
+    document.addEventListener('helios-sidebar-visibility-changed', this._visibilityChangedHandler);
 
     // Re-inject button on navigation (YouTube is a SPA)
+    // Store interval so we can clear it on destroy
     let lastUrl = window.location.href;
-    setInterval(() => {
+    this.navigationInterval = setInterval(() => {
       if (window.location.href !== lastUrl) {
         lastUrl = window.location.href;
         if (this._isWatchPage()) {
@@ -223,6 +226,19 @@ class HeliosToggleButton {
    * Destroy button
    */
   destroy() {
+    // Clear navigation interval
+    if (this.navigationInterval) {
+      clearInterval(this.navigationInterval);
+      this.navigationInterval = null;
+    }
+
+    // Remove event listener
+    if (this._visibilityChangedHandler) {
+      document.removeEventListener('helios-sidebar-visibility-changed', this._visibilityChangedHandler);
+      this._visibilityChangedHandler = null;
+    }
+
+    // Remove button from DOM
     if (this.button && this.button.parentElement) {
       this.button.parentElement.removeChild(this.button);
     }
