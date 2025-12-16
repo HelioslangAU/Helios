@@ -1,0 +1,128 @@
+<!-- Video Player Settings Tab Content -->
+<div class="section-card">
+  <h2 class="section-title">
+    <span>🎬</span>
+    Keyboard Shortcuts
+  </h2>
+  <p class="section-description">
+    Navigate subtitles with keyboard shortcuts
+  </p>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Enable Hotkeys</label>
+      <label class="toggle-switch">
+        <input type="checkbox" id="video-hotkeys-enabled" checked />
+        <span class="toggle-slider"></span>
+      </label>
+      <div class="help-text">Enable/disable keyboard shortcuts for video navigation</div>
+    </div>
+  </div>
+
+  <div class="help-text" style="margin-bottom: 15px; padding: 10px; background-color: rgba(255, 255, 255, 0.05); border-radius: 4px;">
+    💡 Click any key box below to customize. Use modifiers (Shift, Ctrl, Alt) to avoid conflicts with YouTube controls.
+    <br>
+    <strong>Examples:</strong> Shift+L, Ctrl+Right, Alt+A
+  </div>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Previous Subtitle</label>
+      <input type="text" class="form-control hotkey-input" id="video-hotkey-prev" placeholder="A" readonly />
+      <div class="help-text">Jump to previous subtitle</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Next Subtitle</label>
+      <input type="text" class="form-control hotkey-input" id="video-hotkey-next" placeholder="D" readonly />
+      <div class="help-text">Jump to next subtitle</div>
+    </div>
+  </div>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Jump to Current Subtitle Start</label>
+      <input type="text" class="form-control hotkey-input" id="video-hotkey-restart" placeholder="S" readonly />
+      <div class="help-text">Restart current subtitle from beginning</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Toggle Subtitle Overlay</label>
+      <input type="text" class="form-control hotkey-input" id="video-hotkey-toggle" placeholder="W" readonly />
+      <div class="help-text">Show/hide subtitle overlay</div>
+    </div>
+  </div>
+</div>
+
+<div class="section-card">
+  <h2 class="section-title">
+    <span>⏯️</span>
+    Playback
+  </h2>
+  <p class="section-description">
+    Control video playback behavior
+  </p>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Pause on Hover</label>
+      <label class="toggle-switch">
+        <input type="checkbox" id="video-pause-on-hover" checked />
+        <span class="toggle-slider"></span>
+      </label>
+      <div class="help-text">Automatically pause video when hovering over subtitle words</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Pause at End of Subtitle</label>
+      <label class="toggle-switch">
+        <input type="checkbox" id="video-pause-at-end" />
+        <span class="toggle-slider"></span>
+      </label>
+      <div class="help-text">Automatically pause at the end of each subtitle (useful for shadowing practice)</div>
+    </div>
+  </div>
+</div>
+
+<div class="section-card">
+  <h2 class="section-title">
+    <span>🎮</span>
+    Navigation Behavior
+  </h2>
+  <p class="section-description">
+    Control playback behavior with A/S/D navigation keys
+  </p>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Auto-Play After Navigation</label>
+      <label class="toggle-switch">
+        <input type="checkbox" id="video-auto-play-after-nav" />
+        <span class="toggle-slider"></span>
+      </label>
+      <div class="help-text">Automatically start playback when using A/S/D keys while video is paused</div>
+    </div>
+  </div>
+</div>
+
+<div class="section-card">
+  <h2 class="section-title">
+    <span>📏</span>
+    Subtitle Customization
+  </h2>
+  <p class="section-description">
+    Tips for customizing subtitle appearance and position
+  </p>
+
+  <div class="help-text" style="margin-bottom: 10px; padding: 10px; background-color: rgba(255, 255, 255, 0.05); border-radius: 4px;">
+    <strong>📏 Resize Subtitles:</strong><br>
+    • Keyboard: Press <kbd>Shift + =</kbd> to increase or <kbd>Shift + -</kbd> to decrease
+  </div>
+
+  <div class="help-text" style="margin-bottom: 10px; padding: 10px; background-color: rgba(255, 255, 255, 0.05); border-radius: 4px;">
+    <strong>📍 Move Subtitles:</strong><br>
+    • Drag subtitle text to reposition anywhere on screen<br>
+    • Double-click to reset to center position
+  </div>
+
+  <div class="help-text" style="padding: 10px; background-color: rgba(255, 255, 255, 0.05); border-radius: 4px;">
+    💡 <em>All customizations are saved and persist across videos!</em>
+  </div>
+</div>

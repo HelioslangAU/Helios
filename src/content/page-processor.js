@@ -1239,4 +1239,35 @@ class PageProcessor {
       this.clearUnknownWordHighlights();
     }
   }
+
+  /**
+   * Clean up all observers and timeouts
+   */
+  cleanup() {
+    // Clear any pending timeouts
+    if (this.reprocessTimeout) {
+      clearTimeout(this.reprocessTimeout);
+      this.reprocessTimeout = null;
+    }
+
+    if (this.asbplayerTimeout) {
+      clearTimeout(this.asbplayerTimeout);
+      this.asbplayerTimeout = null;
+    }
+
+    // Disconnect all ASBPlayer observers
+    if (this.asbplayerObservers) {
+      this.asbplayerObservers.forEach(observer => {
+        observer.disconnect();
+      });
+      this.asbplayerObservers.clear();
+    }
+
+    // Clear unknown word elements
+    if (this.unknownWordElements) {
+      this.unknownWordElements.clear();
+    }
+
+    console.log('[PageProcessor] Cleanup complete');
+  }
 }

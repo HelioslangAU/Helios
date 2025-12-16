@@ -12,6 +12,7 @@ class SubtitleOverlay {
     this.isFullscreen = false;
     this.offsetMs = 0;
     this.contentPositionOffset = 75; // Distance from bottom like ASB Player
+    this.subtitleSize = 36; // Font size in pixels (ASBplayer default: 36px)
     this.pauseOnHover = false; // Pause video when hovering over subtitle words
     this.pausedByHover = false; // Track if video is currently paused by hover feature
     this.resumeTimeout = null; // Timeout for delayed resume
@@ -25,20 +26,30 @@ class SubtitleOverlay {
     this.customOffsetY = 0;
     this.hasCustomPosition = false;
 
-    // Observers for event-driven updates
-    this.resizeObserver = null;
-    this.intersectionObserver = null;
+    // Resizing state
+    this.isResizing = false;
+    this.resizeStartSize = 0;
 
-    // Load pause on hover setting
-    this._loadPauseOnHoverSetting();
+    // Position maintenance interval (ASB Player approach - simple 1-second updates only)
+    this.positionMaintenanceInterval = null;
+
+    // URL monitoring for navigation cleanup
+    this.lastUrl = window.location.href;
+    this.urlCheckInterval = null;
+
+    // Load settings (pause on hover + saved position)
+    this._loadSettings();
 
     this._init();
     this._setupFullscreenListener();
     this._setupEventDrivenUpdates();
     this._setupDragging();
+    this._setupResizeHandle();
+    this._setupResizeShortcuts();
     this._setupShiftKeyInterception();
     this._setupVocabUpdateListener();
     this._setupPopupListener();
+    this._setupUrlMonitoring();
   }
 
   /**
@@ -49,6 +60,84 @@ class SubtitleOverlay {
     this.container.className = 'helios-subtitle-overlay';
     this.container.setAttribute('data-helios-subtitle-overlay', 'true');
 
+    // Create drag handle (visible grab area)
+    this.dragHandle = document.createElement('div');
+    this.dragHandle.className = 'helios-subtitle-drag-handle';
+    this.dragHandle.innerHTML = '⋮⋮'; // Vertical dots for drag
+    this.dragHandle.style.cssText = `
+      position: absolute;
+      top: 50%;
+      left: -32px;
+      width: 28px;
+      height: 40px;
+      cursor: grab;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      letter-spacing: -2px;
+      color: rgba(255, 255, 255, 0.9);
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 6px;
+      user-select: none;
+      z-index: 2147483647;
+      opacity: 0;
+      transition: all 0.2s ease;
+      pointer-events: auto;
+      transform: translateY(-50%);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    `;
+    this.container.appendChild(this.dragHandle);
+
+    // Create resize handle in bottom-right corner
+    this.resizeHandle = document.createElement('div');
+    this.resizeHandle.className = 'helios-subtitle-resize-handle';
+    this.resizeHandle.innerHTML = '⇲'; // Diagonal resize arrow
+    this.resizeHandle.style.cssText = `
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      width: 24px;
+      height: 24px;
+      cursor: nwse-resize;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: rgba(255, 255, 255, 0.8);
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 4px;
+      user-select: none;
+      z-index: 2147483647;
+      opacity: 0;
+      transition: opacity 0.2s;
+      pointer-events: auto;
+    `;
+    this.container.appendChild(this.resizeHandle);
+
+    // Show drag and resize handles on hover
+    this.container.addEventListener('mouseenter', () => {
+      if (!this.isDragging) {
+        this.dragHandle.style.opacity = '1';
+        this.resizeHandle.style.opacity = '1';
+      }
+    });
+    this.container.addEventListener('mouseleave', () => {
+      if (!this.isResizing && !this.isDragging) {
+        this.dragHandle.style.opacity = '0';
+        this.resizeHandle.style.opacity = '0';
+      }
+    });
+
+    // Keep handles visible when hovering over them
+    this.dragHandle.addEventListener('mouseenter', () => {
+      this.dragHandle.style.opacity = '1';
+    });
+    this.resizeHandle.addEventListener('mouseenter', () => {
+      this.resizeHandle.style.opacity = '1';
+    });
+
     // Append to body like ASB Player
     document.body.appendChild(this.container);
 
@@ -57,57 +146,17 @@ class SubtitleOverlay {
   }
 
   /**
-   * Setup event-driven position updates using ResizeObserver and IntersectionObserver
+   * Setup position updates - ASB Player approach (simple 1-second interval only)
    */
   _setupEventDrivenUpdates() {
-    // Watch for video element size/position changes
-    this.resizeObserver = new ResizeObserver(() => {
+    // ASB Player uses ONLY a 1-second interval - no scroll/resize/intersection observers!
+    // This prevents competing updates and glitching during scroll
+    this.positionMaintenanceInterval = setInterval(() => {
       if (!this.isFullscreen) {
-        this._updatePosition();
+        this._applyContainerStyles();
       }
-    });
-    this.resizeObserver.observe(this.videoElement);
-
-    // Watch for video visibility changes (scrolling, etc.)
-    this.intersectionObserver = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          this._updatePosition();
-        } else {
-          // Hide subtitles when video is not visible
-          this.container.style.display = 'none';
-        }
-      });
-    }, {
-      threshold: 0.1 // Trigger when at least 10% of video is visible
-    });
-    this.intersectionObserver.observe(this.videoElement);
-
-    // Also listen for window resize and scroll events as fallback
-    window.addEventListener('resize', this._handleWindowResize);
-    window.addEventListener('scroll', this._handleWindowScroll, true); // Use capture for better performance
+    }, 1000); // Every second, like ASB Player
   }
-
-  /**
-   * Handle window resize event
-   */
-  _handleWindowResize = () => {
-    if (!this.isFullscreen) {
-      this._updatePosition();
-    }
-  };
-
-  /**
-   * Handle window scroll event (debounced)
-   */
-  _handleWindowScroll = () => {
-    if (!this.isFullscreen && !this.scrollTimeout) {
-      this.scrollTimeout = setTimeout(() => {
-        this._updatePosition();
-        this.scrollTimeout = null;
-      }, 50);
-    }
-  };
 
   /**
    * Update overlay position based on video element (ASB Player style)
@@ -121,90 +170,149 @@ class SubtitleOverlay {
       return;
     }
 
-    this.container.style.display = '';
+    // Batch all style updates to avoid forced reflows
+    const styles = {
+      display: '',
+      position: 'absolute',
+      bottom: '',
+      transform: 'translate(-50%, -100%)',
+      zIndex: '2015',
+      pointerEvents: 'auto',
+      width: 'auto'
+    };
 
-    // Position fixed to viewport
-    this.container.style.position = 'fixed';
+    // Calculate absolute position with scroll compensation (ASB Player technique)
+    const clampedY = Math.max(rect.top + window.scrollY, 0);
+    const clampedHeight = Math.min(
+      clampedY + rect.height,
+      window.innerHeight + window.scrollY
+    );
 
     if (this.hasCustomPosition) {
-      // Use custom dragged position
-      this.container.style.left = (rect.left + rect.width / 2 + this.customOffsetX) + 'px';
-      this.container.style.top = (rect.top + rect.height - this.contentPositionOffset + this.customOffsetY) + 'px';
+      // Use custom dragged position with scroll compensation
+      styles.left = (rect.left + rect.width / 2 + this.customOffsetX) + 'px';
+      styles.top = (clampedHeight - this.contentPositionOffset + this.customOffsetY) + 'px';
     } else {
       // Default position: center horizontally on video
       const videoCenter = rect.left + rect.width / 2;
-      this.container.style.left = videoCenter + 'px';
+      styles.left = videoCenter + 'px';
 
-      // Calculate top position: video bottom - offset (like ASB Player)
-      const bottomPosition = rect.top + rect.height - this.contentPositionOffset;
-      this.container.style.top = Math.max(bottomPosition, 0) + 'px';
+      // Calculate top position from document top (not viewport) - this prevents glitching during scroll
+      styles.top = (clampedHeight - this.contentPositionOffset) + 'px';
     }
 
-    this.container.style.transform = 'translateX(-50%)';
-    this.container.style.zIndex = '2147483647';
-    this.container.style.pointerEvents = 'auto'; // Changed to auto for dragging
-    this.container.style.width = 'auto';
-
     // Match video width like ASB Player (with some padding)
-    this.container.style.maxWidth = (rect.width * 0.9) + 'px';
+    styles.maxWidth = (rect.width * 0.9) + 'px';
+
+    // Apply all styles at once
+    Object.assign(this.container.style, styles);
   }
 
   /**
-   * Setup dragging functionality for subtitles
+   * Lightweight method to update only position/size styles (ASB Player pattern)
+   * Called by continuous maintenance interval to ensure position stays correct
+   */
+  _applyContainerStyles() {
+    const rect = this.videoElement.getBoundingClientRect();
+
+    // Don't update if video is not visible
+    if (rect.width === 0 || rect.height === 0) {
+      return;
+    }
+
+    // Calculate absolute position with scroll compensation
+    const clampedY = Math.max(rect.top + window.scrollY, 0);
+    const clampedHeight = Math.min(
+      clampedY + rect.height,
+      window.innerHeight + window.scrollY
+    );
+
+    // Batch style updates
+    const styles = {};
+
+    // Update position based on whether custom position is set
+    if (this.hasCustomPosition) {
+      styles.left = (rect.left + rect.width / 2 + this.customOffsetX) + 'px';
+      styles.top = (clampedHeight - this.contentPositionOffset + this.customOffsetY) + 'px';
+    } else {
+      styles.left = (rect.left + rect.width / 2) + 'px';
+      styles.top = (clampedHeight - this.contentPositionOffset) + 'px';
+    }
+
+    // Update max width to match video width
+    styles.maxWidth = (rect.width * 0.9) + 'px';
+
+    // Apply all styles at once
+    Object.assign(this.container.style, styles);
+  }
+
+  /**
+   * Setup dragging functionality for subtitles (ASBPlayer approach - simple and smooth)
    */
   _setupDragging() {
-    // Mouse down on container - start dragging
-    this.container.addEventListener('mousedown', (e) => {
-      // Don't start drag if clicking on a word (for hover lookup)
-      if (e.target.classList.contains('helios-subtitle-word')) {
+    this.lastDragX = 0;
+    this.lastDragY = 0;
+
+    // Mouse down on drag handle or container - start dragging
+    const startDrag = (e) => {
+      // Don't start drag if clicking on a word (for hover lookup) or resize handle
+      if (e.target.classList.contains('helios-subtitle-word') ||
+          e.target.classList.contains('helios-subtitle-resize-handle')) {
         return;
       }
 
       e.preventDefault();
       this.isDragging = true;
-      this.dragStartX = e.clientX;
-      this.dragStartY = e.clientY;
+      this.lastDragX = e.clientX;
+      this.lastDragY = e.clientY;
+      this.dragHandle.style.cursor = 'grabbing';
       this.container.style.cursor = 'grabbing';
       this.container.style.userSelect = 'none';
-    });
+    };
 
-    // Mouse move - drag
-    document.addEventListener('mousemove', (e) => {
-      if (this.isDragging) {
-        const deltaX = e.clientX - this.dragStartX;
-        const deltaY = e.clientY - this.dragStartY;
+    this.container.addEventListener('mousedown', startDrag);
+    this.dragHandle.addEventListener('mousedown', startDrag);
 
-        this.customOffsetX += deltaX;
-        this.customOffsetY += deltaY;
-        this.hasCustomPosition = true;
+    // Mouse move - Simple direct position updates like ASBPlayer
+    this._dragMoveHandler = (e) => {
+      if (!this.isDragging) return;
 
-        this.dragStartX = e.clientX;
-        this.dragStartY = e.clientY;
+      const deltaX = e.clientX - this.lastDragX;
+      const deltaY = e.clientY - this.lastDragY;
 
-        // Immediately update position
-        const rect = this.videoElement.getBoundingClientRect();
-        if (rect.width > 0 && rect.height > 0) {
-          this.container.style.left = (rect.left + rect.width / 2 + this.customOffsetX) + 'px';
-          this.container.style.top = (rect.top + rect.height - this.contentPositionOffset + this.customOffsetY) + 'px';
-        }
+      this.customOffsetX += deltaX;
+      this.customOffsetY += deltaY;
+      this.hasCustomPosition = true;
+
+      this.lastDragX = e.clientX;
+      this.lastDragY = e.clientY;
+
+      // Update position directly like ASBPlayer does
+      const rect = this.videoElement.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        const clampedY = Math.max(rect.top + window.scrollY, 0);
+        const clampedHeight = Math.min(clampedY + rect.height, window.innerHeight + window.scrollY);
+
+        this.container.style.left = (rect.left + rect.width / 2 + this.customOffsetX) + 'px';
+        this.container.style.top = (clampedHeight - this.contentPositionOffset + this.customOffsetY) + 'px';
       }
-    });
+    };
+    document.addEventListener('mousemove', this._dragMoveHandler);
 
-    // Mouse up - stop dragging
-    document.addEventListener('mouseup', () => {
-      if (this.isDragging) {
-        this.isDragging = false;
-        this.container.style.cursor = 'move';
-        this.container.style.userSelect = 'text';
-      }
-    });
+    // Mouse up - stop dragging and save position
+    this._dragUpHandler = () => {
+      if (!this.isDragging) return;
 
-    // Set move cursor when hovering (if not on a word)
-    this.container.addEventListener('mouseover', (e) => {
-      if (!this.isDragging && !e.target.classList.contains('helios-subtitle-word')) {
-        this.container.style.cursor = 'move';
-      }
-    });
+      this.isDragging = false;
+
+      this.dragHandle.style.cursor = 'grab';
+      this.container.style.cursor = '';
+      this.container.style.userSelect = 'text';
+
+      // Save position to storage for persistence across videos
+      this._savePosition();
+    };
+    document.addEventListener('mouseup', this._dragUpHandler);
 
     // Double-click to reset position
     this.container.addEventListener('dblclick', (e) => {
@@ -217,7 +325,194 @@ class SubtitleOverlay {
       this.customOffsetX = 0;
       this.customOffsetY = 0;
       this._updatePosition();
+
+      // Save reset position to storage
+      this._savePosition();
     });
+  }
+
+  /**
+   * Setup resize handle for dragging to resize subtitles
+   */
+  _setupResizeHandle() {
+    if (!this.resizeHandle) return;
+
+    let resizeStartY = 0;
+    let resizeStartSize = 0;
+
+    // Mouse down on resize handle - start resizing
+    this.resizeHandle.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.isResizing = true;
+      resizeStartY = e.clientY;
+      resizeStartSize = this.subtitleSize;
+      this.resizeHandle.style.opacity = '1';
+      document.body.style.cursor = 'nwse-resize';
+    });
+
+    // Mouse move - resize (store handler for cleanup)
+    this._resizeMoveHandler = (e) => {
+      if (this.isResizing) {
+        // Calculate size change based on vertical movement
+        // Moving down = smaller, moving up = larger (inverted because subtitles are at bottom)
+        const deltaY = resizeStartY - e.clientY; // Inverted
+        const sizeChange = Math.round(deltaY / 5); // 5px mouse movement = 1px font size change
+
+        const newSize = Math.max(12, Math.min(100, resizeStartSize + sizeChange)); // Clamp between 12-100px
+
+        if (newSize !== this.subtitleSize) {
+          this.subtitleSize = newSize;
+          this._applySubtitleSize();
+        }
+      }
+    };
+    document.addEventListener('mousemove', this._resizeMoveHandler);
+
+    // Mouse up - stop resizing (store handler for cleanup)
+    this._resizeUpHandler = () => {
+      if (this.isResizing) {
+        this.isResizing = false;
+        document.body.style.cursor = '';
+        this.resizeHandle.style.opacity = '0';
+        this._saveSize();
+        this._showSizeNotification();
+      }
+    };
+    document.addEventListener('mouseup', this._resizeUpHandler);
+  }
+
+  /**
+   * Setup keyboard shortcuts for resizing subtitles
+   * Similar to ASBplayer, but with keyboard support for font size adjustment
+   * Loads shortcuts from storage (videoNavigation settings)
+   */
+  async _setupResizeShortcuts() {
+    // Load shortcuts from storage
+    let shortcuts;
+    if (window.ShortcutHelper) {
+      shortcuts = await window.ShortcutHelper.getVideoNavigationShortcuts();
+    } else {
+      // Fallback to defaults if ShortcutHelper not available
+      shortcuts = {
+        toggle: { key: "W", ctrl: false, shift: false, alt: false, meta: false },
+        increaseSize: { key: "Equal", ctrl: false, shift: true, alt: false, meta: false },
+        decreaseSize: { key: "Minus", ctrl: false, shift: true, alt: false, meta: false }
+      };
+    }
+
+    // Store shortcuts for later use
+    this.shortcuts = shortcuts;
+
+    // Store handler for cleanup
+    this._keyboardShortcutHandler = (e) => {
+      // Only work on YouTube watch pages
+      if (!window.location.pathname.includes('/watch')) {
+        return;
+      }
+
+      // Don't trigger if typing in an input field
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+        return;
+      }
+
+      // Toggle subtitle visibility
+      if (this._matchesShortcut(e, shortcuts.toggle)) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        this.toggleVisibility();
+      }
+      // Increase subtitle size
+      else if (this._matchesShortcut(e, shortcuts.increaseSize)) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        this._increaseSubtitleSize();
+      }
+      // Decrease subtitle size
+      else if (this._matchesShortcut(e, shortcuts.decreaseSize)) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        this._decreaseSubtitleSize();
+      }
+    };
+    document.addEventListener('keydown', this._keyboardShortcutHandler, true); // Use capture phase to intercept before YouTube
+  }
+
+  /**
+   * Check if keyboard event matches a shortcut configuration
+   * @param {KeyboardEvent} e - Keyboard event
+   * @param {Object} shortcut - Shortcut config { key, ctrl, shift, alt, meta }
+   * @returns {boolean} - True if event matches shortcut
+   */
+  _matchesShortcut(e, shortcut) {
+    if (!shortcut || !shortcut.key) return false;
+
+    // Normalize key comparison
+    const eventKey = e.key.toUpperCase();
+    const configKey = shortcut.key.toUpperCase();
+    const eventCode = e.code ? e.code.toUpperCase() : '';
+
+    // Check if key or code matches (for keys like '=' which can be 'Equal' code)
+    const keyMatches = eventKey === configKey || eventCode === configKey;
+    if (!keyMatches) return false;
+
+    // Check modifiers match exactly
+    const ctrlMatches = (shortcut.ctrl || shortcut.meta) ? (e.ctrlKey || e.metaKey) : !e.ctrlKey && !e.metaKey;
+    const shiftMatches = shortcut.shift ? e.shiftKey : !e.shiftKey;
+    const altMatches = shortcut.alt ? e.altKey : !e.altKey;
+
+    return ctrlMatches && shiftMatches && altMatches;
+  }
+
+  /**
+   * Increase subtitle font size by 2px (like ASBplayer's 20px position increment, but for size)
+   */
+  _increaseSubtitleSize() {
+    this.subtitleSize += 2;
+    this._applySubtitleSize();
+    this._saveSize();
+    this._showSizeNotification();
+  }
+
+  /**
+   * Decrease subtitle font size by 2px (minimum 12px for readability)
+   */
+  _decreaseSubtitleSize() {
+    this.subtitleSize = Math.max(12, this.subtitleSize - 2);
+    this._applySubtitleSize();
+    this._saveSize();
+    this._showSizeNotification();
+  }
+
+  /**
+   * Apply current subtitle size to all subtitle elements
+   */
+  _applySubtitleSize() {
+    // Apply to primary subtitles
+    const primarySubtitles = this.container.querySelectorAll('.helios-subtitle-primary');
+    primarySubtitles.forEach(el => {
+      el.style.fontSize = this.subtitleSize + 'px';
+    });
+
+    // Apply to secondary subtitles (slightly smaller)
+    const secondarySubtitles = this.container.querySelectorAll('.helios-subtitle-secondary');
+    secondarySubtitles.forEach(el => {
+      el.style.fontSize = (this.subtitleSize * 0.8) + 'px';
+    });
+  }
+
+  /**
+   * Show temporary notification about current subtitle size
+   */
+  _showSizeNotification() {
+    // Dispatch event to show notification via video notification system
+    const event = new CustomEvent('helios-video-notification', {
+      detail: {
+        message: `Subtitle size: ${this.subtitleSize}px`,
+        type: 'info'
+      }
+    });
+    document.dispatchEvent(event);
   }
 
   /**
@@ -233,23 +528,26 @@ class SubtitleOverlay {
    * Setup fullscreen change listener
    */
   _setupFullscreenListener() {
-    const fullscreenHandler = () => {
+    this._fullscreenHandler = () => {
       this.isFullscreen = !!(
         document.fullscreenElement ||
         document.webkitFullscreenElement ||
         document.mozFullScreenElement
       );
 
-      if (this.isFullscreen) {
-        this._handleFullscreen();
-      } else {
-        this._updatePosition();
-      }
+      // Use requestAnimationFrame for smooth transition
+      requestAnimationFrame(() => {
+        if (this.isFullscreen) {
+          this._handleFullscreen();
+        } else {
+          this._updatePosition();
+        }
+      });
     };
 
-    document.addEventListener('fullscreenchange', fullscreenHandler);
-    document.addEventListener('webkitfullscreenchange', fullscreenHandler);
-    document.addEventListener('mozfullscreenchange', fullscreenHandler);
+    document.addEventListener('fullscreenchange', this._fullscreenHandler);
+    document.addEventListener('webkitfullscreenchange', this._fullscreenHandler);
+    document.addEventListener('mozfullscreenchange', this._fullscreenHandler);
   }
 
   /**
@@ -270,12 +568,17 @@ class SubtitleOverlay {
     const rect = this.videoElement.getBoundingClientRect();
     const videoCenter = rect.left + rect.width / 2;
 
-    this.container.style.position = 'fixed';
-    this.container.style.left = videoCenter + 'px';
-    this.container.style.bottom = this.contentPositionOffset + 'px';
-    this.container.style.top = 'auto';
-    this.container.style.transform = 'translateX(-50%)';
-    this.container.style.maxWidth = (rect.width * 0.9) + 'px';
+    // Batch all style updates for smooth transition
+    const styles = {
+      position: 'fixed',
+      left: videoCenter + 'px',
+      bottom: this.contentPositionOffset + 'px',
+      top: 'auto',
+      transform: 'translateX(-50%)',
+      maxWidth: (rect.width * 0.9) + 'px'
+    };
+
+    Object.assign(this.container.style, styles);
   }
 
   /**
@@ -335,11 +638,14 @@ class SubtitleOverlay {
    */
   setSecondarySubtitles(subtitles) {
     this.secondarySubtitles = subtitles || [];
-    console.log(`[Helios Subtitle Overlay] Secondary subtitles set: ${this.secondarySubtitles.length} entries`);
 
-    // Re-render to show dual subtitles
+    // Re-render to show dual subtitles (async to prevent lag)
     if (this.currentSubtitles.length > 0) {
-      this._render();
+      requestAnimationFrame(() => {
+        this._render().catch(err => {
+          console.error('[Helios Subtitle Overlay] Error rendering dual subtitles:', err);
+        });
+      });
     }
   }
 
@@ -349,23 +655,93 @@ class SubtitleOverlay {
   clearSecondarySubtitles() {
     this.secondarySubtitles = [];
 
-    // Re-render without secondary subtitles
+    // Re-render without secondary subtitles (async to prevent lag)
     if (this.currentSubtitles.length > 0) {
-      this._render();
+      requestAnimationFrame(() => {
+        this._render().catch(err => {
+          console.error('[Helios Subtitle Overlay] Error clearing dual subtitles:', err);
+        });
+      });
     }
   }
 
   /**
-   * Load pause on hover setting from storage
+   * Load settings from storage (pause on hover + saved subtitle position + size)
+   * Follows ASBplayer's approach of using chrome.storage for persistent subtitle settings
    */
-  async _loadPauseOnHoverSetting() {
+  async _loadSettings() {
     try {
-      const result = await chrome.storage.local.get(['ytSidebarSettings']);
+      const result = await chrome.storage.local.get(['ytSidebarSettings', 'subtitlePosition', 'subtitleSize', 'subtitleVisibility']);
+
+      // Load pause on hover setting
       if (result.ytSidebarSettings && result.ytSidebarSettings.pauseOnHover !== undefined) {
         this.pauseOnHover = result.ytSidebarSettings.pauseOnHover;
       }
+
+      // Load saved subtitle position (ASBplayer-style)
+      if (result.subtitlePosition) {
+        this.customOffsetX = result.subtitlePosition.offsetX || 0;
+        this.customOffsetY = result.subtitlePosition.offsetY || 0;
+        this.contentPositionOffset = result.subtitlePosition.bottomOffset || 75;
+        this.hasCustomPosition = result.subtitlePosition.hasCustomPosition || false;
+      }
+
+      // Load saved subtitle size (ASBplayer-style)
+      if (result.subtitleSize !== undefined) {
+        this.subtitleSize = result.subtitleSize;
+      }
+
+      // Load saved visibility state (persists across all videos)
+      if (result.subtitleVisibility !== undefined) {
+        this.isVisible = result.subtitleVisibility;
+
+        // Apply visibility state immediately if hidden
+        if (!this.isVisible) {
+          this.container.style.display = 'none';
+        }
+      }
     } catch (error) {
-      console.error('[Helios Subtitle Overlay] Failed to load pause on hover setting:', error);
+      console.error('[Helios Subtitle Overlay] Failed to load settings:', error);
+    }
+  }
+
+  /**
+   * Save current subtitle position to storage (ASBplayer-style persistence)
+   */
+  async _savePosition() {
+    try {
+      const positionData = {
+        offsetX: this.customOffsetX,
+        offsetY: this.customOffsetY,
+        bottomOffset: this.contentPositionOffset,
+        hasCustomPosition: this.hasCustomPosition
+      };
+
+      await chrome.storage.local.set({ subtitlePosition: positionData });
+    } catch (error) {
+      console.error('[Helios Subtitle Overlay] Failed to save position:', error);
+    }
+  }
+
+  /**
+   * Save current subtitle size to storage (ASBplayer-style persistence)
+   */
+  async _saveSize() {
+    try {
+      await chrome.storage.local.set({ subtitleSize: this.subtitleSize });
+    } catch (error) {
+      console.error('[Helios Subtitle Overlay] Failed to save size:', error);
+    }
+  }
+
+  /**
+   * Save visibility state to storage (persists across all videos)
+   */
+  async _saveVisibility() {
+    try {
+      await chrome.storage.local.set({ subtitleVisibility: this.isVisible });
+    } catch (error) {
+      console.error('[Helios Subtitle Overlay] Failed to save visibility:', error);
     }
   }
 
@@ -375,7 +751,6 @@ class SubtitleOverlay {
    */
   setPauseOnHover(enabled) {
     this.pauseOnHover = enabled;
-    console.log(`[Helios Subtitle Overlay] Pause on hover ${enabled ? 'enabled' : 'disabled'}`);
   }
 
   /**
@@ -388,6 +763,18 @@ class SubtitleOverlay {
         setTimeout(async () => {
           await this._updateSubtitleUnderlining();
         }, 50);
+      }
+    });
+
+    // Listen for pinyin toggle to re-render subtitles with/without pinyin
+    document.addEventListener('helios-pinyin-toggled', () => {
+      // Re-render current subtitles to apply/remove pinyin
+      if (this.currentSubtitles.length > 0) {
+        requestAnimationFrame(() => {
+          this._render().catch(err => {
+            console.error('[Helios Subtitle Overlay] Error re-rendering after pinyin toggle:', err);
+          });
+        });
       }
     });
   }
@@ -466,6 +853,30 @@ class SubtitleOverlay {
   }
 
   /**
+   * Setup URL monitoring to detect navigation away from video pages
+   * Critical for YouTube SPA navigation - prevents captions persisting on non-watch pages
+   */
+  _setupUrlMonitoring() {
+    this.urlCheckInterval = setInterval(() => {
+      const currentUrl = window.location.href;
+
+      if (currentUrl !== this.lastUrl) {
+        // URL changed - check if we left a watch page
+        const wasWatchPage = this.lastUrl.includes('/watch');
+        const isWatchPage = currentUrl.includes('/watch');
+
+        if (wasWatchPage && !isWatchPage) {
+          // Navigated away from video - immediately hide and clear overlay
+          this.container.style.display = 'none';
+          this.clear();
+        }
+
+        this.lastUrl = currentUrl;
+      }
+    }, 500); // Check every 500ms for navigation changes
+  }
+
+  /**
    * Update underlining on existing word spans without re-rendering
    * This preserves hover states and popups
    */
@@ -521,6 +932,11 @@ class SubtitleOverlay {
    * @param {SubtitleEntry[]} subtitles - Subtitles to display
    */
   show(subtitles) {
+    // Don't show if overlay is toggled off
+    if (!this.isVisible) {
+      return;
+    }
+
     // Check if subtitles have actually changed
     const currentIndexes = subtitles.map(s => s.index);
     const hasChanged =
@@ -591,6 +1007,11 @@ class SubtitleOverlay {
    * Render current subtitles to DOM
    */
   async _render() {
+    // Don't render if overlay is hidden
+    if (!this.isVisible) {
+      return;
+    }
+
     // Clean up any popups/highlights before clearing DOM
     if (window.popupManager) {
       window.popupManager.hidePopup();
@@ -619,6 +1040,7 @@ class SubtitleOverlay {
       const primarySubtitleEl = document.createElement('div');
       primarySubtitleEl.className = 'helios-subtitle-text helios-subtitle-primary';
       primarySubtitleEl.setAttribute('data-subtitle-index', subtitle.index);
+      primarySubtitleEl.style.fontSize = this.subtitleSize + 'px'; // Apply saved font size (ASBplayer-style)
 
       // Extract words using language adapter (handles Chinese, English, etc.)
       const adapter = window.languageRegistry?.getAdapter();
@@ -716,10 +1138,7 @@ class SubtitleOverlay {
           wordSpan.textContent = word;
           primarySubtitleEl.appendChild(wordSpan);
 
-          // Add space after word (except for last word) for languages that use spaces
-          if (usesSpaces && index < extractedWords.length - 1) {
-            primarySubtitleEl.appendChild(document.createTextNode(' '));
-          }
+          // No need to add spaces - extractWords already includes them as non-target segments
         });
       } else {
         // Fallback: display text as-is if no adapter available
@@ -741,6 +1160,7 @@ class SubtitleOverlay {
           const secondarySubtitleEl = document.createElement('div');
           secondarySubtitleEl.className = 'helios-subtitle-text helios-subtitle-secondary';
           secondarySubtitleEl.textContent = matchingSecondary.text;
+          secondarySubtitleEl.style.fontSize = (this.subtitleSize * 0.8) + 'px'; // Secondary subtitles 80% of primary size
           secondarySubtitleEl.style.userSelect = 'text';
           dualContainer.appendChild(secondarySubtitleEl);
         }
@@ -748,6 +1168,40 @@ class SubtitleOverlay {
 
       this.container.appendChild(dualContainer);
     }
+
+    // Apply pinyin immediately after rendering if enabled (prevents delay)
+    if (window.pinyinManager && window.pinyinManager.isEnabled()) {
+      // Process only the newly rendered subtitle container immediately (no delay)
+      const textNodes = this._getChineseTextNodes(this.container);
+      textNodes.forEach(node => {
+        if (window.pinyinManager.processTextNodeForPinyin) {
+          window.pinyinManager.processTextNodeForPinyin(node);
+        }
+      });
+    }
+  }
+
+  /**
+   * Get all Chinese text nodes within an element (helper for pinyin)
+   * @param {HTMLElement} element
+   * @returns {Node[]}
+   */
+  _getChineseTextNodes(element) {
+    const textNodes = [];
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) => {
+        const text = node.textContent.trim();
+        // Check if contains Chinese characters (U+4E00 to U+9FFF)
+        return /[\u4E00-\u9FFF]/.test(text) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+      }
+    });
+
+    let node;
+    while ((node = walker.nextNode())) {
+      textNodes.push(node);
+    }
+
+    return textNodes;
   }
 
   /**
@@ -837,14 +1291,22 @@ class SubtitleOverlay {
     this.isVisible = !this.isVisible;
 
     if (this.isVisible) {
-      // Show overlay by updating position
+      // Show overlay - restore display and re-render current subtitles
+      this.container.style.display = '';
+      if (this.currentSubtitles.length > 0) {
+        this._render().catch(err => {
+          console.error('[Helios Subtitle Overlay] Error rendering subtitles:', err);
+        });
+      }
       this._updatePosition();
-      console.log('[Helios Subtitle Overlay] Subtitles shown');
     } else {
-      // Hide overlay
+      // Hide overlay - set display none and clear content
       this.container.style.display = 'none';
-      console.log('[Helios Subtitle Overlay] Subtitles hidden');
+      this.container.innerHTML = '';
     }
+
+    // Save visibility state to persist across videos
+    this._saveVisibility();
 
     return this.isVisible;
   }
@@ -853,28 +1315,65 @@ class SubtitleOverlay {
    * Destroy overlay and cleanup
    */
   destroy() {
-    // Disconnect observers
-    if (this.resizeObserver) {
-      this.resizeObserver.disconnect();
-      this.resizeObserver = null;
-    }
-    if (this.intersectionObserver) {
-      this.intersectionObserver.disconnect();
-      this.intersectionObserver = null;
-    }
-
-    // Remove event listeners
-    window.removeEventListener('resize', this._handleWindowResize);
-    window.removeEventListener('scroll', this._handleWindowScroll, true);
-
     // Clear any pending timeouts
-    if (this.scrollTimeout) {
-      clearTimeout(this.scrollTimeout);
-      this.scrollTimeout = null;
-    }
     if (this.resumeTimeout) {
       clearTimeout(this.resumeTimeout);
       this.resumeTimeout = null;
+    }
+
+    // Clear position maintenance interval (ASB Player pattern)
+    if (this.positionMaintenanceInterval) {
+      clearInterval(this.positionMaintenanceInterval);
+      this.positionMaintenanceInterval = null;
+    }
+
+    // Clear URL monitoring interval
+    if (this.urlCheckInterval) {
+      clearInterval(this.urlCheckInterval);
+      this.urlCheckInterval = null;
+    }
+
+    // Remove all global event listeners to prevent memory leaks
+    if (this._dragMoveHandler) {
+      document.removeEventListener('mousemove', this._dragMoveHandler);
+      this._dragMoveHandler = null;
+    }
+
+    if (this._dragUpHandler) {
+      document.removeEventListener('mouseup', this._dragUpHandler);
+      this._dragUpHandler = null;
+    }
+
+    if (this._resizeMoveHandler) {
+      document.removeEventListener('mousemove', this._resizeMoveHandler);
+      this._resizeMoveHandler = null;
+    }
+
+    if (this._resizeUpHandler) {
+      document.removeEventListener('mouseup', this._resizeUpHandler);
+      this._resizeUpHandler = null;
+    }
+
+    if (this._keyboardShortcutHandler) {
+      document.removeEventListener('keydown', this._keyboardShortcutHandler);
+      this._keyboardShortcutHandler = null;
+    }
+
+    if (this._fullscreenHandler) {
+      document.removeEventListener('fullscreenchange', this._fullscreenHandler);
+      document.removeEventListener('webkitfullscreenchange', this._fullscreenHandler);
+      document.removeEventListener('mozfullscreenchange', this._fullscreenHandler);
+      this._fullscreenHandler = null;
+    }
+
+    if (this._vocabUpdateHandler) {
+      document.removeEventListener('helios-vocab-updated', this._vocabUpdateHandler);
+      this._vocabUpdateHandler = null;
+    }
+
+    if (this._pauseOnHoverHandler) {
+      document.removeEventListener('mousemove', this._pauseOnHoverHandler);
+      this._pauseOnHoverHandler = null;
     }
 
     // Remove from DOM

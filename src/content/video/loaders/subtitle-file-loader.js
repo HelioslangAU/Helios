@@ -181,8 +181,6 @@ class SubtitleFileLoader {
     }
 
     // Load the subtitle file
-    this._showNotification('Loading subtitles...', 'info');
-
     const success = await binding.loadSubtitleFile(file);
 
     if (success) {

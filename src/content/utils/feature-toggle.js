@@ -95,16 +95,22 @@ class FeatureToggle {
         console.warn('⚠️ Failed to initialize video feature on re-enable', error);
       });
     } else if (this.videoFeature && this.videoFeature.videoDetector) {
-      // Just restart video detection if already initialized
+      // Restart video detection if already initialized
       this.videoFeature.videoDetector.start();
 
-      // Show existing video overlays
+      // Check if overlays were destroyed - if so, re-detect videos to recreate them
       const bindings = this.videoFeature.videoDetector.getAllBindings();
-      bindings.forEach(binding => {
-        if (binding.overlay && binding.overlay.container) {
-          binding.overlay.container.style.display = '';
-        }
-      });
+      if (bindings.length === 0) {
+        // No bindings exist - trigger video detection to recreate overlays
+        this.videoFeature.videoDetector._detectVideos();
+      } else {
+        // Show existing video overlays if they exist
+        bindings.forEach(binding => {
+          if (binding.overlay && binding.overlay.container) {
+            binding.overlay.container.style.display = '';
+          }
+        });
+      }
 
       // Auto-load subtitles if on YouTube
       if (window.location.hostname.includes("youtube.com") || window.location.hostname.includes("youtu.be")) {
@@ -138,18 +144,37 @@ class FeatureToggle {
       this.youtubeSidebar.hide();
     }
 
-    // Stop video detection and hide all video overlays
+    // Stop video detection and destroy all video overlays (including keyboard listeners)
     if (this.videoFeature && this.videoFeature.videoDetector) {
       // Stop the video detection timer (critical!)
       this.videoFeature.videoDetector.stop();
 
-      // Hide all video overlays
+      // Destroy all video overlays (removes keyboard listeners and cleans up)
       const bindings = this.videoFeature.videoDetector.getAllBindings();
       bindings.forEach(binding => {
-        if (binding.overlay && binding.overlay.container) {
-          binding.overlay.container.style.display = 'none';
+        if (binding.overlay) {
+          // Hide the overlay
+          if (binding.overlay.container) {
+            binding.overlay.container.style.display = 'none';
+          }
+          // Destroy to remove all event listeners including keyboard shortcuts
+          if (binding.overlay.destroy) {
+            binding.overlay.destroy();
+          }
         }
       });
+
+      // Clear all bindings
+      if (this.videoFeature.videoDetector.clearAllBindings) {
+        this.videoFeature.videoDetector.clearAllBindings();
+      }
+    }
+
+    // Destroy YouTube-specific video features
+    if (this.videoFeature && this.videoFeature.youtubeLoader) {
+      if (this.videoFeature.youtubeLoader.destroy) {
+        this.videoFeature.youtubeLoader.destroy();
+      }
     }
   }
 }

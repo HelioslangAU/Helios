@@ -34,35 +34,59 @@ class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
    * Extract words from text with positions
    * @param {string} text - Text to process
    * @param {Object} dictionary - Dictionary to validate against
-   * @returns {Array} - Array of {word, start, end} objects
+   * @returns {Array} - Array of {word, start, end, isTargetLang} objects
    */
   extractWords(text, dictionary) {
     const words = [];
-    //text = text.toLowerCase();
-    
 
-    // Use configured regex to find word boundaries and extract complete words
+    // Extract all words AND non-word content to preserve full subtitle text
     // Pattern allows apostrophes and hyphens within words (e.g., "don't", "M'appelle")
-    // Note: Match pattern that includes apostrophes and ensures proper boundaries
-    // The pattern matches: letters followed by optional (apostrophe/hyphen + letters) groups
     const wordRegex = new RegExp(`\\b[\\p{L}\\p{M}]+(?:[''-][\\p{L}\\p{M}]+)*\\b`, 'gu');
+
+    let lastIndex = 0;
     let match;
-    
+
     while ((match = wordRegex.exec(text)) !== null) {
       const word = match[0];
       const start = match.index;
       const end = start + word.length;
-      
-      // Check if word exists in dictionary (case-insensitive)
-      const normalizedWord = word.toLowerCase();
-      if (dictionary && dictionary[normalizedWord]) {
+
+      // Add any non-word content before this word (spaces, punctuation, numbers, etc.)
+      if (start > lastIndex) {
+        const nonWordText = text.substring(lastIndex, start);
         words.push({
-          word: word,
-          start: start,
-          end: end
+          word: nonWordText,
+          start: lastIndex,
+          end: start,
+          isTargetLang: false  // Non-word content is not interactive
         });
       }
+
+      // Check if word exists in dictionary (case-insensitive)
+      const normalizedWord = word.toLowerCase();
+      const isInDictionary = dictionary && dictionary[normalizedWord];
+
+      words.push({
+        word: word,
+        start: start,
+        end: end,
+        isTargetLang: isInDictionary ? true : false  // Only dictionary words are interactive
+      });
+
+      lastIndex = end;
     }
+
+    // Add any remaining non-word content after the last word
+    if (lastIndex < text.length) {
+      const remainingText = text.substring(lastIndex);
+      words.push({
+        word: remainingText,
+        start: lastIndex,
+        end: text.length,
+        isTargetLang: false
+      });
+    }
+
     return words;
   }
 
@@ -507,26 +531,50 @@ class SpanishLanguageAdapter extends SpaceSeparatedLanguageAdapter {
   extractWords(text, dictionary) {
     const words = [];
     // Pattern allows apostrophes and hyphens within words (e.g., "no's", "d'accord")
-    // Note: Match pattern that includes apostrophes and ensures proper boundaries
-    // The pattern matches: letters followed by optional (apostrophe/hyphen + letters) groups
     const wordRegex = new RegExp(`\\b[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]+(?:[''-][a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]+)*\\b`, 'g');
+
+    let lastIndex = 0;
     let match;
-    
+
     while ((match = wordRegex.exec(text)) !== null) {
-      const word = match[0]; 
+      const word = match[0];
       const start = match.index;
       const end = start + word.length;
-      
-      const dictionaryForm = this.findDictionaryForm(word, dictionary);
-      if (dictionaryForm) {
+
+      // Add any non-word content before this word (spaces, punctuation, numbers, etc.)
+      if (start > lastIndex) {
+        const nonWordText = text.substring(lastIndex, start);
         words.push({
-          word: word,
-          start: start,
-          end: end,
-          dictionaryForm: dictionaryForm // Store the base form for dictionary lookup
+          word: nonWordText,
+          start: lastIndex,
+          end: start,
+          isTargetLang: false
         });
       }
+
+      const dictionaryForm = this.findDictionaryForm(word, dictionary);
+      words.push({
+        word: word,
+        start: start,
+        end: end,
+        dictionaryForm: dictionaryForm, // Store the base form for dictionary lookup
+        isTargetLang: dictionaryForm ? true : false
+      });
+
+      lastIndex = end;
     }
+
+    // Add any remaining non-word content after the last word
+    if (lastIndex < text.length) {
+      const remainingText = text.substring(lastIndex);
+      words.push({
+        word: remainingText,
+        start: lastIndex,
+        end: text.length,
+        isTargetLang: false
+      });
+    }
+
     return words;
   }
   
@@ -756,31 +804,55 @@ class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
    * Override extractWords to handle French word variations
    * @param {string} text - Text to process
    * @param {Object} dictionary - Dictionary to validate against
-   * @returns {Array} - Array of {word, start, end} objects
+   * @returns {Array} - Array of {word, start, end, isTargetLang} objects
    */
   extractWords(text, dictionary) {
     const words = [];
     // Pattern allows apostrophes and hyphens within words (e.g., "M'appelle", "d'accord", "c'est")
-    // Note: Match pattern that includes apostrophes and ensures proper boundaries
-    // The pattern matches: letters followed by optional (apostrophe/hyphen + letters) groups
     const wordRegex = new RegExp(`\\b[\\p{L}\\p{M}]+(?:[''-][\\p{L}\\p{M}]+)*\\b`, 'gu');
+
+    let lastIndex = 0;
     let match;
-    
+
     while ((match = wordRegex.exec(text)) !== null) {
       const word = match[0];
       const start = match.index;
       const end = start + word.length;
-      
-      const dictionaryForm = this.findDictionaryForm(word, dictionary);
-      if (dictionaryForm) {
+
+      // Add any non-word content before this word (spaces, punctuation, numbers, etc.)
+      if (start > lastIndex) {
+        const nonWordText = text.substring(lastIndex, start);
         words.push({
-          word: word,
-          start: start,
-          end: end,
-          dictionaryForm: dictionaryForm // Store the base form for dictionary lookup
+          word: nonWordText,
+          start: lastIndex,
+          end: start,
+          isTargetLang: false
         });
       }
+
+      const dictionaryForm = this.findDictionaryForm(word, dictionary);
+      words.push({
+        word: word,
+        start: start,
+        end: end,
+        dictionaryForm: dictionaryForm, // Store the base form for dictionary lookup
+        isTargetLang: dictionaryForm ? true : false
+      });
+
+      lastIndex = end;
     }
+
+    // Add any remaining non-word content after the last word
+    if (lastIndex < text.length) {
+      const remainingText = text.substring(lastIndex);
+      words.push({
+        word: remainingText,
+        start: lastIndex,
+        end: text.length,
+        isTargetLang: false
+      });
+    }
+
     return words;
   }
 

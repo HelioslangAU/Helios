@@ -10,6 +10,7 @@ class VideoUIController {
     this.subtitleSelector = null;
     this.isInitialized = false;
     this.hasAutoLoaded = false;
+    this.isCurrentlyLoading = false;
 
     // Language code mappings (extension language -> YouTube language codes)
     // Supports both 2-letter codes (zh, en, es) and full names (chinese, english, spanish)
@@ -75,7 +76,6 @@ class VideoUIController {
     if (this.youtubeLoader && this.youtubeLoader.isYouTubePage()) {
       const binding = this.videoDetector.getPrimaryBinding();
       if (binding) {
-        console.log('[Helios Video] Triggering immediate auto-load');
         setTimeout(() => this.autoLoadSubtitles(), 1500);
       }
     }
@@ -86,19 +86,21 @@ class VideoUIController {
    */
   _setupAutoLoad() {
     if (this.youtubeLoader && this.youtubeLoader.isYouTubePage()) {
-      // Auto-load when video is detected
-      document.addEventListener('helios-video-detected', () => {
-        if (!this.hasAutoLoaded) {
-          setTimeout(() => this.autoLoadSubtitles(), 1500);
-        }
-      });
-
       // Auto-load on URL change (new video)
       let lastUrl = window.location.href;
       setInterval(() => {
         if (window.location.href !== lastUrl) {
           lastUrl = window.location.href;
+
+          // Clear old subtitles from previous video
+          const binding = this.videoDetector.getPrimaryBinding();
+          if (binding) {
+            binding.clearSubtitles();
+          }
+
+          // Reset auto-load flags and load new subtitles
           this.hasAutoLoaded = false;
+          this.isCurrentlyLoading = false;
           setTimeout(() => this.autoLoadSubtitles(), 1500);
         }
       }, 1000);
@@ -114,10 +116,15 @@ class VideoUIController {
     // Listen for language change from the language registry
     if (window.languageRegistry) {
       window.languageRegistry.on('languageChanged', async (newLanguage) => {
-        console.log('[Helios Video] Language changed to:', newLanguage);
+        // Clear old subtitles
+        const binding = this.videoDetector.getPrimaryBinding();
+        if (binding) {
+          binding.clearSubtitles();
+        }
 
-        // Reset auto-load flag and reload subtitles with new language
+        // Reset auto-load flags and reload subtitles with new language
         this.hasAutoLoaded = false;
+        this.isCurrentlyLoading = false;
 
         // Small delay to ensure dictionary is loaded
         setTimeout(() => {
@@ -131,10 +138,26 @@ class VideoUIController {
    * Automatically load subtitles based on target language
    */
   async autoLoadSubtitles() {
-    if (this.hasAutoLoaded) return;
-    if (!this.youtubeLoader || !this.youtubeLoader.isYouTubePage()) return;
+    // Prevent duplicate loading attempts
+    if (this.hasAutoLoaded || this.isCurrentlyLoading) {
+      return;
+    }
+
+    if (!this.youtubeLoader || !this.youtubeLoader.isYouTubePage()) {
+      return;
+    }
+
+    const binding = this.videoDetector.getPrimaryBinding();
+    if (!binding) {
+      return;
+    }
+
+    this.isCurrentlyLoading = true;
 
     try {
+      // Start loading state (pause video if not ad, show loading indicator)
+      binding.startLoadingSubtitles();
+
       // Get target language from language registry (already loaded and synced)
       let targetLanguage = window.languageRegistry?.getCurrentLanguage() || 'zh';
 
@@ -144,19 +167,20 @@ class VideoUIController {
         targetLanguage = settings.targetLanguage?.toLowerCase() || 'zh';
       }
 
-      console.log('[Helios Video] Auto-loading subtitles for target language:', targetLanguage);
-
       // Get available tracks
       const tracks = await this.youtubeLoader.getAvailableTracks();
 
       if (tracks.length === 0) {
-        console.log('[Helios Video] No subtitles available for this video');
+        binding.finishLoadingSubtitles();
+        this.isCurrentlyLoading = false;
         this._showNotification('No subtitles available', 'error');
+        // Also notify sidebar to remove loading overlay
+        document.dispatchEvent(new CustomEvent('helios-subtitle-load-failed'));
         return;
       }
 
-      // Find matching track
-      const matchingTrack = this._findMatchingTrack(tracks, targetLanguage);
+      // Find matching track (now async to check preferences)
+      const matchingTrack = await this._findMatchingTrack(tracks, targetLanguage);
 
       if (matchingTrack) {
         this.hasAutoLoaded = true;
@@ -167,19 +191,66 @@ class VideoUIController {
           : this._getLanguageDisplayName(matchingTrack.language || targetLanguage);
         this._showNotification(`Loaded ${displayName} subtitles`, 'success');
       } else {
-        console.log('[Helios Video] No subtitles found for target language:', targetLanguage);
+        binding.finishLoadingSubtitles();
         const languageName = this._getLanguageDisplayName(targetLanguage);
         this._showNotification(`No ${languageName} subtitles available`, 'error');
+        // Also notify sidebar to remove loading overlay
+        document.dispatchEvent(new CustomEvent('helios-subtitle-load-failed'));
       }
     } catch (error) {
       console.error('[Helios Video] Auto-load failed:', error);
+      binding.finishLoadingSubtitles();
+      // Also notify sidebar to remove loading overlay
+      document.dispatchEvent(new CustomEvent('helios-subtitle-load-failed'));
+    } finally {
+      this.isCurrentlyLoading = false;
     }
   }
 
   /**
    * Find best matching track for target language
+   * Checks saved preferences first, then falls back to default matching
    */
-  _findMatchingTrack(tracks, targetLanguage) {
+  async _findMatchingTrack(tracks, targetLanguage) {
+    // PRIORITY 1: Check for per-video preference
+    const videoId = this._getCurrentVideoId();
+    if (videoId) {
+      try {
+        const result = await chrome.storage.local.get(['subtitlePreferences']);
+        const perVideoPref = result.subtitlePreferences?.perVideo?.[videoId];
+
+        if (perVideoPref) {
+          const preferredTrack = tracks.find(t =>
+            t.language === perVideoPref.language &&
+            (t.isAutoGenerated || false) === perVideoPref.isAutoGenerated
+          );
+          if (preferredTrack) {
+            return preferredTrack;
+          }
+        }
+      } catch (error) {
+        console.error('[Helios Video] Error loading per-video preference:', error);
+      }
+    }
+
+    // PRIORITY 2: Check for global language variant preference
+    try {
+      const result = await chrome.storage.local.get(['subtitlePreferences']);
+      const globalPref = result.subtitlePreferences?.global?.[targetLanguage];
+
+      if (globalPref) {
+        const preferredTrack = tracks.find(t =>
+          t.language === globalPref && !t.isAutoGenerated
+        );
+        if (preferredTrack) {
+          return preferredTrack;
+        }
+      }
+    } catch (error) {
+      console.error('[Helios Video] Error loading global preference:', error);
+    }
+
+    // PRIORITY 3: Fall back to default matching logic
     const possibleCodes = this.languageMap[targetLanguage] || [];
 
     // First try: exact match (prefer manual over auto-generated)
@@ -205,6 +276,14 @@ class VideoUIController {
     }
 
     return null;
+  }
+
+  /**
+   * Get current video ID from URL
+   */
+  _getCurrentVideoId() {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('v');
   }
 
   /**
@@ -280,13 +359,11 @@ class VideoUIController {
 
     if (isYouTube) {
       // Get available YouTube tracks
-      console.log('[Helios Video] Fetching YouTube subtitle tracks...');
       const tracks = await this.youtubeLoader.getAvailableTracks();
 
       if (tracks.length > 0) {
         // Show track selector
         this.subtitleSelector.show(tracks, async (track) => {
-          console.log('[Helios Video] Loading track:', track.languageName);
           await this._loadYouTubeTrack(track);
         });
       } else {

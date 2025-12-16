@@ -17,6 +17,9 @@ class HeliosSettingsUI {
       case "shortcuts":
         this.setupShortcutsEventListeners();
         break;
+      case "video-player":
+        this.setupVideoPlayerEventListeners();
+        break;
       case "anki":
         this.setupAnkiEventListeners();
         break;
@@ -317,8 +320,7 @@ class HeliosSettingsUI {
         };
 
         // Check for conflicts with other shortcuts (popup + video)
-        const allShortcutIds = [...popupShortcutIds, "video-load", "video-panel", "video-youtube", 
-          "video-nav-previous", "video-nav-next", "video-nav-restart", "video-nav-toggle"];
+        const allShortcutIds = [...popupShortcutIds, "video-load", "video-panel", "video-youtube"];
         const conflict = this.checkVideoShortcutConflict(shortcutId, newHotkey, allShortcutIds);
         if (conflict) {
           this.showShortcutError(shortcutId, `This shortcut conflicts with: ${conflict}`);
@@ -364,11 +366,7 @@ class HeliosSettingsUI {
     const videoShortcutIds = [
       "video-load",
       "video-panel",
-      "video-youtube",
-      "video-nav-previous",
-      "video-nav-next",
-      "video-nav-restart",
-      "video-nav-toggle"
+      "video-youtube"
     ];
 
     // Setup click-to-record for all video shortcuts
@@ -827,6 +825,9 @@ class HeliosSettingsUI {
       case "shortcuts":
         this.updateShortcutsUI(tabElement);
         break;
+      case "video-player":
+        this.updateVideoPlayerUI(tabElement);
+        break;
       case "anki":
         this.updateAnkiUI(tabElement);
         break;
@@ -1004,26 +1005,6 @@ class HeliosSettingsUI {
 
     const videoYoutube = tabElement.querySelector("#video-youtube");
     if (videoYoutube) videoYoutube.value = this.formatHotkeyDisplay(youtubeShortcut);
-
-    // Update video navigation shortcuts
-    const videoNavShortcuts = shortcuts.videoNavigation || {};
-    const navPrevious = videoNavShortcuts.previous || { key: "A", ctrl: false, shift: false, alt: false, meta: false };
-    const navNext = videoNavShortcuts.next || { key: "D", ctrl: false, shift: false, alt: false, meta: false };
-    const navRestart = videoNavShortcuts.restart || { key: "S", ctrl: false, shift: false, alt: false, meta: false };
-    const navToggle = videoNavShortcuts.toggle || { key: "W", ctrl: false, shift: false, alt: false, meta: false };
-
-    const videoNavPrevious = tabElement.querySelector("#video-nav-previous");
-    if (videoNavPrevious) videoNavPrevious.value = this.formatHotkeyDisplay(navPrevious);
-
-    const videoNavNext = tabElement.querySelector("#video-nav-next");
-    if (videoNavNext) videoNavNext.value = this.formatHotkeyDisplay(navNext);
-
-    const videoNavRestart = tabElement.querySelector("#video-nav-restart");
-    if (videoNavRestart) videoNavRestart.value = this.formatHotkeyDisplay(navRestart);
-
-    const videoNavToggle = tabElement.querySelector("#video-nav-toggle");
-    if (videoNavToggle) videoNavToggle.value = this.formatHotkeyDisplay(navToggle);
-
   }
 
   updateAnkiUI(tabElement) {
@@ -1165,6 +1146,148 @@ class HeliosSettingsUI {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
     return `${day}/${month}/${year}`;
+  }
+
+  setupVideoPlayerEventListeners() {
+    console.log("Setting up video player event listeners");
+
+    // Video player hotkeys (same pattern as shortcuts tab)
+    const videoHotkeyIds = [
+      "video-hotkey-prev",
+      "video-hotkey-next",
+      "video-hotkey-restart",
+      "video-hotkey-toggle"
+    ];
+
+    videoHotkeyIds.forEach((hotkeyId) => {
+      const element = document.getElementById(hotkeyId);
+      if (!element) return;
+
+      // On focus/click, enable recording
+      element.addEventListener("focus", () => {
+        element.removeAttribute("readonly");
+        element.value = "";
+        element.placeholder = "Press any key...";
+        this.clearShortcutError(hotkeyId);
+      });
+
+      // Capture keypress and update hotkey
+      element.addEventListener("keydown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Ignore modifier keys alone
+        if (["Shift", "Control", "Alt", "Meta"].includes(e.key)) {
+          return;
+        }
+
+        // Normalize key names for special keys
+        let keyName = e.key;
+        if (keyName.startsWith("Arrow")) {
+          keyName = keyName.substring(5);
+        }
+
+        const newHotkey = {
+          key: keyName.toLowerCase(),
+          shift: e.shiftKey,
+          ctrl: e.ctrlKey || e.metaKey,
+          alt: e.altKey
+        };
+
+        // Check for conflicts
+        const conflict = this.checkVideoShortcutConflict(hotkeyId, newHotkey, videoHotkeyIds);
+        if (conflict) {
+          this.showShortcutError(hotkeyId, `This shortcut conflicts with: ${conflict}`);
+          element.blur();
+          element.setAttribute("readonly", "true");
+          return;
+        }
+
+        // Update display
+        const displayText = this.formatHotkeyDisplay(newHotkey);
+        element.value = displayText;
+        element.blur();
+        element.setAttribute("readonly", "true");
+
+        // Save settings
+        this.manager.storage.saveSettings();
+      });
+
+      // Handle blur - restore readonly
+      element.addEventListener("blur", () => {
+        element.setAttribute("readonly", "true");
+        // Restore value if empty
+        if (!element.value) {
+          const currentHotkey = this.getCurrentVideoPlayerHotkey(hotkeyId);
+          if (currentHotkey) {
+            element.value = this.formatHotkeyDisplay(currentHotkey);
+          }
+        }
+      });
+    });
+  }
+
+  updateVideoPlayerUI(tabElement) {
+    console.log("🔍 Updating video player UI with settings:", this.manager.settings);
+
+    const videoPlayerSettings = this.manager.settings.videoPlayer || this.manager.defaultSettings.videoPlayer;
+
+    // Update checkboxes
+    const hotkeysEnabled = tabElement.querySelector("#video-hotkeys-enabled");
+    if (hotkeysEnabled) {
+      hotkeysEnabled.checked = videoPlayerSettings.hotkeysEnabled !== undefined ? videoPlayerSettings.hotkeysEnabled : true;
+    }
+
+    const pauseOnHover = tabElement.querySelector("#video-pause-on-hover");
+    if (pauseOnHover) {
+      pauseOnHover.checked = videoPlayerSettings.pauseOnHover !== undefined ? videoPlayerSettings.pauseOnHover : true;
+    }
+
+    const pauseAtEnd = tabElement.querySelector("#video-pause-at-end");
+    if (pauseAtEnd) {
+      pauseAtEnd.checked = videoPlayerSettings.pauseAtEnd || false;
+    }
+
+    const autoPlayAfterNav = tabElement.querySelector("#video-auto-play-after-nav");
+    if (autoPlayAfterNav) {
+      autoPlayAfterNav.checked = videoPlayerSettings.autoPlayAfterNav || false;
+    }
+
+    // Update hotkeys
+    const hotkeys = videoPlayerSettings.hotkeys || {
+      previous: { key: "a", shift: false, ctrl: false, alt: false },
+      next: { key: "d", shift: false, ctrl: false, alt: false },
+      restart: { key: "s", shift: false, ctrl: false, alt: false },
+      toggle: { key: "w", shift: false, ctrl: false, alt: false }
+    };
+
+    const hotkeyMap = {
+      "video-hotkey-prev": hotkeys.previous,
+      "video-hotkey-next": hotkeys.next,
+      "video-hotkey-restart": hotkeys.restart,
+      "video-hotkey-toggle": hotkeys.toggle
+    };
+
+    Object.entries(hotkeyMap).forEach(([elementId, hotkey]) => {
+      const element = tabElement.querySelector(`#${elementId}`);
+      if (element && hotkey) {
+        element.value = this.formatHotkeyDisplay(hotkey);
+      }
+    });
+  }
+
+  getCurrentVideoPlayerHotkey(hotkeyId) {
+    const videoPlayerSettings = this.manager.settings.videoPlayer || this.manager.defaultSettings.videoPlayer;
+    const hotkeys = videoPlayerSettings.hotkeys || {};
+
+    const hotkeyMap = {
+      "video-hotkey-prev": hotkeys.previous,
+      "video-hotkey-next": hotkeys.next,
+      "video-hotkey-restart": hotkeys.restart,
+      "video-hotkey-toggle": hotkeys.toggle
+    };
+
+    return hotkeyMap[hotkeyId];
   }
 }
 
