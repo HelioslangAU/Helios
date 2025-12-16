@@ -39,6 +39,14 @@ class LookupController {
     const characterInfo = await this.pageProcessor.getCharacterAtPosition(event);
 
     if (characterInfo?.word) {
+      // For regular page lookups (Shift-based), only continue if the word belongs to the target language
+      if (!isSubtitleWord && !this._isTargetLanguageWord(characterInfo.word)) {
+        this.popup.scheduleHidePopup?.();
+        this.currentWord = null;
+        this.isCurrentWordSubtitle = false;
+        return;
+      }
+
       // Skip if already showing this exact word (prevent unnecessary re-renders)
       if (this.currentWord === characterInfo.word &&
           this.highlightManager.currentHighlight?.textContent === characterInfo.word) {
@@ -55,6 +63,14 @@ class LookupController {
       // Re-check position after removing old highlight (DOM might have changed)
       const newCharacterInfo = await this.pageProcessor.getCharacterAtPosition(event);
       if (!newCharacterInfo) {
+        this.popup.scheduleHidePopup?.();
+        this.currentWord = null;
+        this.isCurrentWordSubtitle = false;
+        return;
+      }
+
+      // Re-validate target language after DOM changes
+      if (!isSubtitleWord && !this._isTargetLanguageWord(newCharacterInfo.word)) {
         this.popup.scheduleHidePopup?.();
         this.currentWord = null;
         this.isCurrentWordSubtitle = false;
@@ -107,6 +123,14 @@ class LookupController {
     this.popup.hidePopup?.(event);
     this.highlightManager.removeLookupHighlight();
   };
+
+  _isTargetLanguageWord(word) {
+    if (!word) return false;
+    const adapter = this.pageProcessor?.languageRegistry?.getAdapter?.();
+    // If no adapter is available, allow the lookup to behave as before
+    if (!adapter || !adapter.containsTargetLanguage) return true;
+    return adapter.containsTargetLanguage(word);
+  }
 }
 
 

@@ -961,14 +961,15 @@ class SubtitleOverlay {
   _extractPotentialWords(text) {
     const words = [];
     const currentLang = window.languageRegistry?.getCurrentLanguage();
+    const adapter = window.languageRegistry?.getAdapter();
     
     if (currentLang && ['zh', 'ja', 'ko'].includes(currentLang)) {
-      // For CJK languages, extract unique characters and common sequences (1-3 chars)
-      // The full extractWords will check longer sequences, but we preload shorter ones
-      // to improve initial lookup performance
+      // For CJK languages, extract unique characters and sequences up to maxWordLength
+      // This ensures longer words (like idioms and chengyus) are preloaded
       const seen = new Set();
+      const maxWordLength = adapter?.getConfig()?.maxWordLength || 10;
       
-      // Extract single characters
+      // Extract single characters (keep everything from subtitles except whitespace)
       for (let i = 0; i < text.length; i++) {
         const char = text[i];
         if (char.trim() && !seen.has(char)) {
@@ -977,10 +978,12 @@ class SubtitleOverlay {
         }
       }
       
-      // Extract 2-3 character sequences (most common word lengths)
-      for (let len = 2; len <= 3; len++) {
+      // Extract sequences from 2 to maxWordLength characters
+      // This ensures longer words (4+ characters like idioms/chengyus) are preloaded
+      for (let len = 2; len <= maxWordLength; len++) {
         for (let i = 0; i <= text.length - len; i++) {
           const candidate = text.substring(i, i + len);
+          // Keep sequences as they appear in subtitles (skip only whitespace and duplicates)
           if (candidate.trim() && !seen.has(candidate)) {
             words.push(candidate);
             seen.add(candidate);
@@ -1054,6 +1057,18 @@ class SubtitleOverlay {
         // Use language-aware word extraction
         const extractedWords = await adapter.extractWords(subtitle.text, dictionary);
 
+        // Additional safeguard: preload the actual extracted words to ensure they're in cache
+        // This is especially important for longer words (4+ characters) that jieba finds
+        const extractedWordsToPreload = extractedWords
+          .filter(({ isTargetLang }) => isTargetLang !== false)
+          .map(({ word }) => word.toLowerCase());
+        if (extractedWordsToPreload.length > 0 && window.dictionaryManager.preloadWords) {
+          await window.dictionaryManager.preloadWords(extractedWordsToPreload);
+        }
+
+        // Refresh dictionary reference after preloading to ensure cache is up to date
+        const dictionaryAfterPreload = window.dictionaryManager?.dictionary || {};
+
         // Check if language uses spaces between words (not CJK languages)
         const currentLang = window.languageRegistry?.getCurrentLanguage();
         const usesSpaces = currentLang && !['zh', 'ja', 'ko'].includes(currentLang);
@@ -1077,7 +1092,7 @@ class SubtitleOverlay {
             const cleanWord = word.toLowerCase();
 
             if (window.vocabManager &&
-                dictionary[cleanWord] &&
+                dictionaryAfterPreload[cleanWord] &&
                 !window.vocabManager.isWordKnown(cleanWord) &&
                 !window.vocabManager.isWordIgnored(cleanWord)) {
               wordSpan.classList.add('unknown-word');

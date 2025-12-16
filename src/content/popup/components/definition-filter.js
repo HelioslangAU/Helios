@@ -15,6 +15,10 @@ class DefinitionFilter {
         /surname/i,
         /^name/i,
         /^last name/i,
+        /town\s+in/i,
+        /^used in/i,
+        /^small table/i, // specifically for chinese 几
+        /^almost/ // specifically for chinese 几
       ],
       hide: [],
       prioritize: [],

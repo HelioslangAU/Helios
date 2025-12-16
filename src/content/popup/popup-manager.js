@@ -34,6 +34,7 @@ class PopupManager {
 
   async showDictionaryPopup(x, y, character, sentence) {
     // Generate unique request ID for this popup creation
+    
     const requestId = Date.now() + Math.random();
     this.currentPopupRequestId = requestId;
 
@@ -53,6 +54,7 @@ class PopupManager {
       // Ensure dictionary entry is loaded (for async dictionary proxy)
       // This also updates the sync dictionary cache
       if (this.dictionaryManager.getDefinition) {
+
         await this.dictionaryManager.getDefinition(character);
         // Small delay to ensure cache is updated
         await new Promise(resolve => setTimeout(resolve, 10));
@@ -120,7 +122,8 @@ class PopupManager {
         this.vocabManager,
         this.frequencyManager,
         this.settingsManager.settings,
-        currentLanguage
+        currentLanguage,
+        this.dictionaryManager.dictionary
       );
 
       // Add to DOM and position

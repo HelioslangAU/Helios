@@ -236,6 +236,7 @@ class BaseLanguageAdapter {
       // Other common patterns
       /see\s+also\s*[:：]?\s*(.+?)(?:\s*\[|;|$)/i,
       /see\s*[:：]?\s*(.+?)(?:\s*\[|;|$)/i,
+      
 
     ];
 
