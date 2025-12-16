@@ -174,9 +174,6 @@ class ChineseLanguageAdapter extends BaseLanguageAdapter {
             });
           }
         }
-        // if (words.length != 0) {
-        //   console.log('Jieba words:', words);
-        // }
         return words;
       
       } catch (error) {

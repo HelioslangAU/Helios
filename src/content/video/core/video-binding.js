@@ -26,7 +26,6 @@ class VideoBinding {
     this._setupSidebarReadyListener();
 
     this.isBound = true;
-    console.log('[Helios Video] Bound to video element:', this.videoElement);
   }
 
   /**
@@ -37,7 +36,6 @@ class VideoBinding {
       // Sidebar has finished loading and scrolling to position
       // Now we can resume the video if it was playing
       if (this.isLoadingSubtitles) {
-        console.log('[Helios Video] Sidebar ready - finishing subtitle load');
         this.finishLoadingSubtitles();
       }
     });
@@ -152,13 +150,10 @@ class VideoBinding {
       this.wasPausedBeforeLoading = this.videoElement.paused;
       if (!this.wasPausedBeforeLoading) {
         this.videoElement.pause();
-        console.log('[Helios Video] Paused video for subtitle loading');
       }
 
-      // Show loading indicator
-      this._showLoadingIndicator();
-    } else {
-      console.log('[Helios Video] Ad detected - loading subtitles silently in background');
+      // Show loading indicator (disabled - using YouTube sidebar loading state only)
+      // this._showLoadingIndicator();
     }
   }
 
@@ -172,15 +167,14 @@ class VideoBinding {
     const isAd = this._isAdPlaying();
 
     if (!isAd) {
-      // Hide loading indicator
-      this._hideLoadingIndicator();
+      // Hide loading indicator (disabled - using YouTube sidebar loading state only)
+      // this._hideLoadingIndicator();
 
       // Resume video if it was playing before
       if (!this.wasPausedBeforeLoading) {
         this.videoElement.play().catch(err => {
           console.warn('[Helios Video] Could not auto-resume video:', err);
         });
-        console.log('[Helios Video] Resumed video after subtitle loading');
       }
     }
 
@@ -199,8 +193,6 @@ class VideoBinding {
     const currentTime = this.videoElement.currentTime * 1000;
     this._updateSubtitles();
 
-    console.log(`[Helios Video] Loaded ${entries.length} subtitles at time ${currentTime}ms`);
-
     // Notify that subtitles were loaded
     this._notifySubtitlesLoaded(entries, track);
 
@@ -214,7 +206,6 @@ class VideoBinding {
   clearSubtitles() {
     this.subtitleCollection = new SubtitleCollection();
     this.overlay.clear();
-    console.log('[Helios Video] Cleared all subtitles');
   }
 
   /**

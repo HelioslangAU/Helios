@@ -30,8 +30,6 @@ class SidebarPositioner {
   start() {
     if (this.isActive) return;
 
-    console.log('[Helios Positioner] Starting sidebar positioning');
-
     // Initial position sync
     this._syncPosition();
 
@@ -47,8 +45,6 @@ class SidebarPositioner {
    */
   stop() {
     if (!this.isActive) return;
-
-    console.log('[Helios Positioner] Stopping sidebar positioning');
 
     // Clear any pending sync timers
     if (this.syncDebounceTimer) {
@@ -102,14 +98,6 @@ class SidebarPositioner {
     // We only update dynamic values that can't be predetermined
     this.sidebar.style.setProperty('height', `${playerRect.height}px`, 'important');
     this.sidebar.style.setProperty('top', `${topRelativeToWatchFlexy}px`, 'important');
-
-    // Debug logging
-    console.log('[Helios Positioner] Position synced:', {
-      height: playerRect.height,
-      top: topRelativeToWatchFlexy,
-      playerTop: playerRect.top,
-      watchFlexyTop: watchFlexyRect.top
-    });
   }
 
   /**

@@ -43,8 +43,6 @@ class YouTubeLayoutManager {
     this.operationInProgress = true;
 
     try {
-      console.log('[Helios Layout] Activating sidebar layout');
-
       // Add the primary layout class to the body
       // This triggers all CSS rules for the sidebar-active state
       document.body.classList.add('helios-sidebar-active');
@@ -85,8 +83,6 @@ class YouTubeLayoutManager {
     this.operationInProgress = true;
 
     try {
-      console.log('[Helios Layout] Deactivating sidebar layout');
-
       // Remove the layout class FIRST
       document.body.classList.remove('helios-sidebar-active');
 
@@ -117,8 +113,6 @@ class YouTubeLayoutManager {
 
       // Force YouTube to recalculate layout by toggling theater mode
       this._forceTheaterModeRefresh(watchFlexy);
-
-      console.log('[Helios Layout] Video containers reset to default YouTube state');
     } finally {
       this.operationInProgress = false;
 
@@ -150,7 +144,6 @@ class YouTubeLayoutManager {
         if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
           // Only re-apply if we're supposed to be active and class is missing
           if (this.isActive && !body.classList.contains('helios-sidebar-active')) {
-            console.log('[Helios Layout] Re-applying sidebar-active class');
             body.classList.add('helios-sidebar-active');
           }
         }
@@ -250,7 +243,6 @@ class YouTubeLayoutManager {
   _triggerVideoResize() {
     setTimeout(() => {
       window.dispatchEvent(new Event('resize'));
-      console.log('[Helios Layout] Triggered video player resize');
     }, this.RESIZE_DELAY);
   }
 
@@ -262,8 +254,6 @@ class YouTubeLayoutManager {
    */
   _forceTheaterModeRefresh(watchFlexy) {
     if (!watchFlexy || !watchFlexy.hasAttribute('theater')) return;
-
-    console.log('[Helios Layout] Forcing theater mode refresh');
 
     // Temporarily exit theater mode
     watchFlexy.removeAttribute('theater');

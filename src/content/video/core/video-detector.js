@@ -21,8 +21,6 @@ class VideoDetector {
     this.detectionInterval = setInterval(() => {
       this._detectVideos();
     }, 2000);
-
-    console.log('[Helios Video] Video detector started');
   }
 
   /**
@@ -35,7 +33,6 @@ class VideoDetector {
     }
 
     this.isRunning = false;
-    console.log('[Helios Video] Video detector stopped');
   }
 
   /**
@@ -127,8 +124,6 @@ class VideoDetector {
 
     this.bindings.set(video, binding);
 
-    console.log('[Helios Video] Created binding for video:', video);
-
     // Notify that a new video was detected
     this._notifyVideoDetected(video, binding);
   }
@@ -148,7 +143,6 @@ class VideoDetector {
 
     videosToRemove.forEach((video) => {
       this.bindings.delete(video);
-      console.log('[Helios Video] Removed binding for video:', video);
     });
   }
 

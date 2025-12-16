@@ -63,11 +63,8 @@ class TheaterModeController {
 
     if (!theaterButton) {
       console.error('[Helios] Theater mode button not found after', maxAttempts, 'attempts');
-      console.log('[Helios] Available video controls:', document.querySelectorAll('.ytp-button'));
       return false;
     }
-
-    console.log('[Helios] Clicking theater mode button:', theaterButton);
 
     // Click the button and wait for theater mode to activate
     theaterButton.click();

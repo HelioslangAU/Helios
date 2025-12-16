@@ -19,13 +19,10 @@ class VideoFeatureManager {
   async init() {
     if (this.isInitialized) return;
 
-    console.log('[Helios Video] Initializing video feature...');
-
     // Load settings
     await this._loadSettings();
 
     if (!this.isEnabled) {
-      console.log('[Helios Video] Video feature is disabled');
       return;
     }
 
@@ -36,13 +33,11 @@ class VideoFeatureManager {
     this.videoDetector = new VideoDetector();
     this.fileLoader = new SubtitleFileLoader(this.videoDetector);
     this.youtubeLoader = new YouTubeSubtitleLoader(this.videoDetector);
-    // this.panelController = new SubtitlePanelController(this.videoDetector); // Disabled - using YouTube sidebar
     this.uiController = new VideoUIController(this.videoDetector, this.fileLoader, this.youtubeLoader);
 
     // Initialize all components
     this.videoDetector.start();
     await this.fileLoader.init();
-    // this.panelController.init(); // Disabled - using YouTube sidebar
     await this.uiController.init();
 
     // Setup integration event listeners
@@ -55,7 +50,6 @@ class VideoFeatureManager {
     // }
 
     this.isInitialized = true;
-    console.log('[Helios Video] Video feature initialized successfully');
   }
 
   /**
@@ -163,7 +157,6 @@ class VideoFeatureManager {
   _setupYouTubeAutoLoad() {
     // OLD CODE - Now handled by VideoUIController.autoLoadSubtitles()
     // This method is disabled to prevent conflicts with the new loading system
-    console.log('[Helios Video] YouTube auto-load handled by VideoUIController');
   }
 
   /**
@@ -234,7 +227,6 @@ class VideoFeatureManager {
     }
 
     this.isInitialized = false;
-    console.log('[Helios Video] Video feature destroyed');
   }
 }
 

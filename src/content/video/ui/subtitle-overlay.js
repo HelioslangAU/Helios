@@ -550,7 +550,6 @@ class SubtitleOverlay {
    */
   setSecondarySubtitles(subtitles) {
     this.secondarySubtitles = subtitles || [];
-    console.log(`[Helios Subtitle Overlay] Secondary subtitles set: ${this.secondarySubtitles.length} entries`);
 
     // Re-render to show dual subtitles
     if (this.currentSubtitles.length > 0) {
@@ -589,25 +588,16 @@ class SubtitleOverlay {
         this.customOffsetY = result.subtitlePosition.offsetY || 0;
         this.contentPositionOffset = result.subtitlePosition.bottomOffset || 75;
         this.hasCustomPosition = result.subtitlePosition.hasCustomPosition || false;
-
-        console.log('[Helios Subtitle Overlay] Restored saved position:', {
-          offsetX: this.customOffsetX,
-          offsetY: this.customOffsetY,
-          bottomOffset: this.contentPositionOffset,
-          hasCustomPosition: this.hasCustomPosition
-        });
       }
 
       // Load saved subtitle size (ASBplayer-style)
       if (result.subtitleSize !== undefined) {
         this.subtitleSize = result.subtitleSize;
-        console.log('[Helios Subtitle Overlay] Restored subtitle size:', this.subtitleSize + 'px');
       }
 
       // Load saved visibility state (persists across all videos)
       if (result.subtitleVisibility !== undefined) {
         this.isVisible = result.subtitleVisibility;
-        console.log('[Helios Subtitle Overlay] Restored visibility:', this.isVisible);
 
         // Apply visibility state immediately if hidden
         if (!this.isVisible) {
@@ -632,8 +622,6 @@ class SubtitleOverlay {
       };
 
       await chrome.storage.local.set({ subtitlePosition: positionData });
-
-      console.log('[Helios Subtitle Overlay] Saved position:', positionData);
     } catch (error) {
       console.error('[Helios Subtitle Overlay] Failed to save position:', error);
     }
@@ -645,7 +633,6 @@ class SubtitleOverlay {
   async _saveSize() {
     try {
       await chrome.storage.local.set({ subtitleSize: this.subtitleSize });
-      console.log('[Helios Subtitle Overlay] Saved subtitle size:', this.subtitleSize + 'px');
     } catch (error) {
       console.error('[Helios Subtitle Overlay] Failed to save size:', error);
     }
@@ -657,7 +644,6 @@ class SubtitleOverlay {
   async _saveVisibility() {
     try {
       await chrome.storage.local.set({ subtitleVisibility: this.isVisible });
-      console.log('[Helios Subtitle Overlay] Saved visibility:', this.isVisible);
     } catch (error) {
       console.error('[Helios Subtitle Overlay] Failed to save visibility:', error);
     }
@@ -669,7 +655,6 @@ class SubtitleOverlay {
    */
   setPauseOnHover(enabled) {
     this.pauseOnHover = enabled;
-    console.log(`[Helios Subtitle Overlay] Pause on hover ${enabled ? 'enabled' : 'disabled'}`);
   }
 
   /**
@@ -776,7 +761,6 @@ class SubtitleOverlay {
           // Navigated away from video - immediately hide and clear overlay
           this.container.style.display = 'none';
           this.clear();
-          console.log('[Helios Subtitle Overlay] Navigation detected - overlay hidden');
         }
 
         this.lastUrl = currentUrl;
@@ -1155,11 +1139,9 @@ class SubtitleOverlay {
         });
       }
       this._updatePosition();
-      console.log('[Helios Subtitle Overlay] Subtitles shown');
     } else {
       // Hide overlay
       this.container.style.display = 'none';
-      console.log('[Helios Subtitle Overlay] Subtitles hidden');
     }
 
     // Save visibility state to persist across videos

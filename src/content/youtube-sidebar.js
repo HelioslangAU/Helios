@@ -35,9 +35,6 @@ class YouTubeSidebar {
     this.isUpdatingSubtitles = false;
     this.pendingSubtitleUpdate = null;
 
-    // Loading overlay reference
-    this.videoLoadingOverlay = null;
-
     // Settings
     this.settings = {
       hotkeysEnabled: true,
@@ -70,7 +67,6 @@ class YouTubeSidebar {
     // Store listener reference so we can remove it on destroy
     this._storageChangeListener = (changes, areaName) => {
       if (areaName === 'local' && (changes.videoPlayer || changes.ytSidebarSettings)) {
-        console.log('[Helios YouTube Sidebar] Storage changed, reloading settings');
         this._loadSettings().then(() => {
           // Update UI elements to reflect new settings
           if (this.sidebar) {
@@ -165,7 +161,6 @@ class YouTubeSidebar {
         const watchFlexy = document.querySelector('ytd-watch-flexy');
         if (watchFlexy) {
           watchFlexy.appendChild(this.sidebar);
-          console.log('[Helios YouTube Sidebar] Injected into ytd-watch-flexy');
 
           // Initialize sidebar positioner now that sidebar element exists
           this.sidebarPositioner = new SidebarPositioner(this.sidebar, this.layoutManager);
@@ -209,7 +204,6 @@ class YouTubeSidebar {
       this._applySettingsToUI();
 
       // Don't set isVisible = true here, let _init() handle it based on page type
-      console.log('[Helios YouTube Sidebar] Initialized');
     } catch (error) {
       console.error('[Helios YouTube Sidebar] Failed to load:', error);
     }
@@ -266,7 +260,7 @@ class YouTubeSidebar {
 
     // Listen for subtitle load failures to remove loading overlay
     document.addEventListener('helios-subtitle-load-failed', () => {
-      this._removeVideoLoadingOverlay();
+      
     });
 
     // Setup hotkeys
@@ -305,7 +299,6 @@ class YouTubeSidebar {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
-        console.log('[Helios YouTube Sidebar] Blocked "t" key - sidebar requires theater mode');
       }
     }, true); // Use capture phase to intercept before YouTube's handlers
   }
@@ -648,8 +641,6 @@ class YouTubeSidebar {
         this.secondaryLanguageSelect.value = sortedLanguages[0][0];
         this.settings.secondarySubtitleLanguage = sortedLanguages[0][0];
       }
-
-      console.log('[Helios YouTube Sidebar] Updated language dropdown with', languageMap.size, 'languages');
     } catch (error) {
       console.error('[Helios YouTube Sidebar] Failed to update language dropdown:', error);
     }
@@ -712,7 +703,6 @@ class YouTubeSidebar {
       this.hotkeysToggle.addEventListener('change', (e) => {
         this.settings.hotkeysEnabled = e.target.checked;
         this._saveSettings();
-        console.log(`[Helios YouTube Sidebar] Hotkeys ${e.target.checked ? 'enabled' : 'disabled'}`);
       });
     }
 
@@ -741,8 +731,6 @@ class YouTubeSidebar {
             console.error('[Helios YouTube Sidebar] Error re-rendering subtitle list:', err);
           });
         }
-
-        console.log(`[Helios YouTube Sidebar] Dual subtitles ${e.target.checked ? 'enabled' : 'disabled'}`);
       });
     }
 
@@ -756,8 +744,6 @@ class YouTubeSidebar {
         if (this.settings.dualSubtitlesEnabled) {
           this._loadSecondarySubtitles();
         }
-
-        console.log(`[Helios YouTube Sidebar] Secondary language set to: ${e.target.value || 'auto'}`);
       });
     }
 
@@ -771,8 +757,6 @@ class YouTubeSidebar {
         if (this.videoBinding && this.videoBinding.overlay) {
           this.videoBinding.overlay.setPauseOnHover(e.target.checked);
         }
-
-        console.log(`[Helios YouTube Sidebar] Pause on hover ${e.target.checked ? 'enabled' : 'disabled'}`);
       });
     }
 
@@ -781,7 +765,6 @@ class YouTubeSidebar {
       this.pauseAtEndToggle.addEventListener('change', (e) => {
         this.settings.pauseAtEnd = e.target.checked;
         this._saveSettings();
-        console.log(`[Helios YouTube Sidebar] Pause at end ${e.target.checked ? 'enabled' : 'disabled'}`);
       });
     }
 
@@ -790,7 +773,6 @@ class YouTubeSidebar {
       this.autoPlayToggle.addEventListener('change', (e) => {
         this.settings.autoPlayAfterNav = e.target.checked;
         this._saveSettings();
-        console.log(`[Helios YouTube Sidebar] Auto-play after navigation ${e.target.checked ? 'enabled' : 'disabled'}`);
       });
     }
   }
@@ -981,7 +963,6 @@ class YouTubeSidebar {
   async updateSubtitles(entries, track) {
     // Race condition protection: if already updating, queue this update
     if (this.isUpdatingSubtitles) {
-      console.log('[Helios YouTube Sidebar] Update in progress, queueing new subtitle update');
       this.pendingSubtitleUpdate = { entries, track };
       return;
     }
@@ -994,10 +975,8 @@ class YouTubeSidebar {
       this.currentTrack = track;
       this.currentSecondarySubtitles = []; // Reset secondary subtitles
 
-      console.log(`[Helios YouTube Sidebar] Updating with ${this.currentSubtitles.length} deduplicated subtitles`);
-
       // Remove loading overlay from video player
-      this._removeVideoLoadingOverlay();
+      
 
       // Render subtitle list (async)
       await this._renderSubtitleList().catch(err => {
@@ -1012,13 +991,11 @@ class YouTubeSidebar {
         const currentTime = this.videoBinding.videoElement.currentTime * 1000;
         if (currentTime > 1000) { // If more than 1 second into video
           this._updateActiveSubtitle(currentTime);
-          console.log('[Helios YouTube Sidebar] Scrolled to subtitle at', Math.floor(currentTime/1000), 'seconds');
         }
       }
 
       // Signal that sidebar is ready (subtitles loaded and scrolled to position)
       document.dispatchEvent(new CustomEvent('helios-sidebar-ready'));
-      console.log('[Helios YouTube Sidebar] Sidebar ready - subtitles positioned');
 
       // Load secondary subtitles if dual subtitles enabled
       if (this.settings.dualSubtitlesEnabled) {
@@ -1031,7 +1008,6 @@ class YouTubeSidebar {
       if (this.pendingSubtitleUpdate) {
         const { entries: pendingEntries, track: pendingTrack } = this.pendingSubtitleUpdate;
         this.pendingSubtitleUpdate = null;
-        console.log('[Helios YouTube Sidebar] Processing queued subtitle update');
         await this.updateSubtitles(pendingEntries, pendingTrack);
       }
     }
@@ -1145,8 +1121,6 @@ class YouTubeSidebar {
         return;
       }
 
-      console.log('[Helios YouTube Sidebar] Found', tracks.length, 'available subtitle tracks');
-
       // Find secondary subtitle track
       let secondaryTrack = null;
       const currentTrackUrl = this.currentTrack?.url;
@@ -1193,8 +1167,6 @@ class YouTubeSidebar {
         return;
       }
 
-      console.log('[Helios YouTube Sidebar] Loading secondary subtitles:', secondaryTrack.languageName);
-
       // Use the YouTube loader's loadTrack method
       const youtubeLoader = window.heliosVideoFeature?.youtubeLoader;
       if (!youtubeLoader) {
@@ -1221,8 +1193,6 @@ class YouTubeSidebar {
       this._renderSubtitleList().catch(err => {
         console.error('[Helios YouTube Sidebar] Error re-rendering subtitle list:', err);
       });
-
-      console.log(`[Helios YouTube Sidebar] Loaded ${secondaryEntries.length} secondary subtitles`);
     } catch (error) {
       console.error('[Helios YouTube Sidebar] Failed to load secondary subtitles:', error);
     }
@@ -1261,11 +1231,6 @@ class YouTubeSidebar {
       }
 
       await chrome.storage.local.set({ subtitlePreferences: prefs });
-      console.log('[Helios YouTube Sidebar] Saved track preference:', {
-        global: `${baseLanguage} → ${track.language}`,
-        videoId: videoId,
-        track: track.languageName
-      });
     } catch (error) {
       console.error('[Helios YouTube Sidebar] Failed to save track preference:', error);
     }
@@ -1655,7 +1620,6 @@ class YouTubeSidebar {
           if (!video.paused) {
             video.pause();
             this.pausedAtEnd = true;
-            console.log('[Helios YouTube Sidebar] Paused at end of subtitle');
           }
         }
       }
@@ -1668,7 +1632,6 @@ class YouTubeSidebar {
       const video = this.videoBinding.videoElement;
       if (!video.paused) {
         video.pause();
-        console.log('[Helios YouTube Sidebar] Paused at subtitle transition (caught missed pause)');
       }
     }
 
@@ -1756,8 +1719,6 @@ class YouTubeSidebar {
    * Show caption selector modal
    */
   async _showCaptionSelector() {
-    console.log('[Helios YouTube Sidebar] Opening caption selector');
-
     // Get available tracks from YouTube loader
     const youtubeLoader = window.heliosVideoFeature?.youtubeLoader;
     if (!youtubeLoader) {
@@ -1777,8 +1738,6 @@ class YouTubeSidebar {
         return;
       }
 
-      console.log('[Helios YouTube Sidebar] Available tracks:', tracks.length);
-
       // Create or get subtitle selector modal
       if (!window.subtitleSelectorModal) {
         window.subtitleSelectorModal = new SubtitleSelectorModal();
@@ -1786,7 +1745,6 @@ class YouTubeSidebar {
 
       // Show modal with tracks, callback, and current track
       window.subtitleSelectorModal.show(tracks, async (selectedTrack) => {
-        console.log('[Helios YouTube Sidebar] Selected track:', selectedTrack.languageName);
         this._showNotification(`Loading ${selectedTrack.languageName} captions...`, 'info');
 
         try {
@@ -1828,8 +1786,6 @@ class YouTubeSidebar {
   async show() {
     if (!this.sidebar) return;
 
-    console.log('[Helios YouTube Sidebar] Showing sidebar');
-
     // CRITICAL: Force theater mode FIRST (sidebar only works in theater mode)
     const theaterEnabled = await this.theaterModeController.enable();
     if (!theaterEnabled) {
@@ -1856,10 +1812,8 @@ class YouTubeSidebar {
   hide() {
     if (!this.sidebar) return;
 
-    console.log('[Helios YouTube Sidebar] Hiding sidebar');
-
     // Remove loading overlay
-    this._removeVideoLoadingOverlay();
+    
 
     // Add hidden class to sidebar
     this.sidebar.classList.add('hidden');
@@ -1898,7 +1852,6 @@ class YouTubeSidebar {
 
     if (targetSubtitle) {
       this.videoBinding.seekTo(targetSubtitle.start);
-      console.log('[Helios Hotkeys] Jumped to previous subtitle');
 
       // Smart playback handling
       if (wasPlaying || this.settings.autoPlayAfterNav) {
@@ -1922,11 +1875,6 @@ class YouTubeSidebar {
 
     if (nextSubtitle) {
       this.videoBinding.seekTo(nextSubtitle.start);
-      console.log('[Helios Hotkeys] Jumped to next subtitle:', {
-        from: currentTime / 1000,
-        to: nextSubtitle.start / 1000,
-        subtitle: nextSubtitle
-      });
 
       // Smart playback handling
       if (wasPlaying || this.settings.autoPlayAfterNav) {
@@ -1964,7 +1912,6 @@ class YouTubeSidebar {
 
     if (targetSubtitle) {
       this.videoBinding.seekTo(targetSubtitle.start);
-      console.log('[Helios Hotkeys] Jumped to subtitle start:', targetSubtitle);
 
       // Smart playback handling
       if (wasPlaying || this.settings.autoPlayAfterNav) {
@@ -1983,7 +1930,6 @@ class YouTubeSidebar {
 
     // Use the overlay's toggleVisibility method for persistent state
     const isVisible = this.videoBinding.overlay.toggleVisibility();
-    console.log(`[Helios Hotkeys] Subtitle overlay ${isVisible ? 'shown' : 'hidden'}`);
   }
 
   /**
@@ -1997,11 +1943,9 @@ class YouTubeSidebar {
       if (result.videoPlayer) {
         // Use new unified settings
         this.settings = { ...this.settings, ...result.videoPlayer };
-        console.log('[Helios YouTube Sidebar] Loaded settings from videoPlayer:', this.settings);
       } else if (result.ytSidebarSettings) {
         // Fallback to old settings (for backward compatibility)
         this.settings = { ...this.settings, ...result.ytSidebarSettings };
-        console.log('[Helios YouTube Sidebar] Loaded settings from ytSidebarSettings:', this.settings);
       }
     } catch (error) {
       console.error('[Helios YouTube Sidebar] Failed to load settings:', error);
@@ -2018,7 +1962,6 @@ class YouTubeSidebar {
         videoPlayer: this.settings,
         ytSidebarSettings: this.settings
       });
-      console.log('[Helios YouTube Sidebar] Settings saved to both videoPlayer and ytSidebarSettings');
     } catch (error) {
       console.error('[Helios YouTube Sidebar] Failed to save settings:', error);
     }
@@ -2029,8 +1972,6 @@ class YouTubeSidebar {
    * This ensures old subtitles don't persist when loading a new video
    */
   _clearSubtitleData() {
-    console.log('[Helios YouTube Sidebar] Clearing subtitle data for new video');
-
     // Clear the subtitle list container
     if (this.subtitleListContainer) {
       this.subtitleListContainer.innerHTML = '';
@@ -2047,114 +1988,35 @@ class YouTubeSidebar {
   }
 
   /**
-   * Show loading state in sidebar and video player
+   * Show loading state in sidebar (positioned over video center)
    */
   _showLoadingState() {
-    // Show loading in sidebar
+    // Show loading in sidebar - position it in the lower portion of the video (60% down)
     if (this.subtitleListContainer) {
+      const videoPlayer = document.querySelector('.html5-video-player');
+      const sidebarRect = this.sidebar?.getBoundingClientRect();
+
+      let topPosition = '60%';
+
+      // If we can get the video player position, calculate position at 60% down from video top
+      if (videoPlayer && sidebarRect) {
+        const videoRect = videoPlayer.getBoundingClientRect();
+        const sidebarTop = sidebarRect.top;
+        const videoPositionAt60Percent = videoRect.top + (videoRect.height * 0.6);
+        const relativePosition = videoPositionAt60Percent - sidebarTop;
+        topPosition = `${relativePosition}px`;
+      }
+
       const sidebarLoadingHTML = `
-        <div class="subtitle-loading-state">
+        <div class="subtitle-loading-state" style="position: absolute; top: ${topPosition}; left: 50%; transform: translate(-50%, -50%); width: auto;">
           <div class="loading-spinner"></div>
           <div class="loading-text">Loading subtitles...</div>
         </div>
       `;
       this.subtitleListContainer.innerHTML = sidebarLoadingHTML;
     }
-
-    // Show beautiful loading overlay on video player
-    this._showVideoLoadingOverlay();
   }
 
-  /**
-   * Show loading overlay on video player
-   * @private
-   */
-  _showVideoLoadingOverlay() {
-    // Remove existing overlay if present
-    this._removeVideoLoadingOverlay();
-
-    const videoPlayer = document.querySelector('.html5-video-player');
-    if (!videoPlayer) return;
-
-    // Get video player position and dimensions
-    const rect = videoPlayer.getBoundingClientRect();
-
-    const overlay = document.createElement('div');
-    overlay.className = 'helios-video-loading-overlay';
-
-    // Use FIXED positioning relative to viewport to avoid YouTube's transforms
-    // This prevents the overlay from jumping when YouTube repositions the player
-    Object.assign(overlay.style, {
-      position: 'fixed',
-      top: `${rect.top}px`,
-      left: `${rect.left}px`,
-      width: `${rect.width}px`,
-      height: `${rect.height}px`,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: '9999',
-      pointerEvents: 'none',
-      transform: 'none',
-      transition: 'none',
-      margin: '0',
-      padding: '0'
-    });
-
-    overlay.innerHTML = `
-      <div class="helios-loading-content">
-        <div class="helios-loading-spinner"></div>
-        <div class="helios-loading-text">Loading subtitles...</div>
-      </div>
-    `;
-
-    // Append to body instead of videoPlayer to avoid inheritance issues
-    document.body.appendChild(overlay);
-    this.videoLoadingOverlay = overlay;
-
-    // Update position on window resize or scroll
-    const updatePosition = () => {
-      if (!this.videoLoadingOverlay) return;
-      const newRect = videoPlayer.getBoundingClientRect();
-      Object.assign(this.videoLoadingOverlay.style, {
-        top: `${newRect.top}px`,
-        left: `${newRect.left}px`,
-        width: `${newRect.width}px`,
-        height: `${newRect.height}px`
-      });
-    };
-
-    // Store the update function so we can remove it later
-    this.videoLoadingOverlay._updatePosition = updatePosition;
-    window.addEventListener('resize', updatePosition);
-    window.addEventListener('scroll', updatePosition);
-
-    // Force a reflow to ensure positioning is applied
-    void overlay.offsetHeight;
-  }
-
-  /**
-   * Remove loading overlay from video player
-   * @private
-   */
-  _removeVideoLoadingOverlay() {
-    if (this.videoLoadingOverlay) {
-      // Remove event listeners if they exist
-      if (this.videoLoadingOverlay._updatePosition) {
-        window.removeEventListener('resize', this.videoLoadingOverlay._updatePosition);
-        window.removeEventListener('scroll', this.videoLoadingOverlay._updatePosition);
-      }
-
-      this.videoLoadingOverlay.remove();
-      this.videoLoadingOverlay = null;
-    }
-
-    // Also remove any stray overlays
-    const existingOverlay = document.querySelector('.helios-video-loading-overlay');
-    if (existingOverlay) {
-      existingOverlay.remove();
-    }
-  }
 
   /**
    * Destroy sidebar
@@ -2191,7 +2053,7 @@ class YouTubeSidebar {
     }
 
     // Remove loading overlay
-    this._removeVideoLoadingOverlay();
+    
 
     // Cleanup theater mode controller
     if (this.theaterModeController) {

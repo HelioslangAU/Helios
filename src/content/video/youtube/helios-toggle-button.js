@@ -22,7 +22,6 @@ class HeliosToggleButton {
     this._setupEventListeners();
 
     this.isInjected = true;
-    console.log('[Helios Toggle Button] Initialized');
   }
 
   /**
@@ -122,11 +121,9 @@ class HeliosToggleButton {
       if (autoplayButton) {
         // Insert Helios button right before autoplay button
         rightControls.insertBefore(this.button, autoplayButton);
-        console.log('[Helios Toggle Button] Injected next to autoplay button');
       } else {
         // Fallback: insert as first item in right controls
         rightControls.insertBefore(this.button, rightControls.firstChild);
-        console.log('[Helios Toggle Button] Injected at start of right controls (autoplay not found)');
       }
     };
 
@@ -178,8 +175,6 @@ class HeliosToggleButton {
 
     // Update button state
     this._updateButtonState();
-
-    console.log('[Helios Toggle Button] Toggled sidebar:', this.sidebar.isVisible ? 'visible' : 'hidden');
   }
 
   /**

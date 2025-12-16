@@ -8,7 +8,7 @@
 (function() {
   'use strict';
 
-  console.log('[Helios YouTube Page] Page script loaded');
+  console.log('[Helios YouTube Page] Page script loaded and ready');
 
   /**
    * Fetch subtitle tracks using Android InnerTube API
@@ -30,10 +30,6 @@
       }
 
       const hl = window.ytcfg.get('HL') || 'en';
-
-      console.log('[Helios YouTube Page] Fetching subtitles via InnerTube API');
-      console.log('[Helios YouTube Page] Video ID:', videoId);
-      console.log('[Helios YouTube Page] Language:', hl);
 
       // Call YouTube's InnerTube API as Android client
       const response = await fetch(`https://${window.location.host}/youtubei/v1/player?key=${apiKey}`, {
@@ -67,8 +63,6 @@
         console.warn('[Helios YouTube Page] No caption tracks found');
         return null;
       }
-
-      console.log('[Helios YouTube Page] Found', captionTracks.length, 'caption tracks');
 
       // Format tracks for content script
       const tracks = captionTracks.map(track => {
@@ -115,8 +109,7 @@
    * Listen for requests from content script
    */
   window.addEventListener('helios-youtube-request-subtitles', async (event) => {
-    console.log('[Helios YouTube Page] Received subtitle request');
-
+    console.log('[Helios YouTube Page] Received subtitle request for video:', event.detail?.videoId);
     const videoId = event.detail?.videoId || getCurrentVideoId();
 
     if (!videoId) {
@@ -130,11 +123,12 @@
     const tracks = await fetchSubtitlesViaInnerTube(videoId);
 
     if (tracks) {
-      console.log('[Helios YouTube Page] Sending', tracks.length, 'tracks to content script');
+      console.log('[Helios YouTube Page] Sending', tracks.length, 'subtitle tracks to content script');
       window.dispatchEvent(new CustomEvent('helios-youtube-subtitles-response', {
         detail: { success: true, tracks: tracks }
       }));
     } else {
+      console.warn('[Helios YouTube Page] Failed to fetch tracks, sending error response');
       window.dispatchEvent(new CustomEvent('helios-youtube-subtitles-response', {
         detail: { success: false, error: 'Failed to fetch tracks' }
       }));
@@ -145,12 +139,9 @@
   setTimeout(() => {
     const videoId = getCurrentVideoId();
     if (videoId) {
-      console.log('[Helios YouTube Page] Auto-fetching subtitles for video:', videoId);
       window.dispatchEvent(new CustomEvent('helios-youtube-request-subtitles', {
         detail: { videoId: videoId }
       }));
     }
   }, 2000);
-
-  console.log('[Helios YouTube Page] Ready to fetch subtitles');
 })();
