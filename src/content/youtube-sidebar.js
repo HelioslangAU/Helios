@@ -188,9 +188,10 @@ class YouTubeSidebar {
       this.pauseOnHoverToggle = this.sidebar.querySelector('#yt-pause-on-hover-toggle');
       this.pauseAtEndToggle = this.sidebar.querySelector('#yt-pause-at-end-toggle');
 
-      // Caption size buttons
+      // Caption size controls
       this.increaseSizeBtn = this.sidebar.querySelector('#yt-increase-size-btn');
       this.decreaseSizeBtn = this.sidebar.querySelector('#yt-decrease-size-btn');
+      this.sizeInput = this.sidebar.querySelector('#yt-size-input');
 
       // Navigation behavior settings elements
       this.autoPlayToggle = this.sidebar.querySelector('#yt-auto-play-toggle');
@@ -778,6 +779,7 @@ class YouTubeSidebar {
     }
 
     // Caption size buttons
+    // Caption size controls
     if (this.increaseSizeBtn) {
       this.increaseSizeBtn.addEventListener('click', () => {
         this._adjustCaptionSize(5); // Increase by 5px
@@ -787,6 +789,30 @@ class YouTubeSidebar {
     if (this.decreaseSizeBtn) {
       this.decreaseSizeBtn.addEventListener('click', () => {
         this._adjustCaptionSize(-5); // Decrease by 5px
+      });
+    }
+
+    // Caption size input field
+    if (this.sizeInput) {
+      // Update when user changes the value
+      this.sizeInput.addEventListener('change', (e) => {
+        const newSize = parseInt(e.target.value, 10);
+        if (!isNaN(newSize)) {
+          this._setCaptionSize(newSize);
+        }
+      });
+
+      // Update on input for real-time feedback
+      this.sizeInput.addEventListener('input', (e) => {
+        const newSize = parseInt(e.target.value, 10);
+        if (!isNaN(newSize) && newSize >= 20 && newSize <= 80) {
+          this._setCaptionSize(newSize, false); // Don't show notification on input
+        }
+      });
+
+      // Prevent scrolling when focused
+      this.sizeInput.addEventListener('wheel', (e) => {
+        e.preventDefault();
       });
     }
   }
@@ -958,6 +984,12 @@ class YouTubeSidebar {
     // Apply navigation behavior settings to UI
     if (this.autoPlayToggle) {
       this.autoPlayToggle.checked = this.settings.autoPlayAfterNav || false;
+    }
+
+    // Update caption size input field with current value
+    if (this.sizeInput && this.videoBinding && this.videoBinding.overlay) {
+      const currentSize = this.videoBinding.overlay.subtitleSize || 40;
+      this.sizeInput.value = currentSize;
     }
 
     // Hotkey inputs removed - configure in main settings Video Player tab
@@ -1983,18 +2015,41 @@ class YouTubeSidebar {
    * @param {number} delta - Amount to change size by (positive to increase, negative to decrease)
    */
   _adjustCaptionSize(delta) {
-    // Get current subtitle size from overlay or use default
     if (!this.videoBinding || !this.videoBinding.overlay) {
       this._showNotification('No video overlay available', 'error');
       return;
     }
 
     const overlay = this.videoBinding.overlay;
-    const currentSize = overlay.subtitleSize || 40; // Default is 40px
-    const newSize = Math.max(20, Math.min(80, currentSize + delta)); // Clamp between 20px and 80px
+    const currentSize = overlay.subtitleSize || 40;
+    const newSize = Math.max(20, Math.min(80, currentSize + delta));
+
+    this._setCaptionSize(newSize);
+  }
+
+  /**
+   * Set caption size to a specific value
+   * @param {number} size - New size in pixels
+   * @param {boolean} showNotification - Whether to show notification (default: true)
+   */
+  _setCaptionSize(size, showNotification = true) {
+    if (!this.videoBinding || !this.videoBinding.overlay) {
+      if (showNotification) {
+        this._showNotification('No video overlay available', 'error');
+      }
+      return;
+    }
+
+    const overlay = this.videoBinding.overlay;
+    const clampedSize = Math.max(20, Math.min(80, size));
 
     // Update overlay subtitle size
-    overlay.subtitleSize = newSize;
+    overlay.subtitleSize = clampedSize;
+
+    // Update input field value
+    if (this.sizeInput) {
+      this.sizeInput.value = clampedSize;
+    }
 
     // Save the new size to storage
     overlay._saveSize();
@@ -2007,7 +2062,9 @@ class YouTubeSidebar {
     }
 
     // Show feedback notification
-    this._showNotification(`Caption size: ${newSize}px`, 'success');
+    if (showNotification) {
+      this._showNotification(`Caption size: ${clampedSize}px`, 'success');
+    }
   }
 
   /**

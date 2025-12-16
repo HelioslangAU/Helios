@@ -60,6 +60,36 @@ class SubtitleOverlay {
     this.container.className = 'helios-subtitle-overlay';
     this.container.setAttribute('data-helios-subtitle-overlay', 'true');
 
+    // Create drag handle (visible grab area)
+    this.dragHandle = document.createElement('div');
+    this.dragHandle.className = 'helios-subtitle-drag-handle';
+    this.dragHandle.innerHTML = '⋮⋮'; // Vertical dots for drag
+    this.dragHandle.style.cssText = `
+      position: absolute;
+      top: 50%;
+      left: -32px;
+      width: 28px;
+      height: 40px;
+      cursor: grab;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      letter-spacing: -2px;
+      color: rgba(255, 255, 255, 0.9);
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 6px;
+      user-select: none;
+      z-index: 2147483647;
+      opacity: 0;
+      transition: all 0.2s ease;
+      pointer-events: auto;
+      transform: translateY(-50%);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    `;
+    this.container.appendChild(this.dragHandle);
+
     // Create resize handle in bottom-right corner
     this.resizeHandle = document.createElement('div');
     this.resizeHandle.className = 'helios-subtitle-resize-handle';
@@ -86,19 +116,24 @@ class SubtitleOverlay {
     `;
     this.container.appendChild(this.resizeHandle);
 
-    // Show resize handle on hover
+    // Show drag and resize handles on hover
     this.container.addEventListener('mouseenter', () => {
       if (!this.isDragging) {
+        this.dragHandle.style.opacity = '1';
         this.resizeHandle.style.opacity = '1';
       }
     });
     this.container.addEventListener('mouseleave', () => {
-      if (!this.isResizing) {
+      if (!this.isResizing && !this.isDragging) {
+        this.dragHandle.style.opacity = '0';
         this.resizeHandle.style.opacity = '0';
       }
     });
 
-    // Keep handle visible when hovering over it
+    // Keep handles visible when hovering over them
+    this.dragHandle.addEventListener('mouseenter', () => {
+      this.dragHandle.style.opacity = '1';
+    });
     this.resizeHandle.addEventListener('mouseenter', () => {
       this.resizeHandle.style.opacity = '1';
     });
@@ -212,66 +247,72 @@ class SubtitleOverlay {
   }
 
   /**
-   * Setup dragging functionality for subtitles
+   * Setup dragging functionality for subtitles (ASBPlayer approach - simple and smooth)
    */
   _setupDragging() {
-    // Mouse down on container - start dragging
-    this.container.addEventListener('mousedown', (e) => {
-      // Don't start drag if clicking on a word (for hover lookup)
-      if (e.target.classList.contains('helios-subtitle-word')) {
+    this.lastDragX = 0;
+    this.lastDragY = 0;
+
+    // Mouse down on drag handle or container - start dragging
+    const startDrag = (e) => {
+      // Don't start drag if clicking on a word (for hover lookup) or resize handle
+      if (e.target.classList.contains('helios-subtitle-word') ||
+          e.target.classList.contains('helios-subtitle-resize-handle')) {
         return;
       }
 
       e.preventDefault();
       this.isDragging = true;
-      this.dragStartX = e.clientX;
-      this.dragStartY = e.clientY;
+      this.lastDragX = e.clientX;
+      this.lastDragY = e.clientY;
+      this.dragHandle.style.cursor = 'grabbing';
       this.container.style.cursor = 'grabbing';
       this.container.style.userSelect = 'none';
-    });
+    };
 
-    // Mouse move - drag (store handler for cleanup)
+    this.container.addEventListener('mousedown', startDrag);
+    this.dragHandle.addEventListener('mousedown', startDrag);
+
+    // Mouse move - Simple direct position updates like ASBPlayer
     this._dragMoveHandler = (e) => {
-      if (this.isDragging) {
-        const deltaX = e.clientX - this.dragStartX;
-        const deltaY = e.clientY - this.dragStartY;
+      if (!this.isDragging) return;
 
-        this.customOffsetX += deltaX;
-        this.customOffsetY += deltaY;
-        this.hasCustomPosition = true;
+      const deltaX = e.clientX - this.lastDragX;
+      const deltaY = e.clientY - this.lastDragY;
 
-        this.dragStartX = e.clientX;
-        this.dragStartY = e.clientY;
+      this.customOffsetX += deltaX;
+      this.customOffsetY += deltaY;
+      this.hasCustomPosition = true;
 
-        // Immediately update position
-        const rect = this.videoElement.getBoundingClientRect();
-        if (rect.width > 0 && rect.height > 0) {
-          this.container.style.left = (rect.left + rect.width / 2 + this.customOffsetX) + 'px';
-          this.container.style.top = (rect.top + rect.height - this.contentPositionOffset + this.customOffsetY) + 'px';
-        }
+      this.lastDragX = e.clientX;
+      this.lastDragY = e.clientY;
+
+      // Update position directly like ASBPlayer does
+      const rect = this.videoElement.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        const clampedY = Math.max(rect.top + window.scrollY, 0);
+        const clampedHeight = Math.min(clampedY + rect.height, window.innerHeight + window.scrollY);
+
+        this.container.style.left = (rect.left + rect.width / 2 + this.customOffsetX) + 'px';
+        this.container.style.top = (clampedHeight - this.contentPositionOffset + this.customOffsetY) + 'px';
       }
     };
     document.addEventListener('mousemove', this._dragMoveHandler);
 
-    // Mouse up - stop dragging and save position (ASBplayer-style)
+    // Mouse up - stop dragging and save position
     this._dragUpHandler = () => {
-      if (this.isDragging) {
-        this.isDragging = false;
-        this.container.style.cursor = 'move';
-        this.container.style.userSelect = 'text';
+      if (!this.isDragging) return;
 
-        // Save position to storage for persistence across videos
-        this._savePosition();
-      }
+      this.isDragging = false;
+
+      this.dragHandle.style.cursor = 'grab';
+      this.container.style.cursor = '';
+      this.container.style.userSelect = 'text';
+
+      // Save position to storage for persistence across videos
+      this._savePosition();
     };
     document.addEventListener('mouseup', this._dragUpHandler);
-
-    // Set move cursor when hovering (if not on a word)
-    this.container.addEventListener('mouseover', (e) => {
-      if (!this.isDragging && !e.target.classList.contains('helios-subtitle-word')) {
-        this.container.style.cursor = 'move';
-      }
-    });
 
     // Double-click to reset position
     this.container.addEventListener('dblclick', (e) => {

@@ -60,43 +60,44 @@
         <h2>Settings</h2>
       </div>
       <div class="yt-settings-content">
-        <!-- Subtitle Customization Info -->
+        <!-- Subtitle Customization -->
         <div class="yt-setting-group">
           <div class="yt-setting-header">
             <h3>Subtitle Customization</h3>
-            <p class="yt-setting-description">Customize subtitle appearance and position</p>
+            <p class="yt-setting-description">Adjust subtitle size and position</p>
           </div>
 
+          <!-- Caption Size -->
           <div class="yt-setting-item">
-            <label class="yt-label">
-              <span>Caption Size</span>
-            </label>
-            <div class="yt-button-group">
-              <button class="yt-btn yt-btn-secondary" id="yt-decrease-size-btn" title="Decrease Caption Size">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-                Smaller
-              </button>
-              <button class="yt-btn yt-btn-secondary" id="yt-increase-size-btn" title="Increase Caption Size">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <line x1="12" y1="5" x2="12" y2="19"></line>
-                  <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-                Larger
-              </button>
+            <div class="yt-setting-row">
+              <label class="yt-label">Caption Size</label>
+              <div class="yt-size-control">
+                <button class="yt-size-btn yt-size-decrease" id="yt-decrease-size-btn" title="Decrease Caption Size">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                </button>
+                <input type="number" class="yt-size-input" id="yt-size-input" min="20" max="80" value="40" step="1">
+                <button class="yt-size-btn yt-size-increase" id="yt-increase-size-btn" title="Increase Caption Size">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                </button>
+                <span class="yt-size-unit">px</span>
+              </div>
             </div>
             <p class="yt-setting-hint">
-              Keyboard: Press <kbd>Shift + =</kbd> to increase or <kbd>Shift + -</kbd> to decrease
+              <kbd>Shift</kbd> + <kbd>=</kbd> to increase, <kbd>Shift</kbd> + <kbd>-</kbd> to decrease
             </p>
           </div>
 
-          <div class="yt-setting-item">
-            <p class="yt-setting-hint">
-              <strong>📍 Move Subtitles:</strong><br>
-              • Drag subtitle text to reposition anywhere on screen<br>
-              • Double-click to reset to center position
-            </p>
+          <!-- Position Control -->
+          <div class="yt-setting-item yt-position-info">
+            <div class="yt-info-card-simple">
+              <h4>Position Subtitles</h4>
+              <p>Drag subtitle text to move • Double-click to reset</p>
+            </div>
           </div>
         </div>
 

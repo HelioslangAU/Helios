@@ -130,8 +130,32 @@
 
 .yt-settings-content {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: scroll; /* Always show scrollbar */
   padding: 0 4px;
+}
+
+/* Always visible scrollbar styling */
+.yt-settings-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.yt-settings-content::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+.yt-settings-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 107, 71, 0.3);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.yt-settings-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 107, 71, 0.5);
+}
+
+.yt-settings-content::-webkit-scrollbar-thumb:active {
+  background: var(--helios-accent-primary);
 }
 
 .yt-section-header {
@@ -633,7 +657,91 @@ body:not(.helios-sidebar-active) ytd-watch-flexy[theater] .ytp-size-button {
   background: white;
 }
 
-/* Button Group for Caption Size */
+/* Modern Caption Size Control */
+.yt-size-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+}
+
+.yt-size-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: var(--helios-bg-secondary);
+  border: 1.5px solid var(--helios-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--helios-text-secondary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.yt-size-btn:hover {
+  background: var(--helios-accent-primary);
+  border-color: var(--helios-accent-primary);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(255, 107, 71, 0.2);
+}
+
+.yt-size-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.yt-size-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.5;
+}
+
+.yt-size-input {
+  width: 70px;
+  height: 32px;
+  padding: 0 12px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--helios-text-primary);
+  background: var(--helios-bg-secondary);
+  border: 1.5px solid var(--helios-border);
+  border-radius: 8px;
+  outline: none;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, monospace;
+  -moz-appearance: textfield;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Hide number input spinners */
+.yt-size-input::-webkit-inner-spin-button,
+.yt-size-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.yt-size-input:hover {
+  border-color: rgba(255, 107, 71, 0.3);
+}
+
+.yt-size-input:focus {
+  background: var(--helios-bg-card);
+  border-color: var(--helios-accent-primary);
+  box-shadow: 0 0 0 3px rgba(255, 107, 71, 0.1);
+}
+
+.yt-size-unit {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--helios-text-tertiary);
+}
+
+/* Old button styles (kept for other buttons if needed) */
 .yt-button-group {
   display: flex;
   gap: 12px;
@@ -677,15 +785,52 @@ body:not(.helios-sidebar-active) ytd-watch-flexy[theater] .ytp-size-button {
   flex-shrink: 0;
 }
 
+/* Setting Row Layout */
+.yt-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .yt-label {
-  display: block;
-  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--helios-text-primary);
+  margin: 0;
+  flex-shrink: 0;
 }
 
 .yt-label > span {
   font-size: 14px;
   font-weight: 500;
   color: var(--helios-text-secondary);
+}
+
+/* Simplified Info Card for Position Control */
+.yt-position-info {
+  margin-top: 12px;
+}
+
+.yt-info-card-simple {
+  padding: 12px 16px;
+  background: var(--helios-bg-secondary);
+  border: 1px solid var(--helios-border);
+  border-radius: 8px;
+}
+
+.yt-info-card-simple h4 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--helios-text-primary);
+  margin: 0 0 4px 0;
+}
+
+.yt-info-card-simple p {
+  font-size: 12px;
+  color: var(--helios-text-secondary);
+  margin: 0;
+  line-height: 1.5;
 }
 
 /* Hotkey List */
