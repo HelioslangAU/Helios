@@ -399,9 +399,15 @@ class SubtitleOverlay {
         return;
       }
 
+      // Toggle subtitle visibility: 'w' key
+      if (e.key === 'w' || e.key === 'W') {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        this.toggleVisibility();
+      }
       // Increase subtitle size: Shift + = (or Shift + +)
       // Use both key and code to handle different keyboard layouts
-      if (e.shiftKey && (e.key === '=' || e.key === '+' || e.code === 'Equal')) {
+      else if (e.shiftKey && (e.key === '=' || e.key === '+' || e.code === 'Equal')) {
         e.preventDefault();
         e.stopImmediatePropagation();
         this._increaseSubtitleSize();

@@ -197,6 +197,18 @@ class VideoDetector {
   }
 
   /**
+   * Clear all bindings without destroying the detector
+   * Used when disabling the extension
+   */
+  clearAllBindings() {
+    this.bindings.forEach((binding) => {
+      binding.unbind();
+    });
+
+    this.bindings.clear();
+  }
+
+  /**
    * Destroy all bindings and stop detection
    */
   destroy() {
