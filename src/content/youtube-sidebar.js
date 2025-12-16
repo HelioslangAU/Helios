@@ -35,6 +35,9 @@ class YouTubeSidebar {
     this.isUpdatingSubtitles = false;
     this.pendingSubtitleUpdate = null;
 
+    // Loading overlay reference
+    this.videoLoadingOverlay = null;
+
     // Settings
     this.settings = {
       hotkeysEnabled: true,
@@ -259,6 +262,11 @@ class YouTubeSidebar {
     document.addEventListener('helios-video-notification', (e) => {
       const { message, type } = e.detail;
       this._showNotification(message, type);
+    });
+
+    // Listen for subtitle load failures to remove loading overlay
+    document.addEventListener('helios-subtitle-load-failed', () => {
+      this._removeVideoLoadingOverlay();
     });
 
     // Setup hotkeys
@@ -987,6 +995,9 @@ class YouTubeSidebar {
       this.currentSecondarySubtitles = []; // Reset secondary subtitles
 
       console.log(`[Helios YouTube Sidebar] Updating with ${this.currentSubtitles.length} deduplicated subtitles`);
+
+      // Remove loading overlay from video player
+      this._removeVideoLoadingOverlay();
 
       // Render subtitle list (async)
       await this._renderSubtitleList().catch(err => {
@@ -1847,6 +1858,9 @@ class YouTubeSidebar {
 
     console.log('[Helios YouTube Sidebar] Hiding sidebar');
 
+    // Remove loading overlay
+    this._removeVideoLoadingOverlay();
+
     // Add hidden class to sidebar
     this.sidebar.classList.add('hidden');
     this.isVisible = false;
@@ -2033,35 +2047,113 @@ class YouTubeSidebar {
   }
 
   /**
-   * Show loading state in sidebar
+   * Show loading state in sidebar and video player
    */
   _showLoadingState() {
-    if (!this.subtitleListContainer) return;
+    // Show loading in sidebar
+    if (this.subtitleListContainer) {
+      const sidebarLoadingHTML = `
+        <div class="subtitle-loading-state">
+          <div class="loading-spinner"></div>
+          <div class="loading-text">Loading subtitles...</div>
+        </div>
+      `;
+      this.subtitleListContainer.innerHTML = sidebarLoadingHTML;
+    }
 
-    const loadingHTML = `
-      <div class="subtitle-loading-state" style="
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        height: 200px;
-        color: rgba(255, 255, 255, 0.6);
-        font-size: 14px;
-        gap: 12px;
-      ">
-        <div class="loading-spinner" style="
-          width: 32px;
-          height: 32px;
-          border: 3px solid rgba(255, 255, 255, 0.2);
-          border-top-color: #3ea6ff;
-          border-radius: 50%;
-          animation: spin 0.8s linear infinite;
-        "></div>
-        <div>Loading subtitles...</div>
+    // Show beautiful loading overlay on video player
+    this._showVideoLoadingOverlay();
+  }
+
+  /**
+   * Show loading overlay on video player
+   * @private
+   */
+  _showVideoLoadingOverlay() {
+    // Remove existing overlay if present
+    this._removeVideoLoadingOverlay();
+
+    const videoPlayer = document.querySelector('.html5-video-player');
+    if (!videoPlayer) return;
+
+    // Get video player position and dimensions
+    const rect = videoPlayer.getBoundingClientRect();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'helios-video-loading-overlay';
+
+    // Use FIXED positioning relative to viewport to avoid YouTube's transforms
+    // This prevents the overlay from jumping when YouTube repositions the player
+    Object.assign(overlay.style, {
+      position: 'fixed',
+      top: `${rect.top}px`,
+      left: `${rect.left}px`,
+      width: `${rect.width}px`,
+      height: `${rect.height}px`,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: '9999',
+      pointerEvents: 'none',
+      transform: 'none',
+      transition: 'none',
+      margin: '0',
+      padding: '0'
+    });
+
+    overlay.innerHTML = `
+      <div class="helios-loading-content">
+        <div class="helios-loading-spinner"></div>
+        <div class="helios-loading-text">Loading subtitles...</div>
       </div>
     `;
 
-    this.subtitleListContainer.innerHTML = loadingHTML;
+    // Append to body instead of videoPlayer to avoid inheritance issues
+    document.body.appendChild(overlay);
+    this.videoLoadingOverlay = overlay;
+
+    // Update position on window resize or scroll
+    const updatePosition = () => {
+      if (!this.videoLoadingOverlay) return;
+      const newRect = videoPlayer.getBoundingClientRect();
+      Object.assign(this.videoLoadingOverlay.style, {
+        top: `${newRect.top}px`,
+        left: `${newRect.left}px`,
+        width: `${newRect.width}px`,
+        height: `${newRect.height}px`
+      });
+    };
+
+    // Store the update function so we can remove it later
+    this.videoLoadingOverlay._updatePosition = updatePosition;
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition);
+
+    // Force a reflow to ensure positioning is applied
+    void overlay.offsetHeight;
+  }
+
+  /**
+   * Remove loading overlay from video player
+   * @private
+   */
+  _removeVideoLoadingOverlay() {
+    if (this.videoLoadingOverlay) {
+      // Remove event listeners if they exist
+      if (this.videoLoadingOverlay._updatePosition) {
+        window.removeEventListener('resize', this.videoLoadingOverlay._updatePosition);
+        window.removeEventListener('scroll', this.videoLoadingOverlay._updatePosition);
+      }
+
+      this.videoLoadingOverlay.remove();
+      this.videoLoadingOverlay = null;
+    }
+
+    // Also remove any stray overlays
+    const existingOverlay = document.querySelector('.helios-video-loading-overlay');
+    if (existingOverlay) {
+      existingOverlay.remove();
+    }
   }
 
   /**
@@ -2097,6 +2189,9 @@ class YouTubeSidebar {
       document.removeEventListener('mousemove', this._globalMouseMoveListener);
       this._globalMouseMoveListener = null;
     }
+
+    // Remove loading overlay
+    this._removeVideoLoadingOverlay();
 
     // Cleanup theater mode controller
     if (this.theaterModeController) {

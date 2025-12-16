@@ -144,15 +144,25 @@ class VideoUIController {
   async autoLoadSubtitles() {
     // Prevent duplicate loading attempts
     if (this.hasAutoLoaded || this.isCurrentlyLoading) {
-      console.log('[Helios Video] Skipping autoload - already loaded or loading');
+      console.log('[Helios Video] Skipping autoload - already loaded or loading', {
+        hasAutoLoaded: this.hasAutoLoaded,
+        isCurrentlyLoading: this.isCurrentlyLoading
+      });
       return;
     }
 
-    if (!this.youtubeLoader || !this.youtubeLoader.isYouTubePage()) return;
+    if (!this.youtubeLoader || !this.youtubeLoader.isYouTubePage()) {
+      console.log('[Helios Video] Skipping autoload - not a YouTube page');
+      return;
+    }
 
     const binding = this.videoDetector.getPrimaryBinding();
-    if (!binding) return;
+    if (!binding) {
+      console.log('[Helios Video] Skipping autoload - no video binding');
+      return;
+    }
 
+    console.log('[Helios Video] Starting auto-load process...');
     this.isCurrentlyLoading = true;
 
     try {
@@ -178,6 +188,8 @@ class VideoUIController {
         binding.finishLoadingSubtitles();
         this.isCurrentlyLoading = false;
         this._showNotification('No subtitles available', 'error');
+        // Also notify sidebar to remove loading overlay
+        document.dispatchEvent(new CustomEvent('helios-subtitle-load-failed'));
         return;
       }
 
@@ -197,10 +209,14 @@ class VideoUIController {
         binding.finishLoadingSubtitles();
         const languageName = this._getLanguageDisplayName(targetLanguage);
         this._showNotification(`No ${languageName} subtitles available`, 'error');
+        // Also notify sidebar to remove loading overlay
+        document.dispatchEvent(new CustomEvent('helios-subtitle-load-failed'));
       }
     } catch (error) {
       console.error('[Helios Video] Auto-load failed:', error);
       binding.finishLoadingSubtitles();
+      // Also notify sidebar to remove loading overlay
+      document.dispatchEvent(new CustomEvent('helios-subtitle-load-failed'));
     } finally {
       this.isCurrentlyLoading = false;
     }
