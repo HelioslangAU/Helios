@@ -172,29 +172,8 @@
           // Filter out forced narrative tracks
           if (track.isForcedNarrative) return false;
 
-          // ONLY show tracks that have stored URLs (ASB Player approach)
-          // This prevents showing 'lazy' tracks that can't be loaded
-          const hasStoredUrl = storedTracks.has(track.trackId);
-          if (!hasStoredUrl) {
-            // Try to find URL by language code match
-            const baseLang = track.bcp47.toLowerCase();
-            const isClosedCaptions = track.rawTrackType === 'CLOSEDCAPTIONS';
-            const language = isClosedCaptions ? `${baseLang}-cc` : baseLang;
-
-            let foundUrl = false;
-            for (const [storedId, storedUrl] of storedTracks.entries()) {
-              if ((storedId.includes(`;${baseLang};`) || storedId.includes(`;${language};`)) &&
-                  storedUrl && storedUrl !== 'lazy') {
-                foundUrl = true;
-                break;
-              }
-            }
-
-            if (!foundUrl) {
-              return false; // Don't show tracks without URLs
-            }
-          }
-
+          // SHOW ALL TRACKS - including lazy ones
+          // Users should see all available subtitle options
           return true;
         })
         .map(track => {
@@ -223,13 +202,13 @@
             id: track.trackId,
             language: language,
             languageName: track.displayName || track.bcp47,
-            url: url,
+            url: url || 'lazy', // Keep lazy tracks - they'll be loaded on-demand
             isClosedCaptions: isClosedCaptions,
             isForcedNarrative: track.isForcedNarrative || false,
             rawTrack: track
           };
-        })
-        .filter(track => track.url && track.url !== 'lazy'); // Final filter: only tracks with real URLs
+        });
+        // Don't filter out lazy tracks - show all available subtitle options
 
       return tracks;
     } catch (error) {

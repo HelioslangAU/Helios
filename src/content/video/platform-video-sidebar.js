@@ -199,7 +199,6 @@ class PlatformVideoSidebar {
       this.increaseSizeBtn = this.sidebar.querySelector('#yt-increase-size-btn');
       this.decreaseSizeBtn = this.sidebar.querySelector('#yt-decrease-size-btn');
       this.sizeInput = this.sidebar.querySelector('#yt-size-input');
-      console.log('[Helios Platform Sidebar] Size input element found:', this.sizeInput);
 
       // Get hotkey input elements
       this.hotkeyPrevInput = this.sidebar.querySelector('#yt-hotkey-prev');
@@ -1996,9 +1995,6 @@ class PlatformVideoSidebar {
     // Update input field
     if (this.sizeInput) {
       this.sizeInput.value = clampedSize;
-      console.log('[Helios Platform Sidebar] Updated size input to:', clampedSize);
-    } else {
-      console.warn('[Helios Platform Sidebar] Size input element not found!');
     }
   }
 
