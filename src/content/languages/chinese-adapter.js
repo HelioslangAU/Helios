@@ -400,6 +400,20 @@ class ChineseLanguageAdapter extends BaseLanguageAdapter {
     // For now, return a general path - can be customized later
     return `OnboardingVocab/zh5k.csv`;
   }
+
+  /**
+   * Get dictionary entries for a word
+   * @param {string} word - Word to look up
+   * @param {Object} dictionary - Dictionary object
+   * @returns {Array|null} - Dictionary entries or null if not found
+   */
+  getDictionaryEntries(word, dictionary) {
+    if (!word || !dictionary) return null;
+
+    // Chinese words are typically stored as-is in the dictionary
+    const entries = dictionary[word];
+    return (entries && entries.length > 0) ? entries : null;
+  }
 }
 
 // Export for use in other modules

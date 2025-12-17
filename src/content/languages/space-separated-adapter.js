@@ -137,7 +137,10 @@ class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
    * @returns {string} - Normalized word
    */
   normalizeWord(word) {
-    return word.toLowerCase().trim();
+    // Normalize to NFC so composed/decomposed accent forms match (e.g. "é" vs "é")
+    return word
+      ? word.toLowerCase().trim().normalize('NFC')
+      : '';
   }
 
   /**
@@ -159,7 +162,7 @@ class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
    * @returns {string|null} - Found dictionary form or null
    */
   findDictionaryForm(word, dictionary) {
-      const normalizedWord = word.toLowerCase().trim();
+      const normalizedWord = word.toLowerCase().trim().normalize('NFC');
       
       // First check if the word exists as is
       if (dictionary[normalizedWord] && dictionary[normalizedWord].length > 0) {
@@ -173,14 +176,44 @@ class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
         for (const mapping of dictionary[normalizedWord][0][5]) {
           if (Array.isArray(mapping) && mapping.length > 0) {
             const baseForm = mapping[0];
-            if (dictionary[baseForm]) {
-              return baseForm;
+            const normalizedBaseForm = baseForm.toLowerCase().trim().normalize('NFC');
+            if (dictionary[normalizedBaseForm]) {
+              return normalizedBaseForm;
             }
           }
         }
       }
 
       return null;
+  }
+
+  /**
+   * Get dictionary entries for a word, handling base word resolution
+   * @param {string} word - Word to look up
+   * @param {Object} dictionary - Dictionary object
+   * @returns {Array|null} - Dictionary entries or null if not found
+   */
+  getDictionaryEntries(word, dictionary) {
+    if (!word || !dictionary) return null;
+
+    const normalizedWord = word.toLowerCase().trim();
+    
+    // First check if the word exists directly
+    let entries = dictionary[normalizedWord];
+    if (entries && entries.length > 0) {
+      return entries;
+    }
+
+    // Try to find base word using findDictionaryForm
+    const baseWord = this.findDictionaryForm(word, dictionary);
+    if (baseWord && baseWord !== normalizedWord) {
+      entries = dictionary[baseWord];
+      if (entries && entries.length > 0) {
+        return entries;
+      }
+    }
+
+    return null;
   }
 
     /**
@@ -201,7 +234,8 @@ class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
       
       if (!word) continue;
 
-      const normalizedWord = word.toLowerCase().trim();
+      // Normalize dictionary keys to NFC for consistent accent handling
+      const normalizedWord = word.toLowerCase().trim().normalize('NFC');
       if (!dictionary[normalizedWord]) {
         dictionary[normalizedWord] = [];
       }
@@ -408,7 +442,12 @@ class EnglishLanguageAdapter extends SpaceSeparatedLanguageAdapter {
 
         if (!word) continue;
 
-        const normalizedWord = word.toLowerCase().replace(/^'|'$/g, ''); // Remove leading/trailing quotes
+        // Normalize to NFC and strip leading/trailing quotes for consistent keys
+        const normalizedWord = word
+          .toLowerCase()
+          .replace(/^'|'$/g, '')
+          .trim()
+          .normalize('NFC');
         if (!dictionary[normalizedWord]) {
           dictionary[normalizedWord] = [];
         }
@@ -531,7 +570,9 @@ class SpanishLanguageAdapter extends SpaceSeparatedLanguageAdapter {
   extractWords(text, dictionary) {
     const words = [];
     // Pattern allows apostrophes and hyphens within words (e.g., "no's", "d'accord")
-    const wordRegex = new RegExp(`\\b[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]+(?:[''-][a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]+)*\\b`, 'g');
+    
+    const wordRegex = /(?<![\p{L}\p{M}])[\p{L}\p{M}]+(?:[''-][\p{L}\p{M}]+)*(?![\p{L}\p{M}])/gu;
+
 
     let lastIndex = 0;
     let match;
@@ -719,10 +760,10 @@ class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
    * @returns {string} - Normalized word
    */
   normalizeWord(word) {
-    const normalizedWord = word.toLowerCase().trim();
-    
-    // First try the word as is
-    return normalizedWord;
+    // Use the same NFC normalization as the base adapter so accents match dictionary keys
+    return word
+      ? word.toLowerCase().trim().normalize('NFC')
+      : '';
   }
 
   /**
@@ -732,7 +773,7 @@ class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
    * @returns {string|null} - Found dictionary form or null
    */
   findDictionaryForm(word, dictionary) {
-    const normalizedWord = word.toLowerCase().trim();
+    const normalizedWord = word.toLowerCase().trim().normalize('NFC');
     
     // First check if the word exists as is (including contractions if they're in dictionary)
     if (dictionary[normalizedWord] && dictionary[normalizedWord].length > 0) {
@@ -809,7 +850,7 @@ class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
   extractWords(text, dictionary) {
     const words = [];
     // Pattern allows apostrophes and hyphens within words (e.g., "M'appelle", "d'accord", "c'est")
-    const wordRegex = new RegExp(`\\b[\\p{L}\\p{M}]+(?:[''-][\\p{L}\\p{M}]+)*\\b`, 'gu');
+    const wordRegex = /(?<![\p{L}\p{M}])[\p{L}\p{M}]+(?:[''-][\p{L}\p{M}]+)*(?![\p{L}\p{M}])/gu;
 
     let lastIndex = 0;
     let match;
@@ -900,6 +941,59 @@ class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
       console.error('Error parsing dictionary:', error);
       return {};
     }
+  }
+
+  /**
+   * Override getDictionaryEntries to handle French contractions with article mapping
+   * @param {string} word - Word to look up
+   * @param {Object} dictionary - Dictionary object
+   * @returns {Array|null} - Dictionary entries (enhanced with article info for contractions) or null if not found
+   */
+  getDictionaryEntries(word, dictionary) {
+    if (!word || !dictionary) return null;
+
+    const normalizedWord = word.toLowerCase().trim().normalize('NFC');
+    
+    // First check if the word exists directly
+    let entries = dictionary[normalizedWord];
+    if (entries && entries.length > 0) {
+      return entries;
+    }
+
+    // Try to find base word using findDictionaryForm
+    const baseWord = this.findDictionaryForm(word, dictionary);
+    if (baseWord && baseWord !== normalizedWord) {
+      entries = dictionary[baseWord];
+      if (entries && entries.length > 0) {
+        // Check if this is a French contraction and enhance definitions
+        const contractionPattern = /^([a-z])'([a-zàâäéèêëïîôùûüÿç]+)$/i;
+        const match = normalizedWord.match(contractionPattern);
+        if (match) {
+          const article = match[1].toLowerCase();
+          const articleMap = {
+            'l': 'le/la',
+            'd': 'de',
+            'c': 'ce',
+            'n': 'ne',
+            's': 'se',
+            't': 'te',
+            'm': 'me',
+            'j': 'je'
+          };
+          const articleText = articleMap[article] || article + "'";
+          
+          // Enhance each definition with article info (only if definition/translation is not empty)
+          // return entries.map(entry => ({
+          //   ...entry,
+          //   definition: entry.definition && entry.definition.trim() ? `${articleText} ${entry.definition}` : entry.definition,
+          //   translation: entry.translation && entry.translation.trim() ? `${articleText} ${entry.translation}` : entry.translation
+          // }));
+        }
+        return entries;
+      }
+    }
+
+    return null;
   }
 }
 

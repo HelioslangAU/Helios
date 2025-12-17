@@ -157,57 +157,23 @@ class CardManager {
     if (this.languageRegistry.getCaseSensitive(this.languageRegistry.getCurrentLanguage())) {
       character = character.toLowerCase();
     }
-    let matches = this.dictionaryManager.dictionary[character];
+    // Use adapter's getDictionaryEntries to handle base word resolution and enhancements
+    let matches = null;
+    if (this.languageRegistry) {
+      const adapter = this.languageRegistry.getAdapter();
+      if (adapter && adapter.getDictionaryEntries) {
+        matches = adapter.getDictionaryEntries(character, this.dictionaryManager.dictionary);
+      }
+    }
+    
+    // Fallback to direct dictionary lookup if adapter method not available
+    if (!matches) {
+      matches = this.dictionaryManager.dictionary[character];
+    }
+    
     // Handle null/undefined from async dictionary proxy
     if (!matches) {
       matches = [];
-    }
-    
-    // If no matches found, check if it's a contraction (e.g., French l', d', c')
-    // Use the adapter's findDictionaryForm to get the base word
-    if ((!matches || matches.length === 0) && this.languageRegistry) {
-      const adapter = this.languageRegistry.getAdapter();
-      if (adapter && adapter.findDictionaryForm) {
-        const baseWord = adapter.findDictionaryForm(character, this.dictionaryManager.dictionary);
-        if (baseWord && baseWord !== character.toLowerCase()) {
-          // Found a base word (e.g., "affirme" from "l'affirme")
-          // Load the base word definition
-          if (this.dictionaryManager.getDefinition) {
-            await this.dictionaryManager.getDefinition(baseWord);
-          }
-          matches = this.dictionaryManager.dictionary[baseWord];
-          if (!matches) {
-            matches = [];
-          }
-          
-          // Enhance definitions with article information for contractions
-          if (matches.length > 0 && adapter.getLanguageCode && adapter.getLanguageCode() === 'fr') {
-            const contractionPattern = /^([a-z])'([a-zàâäéèêëïîôùûüÿç]+)$/i;
-            const match = character.toLowerCase().match(contractionPattern);
-            if (match) {
-              const article = match[1].toLowerCase();
-              const articleMap = {
-                'l': 'le/la',
-                'd': 'de',
-                'c': 'ce',
-                'n': 'ne',
-                's': 'se',
-                't': 'te',
-                'm': 'me',
-                'j': 'je'
-              };
-              const articleText = articleMap[article] || article + "'";
-              
-              // Enhance each definition with article info
-              matches = matches.map(m => ({
-                ...m,
-                definition: m.definition ? `${articleText} ${m.definition}` : articleText,
-                translation: m.translation ? `${articleText} ${m.translation}` : articleText
-              }));
-            }
-          }
-        }
-      }
     }
     if (matches && matches.length > 0) {
       // Process each match that has an empty definition

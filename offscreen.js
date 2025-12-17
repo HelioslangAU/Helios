@@ -504,9 +504,11 @@ class OffscreenDictionaryService {
 
   async handleHasWord(word) {
     try {
-      const lowercaseWord = word.toLowerCase();
-      const hasWord = !!this.dictionaryManager.dictionary[lowercaseWord];
-      return { success: true, hasWord };
+      const adapter = this.languageRegistry.getAdapter();
+      if (adapter && adapter.getDictionaryEntries) {
+        const entries = adapter.getDictionaryEntries(word, this.dictionaryManager.dictionary);
+        return { success: true, hasWord: !!entries };
+      }
     } catch (error) {
       return { success: false, error: error.message };
     }
@@ -514,13 +516,16 @@ class OffscreenDictionaryService {
 
   async handleGetEntries(words) {
     try {
+      const adapter = this.languageRegistry.getAdapter();
       const entries = {};
       for (const word of words) {
-        const lowercaseWord = word.toLowerCase();
-        const wordEntries = this.dictionaryManager.dictionary[lowercaseWord];
-        if (wordEntries) {
-          entries[lowercaseWord] = wordEntries;
-        }
+        if (adapter && adapter.getDictionaryEntries) {
+          const wordEntries = adapter.getDictionaryEntries(word, this.dictionaryManager.dictionary);
+          if (wordEntries) {
+            const lowercaseWord = word.toLowerCase();
+            entries[lowercaseWord] = wordEntries;
+          }
+        } 
       }
       return { success: true, entries };
     } catch (error) {

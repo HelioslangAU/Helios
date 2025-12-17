@@ -635,7 +635,7 @@ class PageProcessor {
       // For word-based languages, extract words using word boundaries
       // Pattern allows apostrophes and hyphens within words (e.g., "don't", "M'appelle")
       // This matches the pattern used in extractWords to ensure consistency
-      const wordRegex = /\b[\p{L}\p{M}]+(?:[''-][\p{L}\p{M}]+)*\b/gu;
+      const wordRegex = /(?<![\p{L}\p{M}])([\p{L}\p{M}]+(?:['’-][\p{L}\p{M}]+)*)(?![\p{L}\p{M}])/gu;
       let match;
       while ((match = wordRegex.exec(text)) !== null) {
         potentialWords.add(match[0].toLowerCase());
