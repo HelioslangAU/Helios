@@ -32,6 +32,7 @@
       "js": [
         "src/config/paths.js",
         "src/content/config/constants.js",
+        "src/content/video/config/video-constants.js",
         "src/content/utils/activation-controller.js",
         "src/content/utils/shortcut-helper.js",
         "src/content/utils/text-scanner.js",
@@ -80,10 +81,6 @@
         "src/content/video/loaders/subtitle-file-loader.js",
         "src/content/video/loaders/youtube-subtitle-loader.js",
         "src/content/video/loaders/netflix-subtitle-loader.js",
-        "src/content/video/netflix/netflix-detector.js",
-        "src/content/video/netflix/layout-manager.js",
-        "src/content/video/netflix/sidebar-positioner.js",
-        "src/content/video/netflix/toggle-button.js",
         "src/content/video/controllers/video-ui-controller.js",
         "src/content/video/video-feature-manager.js",
         "src/content/video/youtube/theater-mode-controller.js",

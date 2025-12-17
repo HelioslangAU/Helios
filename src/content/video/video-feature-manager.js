@@ -210,30 +210,103 @@ class VideoFeatureManager {
   }
 
   /**
-   * Destroy the video feature
+   * Destroy the video feature and clean up ALL components
    */
   destroy() {
+    console.log('[Helios Video] Destroying video features...');
+
+    // Destroy video detector and all bindings
     if (this.videoDetector) {
       this.videoDetector.destroy();
+      this.videoDetector = null;
     }
 
+    // Destroy loaders
     if (this.fileLoader) {
       this.fileLoader.destroy();
+      this.fileLoader = null;
     }
 
+    if (this.youtubeLoader) {
+      this.youtubeLoader = null;
+    }
+
+    if (this.netflixLoader) {
+      this.netflixLoader = null;
+    }
+
+    // Destroy panel controller
     if (this.panelController) {
       this.panelController.destroy();
+      this.panelController = null;
     }
 
+    // Destroy UI controller
     if (this.uiController) {
       this.uiController.destroy();
+      this.uiController = null;
     }
 
+    // Destroy YouTube sidebar if it exists
+    if (window.youtubeSidebar && typeof window.youtubeSidebar.destroy === 'function') {
+      window.youtubeSidebar.destroy();
+      window.youtubeSidebar = null;
+    }
+
+    // Destroy platform video sidebar if it exists
+    if (window.platformVideoSidebar && typeof window.platformVideoSidebar.destroy === 'function') {
+      window.platformVideoSidebar.destroy();
+      window.platformVideoSidebar = null;
+    }
+
+    // Remove all subtitle overlays
+    document.querySelectorAll('.helios-subtitle-overlay').forEach(overlay => {
+      if (overlay.parentElement) {
+        overlay.parentElement.removeChild(overlay);
+      }
+    });
+
+    // Remove all sidebars
+    document.querySelectorAll('.helios-youtube-sidebar, .helios-platform-sidebar').forEach(sidebar => {
+      if (sidebar.parentElement) {
+        sidebar.parentElement.removeChild(sidebar);
+      }
+    });
+
+    // Reset page layout for YouTube
+    const pageManager = document.querySelector('#page-manager');
+    if (pageManager) {
+      pageManager.classList.remove('helios-sidebar-active');
+      pageManager.classList.remove('helios-sidebar-hidden');
+      pageManager.style.removeProperty('margin-right');
+      pageManager.style.removeProperty('position');
+    }
+
+    // Reset page layout for Netflix and other platforms
+    document.body.classList.remove('helios-sidebar-active-netflix');
+    document.body.style.removeProperty('overflow-x');
+
     this.isInitialized = false;
+    console.log('[Helios Video] Video features destroyed');
   }
 }
 
 // Global instance
 if (!window.heliosVideoFeature) {
   window.heliosVideoFeature = new VideoFeatureManager();
+
+  // Listen for setting changes to enable/disable video features in real-time
+  chrome.storage.onChanged.addListener((changes, namespace) => {
+    if (namespace === 'local' && changes.videoFeatureEnabled) {
+      const isEnabled = changes.videoFeatureEnabled.newValue !== false;
+
+      if (isEnabled && !window.heliosVideoFeature.isInitialized) {
+        console.log('[Helios Video] Video features enabled via toggle');
+        window.heliosVideoFeature.enable();
+      } else if (!isEnabled && window.heliosVideoFeature.isInitialized) {
+        console.log('[Helios Video] Video features disabled via toggle');
+        window.heliosVideoFeature.disable();
+      }
+    }
+  });
 }

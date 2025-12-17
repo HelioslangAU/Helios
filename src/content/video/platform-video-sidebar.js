@@ -43,17 +43,20 @@ class PlatformVideoSidebar {
     // Pause at end state tracking
     this.pausedAtEnd = false;
 
+    // Hotkey jumping flag (prevents auto-pause when using A/D keys)
+    this.isHotkeyJumping = false;
+
     // Update queue to prevent race conditions
     this.updateQueue = Promise.resolve();
     this.isUpdating = false;
 
-    // Load settings from storage
-    this._loadSettings();
-
-    // Initialize on supported platforms (not YouTube)
-    if (this._isSupportedPlatform() && !this._isYouTubePage()) {
-      this._init();
-    }
+    // Load settings from storage and check if video feature is enabled
+    this._loadSettings().then(() => {
+      // Only initialize if video feature is enabled globally
+      if (this.videoFeatureEnabled && this._isSupportedPlatform() && !this._isYouTubePage()) {
+        this._init();
+      }
+    });
   }
 
   /**
@@ -102,7 +105,7 @@ class PlatformVideoSidebar {
   _setupNavigationListener() {
     let lastUrl = window.location.href;
 
-    // Check URL changes periodically (for SPAs) - reduced interval for faster response
+    // Check URL changes periodically (for SPAs)
     setInterval(() => {
       if (window.location.href !== lastUrl) {
         lastUrl = window.location.href;
@@ -116,12 +119,12 @@ class PlatformVideoSidebar {
             this.show();
             this._adjustVideoLayout();
             this._syncSidebarToVideoHeight();
-          }, 300); // Reduced delay for faster appearance
+          }, VideoConstants.TIMING.NAVIGATION_DELAY);
         } else {
           this.hide();
         }
       }
-    }, 250); // Faster polling for quicker navigation detection
+    }, VideoConstants.TIMING.NAVIGATION_POLL);
   }
 
   /**
@@ -235,8 +238,8 @@ class PlatformVideoSidebar {
     this.sidebar.style.setProperty('right', '0', 'important');
     this.sidebar.style.setProperty('top', '0', 'important');
     this.sidebar.style.setProperty('height', '100vh', 'important');
-    this.sidebar.style.setProperty('z-index', '2147483646', 'important'); // Just below subtitle overlay
-    this.sidebar.style.setProperty('width', '420px', 'important');
+    this.sidebar.style.setProperty('z-index', VideoConstants.Z_INDEX.SIDEBAR.toString(), 'important');
+    this.sidebar.style.setProperty('width', `${VideoConstants.SIDEBAR_WIDTH}px`, 'important');
 
     // Start hidden - will be shown by init() if on watch page
     this.sidebar.style.setProperty('display', 'none', 'important');
@@ -244,6 +247,7 @@ class PlatformVideoSidebar {
     this.sidebar.style.setProperty('opacity', '0', 'important');
     this.isVisible = false;
   }
+
 
   /**
    * Adjust video layout to push video left and make room for sidebar
@@ -270,14 +274,15 @@ class PlatformVideoSidebar {
       // Platform-specific adjustments
       if (hostname.includes('netflix.com')) {
         // Adjust Netflix's video container - this is the key element that needs to be sized
-        const videoContainer = document.querySelector('.NFPlayer') ||
-                              document.querySelector('.watch-video--player-view') ||
-                              document.querySelector('.watch-video');
+        const videoContainer = document.querySelector(VideoConstants.SELECTORS.NETFLIX.PLAYER) ||
+                              document.querySelector(VideoConstants.SELECTORS.NETFLIX.PLAYER_VIEW) ||
+                              document.querySelector(VideoConstants.SELECTORS.NETFLIX.VIDEO_CONTAINER);
 
         if (videoContainer) {
-          videoContainer.style.setProperty('width', 'calc(100vw - 420px)', 'important');
-          videoContainer.style.setProperty('max-width', 'calc(100vw - 420px)', 'important');
-          videoContainer.style.setProperty('min-width', 'calc(100vw - 420px)', 'important');
+          const adjustedWidth = `calc(100vw - ${VideoConstants.SIDEBAR_WIDTH}px)`;
+          videoContainer.style.setProperty('width', adjustedWidth, 'important');
+          videoContainer.style.setProperty('max-width', adjustedWidth, 'important');
+          videoContainer.style.setProperty('min-width', adjustedWidth, 'important');
           videoContainer.style.setProperty('height', '100vh', 'important');
           videoContainer.style.setProperty('max-height', '100vh', 'important');
           videoContainer.style.setProperty('position', 'absolute', 'important');
@@ -300,28 +305,30 @@ class PlatformVideoSidebar {
         }
 
         // Adjust Netflix's controls overlay
-        const controlsOverlay = document.querySelector('.PlayerControlsNeo__layout');
+        const controlsOverlay = document.querySelector(VideoConstants.SELECTORS.NETFLIX.CONTROLS_LAYOUT);
         if (controlsOverlay) {
-          controlsOverlay.style.setProperty('width', 'calc(100vw - 420px)', 'important');
-          controlsOverlay.style.setProperty('max-width', 'calc(100vw - 420px)', 'important');
+          const adjustedWidth = `calc(100vw - ${VideoConstants.SIDEBAR_WIDTH}px)`;
+          controlsOverlay.style.setProperty('width', adjustedWidth, 'important');
+          controlsOverlay.style.setProperty('max-width', adjustedWidth, 'important');
         }
 
         // Adjust Netflix's controls container (bottom bar with play/pause, etc.)
-        const controls = document.querySelector('.PlayerControlsNeo__all-controls');
+        const controls = document.querySelector(VideoConstants.SELECTORS.NETFLIX.CONTROLS);
         if (controls) {
-          controls.style.setProperty('width', 'calc(100vw - 420px)', 'important');
-          controls.style.setProperty('max-width', 'calc(100vw - 420px)', 'important');
+          const adjustedWidth = `calc(100vw - ${VideoConstants.SIDEBAR_WIDTH}px)`;
+          controls.style.setProperty('width', adjustedWidth, 'important');
+          controls.style.setProperty('max-width', adjustedWidth, 'important');
         }
 
         // Adjust Netflix subtitles in fullscreen
-        const timedText = document.querySelector('.player-timedtext-text-container');
+        const timedText = document.querySelector(VideoConstants.SELECTORS.NETFLIX.SUBTITLES);
         if (timedText) {
-          timedText.style.setProperty('max-width', 'calc(100vw - 420px)', 'important');
+          timedText.style.setProperty('max-width', `calc(100vw - ${VideoConstants.SIDEBAR_WIDTH}px)`, 'important');
           timedText.style.setProperty('left', '0', 'important');
         }
 
         // Hide Netflix's native subtitle panel if it exists
-        const nativeSubtitlePanel = document.querySelector('.watch-video--audio-subtitle-controller');
+        const nativeSubtitlePanel = document.querySelector(VideoConstants.SELECTORS.NETFLIX.SUBTITLE_PANEL);
         if (nativeSubtitlePanel) {
           nativeSubtitlePanel.style.setProperty('display', 'none', 'important');
         }
@@ -331,8 +338,8 @@ class PlatformVideoSidebar {
       let videoContainer = null;
 
       if (hostname.includes('netflix.com')) {
-        videoContainer = document.querySelector('.watch-video') ||
-                        document.querySelector('.NFPlayer') ||
+        videoContainer = document.querySelector(VideoConstants.SELECTORS.NETFLIX.VIDEO_CONTAINER) ||
+                        document.querySelector(VideoConstants.SELECTORS.NETFLIX.PLAYER) ||
                         document.querySelector('[data-uia="watch-video"]');
         document.body.style.overflowX = 'hidden';
       } else if (hostname.includes('disneyplus.com')) {
@@ -345,20 +352,52 @@ class PlatformVideoSidebar {
       }
 
       if (videoContainer) {
-        videoContainer.style.width = 'calc(100% - 420px)';
-        videoContainer.style.maxWidth = 'calc(100vw - 420px)';
+        const adjustedWidth = `calc(100% - ${VideoConstants.SIDEBAR_WIDTH}px)`;
+        const adjustedMaxWidth = `calc(100vw - ${VideoConstants.SIDEBAR_WIDTH}px)`;
+        videoContainer.style.setProperty('width', adjustedWidth, 'important');
+        videoContainer.style.setProperty('max-width', adjustedMaxWidth, 'important');
         videoContainer.style.transition = 'width 0.2s ease, max-width 0.2s ease';
 
         if (hostname.includes('netflix.com')) {
-          const timedText = document.querySelector('.player-timedtext-text-container');
+          // Ensure video element scales properly within the container
+          const video = document.querySelector('video');
+          if (video) {
+            video.style.setProperty('width', '100%', 'important');
+            video.style.setProperty('height', '100%', 'important');
+            video.style.setProperty('object-fit', 'contain', 'important');
+          }
+
+          // Adjust Netflix subtitles
+          const timedText = document.querySelector(VideoConstants.SELECTORS.NETFLIX.SUBTITLES);
           if (timedText) {
-            timedText.style.maxWidth = 'calc(100vw - 420px)';
+            timedText.style.setProperty('max-width', adjustedMaxWidth, 'important');
+          }
+
+          // Ensure controls are properly sized
+          const controlsOverlay = document.querySelector(VideoConstants.SELECTORS.NETFLIX.CONTROLS_LAYOUT);
+          if (controlsOverlay) {
+            controlsOverlay.style.setProperty('width', adjustedMaxWidth, 'important');
+            controlsOverlay.style.setProperty('max-width', adjustedMaxWidth, 'important');
+          }
+
+          const controls = document.querySelector(VideoConstants.SELECTORS.NETFLIX.CONTROLS);
+          if (controls) {
+            controls.style.setProperty('width', adjustedMaxWidth, 'important');
+            controls.style.setProperty('max-width', adjustedMaxWidth, 'important');
           }
         }
       } else {
-        setTimeout(() => this._adjustVideoLayout(), 100);
+        setTimeout(() => this._adjustVideoLayout(), VideoConstants.TIMING.LAYOUT_RETRY);
       }
       }
+
+    // Force Netflix to recalculate layout
+    if (hostname.includes('netflix.com')) {
+      // Trigger a window resize event to force Netflix to recalculate
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+      }, 50);
+    }
     } catch (error) {
       console.error('[Helios Platform Sidebar] Error adjusting video layout:', error);
     }
@@ -373,9 +412,9 @@ class PlatformVideoSidebar {
 
     if (hostname.includes('netflix.com')) {
       // Reset Netflix video container
-      const videoContainer = document.querySelector('.NFPlayer') ||
-                            document.querySelector('.watch-video--player-view') ||
-                            document.querySelector('.watch-video');
+      const videoContainer = document.querySelector(VideoConstants.SELECTORS.NETFLIX.PLAYER) ||
+                            document.querySelector(VideoConstants.SELECTORS.NETFLIX.PLAYER_VIEW) ||
+                            document.querySelector(VideoConstants.SELECTORS.NETFLIX.VIDEO_CONTAINER);
 
       if (videoContainer) {
         videoContainer.style.removeProperty('width');
@@ -402,27 +441,27 @@ class PlatformVideoSidebar {
       }
 
       // Reset controls
-      const controlsOverlay = document.querySelector('.PlayerControlsNeo__layout');
+      const controlsOverlay = document.querySelector(VideoConstants.SELECTORS.NETFLIX.CONTROLS_LAYOUT);
       if (controlsOverlay) {
         controlsOverlay.style.removeProperty('width');
         controlsOverlay.style.removeProperty('max-width');
       }
 
-      const controls = document.querySelector('.PlayerControlsNeo__all-controls');
+      const controls = document.querySelector(VideoConstants.SELECTORS.NETFLIX.CONTROLS);
       if (controls) {
         controls.style.removeProperty('width');
         controls.style.removeProperty('max-width');
       }
 
       // Reset subtitles
-      const timedText = document.querySelector('.player-timedtext-text-container');
+      const timedText = document.querySelector(VideoConstants.SELECTORS.NETFLIX.SUBTITLES);
       if (timedText) {
         timedText.style.removeProperty('max-width');
         timedText.style.removeProperty('left');
       }
 
       // Show native subtitle panel again
-      const nativeSubtitlePanel = document.querySelector('.watch-video--audio-subtitle-controller');
+      const nativeSubtitlePanel = document.querySelector(VideoConstants.SELECTORS.NETFLIX.SUBTITLE_PANEL);
       if (nativeSubtitlePanel) {
         nativeSubtitlePanel.style.removeProperty('display');
       }
@@ -444,7 +483,7 @@ class PlatformVideoSidebar {
         const videoElement = document.querySelector('video');
 
         if (!videoElement) {
-          setTimeout(syncHeight, 50); // Faster retry
+          setTimeout(syncHeight, VideoConstants.TIMING.LAYOUT_RETRY);
           return;
         }
 
@@ -468,9 +507,9 @@ class PlatformVideoSidebar {
 
         // Ensure sidebar is always visible in fullscreen
         if (isFullscreen) {
-          this.sidebar.style.setProperty('z-index', '2147483647', 'important'); // Highest z-index for fullscreen
+          this.sidebar.style.setProperty('z-index', VideoConstants.Z_INDEX.SIDEBAR_FULLSCREEN.toString(), 'important');
         } else {
-          this.sidebar.style.setProperty('z-index', '2147483646', 'important');
+          this.sidebar.style.setProperty('z-index', VideoConstants.Z_INDEX.SIDEBAR.toString(), 'important');
         }
       } catch (error) {
         console.error('[Helios Platform Sidebar] Error syncing sidebar height:', error);
@@ -504,7 +543,7 @@ class PlatformVideoSidebar {
     let resizeTimeout;
     const resizeHandler = () => {
       clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(syncHeight, 16); // ~60fps
+      resizeTimeout = setTimeout(syncHeight, VideoConstants.TIMING.RESIZE_DEBOUNCE);
     };
     window.addEventListener('resize', resizeHandler);
     this.resizeHandler = resizeHandler;
@@ -562,12 +601,12 @@ class PlatformVideoSidebar {
           this.sidebar.style.setProperty('display', 'flex', 'important');
           this.sidebar.style.setProperty('visibility', 'visible', 'important');
           this.sidebar.style.setProperty('opacity', '1', 'important');
-          this.sidebar.style.setProperty('z-index', '2147483647', 'important');
+          this.sidebar.style.setProperty('z-index', VideoConstants.Z_INDEX.SIDEBAR_FULLSCREEN.toString(), 'important');
 
           // Continuously enforce layout adjustments in fullscreen (Netflix fights back)
           layoutEnforcer = setInterval(() => {
             this._adjustVideoLayout();
-          }, 100); // Re-apply every 100ms to counter Netflix's dynamic styling
+          }, VideoConstants.TIMING.FULLSCREEN_ENFORCE);
 
           // Initial adjustment
           this._adjustVideoLayout();
@@ -675,7 +714,7 @@ class PlatformVideoSidebar {
 
       this.sidebarScrollTimeout = setTimeout(() => {
         this.userIsScrollingSidebar = false;
-      }, 2000);
+      }, VideoConstants.TIMING.SCROLL_RESET);
     };
 
     const handleMouseMove = (e) => {
@@ -1402,10 +1441,12 @@ class PlatformVideoSidebar {
             // Check if word is unknown and add styling
             const cleanWord = word.toLowerCase();
 
+            // Underline unknown words that are 10 characters or fewer (matches caption overlay behavior)
             if (window.vocabManager &&
                 dictionary[cleanWord] &&
                 !window.vocabManager.isWordKnown(cleanWord) &&
-                !window.vocabManager.isWordIgnored(cleanWord)) {
+                !window.vocabManager.isWordIgnored(cleanWord) &&
+                word.length <= 10) {
               wordSpan.classList.add('unknown-word');
             }
 
@@ -1491,7 +1532,7 @@ class PlatformVideoSidebar {
               this.pausedByHover = false;
             }
             this.resumeTimeout = null;
-          }, 300);
+          }, VideoConstants.TIMING.PAUSE_RESUME_DELAY);
         }
       } else {
         if (this.resumeTimeout) {
@@ -1610,9 +1651,8 @@ class PlatformVideoSidebar {
         // Calculate time remaining in subtitle (in milliseconds)
         const timeRemaining = activeEntry.end - currentTime;
 
-        // Pause when we're within 150ms of the end (to account for 100ms update interval + buffer)
-        // This ensures we catch the pause even if timing is slightly off
-        if (timeRemaining <= 150 && timeRemaining >= 0) {
+        // Pause when we're within threshold of the end (to account for update interval + buffer)
+        if (timeRemaining <= VideoConstants.TIMING.PAUSE_AT_END_THRESHOLD && timeRemaining >= 0) {
           const video = this.videoBinding.videoElement;
           if (!video.paused) {
             video.pause();
@@ -1624,7 +1664,8 @@ class PlatformVideoSidebar {
     }
 
     // If transitioning between subtitles and pause-at-end is enabled, pause before switching
-    if (this.settings.pauseAtEnd && !this.pausedAtEnd && this.activeIndex !== -1 && this.videoBinding) {
+    // BUT don't pause if user is jumping via hotkeys (A/D keys)
+    if (this.settings.pauseAtEnd && !this.pausedAtEnd && this.activeIndex !== -1 && this.videoBinding && !this.isHotkeyJumping) {
       const video = this.videoBinding.videoElement;
       if (!video.paused) {
         video.pause();
@@ -1672,7 +1713,7 @@ class PlatformVideoSidebar {
 
       setTimeout(() => {
         this.isAutoScrolling = false;
-      }, 600);
+      }, VideoConstants.TIMING.AUTO_SCROLL_DURATION);
     });
   }
 
@@ -1838,13 +1879,14 @@ class PlatformVideoSidebar {
    */
   hide() {
     if (this.sidebar) {
+      console.log('[Helios Platform Sidebar] Hiding sidebar');
       this.sidebar.classList.add('hidden');
       this.sidebar.style.setProperty('display', 'none', 'important');
       this.sidebar.style.setProperty('visibility', 'hidden', 'important');
       this.sidebar.style.setProperty('opacity', '0', 'important');
       this.isVisible = false;
 
-      // Remove video layout adjustment
+      // Remove video layout adjustment - restore Netflix to normal
       this._removeVideoLayoutAdjustment();
     }
   }
@@ -1856,50 +1898,131 @@ class PlatformVideoSidebar {
     const hostname = window.location.hostname.toLowerCase();
     const isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement);
 
-    // Restore video element in fullscreen
-    if (isFullscreen) {
+    console.log('[Helios Platform Sidebar] Restoring video layout, fullscreen:', isFullscreen);
+
+    // Always reset Netflix elements (both fullscreen and normal mode)
+    if (hostname.includes('netflix.com')) {
+      // Reset all Netflix containers
+      const videoContainer = document.querySelector(VideoConstants.SELECTORS.NETFLIX.VIDEO_CONTAINER);
+      const player = document.querySelector(VideoConstants.SELECTORS.NETFLIX.PLAYER);
+      const playerView = document.querySelector(VideoConstants.SELECTORS.NETFLIX.PLAYER_VIEW);
+
+      if (videoContainer) {
+        videoContainer.style.removeProperty('width');
+        videoContainer.style.removeProperty('max-width');
+        videoContainer.style.removeProperty('min-width');
+        videoContainer.style.removeProperty('height');
+        videoContainer.style.removeProperty('max-height');
+        videoContainer.style.removeProperty('position');
+        videoContainer.style.removeProperty('left');
+        videoContainer.style.removeProperty('top');
+        videoContainer.style.removeProperty('margin');
+        videoContainer.style.removeProperty('padding');
+        videoContainer.style.removeProperty('transition');
+      }
+
+      if (player) {
+        player.style.removeProperty('width');
+        player.style.removeProperty('max-width');
+        player.style.removeProperty('min-width');
+        player.style.removeProperty('height');
+        player.style.removeProperty('max-height');
+        player.style.removeProperty('position');
+        player.style.removeProperty('left');
+        player.style.removeProperty('top');
+        player.style.removeProperty('margin');
+        player.style.removeProperty('padding');
+      }
+
+      if (playerView) {
+        playerView.style.removeProperty('width');
+        playerView.style.removeProperty('max-width');
+        playerView.style.removeProperty('min-width');
+      }
+
+      // Reset video element
       const video = document.querySelector('video');
       if (video) {
-        video.style.width = '';
-        video.style.maxWidth = '';
-        video.style.marginLeft = '';
-        video.style.marginRight = '';
+        video.style.removeProperty('width');
+        video.style.removeProperty('height');
+        video.style.removeProperty('max-width');
+        video.style.removeProperty('max-height');
+        video.style.removeProperty('object-fit');
+        video.style.removeProperty('margin');
+        video.style.removeProperty('padding');
+        video.style.removeProperty('margin-left');
+        video.style.removeProperty('margin-right');
       }
 
+      // Reset Netflix controls
+      const controlsOverlay = document.querySelector(VideoConstants.SELECTORS.NETFLIX.CONTROLS_LAYOUT);
+      if (controlsOverlay) {
+        controlsOverlay.style.removeProperty('width');
+        controlsOverlay.style.removeProperty('max-width');
+      }
+
+      const controls = document.querySelector(VideoConstants.SELECTORS.NETFLIX.CONTROLS);
+      if (controls) {
+        controls.style.removeProperty('width');
+        controls.style.removeProperty('max-width');
+      }
+
+      // Reset subtitles
+      const timedText = document.querySelector(VideoConstants.SELECTORS.NETFLIX.SUBTITLES);
+      if (timedText) {
+        timedText.style.removeProperty('max-width');
+        timedText.style.removeProperty('left');
+      }
+
+      // Show native subtitle panel again
+      const nativeSubtitlePanel = document.querySelector(VideoConstants.SELECTORS.NETFLIX.SUBTITLE_PANEL);
+      if (nativeSubtitlePanel) {
+        nativeSubtitlePanel.style.removeProperty('display');
+      }
+
+      // Reset body overflow
+      document.body.style.removeProperty('overflow-x');
+    } else if (hostname.includes('disneyplus.com')) {
+      const videoContainer = document.querySelector('.btm-media-player-root') ||
+                            document.querySelector('[data-testid="media-player-container"]');
+      if (videoContainer) {
+        videoContainer.style.removeProperty('width');
+        videoContainer.style.removeProperty('max-width');
+        videoContainer.style.removeProperty('transition');
+      }
+    } else if (hostname.includes('amazon.') || hostname.includes('primevideo.com')) {
+      const videoContainer = document.querySelector('.dv-player-fullscreen') ||
+                            document.querySelector('[data-testid="player-container"]') ||
+                            document.querySelector('.cascadesContainer');
+      if (videoContainer) {
+        videoContainer.style.removeProperty('width');
+        videoContainer.style.removeProperty('max-width');
+        videoContainer.style.removeProperty('transition');
+      }
+    }
+
+    // Reset fullscreen element if in fullscreen
+    if (isFullscreen) {
       const fullscreenEl = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement;
       if (fullscreenEl) {
-        fullscreenEl.style.paddingRight = '';
+        fullscreenEl.style.removeProperty('position');
+        fullscreenEl.style.removeProperty('width');
+        fullscreenEl.style.removeProperty('height');
+        fullscreenEl.style.removeProperty('overflow');
+        fullscreenEl.style.removeProperty('margin');
+        fullscreenEl.style.removeProperty('padding');
+        fullscreenEl.style.removeProperty('padding-right');
       }
     }
 
-    // Restore normal mode containers
-    let videoContainer = null;
-
+    // Force Netflix to recalculate layout after restoration
     if (hostname.includes('netflix.com')) {
-      videoContainer = document.querySelector('.watch-video') ||
-                      document.querySelector('.NFPlayer') ||
-                      document.querySelector('[data-uia="watch-video"]');
-      document.body.style.overflowX = '';
-    } else if (hostname.includes('disneyplus.com')) {
-      videoContainer = document.querySelector('.btm-media-player-root') ||
-                      document.querySelector('[data-testid="media-player-container"]');
-    } else if (hostname.includes('amazon.') || hostname.includes('primevideo.com')) {
-      videoContainer = document.querySelector('.dv-player-fullscreen') ||
-                      document.querySelector('[data-testid="player-container"]') ||
-                      document.querySelector('.cascadesContainer');
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+      }, 50);
     }
 
-    if (videoContainer) {
-      videoContainer.style.width = '';
-      videoContainer.style.maxWidth = '';
-
-      if (hostname.includes('netflix.com')) {
-        const timedText = document.querySelector('.player-timedtext-text-container');
-        if (timedText) {
-          timedText.style.maxWidth = '';
-        }
-      }
-    }
+    console.log('[Helios Platform Sidebar] Video layout restored to normal');
   }
 
   /**
@@ -1924,7 +2047,13 @@ class PlatformVideoSidebar {
     const previousSubtitle = subtitleCollection.getPreviousSubtitle(currentTime);
 
     if (previousSubtitle) {
+      // Set flag to prevent pause-at-end from triggering
+      this.isHotkeyJumping = true;
       this.videoBinding.seekTo(previousSubtitle.start);
+      // Clear flag after short delay
+      setTimeout(() => {
+        this.isHotkeyJumping = false;
+      }, VideoConstants.TIMING.HOTKEY_JUMP_DELAY);
       console.log('[Helios Hotkeys] Jumped to previous subtitle');
     }
   }
@@ -1940,7 +2069,13 @@ class PlatformVideoSidebar {
     const nextSubtitle = subtitleCollection.getNextSubtitle(currentTime);
 
     if (nextSubtitle) {
+      // Set flag to prevent pause-at-end from triggering
+      this.isHotkeyJumping = true;
       this.videoBinding.seekTo(nextSubtitle.start);
+      // Clear flag after short delay
+      setTimeout(() => {
+        this.isHotkeyJumping = false;
+      }, VideoConstants.TIMING.HOTKEY_JUMP_DELAY);
       console.log('[Helios Hotkeys] Jumped to next subtitle');
     }
   }
@@ -1966,7 +2101,10 @@ class PlatformVideoSidebar {
    * Toggle subtitle overlay visibility
    */
   _toggleSubtitleOverlay() {
-    if (!this.videoBinding || !this.videoBinding.overlay) return;
+    if (!this.videoBinding || !this.videoBinding.overlay) {
+      console.warn('[Helios Hotkeys] No video binding or overlay available');
+      return;
+    }
 
     const isVisible = this.videoBinding.overlay.toggleVisibility();
     console.log(`[Helios Hotkeys] Subtitle overlay ${isVisible ? 'shown' : 'hidden'}`);
@@ -2003,7 +2141,11 @@ class PlatformVideoSidebar {
    */
   async _loadSettings() {
     try {
-      const result = await chrome.storage.local.get(['platformSidebarSettings']);
+      const result = await chrome.storage.local.get(['platformSidebarSettings', 'videoFeatureEnabled']);
+
+      // Check global video feature toggle
+      this.videoFeatureEnabled = result.videoFeatureEnabled !== false; // Default to true
+
       if (result.platformSidebarSettings) {
         const loaded = result.platformSidebarSettings;
 
@@ -2026,6 +2168,7 @@ class PlatformVideoSidebar {
       }
     } catch (error) {
       console.error('[Helios Platform Sidebar] Failed to load settings:', error);
+      this.videoFeatureEnabled = true; // Default to enabled on error
     }
   }
 
@@ -2045,6 +2188,14 @@ class PlatformVideoSidebar {
    * Destroy sidebar
    */
   destroy() {
+    console.log('[Helios Platform Sidebar] Destroying sidebar...');
+
+    // Clear any existing intervals or timeouts
+    if (this.updateInterval) {
+      clearInterval(this.updateInterval);
+      this.updateInterval = null;
+    }
+
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
       this.resizeObserver = null;
@@ -2060,15 +2211,43 @@ class PlatformVideoSidebar {
       this.sidebarScrollTimeout = null;
     }
 
-    // Remove video layout adjustment
+    // Clear video binding reference
+    if (this.videoBinding) {
+      this.videoBinding = null;
+    }
+
+    // Clear subtitle data
+    this.currentSubtitles = [];
+    this.activeIndex = -1;
+
+    // Remove video layout adjustment and restore Netflix to normal
     this._removeVideoLayoutAdjustment();
 
+    // Remove sidebar from DOM
     if (this.sidebar && this.sidebar.parentElement) {
       this.sidebar.parentElement.removeChild(this.sidebar);
     }
     this.sidebar = null;
+
+    console.log('[Helios Platform Sidebar] Sidebar destroyed');
   }
 }
 
 // Initialize platform sidebar
 window.platformVideoSidebar = new PlatformVideoSidebar();
+
+// Listen for video feature toggle changes
+chrome.storage.onChanged.addListener((changes, namespace) => {
+  if (namespace === 'local' && changes.videoFeatureEnabled) {
+    const isEnabled = changes.videoFeatureEnabled.newValue !== false;
+
+    if (!isEnabled && window.platformVideoSidebar) {
+      console.log('[Helios Platform Sidebar] Video features disabled - destroying sidebar');
+      window.platformVideoSidebar.destroy();
+      window.platformVideoSidebar = null;
+    } else if (isEnabled && !window.platformVideoSidebar) {
+      console.log('[Helios Platform Sidebar] Video features enabled - reinitializing sidebar');
+      window.platformVideoSidebar = new PlatformVideoSidebar();
+    }
+  }
+});

@@ -1381,6 +1381,11 @@ class SubtitleOverlay {
    * @returns {boolean} - New visibility state
    */
   toggleVisibility() {
+    if (!this.container) {
+      console.warn('[Helios Subtitle Overlay] Container not initialized, cannot toggle visibility');
+      return this.isVisible;
+    }
+
     this.isVisible = !this.isVisible;
 
     if (this.isVisible) {
