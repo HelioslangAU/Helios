@@ -106,6 +106,7 @@ class DictionaryBridge {
     
     // Check cache first
     if (this.cache.has(lowercaseWord)) {
+      console.log(this.cache.get(lowercaseWord));
       return this.cache.get(lowercaseWord);
     }
 

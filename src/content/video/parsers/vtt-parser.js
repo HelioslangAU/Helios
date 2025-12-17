@@ -1,5 +1,6 @@
 /**
  * Parser for WebVTT subtitle format
+ * Handles both standard VTT and Netflix VTT formats
  */
 class VTTParser {
   /**
@@ -9,12 +10,12 @@ class VTTParser {
    */
   static parse(content) {
     const entries = [];
-    const lines = content.split('\n');
+    const lines = content.split(/\r?\n/); // Handle both \n and \r\n line endings
 
     let index = 0;
     let i = 0;
 
-    // Skip header
+    // Skip header and WEBVTT declaration
     while (i < lines.length && !lines[i].includes('-->')) {
       i++;
     }
@@ -22,22 +23,40 @@ class VTTParser {
     while (i < lines.length) {
       const line = lines[i].trim();
 
-      // Look for timestamp line
+      // Look for timestamp line - support multiple VTT timestamp formats
       if (line.includes('-->')) {
-        const timestampMatch = line.match(/(\d{2}:\d{2}:\d{2}\.\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}\.\d{3})/);
+        // Match timestamps with or without hours, with settings/metadata after
+        // Examples:
+        // 00:00:00.000 --> 00:00:02.000
+        // 00:00.000 --> 00:02.000 align:middle line:90%
+        const timestampMatch = line.match(
+          /(\d{1,2}:)?(\d{2}:\d{2}\.\d{3})\s*-->\s*(\d{1,2}:)?(\d{2}:\d{2}\.\d{3})/
+        );
+
         if (timestampMatch) {
-          const start = this._parseTimestamp(timestampMatch[1]);
-          const end = this._parseTimestamp(timestampMatch[2]);
+          // Reconstruct full timestamps with hours if missing
+          const startTime = (timestampMatch[1] || '00:') + timestampMatch[2];
+          const endTime = (timestampMatch[3] || '00:') + timestampMatch[4];
+
+          const start = this._parseTimestamp(startTime);
+          const end = this._parseTimestamp(endTime);
 
           // Collect text lines
           const textLines = [];
           i++;
           while (i < lines.length && lines[i].trim() !== '') {
-            textLines.push(lines[i]);
+            const textLine = lines[i].trim();
+            if (textLine && !textLine.match(/^NOTE\s/)) { // Skip VTT NOTE lines
+              textLines.push(textLine);
+            }
             i++;
           }
 
-          const text = textLines.join('\n').trim();
+          let text = textLines.join('\n');
+
+          // Clean VTT formatting (asbplayer approach)
+          text = this._cleanVttText(text);
+
           if (text) {
             entries.push(new SubtitleEntry({ index: index++, start, end, text }));
           }
@@ -46,7 +65,66 @@ class VTTParser {
       i++;
     }
 
-    return entries;
+    // Remove only consecutive duplicate entries (matching asbplayer's conservative approach)
+    // Only removes entries where start, end, AND text are ALL identical to the previous entry
+    const deduplicated = [];
+
+    for (const entry of entries) {
+      if (deduplicated.length === 0 || !this._isSame(entry, deduplicated[deduplicated.length - 1])) {
+        deduplicated.push(entry);
+      }
+    }
+
+    console.log('[VTTParser] Parsed entries:', {
+      total: entries.length,
+      afterDedup: deduplicated.length,
+      firstEntry: deduplicated[0] ? {
+        start: deduplicated[0].start,
+        end: deduplicated[0].end,
+        text: deduplicated[0].text.substring(0, 50)
+      } : null
+    });
+
+    return deduplicated;
+  }
+
+  /**
+   * Clean VTT text formatting and tags
+   * @param {string} text - Raw VTT text
+   * @returns {string} Cleaned text
+   */
+  static _cleanVttText(text) {
+    // Remove VTT class tags (e.g., <c>, <c.classname>, </c>)
+    text = text.replace(/<(\/)?c(\.[^>]*)?>/g, '');
+
+    // Remove other VTT tags like <v>, <i>, <b>, <u> but keep their content
+    text = text.replace(/<\/?[vVibBuU][^>]*>/g, '');
+
+    // Handle Netflix RTL markers (asbplayer approach)
+    // Convert &lrm; to Unicode left-to-right mark
+    text = text.replace(/&lrm;/g, '\u202a');
+    // Convert &rlm; to Unicode right-to-left mark
+    text = text.replace(/&rlm;/g, '\u202b');
+
+    // Decode common HTML entities
+    text = text.replace(/&amp;/g, '&');
+    text = text.replace(/&lt;/g, '<');
+    text = text.replace(/&gt;/g, '>');
+    text = text.replace(/&quot;/g, '"');
+    text = text.replace(/&#39;/g, "'");
+    text = text.replace(/&nbsp;/g, ' ');
+
+    return text.trim();
+  }
+
+  /**
+   * Check if two subtitle entries are identical (same start, end, and text)
+   * @param {SubtitleEntry} a - First entry
+   * @param {SubtitleEntry} b - Second entry
+   * @returns {boolean}
+   */
+  static _isSame(a, b) {
+    return a.start === b.start && a.end === b.end && a.text === b.text;
   }
 
   /**

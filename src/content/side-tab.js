@@ -515,7 +515,6 @@ class HeliosSideTab {
     handleYouTubeSubtitles() {
         // Dispatch event to toggle YouTube sidebar
         document.dispatchEvent(new CustomEvent('helios-toggle-subtitle-panel'));
-        console.log('[Helios Side Tab] Toggling YouTube subtitle panel');
     }
 
 

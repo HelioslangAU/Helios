@@ -9,7 +9,7 @@ class SubtitleCollection {
 
   /**
    * Get all subtitles that should be shown at given time
-   * Deduplicates entries with same text to prevent showing duplicates
+   * Deduplicates entries with identical text that overlap in time
    * @param {number} currentTime - Current video time in milliseconds
    * @returns {SubtitleEntry[]}
    */
@@ -39,7 +39,7 @@ class SubtitleCollection {
       }
     }
 
-    // Return deduplicated entries, preserving original order
+    // Return deduplicated entries, preserving original time-based order
     const deduplicatedEntries = Array.from(textMap.values());
     deduplicatedEntries.sort((a, b) => a.start - b.start);
 

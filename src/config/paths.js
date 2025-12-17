@@ -66,7 +66,8 @@ class PathsConfig {
       VOCABULARY_SETTINGS: 'src/ui/settings/vocabulary-settings.html',
       ADVANCED_SETTINGS: 'src/ui/settings/advanced-settings.html',
       POPUP_SETTINGS: 'src/ui/settings/popup-settings.html',
-      SHORTCUTS_SETTINGS: 'src/ui/settings/shortcuts-settings.html'
+      SHORTCUTS_SETTINGS: 'src/ui/settings/shortcuts-settings.html',
+      'VIDEO-PLAYER_SETTINGS': 'src/ui/settings/video-player-settings.html'
     };
 
     // JavaScript modules

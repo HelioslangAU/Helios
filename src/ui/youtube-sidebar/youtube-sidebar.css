@@ -1,5 +1,16 @@
-/* Helios YouTube Sidebar - Minimal Design */
+/* ============================================================================
+   Helios YouTube Sidebar - Minimal Design
 
+   Architecture:
+   - Sidebar is positioned absolutely within ytd-watch-flexy
+   - CSS classes control layout state (helios-sidebar-active on body)
+   - JavaScript handles dynamic positioning and sizing
+   - Modular design supports future platform expansion
+   ============================================================================ */
+
+/* ============================================================================
+   CSS Variables / Theme
+   ============================================================================ */
 :root {
   --helios-bg-primary: #0a0a0b;
   --helios-bg-secondary: #151518;
@@ -15,28 +26,33 @@
   --helios-shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.3);
 }
 
-/* Main Container */
+/* ============================================================================
+   Sidebar Container
+   ============================================================================ */
 .helios-youtube-sidebar {
   position: absolute !important;
   top: 0 !important;
-  right: -420px !important; /* Position in the margin area created by page-manager */
+  right: 0 !important; /* Positioned at the right edge of ytd-watch-flexy */
   width: 420px !important;
-  height: 600px !important; /* Default, will be dynamically adjusted */
+  height: 600px !important; /* Default, will be dynamically adjusted to match video player */
   background: var(--helios-bg-primary);
   display: flex;
   flex-direction: column;
-  z-index: 2100 !important;
+  z-index: 2000 !important; /* Below YouTube header (z-index: 2020) */
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
   color: var(--helios-text-primary);
   transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), top 0.3s cubic-bezier(0.4, 0, 0.2, 1), height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
 }
 
+/* Hidden state - slide off to the right */
 .helios-youtube-sidebar.hidden {
   transform: translateX(100%);
 }
 
-/* Header Bar */
+/* ============================================================================
+   Sidebar Header
+   ============================================================================ */
 .yt-sidebar-header {
   display: flex;
   justify-content: space-between;
@@ -73,7 +89,9 @@
   display: block;
 }
 
-/* Subtitle Section */
+/* ============================================================================
+   Subtitle Section
+   ============================================================================ */
 .yt-subtitle-section {
   flex: 1;
   display: flex;
@@ -82,7 +100,9 @@
   padding: 24px 20px 20px 20px;
 }
 
-/* Settings Section */
+/* ============================================================================
+   Settings Section
+   ============================================================================ */
 .yt-settings-section {
   flex: 1;
   display: flex;
@@ -110,8 +130,32 @@
 
 .yt-settings-content {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: scroll; /* Always show scrollbar */
   padding: 0 4px;
+}
+
+/* Always visible scrollbar styling */
+.yt-settings-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.yt-settings-content::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+.yt-settings-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 107, 71, 0.3);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.yt-settings-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 107, 71, 0.5);
+}
+
+.yt-settings-content::-webkit-scrollbar-thumb:active {
+  background: var(--helios-accent-primary);
 }
 
 .yt-section-header {
@@ -391,78 +435,62 @@
   color: #ff6666;
 }
 
-/* Video Container Adjustments - ALWAYS push content, NEVER cover */
-/* Use multiple selectors for maximum compatibility with YouTube's dynamic updates */
+/* ============================================================================
+   VIDEO CONTAINER ADJUSTMENTS - PUSH VIDEO LEFT APPROACH
+   ============================================================================
 
-/* Primary page manager adjustment */
-#page-manager.helios-sidebar-active {
-  margin-right: 420px !important;
-  transition: margin-right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative !important; /* Required for absolute positioning of sidebar */
-}
+   Strategy:
+   - Force theater mode when sidebar is active
+   - PUSH video player left by 420px (maintain resolution)
+   - Sidebar fills the space on the right
+   - Video maintains its size/resolution, just repositioned
 
-#page-manager.helios-sidebar-active.helios-sidebar-hidden {
-  margin-right: 0 !important;
-}
+   Key approach:
+   - Use margin-left: -420px to push video player left
+   - Video stays same size, just shifted to fit sidebar
+   ============================================================================ */
 
-/* Theater mode adjustments - stronger specificity */
-ytd-watch-flexy[theater] #page-manager.helios-sidebar-active {
-  margin-right: 420px !important;
+/* ============================================================================
+   STATE 1: SIDEBAR ACTIVE - Push video left, make space for 420px sidebar
+   ============================================================================ */
+body.helios-sidebar-active ytd-watch-flexy[theater] {
   position: relative !important;
 }
 
-ytd-watch-flexy[theater] #page-manager.helios-sidebar-active.helios-sidebar-hidden {
-  margin-right: 0 !important;
+body.helios-sidebar-active ytd-watch-flexy[theater] #full-bleed-container {
+  max-width: calc(100% - 420px) !important;
+  transition: max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
-/* Fullscreen mode adjustments */
-ytd-watch-flexy[fullscreen] #page-manager.helios-sidebar-active {
-  margin-right: 420px !important;
-  position: relative !important;
+body.helios-sidebar-active ytd-watch-flexy[theater] #player-theater-container {
+  max-width: calc(100vw - 420px) !important;
+  width: calc(100vw - 420px) !important;
+  transition: max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important, width 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
-/* Double-enforce with body selector for maximum priority */
-body #page-manager.helios-sidebar-active {
-  margin-right: 420px !important;
-  position: relative !important;
+body.helios-sidebar-active ytd-watch-flexy[theater] .ytp-size-button {
+  display: none !important;
 }
 
-body ytd-watch-flexy[theater] #page-manager.helios-sidebar-active {
-  margin-right: 420px !important;
-  position: relative !important;
+/* ============================================================================
+   STATE 2: SIDEBAR CLOSED - Return to normal YouTube theater mode
+   ============================================================================ */
+body:not(.helios-sidebar-active) ytd-watch-flexy[theater] #full-bleed-container {
+  max-width: unset !important;
+  width: unset !important;
+  margin: unset !important;
+  padding: unset !important;
 }
 
-/* Force adjust all content containers */
-#page-manager.helios-sidebar-active #primary {
-  max-width: 100% !important;
-  width: 100% !important;
+body:not(.helios-sidebar-active) ytd-watch-flexy[theater] #player-theater-container {
+  max-width: unset !important;
+  width: unset !important;
+  margin: unset !important;
+  padding: unset !important;
 }
 
-#page-manager.helios-sidebar-active #secondary {
-  max-width: 100% !important;
-  width: 100% !important;
-}
-
-/* Adjust ytd-watch-flexy element */
-#page-manager.helios-sidebar-active ytd-watch-flexy {
-  max-width: 100% !important;
-  width: 100% !important;
-}
-
-/* Adjust player containers */
-#page-manager.helios-sidebar-active #player-container-outer,
-#page-manager.helios-sidebar-active #player-container,
-#page-manager.helios-sidebar-active #player {
-  max-width: 100% !important;
-  width: 100% !important;
-}
-
-/* Ensure video player resizes correctly */
-#page-manager.helios-sidebar-active .html5-video-player,
-#page-manager.helios-sidebar-active .html5-video-container,
-#page-manager.helios-sidebar-active video {
-  max-width: 100% !important;
-  width: 100% !important;
+body:not(.helios-sidebar-active) ytd-watch-flexy[theater] .ytp-size-button {
+  display: block !important;
 }
 
 /* Animations */
@@ -487,48 +515,39 @@ body ytd-watch-flexy[theater] #page-manager.helios-sidebar-active {
 .yt-subtitle-item:nth-child(4) { animation-delay: 0.14s; }
 .yt-subtitle-item:nth-child(5) { animation-delay: 0.17s; }
 
-/* Responsive */
+/* Responsive adjustments for smaller screens */
 @media (max-width: 1280px) {
   .helios-youtube-sidebar {
-    width: 380px;
+    width: 380px !important;
   }
 
-  #page-manager.helios-sidebar-active {
-    margin-right: 380px !important;
-    position: relative !important;
+  body.helios-sidebar-active ytd-watch-flexy[theater] #full-bleed-container {
+    max-width: calc(100% - 380px) !important;
   }
 
-  ytd-watch-flexy[theater] #page-manager.helios-sidebar-active {
-    margin-right: 380px !important;
-    position: relative !important;
+  body.helios-sidebar-active ytd-watch-flexy[theater] #player-theater-container {
+    max-width: calc(100vw - 380px) !important;
+    width: calc(100vw - 380px) !important;
+  }
+
+  body:not(.helios-sidebar-active) ytd-watch-flexy[theater] #full-bleed-container {
+    max-width: unset !important;
+    width: unset !important;
+    margin: unset !important;
+    padding: unset !important;
+  }
+
+  body:not(.helios-sidebar-active) ytd-watch-flexy[theater] #player-theater-container {
+    max-width: unset !important;
+    width: unset !important;
+    margin: unset !important;
+    padding: unset !important;
   }
 }
 
-/* Additional body-level adjustments using :has() for browsers that support it */
-/* This provides an extra layer of enforcement */
-body:has(.helios-youtube-sidebar:not(.hidden)) #page-manager {
-  margin-right: 420px !important;
-  position: relative !important;
-}
-
-body:has(.helios-youtube-sidebar:not(.hidden)) ytd-watch-flexy[theater] #page-manager {
-  margin-right: 420px !important;
-  position: relative !important;
-}
-
-/* Fallback: Force margin using attribute selector directly on html */
-html:has(.helios-youtube-sidebar:not(.hidden)) #page-manager {
-  margin-right: 420px !important;
-  position: relative !important;
-}
-
-/* Nuclear option: Apply to all watch pages when sidebar exists */
-ytd-app:has(.helios-youtube-sidebar:not(.hidden)) #page-manager {
-  margin-right: 420px !important;
-  position: relative !important;
-}
-
-/* Settings Styles */
+/* ============================================================================
+   Settings Detailed Styles
+   ============================================================================ */
 .yt-setting-group {
   margin-bottom: 32px;
   padding-bottom: 24px;
@@ -636,6 +655,182 @@ ytd-app:has(.helios-youtube-sidebar:not(.hidden)) #page-manager {
 .yt-toggle-input:checked + .yt-toggle-switch::before {
   left: 22px;
   background: white;
+}
+
+/* Modern Caption Size Control */
+.yt-size-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+}
+
+.yt-size-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: var(--helios-bg-secondary);
+  border: 1.5px solid var(--helios-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--helios-text-secondary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.yt-size-btn:hover {
+  background: var(--helios-accent-primary);
+  border-color: var(--helios-accent-primary);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(255, 107, 71, 0.2);
+}
+
+.yt-size-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.yt-size-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.5;
+}
+
+.yt-size-input {
+  width: 70px;
+  height: 32px;
+  padding: 0 12px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--helios-text-primary);
+  background: var(--helios-bg-secondary);
+  border: 1.5px solid var(--helios-border);
+  border-radius: 8px;
+  outline: none;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, monospace;
+  -moz-appearance: textfield;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Hide number input spinners */
+.yt-size-input::-webkit-inner-spin-button,
+.yt-size-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.yt-size-input:hover {
+  border-color: rgba(255, 107, 71, 0.3);
+}
+
+.yt-size-input:focus {
+  background: var(--helios-bg-card);
+  border-color: var(--helios-accent-primary);
+  box-shadow: 0 0 0 3px rgba(255, 107, 71, 0.1);
+}
+
+.yt-size-unit {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--helios-text-tertiary);
+}
+
+/* Old button styles (kept for other buttons if needed) */
+.yt-button-group {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.yt-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+}
+
+.yt-btn-secondary {
+  background: var(--helios-bg-secondary);
+  color: var(--helios-text-secondary);
+  border: 1px solid var(--helios-border);
+}
+
+.yt-btn-secondary:hover {
+  background: var(--helios-bg-card);
+  border-color: rgba(255, 107, 71, 0.2);
+  color: var(--helios-accent-primary);
+  transform: translateY(-1px);
+}
+
+.yt-btn-secondary:active {
+  transform: translateY(0);
+}
+
+.yt-btn svg {
+  flex-shrink: 0;
+}
+
+/* Setting Row Layout */
+.yt-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.yt-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--helios-text-primary);
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.yt-label > span {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--helios-text-secondary);
+}
+
+/* Simplified Info Card for Position Control */
+.yt-position-info {
+  margin-top: 12px;
+}
+
+.yt-info-card-simple {
+  padding: 12px 16px;
+  background: var(--helios-bg-secondary);
+  border: 1px solid var(--helios-border);
+  border-radius: 8px;
+}
+
+.yt-info-card-simple h4 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--helios-text-primary);
+  margin: 0 0 4px 0;
+}
+
+.yt-info-card-simple p {
+  font-size: 12px;
+  color: var(--helios-text-secondary);
+  margin: 0;
+  line-height: 1.5;
 }
 
 /* Hotkey List */
@@ -821,5 +1016,53 @@ ytd-app:has(.helios-youtube-sidebar:not(.hidden)) #page-manager {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* ============================================================================
+   Loading States
+   ============================================================================ */
+
+/* Sidebar loading state */
+.subtitle-loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  gap: 16px;
+  opacity: 0;
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.subtitle-loading-state .loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--helios-accent-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.subtitle-loading-state .loading-text {
+  color: var(--helios-text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }

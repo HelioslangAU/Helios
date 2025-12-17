@@ -139,7 +139,7 @@ class ChineseLanguageAdapter extends BaseLanguageAdapter {
             } else {
               // Use jieba.cut only on target character chunks
               segments = await this.jieba.cut(chunk.text);
-              
+
               // Cache the result (with size limit)
               if (this.jiebaCache.size >= this.jiebaCacheMaxSize) {
                 // Remove oldest entry (simple FIFO)
@@ -148,24 +148,24 @@ class ChineseLanguageAdapter extends BaseLanguageAdapter {
               }
               this.jiebaCache.set(chunk.text, segments);
             }
-            
+
             let chunkPos = 0;
-            
+
             for (const segment of segments) {
               const start = chunk.start + chunkPos;
               const end = start + segment.length;
-              
+
               words.push({
                 word: segment,
                 start: start,
                 end: end,
                 isTargetLang: true
               });
-              
+
               chunkPos += segment.length;
             }
           } else if (!chunk.isTargetLang && chunk.text.length > 0) {
-            // Preserve non-target text (e.g., English, numbers, punctuation)
+            // Add non-target language chunks (English, numbers, punctuation) as-is
             words.push({
               word: chunk.text,
               start: chunk.start,
@@ -174,9 +174,6 @@ class ChineseLanguageAdapter extends BaseLanguageAdapter {
             });
           }
         }
-        // if (words.length != 0) {
-        //   console.log('Jieba words:', words);
-        // }
         return words;
       
       } catch (error) {
@@ -402,6 +399,20 @@ class ChineseLanguageAdapter extends BaseLanguageAdapter {
     // For Chinese, we might have separate files per HSK level
     // For now, return a general path - can be customized later
     return `OnboardingVocab/zh5k.csv`;
+  }
+
+  /**
+   * Get dictionary entries for a word
+   * @param {string} word - Word to look up
+   * @param {Object} dictionary - Dictionary object
+   * @returns {Array|null} - Dictionary entries or null if not found
+   */
+  getDictionaryEntries(word, dictionary) {
+    if (!word || !dictionary) return null;
+
+    // Chinese words are typically stored as-is in the dictionary
+    const entries = dictionary[word];
+    return (entries && entries.length > 0) ? entries : null;
   }
 }
 

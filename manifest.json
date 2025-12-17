@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Helios",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "A browser extension for language learning with subtitle reading, popup dictionary, vocab tracking, and Anki integration",
 
 
@@ -22,10 +22,17 @@
 
   "content_scripts": [
     {
+      "matches": ["*://*.netflix.com/*"],
+      "js": ["src/content/video/netflix/netflix-early-inject.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    },
+    {
       "matches": ["<all_urls>"],
       "js": [
         "src/config/paths.js",
         "src/content/config/constants.js",
+        "src/content/video/config/video-constants.js",
         "src/content/utils/activation-controller.js",
         "src/content/utils/shortcut-helper.js",
         "src/content/utils/text-scanner.js",
@@ -69,12 +76,19 @@
         "src/content/video/ui/subtitle-selector-modal.js",
         "src/content/video/core/video-binding.js",
         "src/content/video/core/video-detector.js",
+        "src/content/video/core/platform-detector.js",
+        "src/content/video/loaders/base-subtitle-loader.js",
         "src/content/video/loaders/subtitle-file-loader.js",
         "src/content/video/loaders/youtube-subtitle-loader.js",
-        "src/content/video/controllers/subtitle-panel-controller.js",
+        "src/content/video/loaders/netflix-subtitle-loader.js",
         "src/content/video/controllers/video-ui-controller.js",
         "src/content/video/video-feature-manager.js",
+        "src/content/video/youtube/theater-mode-controller.js",
+        "src/content/video/youtube/layout-manager.js",
+        "src/content/video/youtube/sidebar-positioner.js",
+        "src/content/video/youtube/helios-toggle-button.js",
         "src/content/youtube-sidebar.js",
+        "src/content/video/platform-video-sidebar.js",
         "src/content/content.js",
         "src/content/banner-manager.js",
         "src/content/banner.js",
@@ -135,6 +149,7 @@
         "src/ui/video/video-styles.css",
         "src/ui/video/subtitle-selector.css",
         "src/content/video/youtube/youtube-page-script.js",
+        "src/content/video/netflix/netflix-page-script.js",
         "src/ui/youtube-sidebar/youtube-sidebar.html",
         "src/ui/youtube-sidebar/youtube-sidebar.css",
         "lib/jieba/dict.txt.big",

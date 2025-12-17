@@ -12,6 +12,32 @@ class HeliosSettingsStorage {
 
       if (chrome.storage && chrome.storage.local) {
         const result = await chrome.storage.local.get(null);
+
+        // Migrate old ytSidebarSettings to new unified videoPlayer settings
+        if (result.ytSidebarSettings && !result.videoPlayer) {
+          console.log("🔍 Migrating ytSidebarSettings to videoPlayer...");
+          const oldSettings = result.ytSidebarSettings;
+
+          result.videoPlayer = {
+            hotkeysEnabled: oldSettings.hotkeysEnabled !== undefined ? oldSettings.hotkeysEnabled : true,
+            dualSubtitlesEnabled: oldSettings.dualSubtitlesEnabled !== undefined ? oldSettings.dualSubtitlesEnabled : false,
+            secondarySubtitleLanguage: oldSettings.secondarySubtitleLanguage || null,
+            pauseOnHover: oldSettings.pauseOnHover !== undefined ? oldSettings.pauseOnHover : true,
+            pauseAtEnd: oldSettings.pauseAtEnd !== undefined ? oldSettings.pauseAtEnd : false,
+            autoPlayAfterNav: oldSettings.autoPlayAfterNav !== undefined ? oldSettings.autoPlayAfterNav : false,
+            hotkeys: oldSettings.hotkeys || {
+              previous: { key: "a", shift: false, ctrl: false, alt: false },
+              next: { key: "d", shift: false, ctrl: false, alt: false },
+              restart: { key: "s", shift: false, ctrl: false, alt: false },
+              toggle: { key: "w", shift: false, ctrl: false, alt: false }
+            }
+          };
+
+          // Save migrated settings
+          await chrome.storage.local.set({ videoPlayer: result.videoPlayer });
+          console.log("🔍 Migration complete:", result.videoPlayer);
+        }
+
         this.manager.settings = { ...this.manager.defaultSettings, ...result };
         console.log(
           "🔍 Settings loaded from Chrome storage:",
@@ -85,6 +111,12 @@ class HeliosSettingsStorage {
     // Special handling for shortcuts tab
     if (tabElement.id === "shortcuts") {
       this.collectShortcutsData(tabElement, formData);
+      return;
+    }
+
+    // Special handling for video-player tab
+    if (tabElement.id === "video-player") {
+      this.collectVideoPlayerData(tabElement, formData);
       return;
     }
 
@@ -163,26 +195,80 @@ class HeliosSettingsStorage {
       }
     });
 
-    // Collect video navigation shortcuts
-    formData.shortcuts.videoNavigation = {};
-    const videoNavShortcuts = {
-      "video-nav-previous": "previous",
-      "video-nav-next": "next",
-      "video-nav-restart": "restart",
-      "video-nav-toggle": "toggle"
+    console.log("🔍 Collected shortcuts data:", formData.shortcuts);
+  }
+
+  /**
+   * Collect video player settings data
+   */
+  collectVideoPlayerData(tabElement, formData) {
+    formData.videoPlayer = {
+      hotkeysEnabled: true,
+      dualSubtitlesEnabled: false,
+      secondarySubtitleLanguage: null,
+      pauseOnHover: true,
+      pauseAtEnd: false,
+      autoPlayAfterNav: false,
+      hotkeys: {
+        previous: { key: "a", shift: false, ctrl: false, alt: false },
+        next: { key: "d", shift: false, ctrl: false, alt: false },
+        restart: { key: "s", shift: false, ctrl: false, alt: false },
+        toggle: { key: "w", shift: false, ctrl: false, alt: false }
+      }
     };
 
-    Object.entries(videoNavShortcuts).forEach(([elementId, shortcutKey]) => {
+    // Collect checkboxes
+    const hotkeysEnabled = tabElement.querySelector("#video-hotkeys-enabled");
+    if (hotkeysEnabled) {
+      formData.videoPlayer.hotkeysEnabled = hotkeysEnabled.checked;
+    }
+
+    const pauseOnHover = tabElement.querySelector("#video-pause-on-hover");
+    if (pauseOnHover) {
+      formData.videoPlayer.pauseOnHover = pauseOnHover.checked;
+    }
+
+    const pauseAtEnd = tabElement.querySelector("#video-pause-at-end");
+    if (pauseAtEnd) {
+      formData.videoPlayer.pauseAtEnd = pauseAtEnd.checked;
+    }
+
+    const autoPlayAfterNav = tabElement.querySelector("#video-auto-play-after-nav");
+    if (autoPlayAfterNav) {
+      formData.videoPlayer.autoPlayAfterNav = autoPlayAfterNav.checked;
+    }
+
+    // Collect hotkeys
+    const hotkeyMap = {
+      "video-hotkey-prev": "previous",
+      "video-hotkey-next": "next",
+      "video-hotkey-restart": "restart",
+      "video-hotkey-toggle": "toggle"
+    };
+
+    Object.entries(hotkeyMap).forEach(([elementId, hotkeyKey]) => {
       const element = tabElement.querySelector(`#${elementId}`);
       if (element && element.value) {
         const parsed = this.parseHotkeyFromDisplay(element.value);
         if (parsed) {
-          formData.shortcuts.videoNavigation[shortcutKey] = parsed;
+          formData.videoPlayer.hotkeys[hotkeyKey] = parsed;
         }
       }
     });
 
-    console.log("🔍 Collected shortcuts data:", formData.shortcuts);
+    // Also save to ytSidebarSettings for backward compatibility
+    formData.ytSidebarSettings = { ...formData.videoPlayer };
+
+    // Sync video player hotkeys to shortcuts.videoNavigation for consistency
+    // Preserve existing shortcuts, only update videoNavigation
+    const existingShortcuts = this.manager.settings.shortcuts || this.manager.defaultSettings.shortcuts;
+    formData.shortcuts = {
+      ...existingShortcuts,
+      videoNavigation: { ...formData.videoPlayer.hotkeys }
+    };
+
+    console.log("🔍 Collected video player data:", formData.videoPlayer);
+    console.log("🔍 Synced to shortcuts.videoNavigation:", formData.shortcuts.videoNavigation);
   }
 
   /**

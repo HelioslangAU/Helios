@@ -122,7 +122,8 @@ class MultiCardPopupManager extends PopupManager {
       isIgnored,
       frequency,
       this.settingsManager.settings,
-      currentLanguage
+      currentLanguage,
+      this.dictionaryManager.dictionary
     );
 
     // Add to DOM and position

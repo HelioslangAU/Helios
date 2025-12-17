@@ -635,7 +635,7 @@ class PageProcessor {
       // For word-based languages, extract words using word boundaries
       // Pattern allows apostrophes and hyphens within words (e.g., "don't", "M'appelle")
       // This matches the pattern used in extractWords to ensure consistency
-      const wordRegex = /\b[\p{L}\p{M}]+(?:[''-][\p{L}\p{M}]+)*\b/gu;
+      const wordRegex = /(?<![\p{L}\p{M}])([\p{L}\p{M}]+(?:['’-][\p{L}\p{M}]+)*)(?![\p{L}\p{M}])/gu;
       let match;
       while ((match = wordRegex.exec(text)) !== null) {
         potentialWords.add(match[0].toLowerCase());
@@ -1238,5 +1238,36 @@ class PageProcessor {
     } else {
       this.clearUnknownWordHighlights();
     }
+  }
+
+  /**
+   * Clean up all observers and timeouts
+   */
+  cleanup() {
+    // Clear any pending timeouts
+    if (this.reprocessTimeout) {
+      clearTimeout(this.reprocessTimeout);
+      this.reprocessTimeout = null;
+    }
+
+    if (this.asbplayerTimeout) {
+      clearTimeout(this.asbplayerTimeout);
+      this.asbplayerTimeout = null;
+    }
+
+    // Disconnect all ASBPlayer observers
+    if (this.asbplayerObservers) {
+      this.asbplayerObservers.forEach(observer => {
+        observer.disconnect();
+      });
+      this.asbplayerObservers.clear();
+    }
+
+    // Clear unknown word elements
+    if (this.unknownWordElements) {
+      this.unknownWordElements.clear();
+    }
+
+    console.log('[PageProcessor] Cleanup complete');
   }
 }

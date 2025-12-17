@@ -157,65 +157,45 @@ class CardManager {
     if (this.languageRegistry.getCaseSensitive(this.languageRegistry.getCurrentLanguage())) {
       character = character.toLowerCase();
     }
-    let matches = this.dictionaryManager.dictionary[character];
+    // Use adapter's getDictionaryEntries to handle base word resolution and enhancements
+    let matches = null;
+    if (this.languageRegistry) {
+      const adapter = this.languageRegistry.getAdapter();
+      if (adapter && adapter.getDictionaryEntries) {
+        matches = adapter.getDictionaryEntries(character, this.dictionaryManager.dictionary);
+      }
+    }
+    
+    // Fallback to direct dictionary lookup if adapter method not available
+    if (!matches) {
+      matches = this.dictionaryManager.dictionary[character];
+    }
+    
     // Handle null/undefined from async dictionary proxy
     if (!matches) {
       matches = [];
-    }
-    
-    // If no matches found, check if it's a contraction (e.g., French l', d', c')
-    // Use the adapter's findDictionaryForm to get the base word
-    if ((!matches || matches.length === 0) && this.languageRegistry) {
-      const adapter = this.languageRegistry.getAdapter();
-      if (adapter && adapter.findDictionaryForm) {
-        const baseWord = adapter.findDictionaryForm(character, this.dictionaryManager.dictionary);
-        if (baseWord && baseWord !== character.toLowerCase()) {
-          // Found a base word (e.g., "affirme" from "l'affirme")
-          // Load the base word definition
-          if (this.dictionaryManager.getDefinition) {
-            await this.dictionaryManager.getDefinition(baseWord);
-          }
-          matches = this.dictionaryManager.dictionary[baseWord];
-          if (!matches) {
-            matches = [];
-          }
-          
-          // Enhance definitions with article information for contractions
-          if (matches.length > 0 && adapter.getLanguageCode && adapter.getLanguageCode() === 'fr') {
-            const contractionPattern = /^([a-z])'([a-zàâäéèêëïîôùûüÿç]+)$/i;
-            const match = character.toLowerCase().match(contractionPattern);
-            if (match) {
-              const article = match[1].toLowerCase();
-              const articleMap = {
-                'l': 'le/la',
-                'd': 'de',
-                'c': 'ce',
-                'n': 'ne',
-                's': 'se',
-                't': 'te',
-                'm': 'me',
-                'j': 'je'
-              };
-              const articleText = articleMap[article] || article + "'";
-              
-              // Enhance each definition with article info
-              matches = matches.map(m => ({
-                ...m,
-                definition: m.definition ? `${articleText} ${m.definition}` : articleText,
-                translation: m.translation ? `${articleText} ${m.translation}` : articleText
-              }));
-            }
-          }
-        }
-      }
     }
     if (matches && matches.length > 0) {
       // Process each match that has an empty definition
       const processedMatches = [];
       for (const match of matches) {
         if (match.definition === '') {
-          // If this match has variations, get the base form's definition
-          if (match.variations && match.variations.length > 0) {
+          // If this match has morphology, preserve it and let popup builder handle display
+          // Otherwise, if it has variations, get the base form's definition
+          const hasMorphology = match.morphology && typeof match.morphology === 'string' && match.morphology.trim().length > 0;
+          
+          if (hasMorphology) {
+            // Keep the entry with morphology - popup builder will handle displaying it
+            // But ensure base form is loaded so popup builder can look it up
+            if (match.variations && match.variations.length > 0) {
+              const baseForm = match.variations[0];
+              if (this.dictionaryManager.getDefinition) {
+                await this.dictionaryManager.getDefinition(baseForm);
+              }
+            }
+            processedMatches.push(match);
+          } else if (match.variations && match.variations.length > 0) {
+            // No morphology, so use the old behavior of adding base form definitions
             const baseForm = match.variations[0];
             
             // Ensure base form is loaded in dictionary (for async dictionary)
@@ -242,6 +222,17 @@ class CardManager {
       // Only update matches if we found any processed entries
       if (processedMatches.length > 0) {
         matches = processedMatches;
+      }
+      
+      // Ensure base forms are loaded for all entries with morphology (for popup builder lookup)
+      for (const match of matches) {
+        const hasMorphology = match.morphology && typeof match.morphology === 'string' && match.morphology.trim().length > 0;
+        if (hasMorphology && match.variations && match.variations.length > 0) {
+          const baseForm = match.variations[0];
+          if (baseForm && this.dictionaryManager.getDefinition) {
+            await this.dictionaryManager.getDefinition(baseForm);
+          }
+        }
       }
       
       // Enhance variant definitions by appending base variant definitions

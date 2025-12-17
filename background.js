@@ -157,7 +157,7 @@ class BackgroundService {
         autoHighlight:
           result.autoHighlight !== undefined ? result.autoHighlight : true,
         popupTheme: result.popupTheme || "dark",
-        targetLanguage: result.targetLanguage || "en",
+        targetLanguage: result.targetLanguage,
       };
 
       console.log("🔍 Loaded extension settings:", this.extensionSettings);
@@ -168,7 +168,7 @@ class BackgroundService {
         activationKey: "Shift",
         autoHighlight: true,
         popupTheme: "dark",
-        targetLanguage: "en",
+        targetLanguage: undefined,
       };
     }
   }
@@ -234,10 +234,9 @@ class BackgroundService {
         await chrome.storage.local.set({ popupTheme: "dark" });
       }
 
-      // Initialize target language (default to English if not set)
-      if (!result.targetLanguage) {
-        await chrome.storage.local.set({ targetLanguage: "en" });
-      }
+      // Don't set a default target language - it should remain blank/null
+      // until the user completes onboarding and selects their language
+      // The language will be set in onboarding-controller.js when onboarding completes
 
       // Set install date for first-time users
       if (!result.installDate) {
@@ -938,8 +937,20 @@ class BackgroundService {
     try {
       console.log(`🔧 Onboarding completed with language: ${languageCode}`);
 
-      // Reload our cached settings to include the new language
+      // Explicitly update cached settings with the new language
+      // This ensures we have the correct language even if storage hasn't fully synced
+      this.extensionSettings.targetLanguage = languageCode;
+
+      // Reload our cached settings to ensure everything is in sync
       await this.loadExtensionSettings();
+
+      // Double-check: if storage somehow doesn't have the language, set it explicitly
+      const storageCheck = await chrome.storage.local.get(['targetLanguage']);
+      if (!storageCheck.targetLanguage || storageCheck.targetLanguage !== languageCode) {
+        console.warn(`⚠️ Language mismatch in storage, fixing: expected ${languageCode}, got ${storageCheck.targetLanguage}`);
+        await chrome.storage.local.set({ targetLanguage: languageCode });
+        this.extensionSettings.targetLanguage = languageCode;
+      }
 
       // Broadcast to all tabs to reload with new language
       const tabs = await chrome.tabs.query({});

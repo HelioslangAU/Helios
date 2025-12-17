@@ -122,7 +122,8 @@ class PopupManager {
         this.vocabManager,
         this.frequencyManager,
         this.settingsManager.settings,
-        currentLanguage
+        currentLanguage,
+        this.dictionaryManager.dictionary
       );
 
       // Add to DOM and position

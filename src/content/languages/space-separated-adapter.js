@@ -34,35 +34,59 @@ class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
    * Extract words from text with positions
    * @param {string} text - Text to process
    * @param {Object} dictionary - Dictionary to validate against
-   * @returns {Array} - Array of {word, start, end} objects
+   * @returns {Array} - Array of {word, start, end, isTargetLang} objects
    */
   extractWords(text, dictionary) {
     const words = [];
-    //text = text.toLowerCase();
-    
 
-    // Use configured regex to find word boundaries and extract complete words
+    // Extract all words AND non-word content to preserve full subtitle text
     // Pattern allows apostrophes and hyphens within words (e.g., "don't", "M'appelle")
-    // Note: Match pattern that includes apostrophes and ensures proper boundaries
-    // The pattern matches: letters followed by optional (apostrophe/hyphen + letters) groups
     const wordRegex = new RegExp(`\\b[\\p{L}\\p{M}]+(?:[''-][\\p{L}\\p{M}]+)*\\b`, 'gu');
+
+    let lastIndex = 0;
     let match;
-    
+
     while ((match = wordRegex.exec(text)) !== null) {
       const word = match[0];
       const start = match.index;
       const end = start + word.length;
-      
-      // Check if word exists in dictionary (case-insensitive)
-      const normalizedWord = word.toLowerCase();
-      if (dictionary && dictionary[normalizedWord]) {
+
+      // Add any non-word content before this word (spaces, punctuation, numbers, etc.)
+      if (start > lastIndex) {
+        const nonWordText = text.substring(lastIndex, start);
         words.push({
-          word: word,
-          start: start,
-          end: end
+          word: nonWordText,
+          start: lastIndex,
+          end: start,
+          isTargetLang: false  // Non-word content is not interactive
         });
       }
+
+      // Check if word exists in dictionary (case-insensitive)
+      const normalizedWord = word.toLowerCase();
+      const isInDictionary = dictionary && dictionary[normalizedWord];
+
+      words.push({
+        word: word,
+        start: start,
+        end: end,
+        isTargetLang: isInDictionary ? true : false  // Only dictionary words are interactive
+      });
+
+      lastIndex = end;
     }
+
+    // Add any remaining non-word content after the last word
+    if (lastIndex < text.length) {
+      const remainingText = text.substring(lastIndex);
+      words.push({
+        word: remainingText,
+        start: lastIndex,
+        end: text.length,
+        isTargetLang: false
+      });
+    }
+
     return words;
   }
 
@@ -113,7 +137,10 @@ class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
    * @returns {string} - Normalized word
    */
   normalizeWord(word) {
-    return word.toLowerCase().trim();
+    // Normalize to NFC so composed/decomposed accent forms match (e.g. "é" vs "é")
+    return word
+      ? word.toLowerCase().trim().normalize('NFC')
+      : '';
   }
 
   /**
@@ -135,7 +162,7 @@ class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
    * @returns {string|null} - Found dictionary form or null
    */
   findDictionaryForm(word, dictionary) {
-      const normalizedWord = word.toLowerCase().trim();
+      const normalizedWord = word.toLowerCase().trim().normalize('NFC');
       
       // First check if the word exists as is
       if (dictionary[normalizedWord] && dictionary[normalizedWord].length > 0) {
@@ -149,14 +176,44 @@ class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
         for (const mapping of dictionary[normalizedWord][0][5]) {
           if (Array.isArray(mapping) && mapping.length > 0) {
             const baseForm = mapping[0];
-            if (dictionary[baseForm]) {
-              return baseForm;
+            const normalizedBaseForm = baseForm.toLowerCase().trim().normalize('NFC');
+            if (dictionary[normalizedBaseForm]) {
+              return normalizedBaseForm;
             }
           }
         }
       }
 
       return null;
+  }
+
+  /**
+   * Get dictionary entries for a word, handling base word resolution
+   * @param {string} word - Word to look up
+   * @param {Object} dictionary - Dictionary object
+   * @returns {Array|null} - Dictionary entries or null if not found
+   */
+  getDictionaryEntries(word, dictionary) {
+    if (!word || !dictionary) return null;
+
+    const normalizedWord = word.toLowerCase().trim();
+    
+    // First check if the word exists directly
+    let entries = dictionary[normalizedWord];
+    if (entries && entries.length > 0) {
+      return entries;
+    }
+
+    // Try to find base word using findDictionaryForm
+    const baseWord = this.findDictionaryForm(word, dictionary);
+    if (baseWord && baseWord !== normalizedWord) {
+      entries = dictionary[baseWord];
+      if (entries && entries.length > 0) {
+        return entries;
+      }
+    }
+
+    return null;
   }
 
     /**
@@ -177,7 +234,8 @@ class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
       
       if (!word) continue;
 
-      const normalizedWord = word.toLowerCase().trim();
+      // Normalize dictionary keys to NFC for consistent accent handling
+      const normalizedWord = word.toLowerCase().trim().normalize('NFC');
       if (!dictionary[normalizedWord]) {
         dictionary[normalizedWord] = [];
       }
@@ -192,22 +250,22 @@ class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
           if (content.type === 'structured-content') {
             for (const section of content.content) {
               // Extract grammar information
-              // if (section.content && Array.isArray(section.content)) {
-              //   for (const item of section.content) {
-              //     if (item.data?.content === 'details-entry-Grammar') {
-              //       const grammarContent = item.content.find(c => c.data?.content === 'Grammar-content');
-              //       if (grammarContent) {
-              //         grammar = grammarContent.content || '';
-              //       }
-              //     }
-              //     // if (item.data?.content === 'details-entry-Morphemes') {
-              //     //   const morphContent = item.content.find(c => c.data?.content === 'Morphemes-content');
-              //     //   if (morphContent) {
-              //     //     morphology = morphContent.content || '';
-              //     //   }
-              //     // }
-              //   }
-              // }
+              if (section.content && Array.isArray(section.content)) {
+                for (const item of section.content) {
+                  if (item.data?.content === 'details-entry-Grammar') {
+                    const grammarContent = item.content.find(c => c.data?.content === 'Grammar-content');
+                    if (grammarContent) {
+                      grammar = grammarContent.content || '';
+                    }
+                  }
+                  if (item.data?.content === 'details-entry-Morphemes') {
+                    const morphContent = item.content.find(c => c.data?.content === 'Morphemes-content');
+                    if (morphContent) {
+                      morphology = morphContent.content || '';
+                    }
+                  }
+                }
+              }
                       // Extract definitions from glosses
               if (section.data?.content === 'glosses' && Array.isArray(section.content)) {
                 for (const li of section.content) {
@@ -251,12 +309,60 @@ class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
 
         // If this is a non-lemma entry (variation of another word)
         if (grammarInfo === 'non-lemma' && Array.isArray(entry[5])) {
-          // Add base forms to variations so we can find their definitions
+          const morphologyParts = [];
+          
+          // Extract base forms and morphology from mappings
           for (const mapping of entry[5]) {
             if (Array.isArray(mapping) && mapping.length > 0) {
               const baseForm = mapping[0];
               if (baseForm && !newEntry.variations.includes(baseForm)) {
                 newEntry.variations.push(baseForm);
+              }
+              
+              // Extract morphology from the second element (array of morphology strings)
+              if (mapping.length > 1 && Array.isArray(mapping[1])) {
+                for (const morphString of mapping[1]) {
+                  if (typeof morphString === 'string' && morphString.trim()) {
+                    morphologyParts.push(morphString.trim());
+                  }
+                }
+              }
+            }
+          }
+          
+          // Set morphology if we found any morphology information
+          if (morphologyParts.length > 0) {
+            newEntry.morphology = morphologyParts.join('; ');
+          }
+          
+          // Look up and store base form (lemma) definitions to avoid lookups on hover
+          if (newEntry.variations.length > 0) {
+            const baseForm = newEntry.variations[0];
+            const normalizedBaseForm = baseForm.toLowerCase().trim();
+            const baseFormEntries = dictionary[normalizedBaseForm];
+            
+            // If normalized lookup fails, try the base form as-is
+            const foundBaseEntries = baseFormEntries || dictionary[baseForm];
+            
+            if (foundBaseEntries && Array.isArray(foundBaseEntries) && foundBaseEntries.length > 0) {
+              // Store the base form definitions in the entry
+              newEntry.baseFormDefinitions = foundBaseEntries.map(baseEntry => ({
+                definition: baseEntry.definition || '',
+                translation: baseEntry.translation || '',
+                partOfSpeech: baseEntry.partOfSpeech || '',
+                grammar: baseEntry.grammar || ''
+              }));
+              
+              // Add this non-lemma word to the base/lemma entry's variations list
+              for (const baseEntry of foundBaseEntries) {
+                // Initialize variations array if it doesn't exist
+                if (!baseEntry.variations) {
+                  baseEntry.variations = [];
+                }
+                // Add the non-lemma word if it's not already in the variations list
+                if (!baseEntry.variations.includes(word)) {
+                  baseEntry.variations.push(word);
+                }
               }
             }
           }
@@ -336,7 +442,12 @@ class EnglishLanguageAdapter extends SpaceSeparatedLanguageAdapter {
 
         if (!word) continue;
 
-        const normalizedWord = word.toLowerCase().replace(/^'|'$/g, ''); // Remove leading/trailing quotes
+        // Normalize to NFC and strip leading/trailing quotes for consistent keys
+        const normalizedWord = word
+          .toLowerCase()
+          .replace(/^'|'$/g, '')
+          .trim()
+          .normalize('NFC');
         if (!dictionary[normalizedWord]) {
           dictionary[normalizedWord] = [];
         }
@@ -459,26 +570,52 @@ class SpanishLanguageAdapter extends SpaceSeparatedLanguageAdapter {
   extractWords(text, dictionary) {
     const words = [];
     // Pattern allows apostrophes and hyphens within words (e.g., "no's", "d'accord")
-    // Note: Match pattern that includes apostrophes and ensures proper boundaries
-    // The pattern matches: letters followed by optional (apostrophe/hyphen + letters) groups
-    const wordRegex = new RegExp(`\\b[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]+(?:[''-][a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]+)*\\b`, 'g');
-    let match;
     
+    const wordRegex = /(?<![\p{L}\p{M}])[\p{L}\p{M}]+(?:[''-][\p{L}\p{M}]+)*(?![\p{L}\p{M}])/gu;
+
+
+    let lastIndex = 0;
+    let match;
+
     while ((match = wordRegex.exec(text)) !== null) {
-      const word = match[0]; 
+      const word = match[0];
       const start = match.index;
       const end = start + word.length;
-      
-      const dictionaryForm = this.findDictionaryForm(word, dictionary);
-      if (dictionaryForm) {
+
+      // Add any non-word content before this word (spaces, punctuation, numbers, etc.)
+      if (start > lastIndex) {
+        const nonWordText = text.substring(lastIndex, start);
         words.push({
-          word: word,
-          start: start,
-          end: end,
-          dictionaryForm: dictionaryForm // Store the base form for dictionary lookup
+          word: nonWordText,
+          start: lastIndex,
+          end: start,
+          isTargetLang: false
         });
       }
+
+      const dictionaryForm = this.findDictionaryForm(word, dictionary);
+      words.push({
+        word: word,
+        start: start,
+        end: end,
+        dictionaryForm: dictionaryForm, // Store the base form for dictionary lookup
+        isTargetLang: dictionaryForm ? true : false
+      });
+
+      lastIndex = end;
     }
+
+    // Add any remaining non-word content after the last word
+    if (lastIndex < text.length) {
+      const remainingText = text.substring(lastIndex);
+      words.push({
+        word: remainingText,
+        start: lastIndex,
+        end: text.length,
+        isTargetLang: false
+      });
+    }
+
     return words;
   }
   
@@ -623,10 +760,10 @@ class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
    * @returns {string} - Normalized word
    */
   normalizeWord(word) {
-    const normalizedWord = word.toLowerCase().trim();
-    
-    // First try the word as is
-    return normalizedWord;
+    // Use the same NFC normalization as the base adapter so accents match dictionary keys
+    return word
+      ? word.toLowerCase().trim().normalize('NFC')
+      : '';
   }
 
   /**
@@ -636,7 +773,7 @@ class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
    * @returns {string|null} - Found dictionary form or null
    */
   findDictionaryForm(word, dictionary) {
-    const normalizedWord = word.toLowerCase().trim();
+    const normalizedWord = word.toLowerCase().trim().normalize('NFC');
     
     // First check if the word exists as is (including contractions if they're in dictionary)
     if (dictionary[normalizedWord] && dictionary[normalizedWord].length > 0) {
@@ -708,31 +845,55 @@ class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
    * Override extractWords to handle French word variations
    * @param {string} text - Text to process
    * @param {Object} dictionary - Dictionary to validate against
-   * @returns {Array} - Array of {word, start, end} objects
+   * @returns {Array} - Array of {word, start, end, isTargetLang} objects
    */
   extractWords(text, dictionary) {
     const words = [];
     // Pattern allows apostrophes and hyphens within words (e.g., "M'appelle", "d'accord", "c'est")
-    // Note: Match pattern that includes apostrophes and ensures proper boundaries
-    // The pattern matches: letters followed by optional (apostrophe/hyphen + letters) groups
-    const wordRegex = new RegExp(`\\b[\\p{L}\\p{M}]+(?:[''-][\\p{L}\\p{M}]+)*\\b`, 'gu');
+    const wordRegex = /(?<![\p{L}\p{M}])[\p{L}\p{M}]+(?:[''-][\p{L}\p{M}]+)*(?![\p{L}\p{M}])/gu;
+
+    let lastIndex = 0;
     let match;
-    
+
     while ((match = wordRegex.exec(text)) !== null) {
       const word = match[0];
       const start = match.index;
       const end = start + word.length;
-      
-      const dictionaryForm = this.findDictionaryForm(word, dictionary);
-      if (dictionaryForm) {
+
+      // Add any non-word content before this word (spaces, punctuation, numbers, etc.)
+      if (start > lastIndex) {
+        const nonWordText = text.substring(lastIndex, start);
         words.push({
-          word: word,
-          start: start,
-          end: end,
-          dictionaryForm: dictionaryForm // Store the base form for dictionary lookup
+          word: nonWordText,
+          start: lastIndex,
+          end: start,
+          isTargetLang: false
         });
       }
+
+      const dictionaryForm = this.findDictionaryForm(word, dictionary);
+      words.push({
+        word: word,
+        start: start,
+        end: end,
+        dictionaryForm: dictionaryForm, // Store the base form for dictionary lookup
+        isTargetLang: dictionaryForm ? true : false
+      });
+
+      lastIndex = end;
     }
+
+    // Add any remaining non-word content after the last word
+    if (lastIndex < text.length) {
+      const remainingText = text.substring(lastIndex);
+      words.push({
+        word: remainingText,
+        start: lastIndex,
+        end: text.length,
+        isTargetLang: false
+      });
+    }
+
     return words;
   }
 
@@ -780,6 +941,59 @@ class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
       console.error('Error parsing dictionary:', error);
       return {};
     }
+  }
+
+  /**
+   * Override getDictionaryEntries to handle French contractions with article mapping
+   * @param {string} word - Word to look up
+   * @param {Object} dictionary - Dictionary object
+   * @returns {Array|null} - Dictionary entries (enhanced with article info for contractions) or null if not found
+   */
+  getDictionaryEntries(word, dictionary) {
+    if (!word || !dictionary) return null;
+
+    const normalizedWord = word.toLowerCase().trim().normalize('NFC');
+    
+    // First check if the word exists directly
+    let entries = dictionary[normalizedWord];
+    if (entries && entries.length > 0) {
+      return entries;
+    }
+
+    // Try to find base word using findDictionaryForm
+    const baseWord = this.findDictionaryForm(word, dictionary);
+    if (baseWord && baseWord !== normalizedWord) {
+      entries = dictionary[baseWord];
+      if (entries && entries.length > 0) {
+        // Check if this is a French contraction and enhance definitions
+        const contractionPattern = /^([a-z])'([a-zàâäéèêëïîôùûüÿç]+)$/i;
+        const match = normalizedWord.match(contractionPattern);
+        if (match) {
+          const article = match[1].toLowerCase();
+          const articleMap = {
+            'l': 'le/la',
+            'd': 'de',
+            'c': 'ce',
+            'n': 'ne',
+            's': 'se',
+            't': 'te',
+            'm': 'me',
+            'j': 'je'
+          };
+          const articleText = articleMap[article] || article + "'";
+          
+          // Enhance each definition with article info (only if definition/translation is not empty)
+          // return entries.map(entry => ({
+          //   ...entry,
+          //   definition: entry.definition && entry.definition.trim() ? `${articleText} ${entry.definition}` : entry.definition,
+          //   translation: entry.translation && entry.translation.trim() ? `${articleText} ${entry.translation}` : entry.translation
+          // }));
+        }
+        return entries;
+      }
+    }
+
+    return null;
   }
 }
 
