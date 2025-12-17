@@ -244,7 +244,18 @@ class VideoBinding {
    * @param {number} timeMs - Time in milliseconds
    */
   seekTo(timeMs) {
-    this.videoElement.currentTime = timeMs / 1000;
+    // Check if we're on Netflix - use Netflix API to avoid anti-tampering
+    const isNetflix = window.location.hostname.includes('netflix.com');
+
+    if (isNetflix) {
+      // Use Netflix's player API via page script
+      window.dispatchEvent(new CustomEvent('helios-netflix-seek-request', {
+        detail: { timeMs }
+      }));
+    } else {
+      // Standard seek for other platforms
+      this.videoElement.currentTime = timeMs / 1000;
+    }
   }
 
   /**
