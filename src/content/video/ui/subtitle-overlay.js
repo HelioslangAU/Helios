@@ -666,40 +666,74 @@ class SubtitleOverlay {
   }
 
   /**
+   * Detect current platform (youtube, netflix, or generic)
+   */
+  _detectPlatform() {
+    const hostname = window.location.hostname;
+    if (hostname.includes('youtube.com')) {
+      return 'youtube';
+    } else if (hostname.includes('netflix.com')) {
+      return 'netflix';
+    }
+    return 'generic';
+  }
+
+  /**
    * Load settings from storage (pause on hover + saved subtitle position + size)
    * Follows ASBplayer's approach of using chrome.storage for persistent subtitle settings
+   * Now supports per-platform settings isolation
    */
   async _loadSettings() {
     try {
-      const result = await chrome.storage.local.get(['ytSidebarSettings', 'subtitlePosition', 'subtitleSize', 'subtitleVisibility']);
+      const platform = this._detectPlatform();
+      const result = await chrome.storage.local.get([
+        'ytSidebarSettings',
+        'subtitleSettings',
+        // Legacy keys for migration
+        'subtitlePosition',
+        'subtitleSize',
+        'subtitleVisibility'
+      ]);
 
       // Load pause on hover setting
       if (result.ytSidebarSettings && result.ytSidebarSettings.pauseOnHover !== undefined) {
         this.pauseOnHover = result.ytSidebarSettings.pauseOnHover;
       }
 
-      // Load saved subtitle position (ASBplayer-style)
-      if (result.subtitlePosition) {
-        this.customOffsetX = result.subtitlePosition.offsetX || 0;
-        this.customOffsetY = result.subtitlePosition.offsetY || 0;
-        this.contentPositionOffset = result.subtitlePosition.bottomOffset || 75;
-        this.hasCustomPosition = result.subtitlePosition.hasCustomPosition || false;
+      // Check if we have new platform-specific settings
+      const platformSettings = result.subtitleSettings?.[platform];
+
+      // Load saved subtitle position (platform-specific or legacy)
+      const positionData = platformSettings?.position || result.subtitlePosition;
+      if (positionData) {
+        this.customOffsetX = positionData.offsetX || 0;
+        this.customOffsetY = positionData.offsetY || 0;
+        this.contentPositionOffset = positionData.bottomOffset || 75;
+        this.hasCustomPosition = positionData.hasCustomPosition || false;
       }
 
-      // Load saved subtitle size (ASBplayer-style)
-      if (result.subtitleSize !== undefined) {
-        this.subtitleSize = result.subtitleSize;
+      // Load saved subtitle size (platform-specific or legacy)
+      const subtitleSize = platformSettings?.size !== undefined ? platformSettings.size : result.subtitleSize;
+      if (subtitleSize !== undefined) {
+        this.subtitleSize = subtitleSize;
       }
 
-      // Load saved visibility state (persists across all videos)
-      if (result.subtitleVisibility !== undefined) {
-        this.isVisible = result.subtitleVisibility;
+      // Load saved visibility state (platform-specific or legacy)
+      const visibility = platformSettings?.visibility !== undefined ? platformSettings.visibility : result.subtitleVisibility;
+      if (visibility !== undefined) {
+        this.isVisible = visibility;
 
         // Apply visibility state immediately if hidden
         if (!this.isVisible) {
           this.container.style.display = 'none';
         }
       }
+
+      console.log(`[Helios Subtitle Overlay] Loaded settings for platform: ${platform}`, {
+        position: positionData,
+        size: subtitleSize,
+        visibility
+      });
     } catch (error) {
       console.error('[Helios Subtitle Overlay] Failed to load settings:', error);
     }
@@ -707,9 +741,11 @@ class SubtitleOverlay {
 
   /**
    * Save current subtitle position to storage (ASBplayer-style persistence)
+   * Now platform-specific
    */
   async _savePosition() {
     try {
+      const platform = this._detectPlatform();
       const positionData = {
         offsetX: this.customOffsetX,
         offsetY: this.customOffsetY,
@@ -717,7 +753,24 @@ class SubtitleOverlay {
         hasCustomPosition: this.hasCustomPosition
       };
 
-      await chrome.storage.local.set({ subtitlePosition: positionData });
+      // Get existing settings
+      const result = await chrome.storage.local.get(['subtitleSettings']);
+      const subtitleSettings = result.subtitleSettings || {};
+
+      // Update platform-specific position
+      if (!subtitleSettings[platform]) {
+        subtitleSettings[platform] = {};
+      }
+      subtitleSettings[platform].position = positionData;
+
+      // Save back
+      await chrome.storage.local.set({
+        subtitleSettings,
+        // Also save to legacy key for backward compatibility
+        subtitlePosition: positionData
+      });
+
+      console.log(`[Helios Subtitle Overlay] Saved position for ${platform}:`, positionData);
     } catch (error) {
       console.error('[Helios Subtitle Overlay] Failed to save position:', error);
     }
@@ -725,10 +778,30 @@ class SubtitleOverlay {
 
   /**
    * Save current subtitle size to storage (ASBplayer-style persistence)
+   * Now platform-specific
    */
   async _saveSize() {
     try {
-      await chrome.storage.local.set({ subtitleSize: this.subtitleSize });
+      const platform = this._detectPlatform();
+
+      // Get existing settings
+      const result = await chrome.storage.local.get(['subtitleSettings']);
+      const subtitleSettings = result.subtitleSettings || {};
+
+      // Update platform-specific size
+      if (!subtitleSettings[platform]) {
+        subtitleSettings[platform] = {};
+      }
+      subtitleSettings[platform].size = this.subtitleSize;
+
+      // Save back
+      await chrome.storage.local.set({
+        subtitleSettings,
+        // Also save to legacy key for backward compatibility
+        subtitleSize: this.subtitleSize
+      });
+
+      console.log(`[Helios Subtitle Overlay] Saved size for ${platform}:`, this.subtitleSize);
     } catch (error) {
       console.error('[Helios Subtitle Overlay] Failed to save size:', error);
     }
@@ -736,10 +809,30 @@ class SubtitleOverlay {
 
   /**
    * Save visibility state to storage (persists across all videos)
+   * Now platform-specific
    */
   async _saveVisibility() {
     try {
-      await chrome.storage.local.set({ subtitleVisibility: this.isVisible });
+      const platform = this._detectPlatform();
+
+      // Get existing settings
+      const result = await chrome.storage.local.get(['subtitleSettings']);
+      const subtitleSettings = result.subtitleSettings || {};
+
+      // Update platform-specific visibility
+      if (!subtitleSettings[platform]) {
+        subtitleSettings[platform] = {};
+      }
+      subtitleSettings[platform].visibility = this.isVisible;
+
+      // Save back
+      await chrome.storage.local.set({
+        subtitleSettings,
+        // Also save to legacy key for backward compatibility
+        subtitleVisibility: this.isVisible
+      });
+
+      console.log(`[Helios Subtitle Overlay] Saved visibility for ${platform}:`, this.isVisible);
     } catch (error) {
       console.error('[Helios Subtitle Overlay] Failed to save visibility:', error);
     }

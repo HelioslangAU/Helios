@@ -7,6 +7,7 @@ class VideoFeatureManager {
     this.videoDetector = null;
     this.fileLoader = null;
     this.youtubeLoader = null;
+    this.netflixLoader = null;
     this.panelController = null;
     this.uiController = null;
     this.isInitialized = false;
@@ -33,11 +34,13 @@ class VideoFeatureManager {
     this.videoDetector = new VideoDetector();
     this.fileLoader = new SubtitleFileLoader(this.videoDetector);
     this.youtubeLoader = new YouTubeSubtitleLoader(this.videoDetector);
-    this.uiController = new VideoUIController(this.videoDetector, this.fileLoader, this.youtubeLoader);
+    this.netflixLoader = new NetflixSubtitleLoader();
+    this.uiController = new VideoUIController(this.videoDetector, this.fileLoader, this.youtubeLoader, this.netflixLoader);
 
     // Initialize all components
     this.videoDetector.start();
     await this.fileLoader.init();
+    await this.netflixLoader.init();
     await this.uiController.init();
 
     // Setup integration event listeners

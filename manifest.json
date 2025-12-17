@@ -22,6 +22,12 @@
 
   "content_scripts": [
     {
+      "matches": ["*://*.netflix.com/*"],
+      "js": ["src/content/video/netflix/netflix-early-inject.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    },
+    {
       "matches": ["<all_urls>"],
       "js": [
         "src/config/paths.js",
@@ -71,6 +77,8 @@
         "src/content/video/core/video-detector.js",
         "src/content/video/loaders/subtitle-file-loader.js",
         "src/content/video/loaders/youtube-subtitle-loader.js",
+        "src/content/video/loaders/netflix-subtitle-loader.js",
+        "src/content/video/netflix/netflix-detector.js",
         "src/content/video/controllers/video-ui-controller.js",
         "src/content/video/video-feature-manager.js",
         "src/content/video/youtube/theater-mode-controller.js",
@@ -137,6 +145,7 @@
         "src/ui/video/video-styles.css",
         "src/ui/video/subtitle-selector.css",
         "src/content/video/youtube/youtube-page-script.js",
+        "src/content/video/netflix/netflix-page-script.js",
         "src/ui/youtube-sidebar/youtube-sidebar.html",
         "src/ui/youtube-sidebar/youtube-sidebar.css",
         "lib/jieba/dict.txt.big",
