@@ -1405,6 +1405,27 @@ class SubtitleOverlay {
   }
 
   /**
+   * Get current subtitle size
+   */
+  getSubtitleSize() {
+    return this.subtitleSize;
+  }
+
+  /**
+   * Set subtitle size
+   */
+  setSubtitleSize(size) {
+    const clampedSize = Math.max(12, Math.min(100, size));
+    this.subtitleSize = clampedSize;
+
+    // Re-render subtitles with new size
+    this._render();
+
+    // Save to settings
+    this._saveSize();
+  }
+
+  /**
    * Destroy overlay and cleanup
    */
   destroy() {

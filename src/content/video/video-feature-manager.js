@@ -34,13 +34,13 @@ class VideoFeatureManager {
     this.videoDetector = new VideoDetector();
     this.fileLoader = new SubtitleFileLoader(this.videoDetector);
     this.youtubeLoader = new YouTubeSubtitleLoader(this.videoDetector);
-    this.netflixLoader = new NetflixSubtitleLoader();
+    this.netflixLoader = new NetflixSubtitleLoader(this.videoDetector);
     this.uiController = new VideoUIController(this.videoDetector, this.fileLoader, this.youtubeLoader, this.netflixLoader);
 
     // Initialize all components
     this.videoDetector.start();
     await this.fileLoader.init();
-    await this.netflixLoader.init();
+    // NetflixSubtitleLoader no longer needs init() - it extends BasePlatformSubtitleLoader
     await this.uiController.init();
 
     // Setup integration event listeners

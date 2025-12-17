@@ -1,310 +1,424 @@
 /**
- * Netflix Page Script - Runs in Netflix's page context
- * Based on asbplayer's Netflix extraction technique
- * Intercepts JSON to force WebVTT format and extract subtitle URLs
+ * Netflix Page Context Script
+ * Based on asbplayer's approach for extracting Netflix subtitles
+ *
+ * This script runs in the page context (not extension context)
+ * which allows access to Netflix's internal APIs and player data
  */
 
 (function() {
-    'use strict';
+  'use strict';
 
-    console.log('[Helios Netflix] Page script injected');
+  console.log('[Helios Netflix Page] Page script loaded');
 
-    // Store subtitle tracks: movieId -> trackId -> URL
-    const subTracks = new Map();
+  const WEBVTT_PROFILE = 'webvtt-lssdh-ios8';
+  const manifestPattern = /manifest|licensedManifest/;
+  const subTracks = new Map(); // Store subtitle URLs by movieId -> trackId -> url
 
-    // Pattern to detect manifest URLs
-    const manifestPattern = /manifest|licensedmanifest/;
-    const webvttProfile = 'webvtt-lssdh-ios8';
+  /**
+   * Get Netflix API
+   */
+  function getAPI() {
+    if (typeof netflix === 'undefined') {
+      return undefined;
+    }
+    return netflix?.appContext?.state?.playerApp?.getAPI?.();
+  }
 
-    // Save original JSON methods
-    const originalStringify = JSON.stringify;
-    const originalParse = JSON.parse;
+  /**
+   * Get video player
+   */
+  function getVideoPlayer() {
+    return getAPI()?.videoPlayer;
+  }
 
-    /**
-     * Override JSON.stringify to force WebVTT format in requests
-     */
-    JSON.stringify = function(value) {
-        if ('string' === typeof value?.url && manifestPattern.test(value.url)) {
-            // Force WebVTT profile for all subtitle tracks
-            for (let objectValue of Object.values(value)) {
-                if (objectValue && typeof objectValue === 'object') {
-                    const profiles = objectValue.profiles;
-                    if (Array.isArray(profiles) && !profiles.includes(webvttProfile)) {
-                        profiles.unshift(webvttProfile);
-                    }
-                }
-            }
-        }
-        return originalStringify.apply(this, arguments);
-    };
+  /**
+   * Get current player instance
+   */
+  function player() {
+    const netflixVideo = getVideoPlayer();
 
-    /**
-     * Override JSON.parse to intercept subtitle track URLs
-     */
-    JSON.parse = function() {
-        const value = originalParse.apply(this, arguments);
+    if (netflixVideo) {
+      const playerSessionIds = netflixVideo.getAllPlayerSessionIds?.() || [];
 
-        // Check if this is a Netflix video result with subtitle tracks
-        if (value?.result?.movieId) {
-            storeSubtitleTrack(value.result);
-        }
+      if (playerSessionIds.length === 0) {
+        console.error('[Helios Netflix Page] No Netflix player session IDs');
+        return undefined;
+      }
 
-        return value;
-    };
-
-    /**
-     * Extract and store subtitle track URLs from Netflix response
-     */
-    function storeSubtitleTrack(video) {
-        const movieId = video.movieId;
-        const timedTextTracks = video.timedtexttracks || [];
-
-        if (timedTextTracks.length === 0) {
-            return;
-        }
-
-        if (!subTracks.has(movieId)) {
-            subTracks.set(movieId, new Map());
-        }
-
-        const trackMap = subTracks.get(movieId);
-
-        for (const track of timedTextTracks) {
-            const trackId = track.new_track_id || track.id;
-            const url = extractUrl(track);
-
-            if (url && url !== 'lazy') {
-                trackMap.set(trackId, {
-                    url: url,
-                    language: track.language,
-                    languageDescription: track.languageDescription,
-                    isForced: track.isForcedNarrative || false,
-                    isClosedCaptions: track.cdnlist?.[0]?.content_profile === 'webvtt-lssdh-ios8'
-                });
-
-                console.log('[Helios Netflix] Stored subtitle track:', {
-                    movieId,
-                    trackId,
-                    language: track.language,
-                    url: url.substring(0, 100) + '...'
-                });
-            }
-        }
+      const playerSessionId = playerSessionIds[playerSessionIds.length - 1];
+      return netflixVideo.getVideoPlayerBySessionId?.(playerSessionId);
     }
 
-    /**
-     * Extract URL from track data
-     */
-    function extractUrl(track) {
-        const downloadables = track.ttDownloadables || {};
+    console.error('[Helios Netflix Page] Missing netflix global');
+    return undefined;
+  }
 
-        for (const [key, value] of Object.entries(downloadables)) {
-            if (value && typeof value === 'object' && 'urls' in value) {
-                const urls = value.urls || [];
-                if (urls.length > 0) {
-                    return urls[0]?.url;
-                }
-            }
-        }
+  /**
+   * Extract URL from track (legacy method)
+   */
+  function extractUrlLegacy(track) {
+    if (track.isForcedNarrative || track.isNoneTrack || !track.cdnlist?.length || !track.ttDownloadables) {
+      return undefined;
+    }
 
+    const webvttDL = track.ttDownloadables[WEBVTT_PROFILE];
+
+    if (!webvttDL?.downloadUrls) {
+      return undefined;
+    }
+
+    return webvttDL.downloadUrls[track.cdnlist.find(cdn => webvttDL.downloadUrls[cdn.id])?.id];
+  }
+
+  /**
+   * Extract URL from track (modern method)
+   */
+  function extractUrl(track) {
+    if (track.isForcedNarrative || track.isNoneTrack || !track.ttDownloadables) {
+      return undefined;
+    }
+
+    const webvttDL = track.ttDownloadables[WEBVTT_PROFILE];
+
+    if (!webvttDL?.urls || webvttDL.urls.length === 0) {
+      return 'lazy'; // URL not loaded yet
+    }
+
+    return webvttDL.urls[0].url;
+  }
+
+  /**
+   * Store subtitle track when intercepted from Netflix API
+   */
+  function storeSubTrack(video) {
+    const timedTextTracks = video.timedtexttracks || [];
+
+    for (const track of timedTextTracks) {
+      const url = extractUrlLegacy(track) ?? extractUrl(track);
+
+      if (url === undefined) {
+        continue;
+      }
+
+      if (!subTracks.has(video.movieId)) {
+        subTracks.set(video.movieId, new Map());
+      }
+
+      subTracks.get(video.movieId).set(track.new_track_id, url);
+      console.log('[Helios Netflix Page] Stored track:', track.new_track_id, 'URL:', url);
+    }
+  }
+
+  /**
+   * Intercept JSON.stringify to inject webvtt profile
+   */
+  const originalStringify = JSON.stringify;
+  JSON.stringify = function(value) {
+    if (typeof value?.url === 'string' && manifestPattern.test(value.url)) {
+      for (let objectValue of Object.values(value)) {
+        objectValue?.profiles?.unshift(WEBVTT_PROFILE);
+      }
+    }
+    return originalStringify.apply(this, arguments);
+  };
+
+  /**
+   * Intercept JSON.parse to capture subtitle tracks
+   */
+  const originalParse = JSON.parse;
+  JSON.parse = function() {
+    const value = originalParse.apply(this, arguments);
+
+    if (value?.result?.movieId) {
+      storeSubTrack(value.result);
+    }
+
+    return value;
+  };
+
+  /**
+   * Get Netflix subtitles
+   */
+  async function getNetflixSubtitles() {
+    try {
+      const np = player();
+      const titleId = np?.getMovieId();
+
+      if (!np || !titleId) {
+        console.warn('[Helios Netflix Page] Player or title ID not available');
         return null;
-    }
+      }
 
-    /**
-     * Get Netflix video player API
-     */
-    function getVideoPlayer() {
-        try {
-            return window.netflix?.appContext?.state?.playerApp?.getAPI?.()?.videoPlayer;
-        } catch (e) {
-            console.error('[Helios Netflix] Error accessing video player:', e);
-            return null;
-        }
-    }
+      const storedTracks = subTracks.get(titleId) || new Map();
+      const textTracks = np.getTimedTextTrackList();
 
-    /**
-     * Get current player instance
-     */
-    function getPlayer() {
-        try {
-            const netflixVideo = getVideoPlayer();
-            if (!netflixVideo) return null;
+      if (!textTracks || textTracks.length === 0) {
+        console.warn('[Helios Netflix Page] No text tracks available');
+        return null;
+      }
 
-            const playerSessionIds = netflixVideo.getAllPlayerSessionIds?.() || [];
-            const playerSessionId = playerSessionIds[playerSessionIds.length - 1];
+      console.log('[Helios Netflix Page] Found', textTracks.length, 'text tracks');
+      console.log('[Helios Netflix Page] Stored tracks:', storedTracks.size);
 
-            return netflixVideo.getVideoPlayerBySessionId?.(playerSessionId);
-        } catch (e) {
-            console.error('[Helios Netflix] Error getting player:', e);
-            return null;
-        }
-    }
+      const tracks = textTracks
+        .filter(track => {
+          // Filter out tracks without language code
+          if (!track.bcp47) return false;
 
-    /**
-     * Get current movie/episode ID
-     */
-    function getCurrentMovieId() {
-        try {
-            const player = getPlayer();
-            return player?.getMovieId?.() || null;
-        } catch (e) {
-            return null;
-        }
-    }
+          // Filter out "Off" tracks
+          if (track.displayName === 'Off' || track.isNoneTrack) return false;
 
-    /**
-     * Get all available subtitle tracks for current video
-     */
-    function getAllSubtitleTracks() {
-        const movieId = getCurrentMovieId();
-        if (!movieId) {
-            console.log('[Helios Netflix] No current movie ID');
-            return [];
-        }
+          // Filter out forced narrative tracks
+          if (track.isForcedNarrative) return false;
 
-        const trackMap = subTracks.get(movieId);
-        if (!trackMap || trackMap.size === 0) {
-            console.log('[Helios Netflix] No subtitle tracks found for movie:', movieId);
-            return [];
-        }
+          // ONLY show tracks that have stored URLs (ASB Player approach)
+          // This prevents showing 'lazy' tracks that can't be loaded
+          const hasStoredUrl = storedTracks.has(track.trackId);
+          if (!hasStoredUrl) {
+            // Try to find URL by language code match
+            const baseLang = track.bcp47.toLowerCase();
+            const isClosedCaptions = track.rawTrackType === 'CLOSEDCAPTIONS';
+            const language = isClosedCaptions ? `${baseLang}-cc` : baseLang;
 
-        const tracks = [];
-        for (const [trackId, trackData] of trackMap.entries()) {
-            tracks.push({
-                trackId,
-                ...trackData
-            });
-        }
-
-        return tracks;
-    }
-
-    /**
-     * Get video title/basename
-     */
-    function getVideoTitle() {
-        try {
-            const player = getPlayer();
-            const metadata = player?.getMovieMetadata?.();
-
-            if (metadata) {
-                const title = metadata.title || 'Netflix Video';
-                const season = metadata.season;
-                const episode = metadata.episode;
-
-                if (season && episode) {
-                    return `${title} S${String(season).padStart(2, '0')}E${String(episode).padStart(2, '0')}`;
-                }
-
-                return title;
+            let foundUrl = false;
+            for (const [storedId, storedUrl] of storedTracks.entries()) {
+              if ((storedId.includes(`;${baseLang};`) || storedId.includes(`;${language};`)) &&
+                  storedUrl && storedUrl !== 'lazy') {
+                foundUrl = true;
+                break;
+              }
             }
 
-            return 'Netflix Video';
-        } catch (e) {
-            return 'Netflix Video';
+            if (!foundUrl) {
+              return false; // Don't show tracks without URLs
+            }
+          }
+
+          return true;
+        })
+        .map(track => {
+          const isClosedCaptions = track.rawTrackType === 'CLOSEDCAPTIONS';
+          const language = isClosedCaptions ? `${track.bcp47.toLowerCase()}-cc` : track.bcp47.toLowerCase();
+          const baseLang = track.bcp47.toLowerCase();
+
+          // Try to find URL with both trackId formats
+          let url = storedTracks.get(track.trackId);
+
+          // If not found, try to match by language code in stored ID
+          if (!url || url === 'lazy') {
+            for (const [storedId, storedUrl] of storedTracks.entries()) {
+              // Check if stored ID contains the language code
+              // Format is like: T:2:0;1;en;0;0;0;
+              if ((storedId.includes(`;${baseLang};`) || storedId.includes(`;${language};`)) &&
+                  storedUrl && storedUrl !== 'lazy') {
+                console.log('[Helios Netflix Page] Matched track by language:', storedId, 'for', track.displayName);
+                url = storedUrl;
+                break;
+              }
+            }
+          }
+
+          return {
+            id: track.trackId,
+            language: language,
+            languageName: track.displayName || track.bcp47,
+            url: url,
+            isClosedCaptions: isClosedCaptions,
+            isForcedNarrative: track.isForcedNarrative || false,
+            rawTrack: track
+          };
+        })
+        .filter(track => track.url && track.url !== 'lazy'); // Final filter: only tracks with real URLs
+
+      return tracks;
+    } catch (error) {
+      console.error('[Helios Netflix Page] Error getting subtitles:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Trigger Netflix to load subtitle URL by setting the track
+   * Based on ASB Player's proven approach with 1-second polling interval
+   */
+  async function loadSubtitleUrl(trackId, language) {
+    try {
+      const np = player();
+      if (!np) {
+        return null;
+      }
+
+      const titleId = np.getMovieId();
+      const storedTracks = subTracks.get(titleId) || new Map();
+      const currentTrack = np.getTimedTextTrack();
+
+      // Find the track
+      const track = np.getTimedTextTrackList()?.find(t => t.trackId === trackId);
+      if (!track) {
+        console.error('[Helios Netflix Page] Track not found:', trackId);
+        return null;
+      }
+
+      // Check if URL is already available by trackId
+      let existingUrl = storedTracks.get(trackId);
+
+      // If not found by trackId, try matching by language in stored track IDs
+      if (!existingUrl || existingUrl === 'lazy') {
+        const baseLang = language.replace('-cc', '');
+        for (const [storedId, storedUrl] of storedTracks.entries()) {
+          if ((storedId.includes(`;${baseLang};`) || storedId.includes(`;${language};`)) &&
+              storedUrl && storedUrl !== 'lazy') {
+            console.log('[Helios Netflix Page] Found URL by language match:', storedId);
+            existingUrl = storedUrl;
+            break;
+          }
         }
+      }
+
+      if (existingUrl && existingUrl !== 'lazy') {
+        console.log('[Helios Netflix Page] Using existing URL');
+        return existingUrl;
+      }
+
+      // Temporarily set the track to trigger loading
+      console.log('[Helios Netflix Page] Setting track to trigger URL loading:', track.displayName);
+      await np.setTimedTextTrack(track);
+
+      // Poll for the URL to appear using ASB Player's timing (10 attempts × 1000ms = 10 seconds)
+      // Netflix needs more time between polls to populate the URL
+      for (let i = 0; i < 10; i++) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const url = storedTracks.get(trackId);
+        if (url && url !== 'lazy') {
+          console.log('[Helios Netflix Page] URL loaded after', (i + 1), 'seconds');
+          // Revert to original track
+          if (currentTrack) {
+            await np.setTimedTextTrack(currentTrack);
+          }
+          return url;
+        }
+      }
+
+      console.error('[Helios Netflix Page] Timeout waiting for URL to load after 10 seconds');
+      return null;
+    } catch (error) {
+      console.error('[Helios Netflix Page] Error loading subtitle URL:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Fetch subtitle content
+   */
+  async function fetchSubtitleContent(url) {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      return await response.text();
+    } catch (error) {
+      console.error('[Helios Netflix Page] Error fetching subtitle content:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Listen for subtitle track list requests
+   */
+  window.addEventListener('helios-netflix-request-subtitles', async (event) => {
+    console.log('[Helios Netflix Page] Received subtitle request');
+
+    const tracks = await getNetflixSubtitles();
+
+    if (tracks && tracks.length > 0) {
+      console.log('[Helios Netflix Page] Sending', tracks.length, 'tracks to content script');
+      window.dispatchEvent(new CustomEvent('helios-netflix-subtitles-response', {
+        detail: { success: true, tracks: tracks }
+      }));
+    } else {
+      window.dispatchEvent(new CustomEvent('helios-netflix-subtitles-response', {
+        detail: { success: false, error: 'No tracks available' }
+      }));
+    }
+  });
+
+  /**
+   * Listen for subtitle URL loading requests
+   */
+  window.addEventListener('helios-netflix-load-subtitle-url', async (event) => {
+    const { trackId, language } = event.detail;
+    console.log('[Helios Netflix Page] Loading URL for track:', trackId);
+
+    const url = await loadSubtitleUrl(trackId, language);
+
+    window.dispatchEvent(new CustomEvent('helios-netflix-subtitle-url-response', {
+      detail: { trackId, url, success: url !== null }
+    }));
+  });
+
+  /**
+   * Listen for subtitle content requests
+   */
+  window.addEventListener('helios-netflix-request-subtitle-content', async (event) => {
+    console.log('[Helios Netflix Page] Received subtitle content request');
+
+    const { url } = event.detail;
+
+    if (!url) {
+      window.dispatchEvent(new CustomEvent('helios-netflix-subtitle-content-response', {
+        detail: { success: false, error: 'No URL provided' }
+      }));
+      return;
     }
 
-    /**
-     * Get all available tracks using Netflix API (ASBPlayer approach)
-     */
-    function getAllAvailableTracks() {
-        try {
-            const player = getPlayer();
-            if (!player) {
-                console.log('[Helios Netflix] No player available');
-                return [];
-            }
+    const content = await fetchSubtitleContent(url);
 
-            const movieId = getCurrentMovieId();
-            if (!movieId) {
-                console.log('[Helios Netflix] No current movie ID');
-                return [];
-            }
-
-            const storedTracks = subTracks.get(movieId);
-            if (!storedTracks) {
-                console.log('[Helios Netflix] No stored tracks for movie:', movieId);
-                return [];
-            }
-
-            // Get available tracks from Netflix API
-            const timedTextTrackList = player.getTimedTextTrackList?.() || [];
-
-            const availableTracks = [];
-            for (const track of timedTextTrackList) {
-                const trackId = track.trackId;
-                const storedTrackData = storedTracks.get(trackId);
-
-                if (storedTrackData) {
-                    const isClosedCaptions = track.rawTrackType === 'CLOSEDCAPTIONS';
-                    availableTracks.push({
-                        trackId: trackId,
-                        language: track.bcp47 || track.language,
-                        languageDescription: track.displayName || track.languageDescription,
-                        url: storedTrackData.url,
-                        isForced: track.isForcedNarrative || storedTrackData.isForced || false,
-                        isClosedCaptions: isClosedCaptions
-                    });
-                }
-            }
-
-            return availableTracks;
-        } catch (e) {
-            console.error('[Helios Netflix] Error getting available tracks:', e);
-            return [];
-        }
+    if (content) {
+      window.dispatchEvent(new CustomEvent('helios-netflix-subtitle-content-response', {
+        detail: { success: true, content: content }
+      }));
+    } else {
+      window.dispatchEvent(new CustomEvent('helios-netflix-subtitle-content-response', {
+        detail: { success: false, error: 'Failed to fetch content' }
+      }));
     }
+  });
 
-    /**
-     * Listen for subtitle requests from content script
-     */
-    window.addEventListener('helios-netflix-request-subtitles', (event) => {
-        console.log('[Helios Netflix] Received subtitle request');
+  /**
+   * Listen for video seek requests
+   * Using Netflix's player API to seek avoids anti-tampering issues
+   */
+  window.addEventListener('helios-netflix-seek-request', (event) => {
+    const { timeMs } = event.detail;
+    console.log('[Helios Netflix Page] Received seek request:', timeMs, 'ms');
 
-        const tracks = getAllAvailableTracks();
-        const title = getVideoTitle();
-        const movieId = getCurrentMovieId();
+    try {
+      const np = player();
 
-        window.dispatchEvent(new CustomEvent('helios-netflix-subtitles-response', {
-            detail: {
-                tracks,
-                title,
-                movieId,
-                timestamp: Date.now()
-            }
+      if (!np) {
+        console.error('[Helios Netflix Page] Player not available for seeking');
+        window.dispatchEvent(new CustomEvent('helios-netflix-seek-response', {
+          detail: { success: false, error: 'Player not available' }
         }));
+        return;
+      }
 
-        console.log('[Helios Netflix] Sent subtitle response:', {
-            trackCount: tracks.length,
-            title,
-            movieId
-        });
-    });
+      // Netflix player uses milliseconds for seek
+      np.seek(timeMs);
 
-    /**
-     * Listen for specific track requests
-     */
-    window.addEventListener('helios-netflix-request-track', (event) => {
-        const { trackId } = event.detail || {};
-        const movieId = getCurrentMovieId();
+      console.log('[Helios Netflix Page] Seek successful:', timeMs, 'ms');
+      window.dispatchEvent(new CustomEvent('helios-netflix-seek-response', {
+        detail: { success: true, timeMs: timeMs }
+      }));
+    } catch (error) {
+      console.error('[Helios Netflix Page] Seek error:', error);
+      window.dispatchEvent(new CustomEvent('helios-netflix-seek-response', {
+        detail: { success: false, error: error.message }
+      }));
+    }
+  });
 
-        if (!movieId || !trackId) {
-            return;
-        }
-
-        const trackMap = subTracks.get(movieId);
-        const trackData = trackMap?.get(trackId);
-
-        if (trackData) {
-            window.dispatchEvent(new CustomEvent('helios-netflix-track-response', {
-                detail: {
-                    trackId,
-                    ...trackData
-                }
-            }));
-        }
-    });
-
-    console.log('[Helios Netflix] Page script ready and listening for requests');
+  console.log('[Helios Netflix Page] Ready to fetch subtitles and handle seeking');
 })();

@@ -132,7 +132,10 @@ class VideoUIController {
             // Reset auto-load flags and reload subtitles
             this.hasAutoLoaded = false;
             this.isCurrentlyLoading = false;
-            setTimeout(() => this.autoLoadNetflixSubtitles(), 2000);
+
+            // Wait longer for Netflix to fully load manifest (especially after navigation)
+            console.log('[Helios Video] Waiting 3 seconds for Netflix manifest to load...');
+            setTimeout(() => this.autoLoadNetflixSubtitles(), 3000);
           });
         }
       };
@@ -295,8 +298,21 @@ class VideoUIController {
         targetLanguage = settings.targetLanguage?.toLowerCase() || 'zh';
       }
 
-      // Get available tracks
-      const tracks = await this.netflixLoader.getAvailableTracks();
+      // Get available tracks (with retry for Netflix navigation)
+      let tracks = await this.netflixLoader.getAvailableTracks();
+
+      // If no tracks, retry a few times (tracks might not be ready after navigation)
+      if (tracks.length === 0) {
+        console.log('[Helios Video] No tracks yet, retrying in 1 second...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        tracks = await this.netflixLoader.getAvailableTracks();
+      }
+
+      if (tracks.length === 0) {
+        console.log('[Helios Video] Still no tracks, retrying one more time...');
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        tracks = await this.netflixLoader.getAvailableTracks();
+      }
 
       if (tracks.length === 0) {
         binding.finishLoadingSubtitles();
@@ -522,13 +538,9 @@ class VideoUIController {
       const binding = this.videoDetector.getPrimaryBinding();
 
       if (binding && entries.length > 0) {
-        binding.loadSubtitles(entries);
+        // loadSubtitles() will dispatch 'helios-subtitles-loaded' event automatically
+        binding.loadSubtitles(entries, track);
         console.log(`[Helios Video] ✅ Loaded ${entries.length} subtitles (${track.languageName})`);
-
-        // Dispatch event for subtitle panel to update
-        document.dispatchEvent(new CustomEvent('helios-subtitles-loaded', {
-          detail: { track, entries }
-        }));
       }
     } catch (error) {
       console.error('[Helios Video] Failed to load YouTube track:', error);
@@ -540,26 +552,14 @@ class VideoUIController {
    */
   async _loadNetflixTrack(track) {
     try {
+      const entries = await this.netflixLoader.loadTrack(track);
       const binding = this.videoDetector.getPrimaryBinding();
 
-      // Set up one-time handler for subtitles loaded
-      const handler = (data) => {
-        const { subtitles } = data;
-        if (binding && subtitles && subtitles.length > 0) {
-          binding.loadSubtitles(subtitles);
-          console.log(`[Helios Video] ✅ Loaded ${subtitles.length} Netflix subtitles (${track.languageName})`);
-
-          // Dispatch event for subtitle panel to update
-          document.dispatchEvent(new CustomEvent('helios-subtitles-loaded', {
-            detail: { track, entries: subtitles }
-          }));
-        }
-      };
-
-      // Set handler and load track
-      this.netflixLoader.onSubtitlesLoaded = handler;
-      await this.netflixLoader.loadTrack(track);
-
+      if (binding && entries.length > 0) {
+        // loadSubtitles() will dispatch 'helios-subtitles-loaded' event automatically
+        binding.loadSubtitles(entries, track);
+        console.log(`[Helios Video] ✅ Loaded ${entries.length} subtitles (${track.languageName})`);
+      }
     } catch (error) {
       console.error('[Helios Video] Failed to load Netflix track:', error);
     }
