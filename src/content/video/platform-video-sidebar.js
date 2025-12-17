@@ -1441,12 +1441,11 @@ class PlatformVideoSidebar {
             // Check if word is unknown and add styling
             const cleanWord = word.toLowerCase();
 
-            // Underline unknown words that are 10 characters or fewer (matches caption overlay behavior)
+            // Underline unknown words (no length restriction, matches YouTube sidebar and caption overlay)
             if (window.vocabManager &&
                 dictionary[cleanWord] &&
                 !window.vocabManager.isWordKnown(cleanWord) &&
-                !window.vocabManager.isWordIgnored(cleanWord) &&
-                word.length <= 10) {
+                !window.vocabManager.isWordIgnored(cleanWord)) {
               wordSpan.classList.add('unknown-word');
             }
 
