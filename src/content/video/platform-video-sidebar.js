@@ -1334,7 +1334,7 @@ class PlatformVideoSidebar {
         }
       }
 
-      for (let len = 2; len <= 3; len++) {
+      for (let len = 2; len <= 10; len++) {
         for (let i = 0; i <= text.length - len; i++) {
           const candidate = text.substring(i, i + len);
           if (candidate.trim() && !seen.has(candidate)) {
