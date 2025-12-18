@@ -1344,7 +1344,7 @@ class PlatformVideoSidebar {
         }
       }
     } else {
-      const matches = text.match(/[\p{L}\p{M}]+/gu);
+      const matches = text.match(/[\p{L}\p{M}]+(?:[''-][\p{L}\p{M}]+)*/gu);
       if (matches) {
         words.push(...matches.map(w => w.toLowerCase()));
       }
