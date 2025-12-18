@@ -2140,10 +2140,20 @@ class PlatformVideoSidebar {
    */
   async _loadSettings() {
     try {
-      const result = await chrome.storage.local.get(['platformSidebarSettings', 'videoFeatureEnabled']);
+      const result = await chrome.storage.local.get(['platformSidebarSettings', 'videoFeatureEnabled', 'extensionEnabled']);
+
+      // Check global extension toggle FIRST
+      const extensionEnabled = result.extensionEnabled !== false; // Default to true
 
       // Check global video feature toggle
       this.videoFeatureEnabled = result.videoFeatureEnabled !== false; // Default to true
+
+      // If extension is disabled globally, don't enable video features
+      if (!extensionEnabled) {
+        console.log('[Helios Platform Sidebar] Extension is disabled globally - sidebar will not initialize');
+        this.videoFeatureEnabled = false;
+        return; // Exit early, don't initialize
+      }
 
       if (result.platformSidebarSettings) {
         const loaded = result.platformSidebarSettings;
@@ -2235,18 +2245,37 @@ class PlatformVideoSidebar {
 // Initialize platform sidebar
 window.platformVideoSidebar = new PlatformVideoSidebar();
 
-// Listen for video feature toggle changes
+// Listen for video feature toggle changes AND global extension toggle
 chrome.storage.onChanged.addListener((changes, namespace) => {
-  if (namespace === 'local' && changes.videoFeatureEnabled) {
-    const isEnabled = changes.videoFeatureEnabled.newValue !== false;
+  if (namespace === 'local') {
+    // Handle global extension toggle (extensionEnabled)
+    if (changes.extensionEnabled) {
+      const isEnabled = changes.extensionEnabled.newValue !== false;
 
-    if (!isEnabled && window.platformVideoSidebar) {
-      console.log('[Helios Platform Sidebar] Video features disabled - destroying sidebar');
-      window.platformVideoSidebar.destroy();
-      window.platformVideoSidebar = null;
-    } else if (isEnabled && !window.platformVideoSidebar) {
-      console.log('[Helios Platform Sidebar] Video features enabled - reinitializing sidebar');
-      window.platformVideoSidebar = new PlatformVideoSidebar();
+      if (!isEnabled && window.platformVideoSidebar) {
+        console.log('[Helios Platform Sidebar] Extension disabled - hiding and disabling sidebar');
+        window.platformVideoSidebar.hide();
+        // Optionally destroy to clean up completely
+        window.platformVideoSidebar.destroy();
+        window.platformVideoSidebar = null;
+      } else if (isEnabled && !window.platformVideoSidebar) {
+        console.log('[Helios Platform Sidebar] Extension enabled - reinitializing sidebar');
+        window.platformVideoSidebar = new PlatformVideoSidebar();
+      }
+    }
+
+    // Handle video feature specific toggle (videoFeatureEnabled)
+    if (changes.videoFeatureEnabled) {
+      const isEnabled = changes.videoFeatureEnabled.newValue !== false;
+
+      if (!isEnabled && window.platformVideoSidebar) {
+        console.log('[Helios Platform Sidebar] Video features disabled - destroying sidebar');
+        window.platformVideoSidebar.destroy();
+        window.platformVideoSidebar = null;
+      } else if (isEnabled && !window.platformVideoSidebar) {
+        console.log('[Helios Platform Sidebar] Video features enabled - reinitializing sidebar');
+        window.platformVideoSidebar = new PlatformVideoSidebar();
+      }
     }
   }
 });
