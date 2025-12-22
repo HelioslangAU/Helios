@@ -89,10 +89,10 @@ class AudioRecorder {
             // Extract only audio tracks
             const audioStream = new MediaStream();
 
-            // Remove video tracks
+            // Don't stop video tracks - this breaks subsequent recordings
+            // Just don't add them to the audio stream
             stream.getVideoTracks().forEach(track => {
-                console.log('[Helios Audio] Stopping video track:', track.id);
-                track.stop();
+                console.log('[Helios Audio] Skipping video track:', track.id);
             });
 
             // Add audio tracks
