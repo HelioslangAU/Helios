@@ -564,14 +564,23 @@ class BackgroundService {
 
   async handleCaptureScreenshot(sender, sendResponse) {
     try {
-      // Capture the visible tab in the current window
-      // Using null for windowId captures the current window
+      // Get the active tab to ensure we have the right window
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+
+      if (tabs.length === 0) {
+        throw new Error('No active tab found');
+      }
+
+      const activeTab = tabs[0];
+      console.log('[Helios Background] Capturing screenshot for tab:', activeTab.id, 'in window:', activeTab.windowId);
+
+      // Capture the visible tab in the active window
       const dataUrl = await chrome.tabs.captureVisibleTab(
-        null,
+        activeTab.windowId,
         { format: 'jpeg', quality: 95 }
       );
 
-      console.log('[Helios Background] Screenshot captured successfully');
+      console.log('[Helios Background] Screenshot captured successfully, size:', dataUrl.length, 'bytes');
 
       sendResponse({
         success: true,
