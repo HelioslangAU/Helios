@@ -580,19 +580,32 @@ class PageProcessor {
         span.setAttribute('data-dictionary-form', dictionaryForm);
       }
 
-      // Convert word to lowercase for dictionary lookup while preserving display
-      const lowercaseWord = word.toLowerCase();
-      // Use dictionaryForm if available, otherwise use the word itself
-      const lookupWord = dictionaryForm ? dictionaryForm.toLowerCase() : lowercaseWord;
+      // Normalize word for dictionary lookup using adapter's normalizeWord if available
+      const normalizeWord = adapter.normalizeWord || ((w) => w.trim());
+      const normalizedWord = normalizeWord(word);
+      const normalizedDictForm = dictionaryForm ? normalizeWord(dictionaryForm) : null;
       
-      // Check if word exists in dictionary (using base form if contraction)
-      const hasDictionaryEntry = this.dictionaryManager.dictionary[lookupWord];
+      // Check if word exists in dictionary (try normalized form first, then dictionaryForm)
+      let hasDictionaryEntry = this.dictionaryManager.dictionary[normalizedWord] || 
+                               (normalizedDictForm && this.dictionaryManager.dictionary[normalizedDictForm]);
       
-      if (!this.vocabManager.isWordKnown(lowercaseWord) && 
+      // For non-case-sensitive languages without normalizeWord, also try lowercase versions
+      const isCaseSensitive = adapter.getCaseSensitive ? adapter.getCaseSensitive() : false;
+      if (!hasDictionaryEntry && !isCaseSensitive && !adapter.normalizeWord) {
+        const lowerWord = word.toLowerCase().trim();
+        const lowerDictForm = dictionaryForm ? dictionaryForm.toLowerCase().trim() : null;
+        hasDictionaryEntry = this.dictionaryManager.dictionary[lowerWord] || 
+                            (lowerDictForm && this.dictionaryManager.dictionary[lowerDictForm]);
+      }
+      
+      // For vocab manager, always use lowercase for consistency
+      const vocabLookupWord = word.toLowerCase().trim();
+      
+      if (!this.vocabManager.isWordKnown(vocabLookupWord) && 
           hasDictionaryEntry && 
-          !this.vocabManager.isWordIgnored(lowercaseWord)) {
+          !this.vocabManager.isWordIgnored(vocabLookupWord)) {
         span.className = 'lang-unknown-word';
-        this.unknownWordElements.set(lowercaseWord, span);
+        this.unknownWordElements.set(vocabLookupWord, span);
       }
 
       fragment.appendChild(span);

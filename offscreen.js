@@ -494,7 +494,7 @@ class OffscreenDictionaryService {
       console.log(`📚 Found entries:`, this.dictionaryManager.dictionary[lowercaseWord] ? this.dictionaryManager.dictionary[lowercaseWord].length : 0);
       
       const entries = this.dictionaryManager.dictionary[lowercaseWord] || null;
-      //console.log(`📚 Found entries:`, entries ? entries.length : 0);
+      console.log(`📚 Found entries:`, entries);
       return { success: true, entries };
     } catch (error) {
       console.error('📚 Error in handleGetDefinition:', error);

@@ -144,6 +144,7 @@ class LanguageSwitchCoordinator {
   _showLoadingIndicator(languageCode) {
     const languages = {
       zh: 'Chinese',
+      ja: 'Japanese',
       en: 'English',
       es: 'Spanish',
       fr: 'French'
@@ -230,6 +231,7 @@ class LanguageSwitchCoordinator {
   _showSuccessNotification(languageCode) {
     const languages = {
       zh: 'Chinese',
+      ja: 'Japanese',
       en: 'English',
       es: 'Spanish',
       fr: 'French'
