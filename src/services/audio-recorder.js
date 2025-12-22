@@ -66,6 +66,8 @@ class AudioRecorder {
      */
     captureVideoStream(videoElement) {
         try {
+            console.log('[Helios Audio] Video state - paused:', videoElement.paused, 'muted:', videoElement.muted, 'currentTime:', videoElement.currentTime);
+
             let stream = null;
 
             // Try Chrome API
@@ -119,12 +121,12 @@ class AudioRecorder {
             });
 
             // CRITICAL: Route audio to speakers using AudioContext (like asbplayer)
-            // This ensures audio keeps playing AND makes recording work
+            // This must be done HERE in captureStream, not later in recordStream
             try {
                 const output = new AudioContext();
                 const source = output.createMediaStreamSource(audioStream);
                 source.connect(output.destination);
-                console.log('[Helios Audio] Audio routed to AudioContext');
+                console.log('[Helios Audio] Audio routed to AudioContext in captureStream');
             } catch (error) {
                 console.warn('[Helios Audio] Could not route to AudioContext:', error);
             }
