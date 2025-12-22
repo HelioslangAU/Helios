@@ -163,28 +163,27 @@ class AudioRecorder {
                 this.recording = true;
                 this.audioChunks = [];
 
-                // Create MediaRecorder
-                // Use WebM Opus for better compression
-                const mimeType = this.getSupportedMimeType();
-                this.mediaRecorder = new MediaRecorder(stream, {
-                    mimeType: mimeType,
-                    audioBitsPerSecond: 128000 // 128 kbps
-                });
+                // Create MediaRecorder (no mimeType/options like asbplayer - let browser choose best)
+                this.mediaRecorder = new MediaRecorder(stream);
 
                 // Collect data chunks
                 this.mediaRecorder.ondataavailable = (event) => {
-                    if (event.data && event.data.size > 0) {
-                        this.audioChunks.push(event.data);
-                    }
+                    console.log('[Helios Audio] ondataavailable fired, data size:', event.data?.size || 0);
+                    this.audioChunks.push(event.data);
+                    console.log('[Helios Audio] Added chunk, total chunks:', this.audioChunks.length);
                 };
 
-                // Handle recording stop
+                // Handle recording stop (onstop fires when stop() is called)
                 this.mediaRecorder.onstop = async () => {
                     this.recording = false;
 
                     try {
-                        // Create blob from chunks
-                        const audioBlob = new Blob(this.audioChunks, { type: mimeType });
+                        console.log('[Helios Audio] Recording stopped, collected chunks:', this.audioChunks.length);
+
+                        // Create blob from chunks (using default type from MediaRecorder)
+                        const audioBlob = new Blob(this.audioChunks);
+
+                        console.log('[Helios Audio] Created blob, size:', audioBlob.size, 'bytes, type:', audioBlob.type);
 
                         // Convert to base64 data URL
                         const dataUrl = await this.blobToDataUrl(audioBlob);
@@ -192,7 +191,7 @@ class AudioRecorder {
                         // Stop all tracks
                         stream.getTracks().forEach(track => track.stop());
 
-                        console.log('[Helios Audio] Recording complete, size:', audioBlob.size, 'bytes');
+                        console.log('[Helios Audio] Recording complete, final size:', audioBlob.size, 'bytes');
                         resolve(dataUrl);
 
                     } catch (error) {
@@ -208,14 +207,17 @@ class AudioRecorder {
                     resolve(null);
                 };
 
-                // Start recording with timeslice to collect data periodically
-                // This ensures ondataavailable is called every 100ms
-                this.mediaRecorder.start(100);
+                // Start recording WITHOUT timeslice (like asbplayer)
+                // ondataavailable will fire when stop() is called
+                this.mediaRecorder.start();
                 console.log('[Helios Audio] Recording started, duration:', duration, 'ms');
+                console.log('[Helios Audio] MediaRecorder state:', this.mediaRecorder.state);
+                console.log('[Helios Audio] MediaRecorder mimeType:', this.mediaRecorder.mimeType);
 
                 // Stop after duration
                 setTimeout(() => {
                     if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+                        console.log('[Helios Audio] Stopping recording after timeout');
                         this.mediaRecorder.stop();
                     }
                 }, duration);
