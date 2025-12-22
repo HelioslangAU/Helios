@@ -29,34 +29,6 @@ class JapaneseLanguageAdapter extends BaseLanguageAdapter {
       ...config
     };
     this.setConfig(baseConfig);
-    
-    // Initialize TinySegmenter for Japanese word segmentation
-    this.tinySegmenter = null;
-    this.tinySegmenterInitialized = false;
-    
-    // Cache for segmentation results to avoid re-processing same text
-    this.segmentCache = new Map();
-    this.segmentCacheMaxSize = 1000; // Limit cache size to prevent memory issues
-    
-    this._initTinySegmenter();
-  }
-
-  /**
-   * Initialize TinySegmenter for Japanese word segmentation
-   * @private
-   */
-  _initTinySegmenter() {
-    try {
-      if (typeof TinySegmenter !== 'undefined') {
-        this.tinySegmenter = new TinySegmenter();
-        this.tinySegmenterInitialized = true;
-        console.log('TinySegmenter initialized successfully for Japanese');
-      } else {
-        console.warn('TinySegmenter not found. Make sure lib/tiny-segmenter/tiny-segmenter.js is loaded.');
-      }
-    } catch (error) {
-      console.error('Failed to initialize TinySegmenter:', error);
-    }
   }
 
   /**
@@ -74,120 +46,37 @@ class JapaneseLanguageAdapter extends BaseLanguageAdapter {
   }
 
   /**
-   * Extract Japanese words from text with positions using TinySegmenter
+   * Extract Japanese words from text with positions using longest-match dictionary lookup
    * @param {string} text - Text to process
    * @param {Object} dictionary - Dictionary to validate against
    * @returns {Promise<Array>} - Array of {word, start, end, isTargetLang} objects
    */
   async extractWords(text, dictionary) {
     const words = [];
+    const maxWordLength = this.getConfig().maxWordLength || 10;
     
-    // Use TinySegmenter for word segmentation if available
-    if (this.tinySegmenter && this.tinySegmenterInitialized) {
-      try {
-        // First, split text into chunks of target characters and non-target characters
-        // while preserving their original positions
-        const chunks = [];
-        let i = 0;
-        
-        while (i < text.length) {
-          if (this.isTargetCharacter(text[i])) {
-            // Collect consecutive target characters
-            const start = i;
-            let targetText = '';
-            while (i < text.length && this.isTargetCharacter(text[i])) {
-              targetText += text[i];
-              i++;
-            }
-            chunks.push({
-              text: targetText,
-              start: start,
-              isTargetLang: true
-            });
-          } else {
-            // Collect consecutive non-target characters
-            const start = i;
-            let nonTargetText = '';
-            while (i < text.length && !this.isTargetCharacter(text[i])) {
-              nonTargetText += text[i];
-              i++;
-            }
-            chunks.push({
-              text: nonTargetText,
-              start: start,
-              isTargetLang: false
-            });
-          }
-        }
-        
-        // Process each chunk
-        for (const chunk of chunks) {
-          if (chunk.isTargetLang && chunk.text.length > 0) {
-            // Check cache first to avoid re-processing same text
-            let segments;
-            if (this.segmentCache.has(chunk.text)) {
-              segments = this.segmentCache.get(chunk.text);
-            } else {
-              // Use TinySegmenter.segment on target character chunks (returns array of strings like jieba)
-              segments = this.tinySegmenter.segment(chunk.text);
-
-              // Cache the result (with size limit)
-              if (this.segmentCache.size >= this.segmentCacheMaxSize) {
-                // Remove oldest entry (simple FIFO)
-                const firstKey = this.segmentCache.keys().next().value;
-                this.segmentCache.delete(firstKey);
-              }
-              this.segmentCache.set(chunk.text, segments);
-            }
-
-            let chunkPos = 0;
-
-            for (const segment of segments) {
-              const start = chunk.start + chunkPos;
-              const end = start + segment.length;
-
-              words.push({
-                word: segment,
-                start: start,
-                end: end,
-                isTargetLang: true
-              });
-
-              chunkPos += segment.length;
-            }
-          } else if (!chunk.isTargetLang && chunk.text.length > 0) {
-            // Add non-target language chunks (English, numbers, punctuation) as-is
-            words.push({
-              word: chunk.text,
-              start: chunk.start,
-              end: chunk.start + chunk.text.length,
-              isTargetLang: false
-            });
-          }
-        }
-        return words;
-      
-      } catch (error) {
-        console.error('Error using TinySegmenter:', error);
-        // Fall through to fallback implementation
-      }
-    }
-    
-    // Fallback: character-by-character segmentation if TinySegmenter is not available
+    // Use longest-match dictionary lookup for segmentation
     let i = 0;
     while (i < text.length) {
       if (this.isTargetCharacter(text[i])) {
         let longestWord = null;
         let longestLength = 0;
 
-        // Try to find the longest word (1-5 characters)
-        for (let len = Math.min(5, text.length - i); len >= 1; len--) {
+        // Try to find the longest word matching dictionary entries
+        // Search from maxWordLength down to 1 character
+        const searchLimit = Math.min(maxWordLength, text.length - i);
+        for (let len = searchLimit; len >= 1; len--) {
           const candidate = text.substring(i, i + len);
-          if ([...candidate].every(c => this.isTargetCharacter(c)) &&
-              dictionary && dictionary[candidate]) {
-            if (len > longestLength) {
-              longestWord = candidate;
-              longestLength = len;
+          // Check if all characters in candidate are target characters
+          if ([...candidate].every(c => this.isTargetCharacter(c))) {
+            // Normalize candidate for dictionary lookup (trim only, no lowercasing for Japanese)
+            const normalizedCandidate = candidate.trim();
+            // Check if word exists in dictionary
+            if (dictionary && dictionary[normalizedCandidate]) {
+              if (len > longestLength) {
+                longestWord = candidate;
+                longestLength = len;
+              }
             }
           }
         }
