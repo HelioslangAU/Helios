@@ -564,19 +564,19 @@ class BackgroundService {
 
   async handleCaptureScreenshot(sender, sendResponse) {
     try {
-      // Get the active tab to ensure we have the right window
-      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      console.log('[Helios Background] Screenshot capture request received from tab:', sender.tab?.id);
 
-      if (tabs.length === 0) {
-        throw new Error('No active tab found');
+      if (!sender.tab || !sender.tab.id) {
+        throw new Error('No tab information in sender');
       }
 
-      const activeTab = tabs[0];
-      console.log('[Helios Background] Capturing screenshot for tab:', activeTab.id, 'in window:', activeTab.windowId);
+      // Get the tab information
+      const tab = await chrome.tabs.get(sender.tab.id);
+      console.log('[Helios Background] Capturing screenshot for tab:', tab.id, 'in window:', tab.windowId);
 
-      // Capture the visible tab in the active window
+      // Capture the visible tab (using the tab's window ID, just like asbplayer)
       const dataUrl = await chrome.tabs.captureVisibleTab(
-        activeTab.windowId,
+        tab.windowId,
         { format: 'jpeg', quality: 95 }
       );
 
@@ -588,6 +588,7 @@ class BackgroundService {
       });
     } catch (error) {
       console.error('[Helios Background] Screenshot capture error:', error);
+      console.error('[Helios Background] Error stack:', error.stack);
       sendResponse({
         success: false,
         error: error.message,
