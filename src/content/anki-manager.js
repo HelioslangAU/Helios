@@ -193,23 +193,29 @@ class AnkiManager {
         return null;
       }
 
-      let duration;
+      let duration, startTime;
+      const paddingBefore = 0.25; // seconds
+      const paddingAfter = 0.25; // seconds
+
       if (timing) {
         // Use subtitle timing
         duration = (timing.end - timing.start) * 1000; // Convert to ms
-        console.log('[Helios Anki] Recording audio with subtitle timing:', duration, 'ms');
+        startTime = (timing.start / 1000) - paddingBefore; // Convert to seconds and add padding
+        console.log('[Helios Anki] Recording audio with subtitle timing - start:', startTime, 'duration:', duration, 'ms');
       } else {
         // Fallback: estimate based on sentence length (rough estimate: 150ms per character)
         duration = Math.max(2000, Math.min(sentence.length * 150, 10000));
+        startTime = null; // No timing info, record from current position
         console.log('[Helios Anki] Recording audio with estimated duration:', duration, 'ms');
       }
 
-      // Record audio
+      // Record audio (will seek to start, play, record, then return to original position)
       const audioDataUrl = await window.HeliosAudioRecorder.recordFromVideo(
         videoElement,
         duration,
-        0.25, // 0.25s padding before
-        0.25  // 0.25s padding after
+        paddingBefore,
+        paddingAfter,
+        startTime // Pass start time for seeking
       );
 
       return audioDataUrl;

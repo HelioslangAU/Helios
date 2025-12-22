@@ -70,10 +70,21 @@ class PopupEventHandler {
     const ankiBtn = popup.querySelector(".anki-btn");
     if (ankiBtn && !ankiBtn.disabled) {
       ankiBtn.addEventListener("click", async () => {
-        if (isMultiCard && currentCard) {
-          await this.handleMultiCardAnkiAdd(currentCard, managers);
-        } else {
-          await this.handleAnkiAdd(character, managers);
+        // Show recording state
+        const originalText = ankiBtn.textContent;
+        ankiBtn.textContent = '🎙️ Recording...';
+        ankiBtn.disabled = true;
+
+        try {
+          if (isMultiCard && currentCard) {
+            await this.handleMultiCardAnkiAdd(currentCard, managers);
+          } else {
+            await this.handleAnkiAdd(character, managers);
+          }
+        } finally {
+          // Restore button state
+          ankiBtn.textContent = originalText;
+          ankiBtn.disabled = false;
         }
       });
     }

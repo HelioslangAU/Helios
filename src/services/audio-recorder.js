@@ -18,9 +18,10 @@ class AudioRecorder {
      * @param {number} duration - Duration in milliseconds
      * @param {number} paddingBefore - Padding before in seconds (default: 0.25)
      * @param {number} paddingAfter - Padding after in seconds (default: 0.25)
+     * @param {number|null} startTime - Time to seek to before recording (in seconds), or null for current position
      * @returns {Promise<string|null>} Base64 data URL of recorded audio
      */
-    async recordFromVideo(videoElement, duration, paddingBefore = 0.25, paddingAfter = 0.25) {
+    async recordFromVideo(videoElement, duration, paddingBefore = 0.25, paddingAfter = 0.25, startTime = null) {
         if (!videoElement) {
             console.error('[Helios Audio] No video element provided');
             return null;
@@ -39,6 +40,26 @@ class AudioRecorder {
                 return this.recordFromTab(duration + (paddingBefore + paddingAfter) * 1000);
             }
 
+            // Save original state
+            const originalTime = videoElement.currentTime;
+            const wasPaused = videoElement.paused;
+            console.log('[Helios Audio] Original state - time:', originalTime, 'paused:', wasPaused);
+
+            // Seek to start time if provided
+            if (startTime !== null) {
+                const seekToTime = Math.max(0, startTime);
+                console.log('[Helios Audio] Seeking to start time:', seekToTime);
+                videoElement.currentTime = seekToTime;
+                // Wait for seek to complete
+                await new Promise(resolve => {
+                    const onSeeked = () => {
+                        videoElement.removeEventListener('seeked', onSeeked);
+                        resolve();
+                    };
+                    videoElement.addEventListener('seeked', onSeeked);
+                });
+            }
+
             // Capture stream from video element
             const stream = this.captureVideoStream(videoElement);
             if (!stream) {
@@ -49,7 +70,6 @@ class AudioRecorder {
             const totalDuration = duration + (paddingBefore + paddingAfter) * 1000;
 
             // CRITICAL: Video must be PLAYING for captureStream to record audio
-            const wasPaused = videoElement.paused;
             if (wasPaused) {
                 console.log('[Helios Audio] Video was paused, starting playback for recording');
                 await videoElement.play();
@@ -58,7 +78,12 @@ class AudioRecorder {
             // Record the audio
             const audioDataUrl = await this.recordStream(stream, totalDuration);
 
-            // Restore pause state if it was paused before
+            // Restore original state
+            if (startTime !== null) {
+                console.log('[Helios Audio] Restoring original position:', originalTime);
+                videoElement.currentTime = originalTime;
+            }
+
             if (wasPaused) {
                 console.log('[Helios Audio] Restoring pause state');
                 videoElement.pause();
