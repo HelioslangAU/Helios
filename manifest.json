@@ -5,7 +5,7 @@
   "description": "A browser extension for language learning with subtitle reading, popup dictionary, vocab tracking, and Anki integration",
 
 
-  "permissions": ["storage", "alarms", "offscreen", "activeTab", "tabCapture"],
+  "permissions": ["storage", "alarms", "offscreen", "activeTab", "tabCapture", "tabs"],
 
   "host_permissions": [
     "https://*/*",

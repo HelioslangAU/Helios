@@ -564,13 +564,10 @@ class BackgroundService {
 
   async handleCaptureScreenshot(sender, sendResponse) {
     try {
-      if (!sender.tab || !sender.tab.id) {
-        throw new Error('No tab information available');
-      }
-
-      // Capture the visible tab
+      // Capture the visible tab in the current window
+      // Using null for windowId captures the current window
       const dataUrl = await chrome.tabs.captureVisibleTab(
-        sender.tab.windowId,
+        null,
         { format: 'jpeg', quality: 95 }
       );
 

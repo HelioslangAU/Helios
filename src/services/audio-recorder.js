@@ -102,6 +102,17 @@ class AudioRecorder {
                 return null;
             }
 
+            // Log audio track details
+            const audioTrack = audioStream.getAudioTracks()[0];
+            console.log('[Helios Audio] Audio track details:', {
+                id: audioTrack.id,
+                kind: audioTrack.kind,
+                label: audioTrack.label,
+                enabled: audioTrack.enabled,
+                muted: audioTrack.muted,
+                readyState: audioTrack.readyState
+            });
+
             // Route audio to speakers to maintain playback
             this.routeToSpeakers(audioStream);
 
@@ -120,12 +131,9 @@ class AudioRecorder {
      */
     routeToSpeakers(stream) {
         try {
-            if (!this.audioContext) {
-                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            }
-
-            const source = this.audioContext.createMediaStreamSource(stream);
-            source.connect(this.audioContext.destination);
+            // Skip routing - it can interfere with recording
+            // The video element is already playing audio to speakers
+            console.log('[Helios Audio] Audio already playing through video element');
 
         } catch (error) {
             console.warn('[Helios Audio] Could not route to speakers:', error);
@@ -190,8 +198,9 @@ class AudioRecorder {
                     resolve(null);
                 };
 
-                // Start recording
-                this.mediaRecorder.start();
+                // Start recording with timeslice to collect data periodically
+                // This ensures ondataavailable is called every 100ms
+                this.mediaRecorder.start(100);
                 console.log('[Helios Audio] Recording started, duration:', duration, 'ms');
 
                 // Stop after duration
