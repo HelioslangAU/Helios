@@ -177,14 +177,14 @@ class AnkiManager {
   }
 
   // Capture audio for sentence with subtitle timing
-  async captureAudioForSentence(sentence) {
+  async captureAudioForSentence(sentence, character) {
     try {
       if (!sentence || !window.HeliosAudioRecorder) {
         return null;
       }
 
-      // Try to get subtitle timing for the sentence
-      const timing = this.getSubtitleTimingForSentence(sentence);
+      // Try to get subtitle timing - pass character to find the actual subtitle line
+      const timing = this.getSubtitleTimingForCharacter(character || sentence);
 
       // Find video element
       const videoElement = window.HeliosScreenshotCapturer?.findVideoElement();
@@ -198,10 +198,10 @@ class AnkiManager {
       const paddingAfter = 0.25; // seconds
 
       if (timing) {
-        // Use subtitle timing
+        // Use subtitle timing - record the ENTIRE subtitle line
         duration = (timing.end - timing.start) * 1000; // Convert to ms
         startTime = (timing.start / 1000) - paddingBefore; // Convert to seconds and add padding
-        console.log('[Helios Anki] Recording audio with subtitle timing - start:', startTime, 'duration:', duration, 'ms');
+        console.log('[Helios Anki] Recording audio for full subtitle line - start:', startTime, 'duration:', duration, 'ms', 'text:', timing.text);
       } else {
         // Fallback: estimate based on sentence length (rough estimate: 150ms per character)
         duration = Math.max(2000, Math.min(sentence.length * 150, 10000));
@@ -226,22 +226,26 @@ class AnkiManager {
     }
   }
 
-  // Get subtitle timing for a sentence
-  getSubtitleTimingForSentence(sentence) {
+  // Get subtitle timing for a character/word - finds the full subtitle line containing the word
+  getSubtitleTimingForCharacter(character) {
     try {
       // Try to access video feature manager for subtitle data
       if (window.videoFeatureManager?.subtitleCollection) {
         const subtitles = window.videoFeatureManager.subtitleCollection.subtitles;
 
-        // Find subtitle entry containing this sentence
+        // Find subtitle entry containing this character/word
         for (const subtitle of subtitles) {
-          if (subtitle.text && subtitle.text.includes(sentence.substring(0, 20))) {
+          if (subtitle.text && subtitle.text.includes(character)) {
+            console.log('[Helios Anki] Found subtitle line for character "' + character + '":', subtitle.text);
             return {
               start: subtitle.start,
-              end: subtitle.end
+              end: subtitle.end,
+              text: subtitle.text  // Return full subtitle text for logging
             };
           }
         }
+
+        console.warn('[Helios Anki] No subtitle found containing character:', character);
       }
 
       return null;
