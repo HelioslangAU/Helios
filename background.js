@@ -296,6 +296,18 @@ class BackgroundService {
           );
           break;
 
+        case "ANKI_CHECK_MEDIA_NEEDED":
+          await this.handleAnkiCheckMediaNeeded(sendResponse);
+          break;
+
+        case "CAPTURE_SCREENSHOT":
+          await this.handleCaptureScreenshot(sender, sendResponse);
+          break;
+
+        case "CAPTURE_TAB_AUDIO":
+          await this.handleCaptureTabAudio(message.duration, sender, sendResponse);
+          break;
+
         // === EXTENSION HANDLERS ===
         case "toggleExtension":
           await this.handleToggleExtension(message.enabled, sendResponse);
@@ -381,8 +393,8 @@ class BackgroundService {
         throw new Error("Deck and note type must be configured in settings");
       }
 
-      // Build card fields
-      const fields = this.buildCardFields(
+      // Build card fields (now async for media handling)
+      const fields = await this.buildCardFields(
         wordData,
         finalSettings.fieldMappings || {}
       );
@@ -523,6 +535,82 @@ class BackgroundService {
     }
   }
 
+  async handleAnkiCheckMediaNeeded(sendResponse) {
+    try {
+      // Load current Anki settings
+      const settings = await chrome.storage.local.get("ankiSettings");
+      const ankiSettings = settings.ankiSettings || {};
+      const fieldMappings = ankiSettings.fieldMappings || {};
+
+      // Check if any field is mapped to screenshot or sentenceAudio
+      const mappedValues = Object.values(fieldMappings);
+      const needsScreenshot = mappedValues.includes('screenshot');
+      const needsAudio = mappedValues.includes('sentenceAudio');
+
+      sendResponse({
+        success: true,
+        needsScreenshot,
+        needsAudio
+      });
+    } catch (error) {
+      sendResponse({
+        success: false,
+        needsScreenshot: false,
+        needsAudio: false,
+        error: error.message
+      });
+    }
+  }
+
+  async handleCaptureScreenshot(sender, sendResponse) {
+    try {
+      if (!sender.tab || !sender.tab.id) {
+        throw new Error('No tab information available');
+      }
+
+      // Capture the visible tab
+      const dataUrl = await chrome.tabs.captureVisibleTab(
+        sender.tab.windowId,
+        { format: 'jpeg', quality: 95 }
+      );
+
+      console.log('[Helios Background] Screenshot captured successfully');
+
+      sendResponse({
+        success: true,
+        dataUrl: dataUrl
+      });
+    } catch (error) {
+      console.error('[Helios Background] Screenshot capture error:', error);
+      sendResponse({
+        success: false,
+        error: error.message,
+        dataUrl: null
+      });
+    }
+  }
+
+  async handleCaptureTabAudio(duration, sender, sendResponse) {
+    try {
+      // Tab audio capture is complex and requires offscreen document
+      // For now, return an error indicating this feature needs implementation
+      console.warn('[Helios Background] Tab audio capture not yet implemented');
+
+      sendResponse({
+        success: false,
+        error: 'Tab audio capture is not yet implemented. Please use video element capture instead.',
+        dataUrl: null
+      });
+    } catch (error) {
+      console.error('[Helios Background] Tab audio capture error:', error);
+      sendResponse({
+        success: false,
+        error: error.message,
+        dataUrl: null
+      });
+    }
+  }
+
   // ============ ANKI HELPER METHODS ============
 
   async invokeAnki(action, params = {}) {
@@ -613,7 +701,7 @@ class BackgroundService {
     }).join(' ');
   }
 
-  buildCardFields(wordData, fieldMappings) {
+  async buildCardFields(wordData, fieldMappings) {
     const fields = {};
     const language = wordData.language || 'zh'; // Default to Chinese if not specified
     const isChinese = language === 'zh';
@@ -651,6 +739,21 @@ class BackgroundService {
       };
     }
 
+    // Handle media fields (screenshot and audio)
+    if (wordData.screenshotDataUrl) {
+      const screenshotField = await this.storeMediaFile(wordData.screenshotDataUrl, 'screenshot');
+      if (screenshotField) {
+        dataMap.screenshot = screenshotField;
+      }
+    }
+
+    if (wordData.sentenceAudioDataUrl) {
+      const audioField = await this.storeMediaFile(wordData.sentenceAudioDataUrl, 'audio');
+      if (audioField) {
+        dataMap.sentenceAudio = audioField;
+      }
+    }
+
     // Apply field mappings
     for (const [fieldName, dataType] of Object.entries(fieldMappings)) {
       if (dataType && dataMap[dataType]) {
@@ -674,6 +777,76 @@ class BackgroundService {
     }
 
     return fields;
+  }
+
+  // Store media file via AnkiConnect
+  async storeMediaFile(dataUrl, type) {
+    try {
+      if (!dataUrl) {
+        return null;
+      }
+
+      // Extract base64 data from data URL
+      const base64Data = this.extractBase64FromDataUrl(dataUrl);
+      if (!base64Data) {
+        console.error('[Helios Media] Failed to extract base64 data');
+        return null;
+      }
+
+      // Generate filename
+      const timestamp = Date.now();
+      const random = Math.floor(Math.random() * 10000);
+      let extension = '';
+
+      if (type === 'screenshot') {
+        extension = 'jpg';
+      } else if (type === 'audio') {
+        // Detect audio format from data URL
+        if (dataUrl.includes('audio/webm')) {
+          extension = 'webm';
+        } else if (dataUrl.includes('audio/mp3')) {
+          extension = 'mp3';
+        } else {
+          extension = 'webm'; // Default
+        }
+      }
+
+      const fileName = `helios_${type}_${timestamp}_${random}.${extension}`;
+
+      // Store via AnkiConnect
+      console.log('[Helios Media] Storing media file:', fileName);
+      await this.invokeAnki('storeMediaFile', {
+        filename: fileName,
+        data: base64Data
+      });
+
+      // Format as Anki field value
+      if (type === 'screenshot') {
+        return `<img src="${fileName}">`;
+      } else if (type === 'audio') {
+        return `[sound:${fileName}]`;
+      }
+
+      return fileName;
+
+    } catch (error) {
+      console.error('[Helios Media] Error storing media file:', error);
+      return null;
+    }
+  }
+
+  // Extract base64 from data URL
+  extractBase64FromDataUrl(dataUrl) {
+    if (!dataUrl || !dataUrl.includes(',')) {
+      return null;
+    }
+
+    const parts = dataUrl.split(',');
+    if (parts.length !== 2) {
+      return null;
+    }
+
+    return parts[1];
   }
 
   async findDuplicates(character, fieldMappings, noteType) {
