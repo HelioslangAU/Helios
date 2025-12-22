@@ -199,9 +199,10 @@ class AnkiManager {
 
       if (timing) {
         // Use subtitle timing - record the ENTIRE subtitle line
-        duration = (timing.end - timing.start) * 1000; // Convert to ms
-        startTime = (timing.start / 1000) - paddingBefore; // Convert to seconds and add padding
-        console.log('[Helios Anki] Recording audio for full subtitle line - start:', startTime, 'duration:', duration, 'ms', 'text:', timing.text);
+        // timing.start and timing.end are in milliseconds (from SubtitleEntry)
+        duration = timing.end - timing.start; // Duration in ms
+        startTime = (timing.start / 1000) - paddingBefore; // Convert ms to seconds, then subtract padding
+        console.log('[Helios Anki] Recording audio for full subtitle line - start:', startTime, 's, duration:', duration, 'ms, text:', timing.text);
       } else {
         // Fallback: estimate based on sentence length (rough estimate: 150ms per character)
         duration = Math.max(2000, Math.min(sentence.length * 150, 10000));
