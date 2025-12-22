@@ -163,14 +163,21 @@ class AudioRecorder {
                 this.recording = true;
                 this.audioChunks = [];
 
-                // Create MediaRecorder (no mimeType/options like asbplayer - let browser choose best)
-                this.mediaRecorder = new MediaRecorder(stream);
+                // Get supported mimeType
+                const mimeType = this.getSupportedMimeType();
+                console.log('[Helios Audio] Using mimeType:', mimeType);
+
+                // Create MediaRecorder with mimeType if available
+                const options = mimeType ? { mimeType } : {};
+                this.mediaRecorder = new MediaRecorder(stream, options);
 
                 // Collect data chunks
                 this.mediaRecorder.ondataavailable = (event) => {
                     console.log('[Helios Audio] ondataavailable fired, data size:', event.data?.size || 0);
-                    this.audioChunks.push(event.data);
-                    console.log('[Helios Audio] Added chunk, total chunks:', this.audioChunks.length);
+                    if (event.data && event.data.size > 0) {
+                        this.audioChunks.push(event.data);
+                        console.log('[Helios Audio] Added chunk, total chunks:', this.audioChunks.length);
+                    }
                 };
 
                 // Handle recording stop (onstop fires when stop() is called)
@@ -180,8 +187,14 @@ class AudioRecorder {
                     try {
                         console.log('[Helios Audio] Recording stopped, collected chunks:', this.audioChunks.length);
 
-                        // Create blob from chunks (using default type from MediaRecorder)
-                        const audioBlob = new Blob(this.audioChunks);
+                        if (this.audioChunks.length === 0) {
+                            console.error('[Helios Audio] No audio chunks collected');
+                            resolve(null);
+                            return;
+                        }
+
+                        // Create blob from chunks (use mimeType from MediaRecorder)
+                        const audioBlob = new Blob(this.audioChunks, { type: this.mediaRecorder.mimeType });
 
                         console.log('[Helios Audio] Created blob, size:', audioBlob.size, 'bytes, type:', audioBlob.type);
 

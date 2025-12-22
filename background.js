@@ -421,7 +421,9 @@ class BackgroundService {
         fields: fields,
         tags: finalSettings.tags || ["helios"],
         options: {
-          allowDuplicate: finalSettings.allowDuplicates || false,
+          // Always allow duplicates because AnkiConnect checks ALL fields (including sentence)
+          // Our duplicate check above only checks the word/character field
+          allowDuplicate: true,
         },
       };
 
