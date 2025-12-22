@@ -10,7 +10,7 @@ class ScreenshotCapturer {
 
     /**
      * Capture screenshot from content script side
-     * Sends message to background to capture the tab
+     * Uses canvas to capture video frame directly (no permissions needed)
      * @returns {Promise<string|null>} Base64 data URL of screenshot or null on error
      */
     async captureScreenshot() {
@@ -22,16 +22,22 @@ class ScreenshotCapturer {
         this.capturing = true;
 
         try {
-            // Request screenshot from background script
-            const response = await chrome.runtime.sendMessage({
-                action: 'CAPTURE_SCREENSHOT'
-            });
+            // Find video element to capture from
+            const videoElement = this.findVideoElement();
 
-            if (response && response.success) {
-                console.log('[Helios Screenshot] Screenshot captured successfully');
-                return response.dataUrl;
+            if (!videoElement) {
+                console.error('[Helios Screenshot] No video element found');
+                return null;
+            }
+
+            // Capture video frame using canvas
+            const dataUrl = this.captureVideoFrame(videoElement);
+
+            if (dataUrl) {
+                console.log('[Helios Screenshot] Screenshot captured successfully from video');
+                return dataUrl;
             } else {
-                console.error('[Helios Screenshot] Failed to capture:', response?.error);
+                console.error('[Helios Screenshot] Failed to capture video frame');
                 return null;
             }
         } catch (error) {
@@ -39,6 +45,31 @@ class ScreenshotCapturer {
             return null;
         } finally {
             this.capturing = false;
+        }
+    }
+
+    /**
+     * Capture current frame from video element using canvas
+     * @param {HTMLVideoElement} videoElement
+     * @returns {string|null} Base64 data URL
+     */
+    captureVideoFrame(videoElement) {
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = videoElement.videoWidth;
+            canvas.height = videoElement.videoHeight;
+
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+
+            // Convert to JPEG for smaller size
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+
+            console.log('[Helios Screenshot] Captured frame:', canvas.width, 'x', canvas.height);
+            return dataUrl;
+        } catch (error) {
+            console.error('[Helios Screenshot] Error capturing video frame:', error);
+            return null;
         }
     }
 
@@ -171,18 +202,18 @@ class ScreenshotCapturer {
     }
 
     /**
-     * Capture screenshot intelligently - crops to video if on video platform
+     * Capture screenshot intelligently - captures video frame directly
      * @returns {Promise<string|null>}
      */
     async captureIntelligent() {
         const videoElement = this.findVideoElement();
 
         if (videoElement) {
-            console.log('[Helios Screenshot] Found video element, capturing and cropping');
-            return this.captureAndCropToVideo(videoElement);
-        } else {
-            console.log('[Helios Screenshot] No video element found, capturing full page');
+            console.log('[Helios Screenshot] Found video element, capturing frame');
             return this.captureScreenshot();
+        } else {
+            console.log('[Helios Screenshot] No video element found');
+            return null;
         }
     }
 }

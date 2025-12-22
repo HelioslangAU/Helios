@@ -71,34 +71,43 @@ class AudioRecorder {
             // Try Chrome API
             if (typeof videoElement.captureStream === 'function') {
                 stream = videoElement.captureStream();
+                console.log('[Helios Audio] Using Chrome captureStream API');
             }
             // Try Firefox API
             else if (typeof videoElement.mozCaptureStream === 'function') {
                 stream = videoElement.mozCaptureStream();
+                console.log('[Helios Audio] Using Firefox mozCaptureStream API');
             }
 
             if (!stream) {
-                console.error('[Helios Audio] Failed to capture stream from video');
+                console.error('[Helios Audio] Failed to capture stream from video - API not available');
                 return null;
             }
+
+            console.log('[Helios Audio] Stream captured, video tracks:', stream.getVideoTracks().length, 'audio tracks:', stream.getAudioTracks().length);
 
             // Extract only audio tracks
             const audioStream = new MediaStream();
 
             // Remove video tracks
             stream.getVideoTracks().forEach(track => {
+                console.log('[Helios Audio] Stopping video track:', track.id);
                 track.stop();
             });
 
             // Add audio tracks
             stream.getAudioTracks().forEach(track => {
                 if (track.enabled) {
+                    console.log('[Helios Audio] Adding audio track:', track.id, 'enabled:', track.enabled);
                     audioStream.addTrack(track);
+                } else {
+                    console.warn('[Helios Audio] Skipping disabled audio track:', track.id);
                 }
             });
 
             if (audioStream.getAudioTracks().length === 0) {
                 console.error('[Helios Audio] No audio tracks available in stream');
+                console.log('[Helios Audio] Original stream had:', stream.getAudioTracks().length, 'audio tracks');
                 return null;
             }
 
@@ -121,6 +130,7 @@ class AudioRecorder {
 
         } catch (error) {
             console.error('[Helios Audio] Error capturing video stream:', error);
+            console.error('[Helios Audio] Error stack:', error.stack);
             return null;
         }
     }
