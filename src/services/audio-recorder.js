@@ -92,8 +92,23 @@ class AudioRecorder {
                 return null;
             }
 
+            // Create new MediaStream with only audio tracks (like asbplayer)
+            const audioStream = new MediaStream();
+
+            // Stop video tracks
+            for (const track of stream.getVideoTracks()) {
+                track.stop();
+            }
+
+            // Add only enabled audio tracks
+            for (const track of stream.getAudioTracks()) {
+                if (track.enabled) {
+                    audioStream.addTrack(track);
+                }
+            }
+
             // Log audio track details
-            const audioTrack = stream.getAudioTracks()[0];
+            const audioTrack = audioStream.getAudioTracks()[0];
             console.log('[Helios Audio] Audio track details:', {
                 id: audioTrack.id,
                 kind: audioTrack.kind,
@@ -103,11 +118,19 @@ class AudioRecorder {
                 readyState: audioTrack.readyState
             });
 
-            // Return the FULL stream (both video and audio tracks)
-            // MediaRecorder will record only audio when we specify audio mimeType
-            // Creating a new MediaStream with only audio tracks seems to break recording
-            console.log('[Helios Audio] Successfully captured stream from video (using full stream with audio mimeType)');
-            return stream;
+            // CRITICAL: Route audio to speakers using AudioContext (like asbplayer)
+            // This ensures audio keeps playing AND makes recording work
+            try {
+                const output = new AudioContext();
+                const source = output.createMediaStreamSource(audioStream);
+                source.connect(output.destination);
+                console.log('[Helios Audio] Audio routed to AudioContext');
+            } catch (error) {
+                console.warn('[Helios Audio] Could not route to AudioContext:', error);
+            }
+
+            console.log('[Helios Audio] Successfully captured audio stream from video');
+            return audioStream;
 
         } catch (error) {
             console.error('[Helios Audio] Error capturing video stream:', error);
@@ -144,13 +167,9 @@ class AudioRecorder {
                 this.recording = true;
                 this.audioChunks = [];
 
-                // Get supported mimeType
-                const mimeType = this.getSupportedMimeType();
-                console.log('[Helios Audio] Using mimeType:', mimeType);
-
-                // Create MediaRecorder with mimeType if available
-                const options = mimeType ? { mimeType } : {};
-                this.mediaRecorder = new MediaRecorder(stream, options);
+                // Create MediaRecorder WITHOUT options - let browser choose best format
+                // This is how asbplayer does it
+                this.mediaRecorder = new MediaRecorder(stream);
 
                 // Collect data chunks
                 this.mediaRecorder.ondataavailable = (event) => {
