@@ -48,8 +48,21 @@ class AudioRecorder {
             // Calculate total duration with padding
             const totalDuration = duration + (paddingBefore + paddingAfter) * 1000;
 
+            // CRITICAL: Video must be PLAYING for captureStream to record audio
+            const wasPaused = videoElement.paused;
+            if (wasPaused) {
+                console.log('[Helios Audio] Video was paused, starting playback for recording');
+                await videoElement.play();
+            }
+
             // Record the audio
             const audioDataUrl = await this.recordStream(stream, totalDuration);
+
+            // Restore pause state if it was paused before
+            if (wasPaused) {
+                console.log('[Helios Audio] Restoring pause state');
+                videoElement.pause();
+            }
 
             return audioDataUrl;
 
