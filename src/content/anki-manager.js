@@ -198,11 +198,13 @@ class AnkiManager {
       const paddingAfter = 0.25; // seconds
 
       if (timing) {
-        // Use subtitle timing - record the ENTIRE subtitle line
+        // Use subtitle timing - record the ENTIRE subtitle line (like asbplayer)
         // timing.start and timing.end are in milliseconds (from SubtitleEntry)
-        duration = timing.end - timing.start; // Duration in ms
-        startTime = (timing.start / 1000) - paddingBefore; // Convert ms to seconds, then subtract padding
-        console.log('[Helios Anki] Recording audio for full subtitle line - start:', startTime, 's, duration:', duration, 'ms, text:', timing.text);
+        // Seek to: subtitle.start - padding (in seconds for video.currentTime)
+        // Record for: subtitle duration + paddingAfter (padding is in ms, added in audio-recorder)
+        startTime = (timing.start / 1000) - paddingBefore; // Convert ms to seconds, include padding before
+        duration = timing.end - timing.start; // Duration in ms (padding after will be added by recorder)
+        console.log('[Helios Anki] Recording audio - seeking to:', startTime, 's, subtitle duration:', duration, 'ms, text:', timing.text);
       } else {
         // Fallback: estimate based on sentence length (rough estimate: 150ms per character)
         duration = Math.max(2000, Math.min(sentence.length * 150, 10000));

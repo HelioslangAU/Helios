@@ -45,10 +45,10 @@ class AudioRecorder {
             const wasPaused = videoElement.paused;
             console.log('[Helios Audio] Original state - time:', originalTime, 'paused:', wasPaused);
 
-            // Seek to start time if provided
+            // Seek to start time if provided (already includes paddingBefore)
             if (startTime !== null) {
                 const seekToTime = Math.max(0, startTime);
-                console.log('[Helios Audio] Seeking to start time:', seekToTime);
+                console.log('[Helios Audio] Seeking to start time:', seekToTime, 's');
                 videoElement.currentTime = seekToTime;
                 // Wait for seek to complete
                 await new Promise(resolve => {
@@ -60,20 +60,21 @@ class AudioRecorder {
                 });
             }
 
-            // Capture stream from video element
+            // CRITICAL: Video must be PLAYING for captureStream to record audio (like asbplayer)
+            if (wasPaused) {
+                console.log('[Helios Audio] Video was paused, starting playback for recording');
+                await videoElement.play();
+            }
+
+            // Capture stream from video element AFTER starting playback
             const stream = this.captureVideoStream(videoElement);
             if (!stream) {
                 return null;
             }
 
-            // Calculate total duration with padding
-            const totalDuration = duration + (paddingBefore + paddingAfter) * 1000;
-
-            // CRITICAL: Video must be PLAYING for captureStream to record audio
-            if (wasPaused) {
-                console.log('[Helios Audio] Video was paused, starting playback for recording');
-                await videoElement.play();
-            }
+            // Calculate total duration with paddingAfter only (paddingBefore already applied in seek)
+            const totalDuration = duration + (paddingAfter * 1000);
+            console.log('[Helios Audio] Recording for duration:', totalDuration, 'ms');
 
             // Record the audio
             const audioDataUrl = await this.recordStream(stream, totalDuration);
