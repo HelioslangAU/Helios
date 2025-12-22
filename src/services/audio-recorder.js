@@ -86,33 +86,14 @@ class AudioRecorder {
 
             console.log('[Helios Audio] Stream captured, video tracks:', stream.getVideoTracks().length, 'audio tracks:', stream.getAudioTracks().length);
 
-            // Extract only audio tracks
-            const audioStream = new MediaStream();
-
-            // Don't stop video tracks - this breaks subsequent recordings
-            // Just don't add them to the audio stream
-            stream.getVideoTracks().forEach(track => {
-                console.log('[Helios Audio] Skipping video track:', track.id);
-            });
-
-            // Add audio tracks
-            stream.getAudioTracks().forEach(track => {
-                if (track.enabled) {
-                    console.log('[Helios Audio] Adding audio track:', track.id, 'enabled:', track.enabled);
-                    audioStream.addTrack(track);
-                } else {
-                    console.warn('[Helios Audio] Skipping disabled audio track:', track.id);
-                }
-            });
-
-            if (audioStream.getAudioTracks().length === 0) {
+            // Check if we have audio tracks
+            if (stream.getAudioTracks().length === 0) {
                 console.error('[Helios Audio] No audio tracks available in stream');
-                console.log('[Helios Audio] Original stream had:', stream.getAudioTracks().length, 'audio tracks');
                 return null;
             }
 
             // Log audio track details
-            const audioTrack = audioStream.getAudioTracks()[0];
+            const audioTrack = stream.getAudioTracks()[0];
             console.log('[Helios Audio] Audio track details:', {
                 id: audioTrack.id,
                 kind: audioTrack.kind,
@@ -122,11 +103,11 @@ class AudioRecorder {
                 readyState: audioTrack.readyState
             });
 
-            // Route audio to speakers to maintain playback
-            this.routeToSpeakers(audioStream);
-
-            console.log('[Helios Audio] Successfully captured audio stream from video');
-            return audioStream;
+            // Return the FULL stream (both video and audio tracks)
+            // MediaRecorder will record only audio when we specify audio mimeType
+            // Creating a new MediaStream with only audio tracks seems to break recording
+            console.log('[Helios Audio] Successfully captured stream from video (using full stream with audio mimeType)');
+            return stream;
 
         } catch (error) {
             console.error('[Helios Audio] Error capturing video stream:', error);
