@@ -248,14 +248,14 @@ class AnkiManager {
       console.log('[Helios Anki] Looking for subtitle for sentence:', sentence);
 
       // Try to access video feature manager for subtitle data
-      if (!window.videoFeatureManager) {
-        console.warn('[Helios Anki] videoFeatureManager not available');
+      if (!window.heliosVideoFeature) {
+        console.warn('[Helios Anki] heliosVideoFeature not available');
         return null;
       }
 
       // BEST APPROACH (like asbplayer): Get currently active subtitle from overlay
-      if (window.videoFeatureManager.subtitleOverlay?.currentSubtitles) {
-        const currentSubs = window.videoFeatureManager.subtitleOverlay.currentSubtitles;
+      if (window.heliosVideoFeature.subtitleOverlay?.currentSubtitles) {
+        const currentSubs = window.heliosVideoFeature.subtitleOverlay.currentSubtitles;
         if (currentSubs.length > 0) {
           const currentSub = currentSubs[0]; // Get first active subtitle
           console.log('[Helios Anki] Using current active subtitle:', currentSub.text);
@@ -268,12 +268,12 @@ class AnkiManager {
       }
 
       // FALLBACK: Search through all subtitles for match
-      if (!window.videoFeatureManager.subtitleCollection) {
+      if (!window.heliosVideoFeature.subtitleCollection) {
         console.warn('[Helios Anki] subtitleCollection not available');
         return null;
       }
 
-      const subtitles = window.videoFeatureManager.subtitleCollection.subtitles;
+      const subtitles = window.heliosVideoFeature.subtitleCollection.subtitles;
       console.log('[Helios Anki] Searching through', subtitles.length, 'subtitles');
 
       // Try exact match first
