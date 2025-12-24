@@ -70,21 +70,13 @@ class PopupEventHandler {
     const ankiBtn = popup.querySelector(".anki-btn");
     if (ankiBtn && !ankiBtn.disabled) {
       ankiBtn.addEventListener("click", async () => {
-        // Show recording state
-        const originalText = ankiBtn.textContent;
-        ankiBtn.textContent = '🎙️ Recording...';
-        ankiBtn.disabled = true;
-
-        try {
-          if (isMultiCard && currentCard) {
-            await this.handleMultiCardAnkiAdd(currentCard, managers);
-          } else {
-            await this.handleAnkiAdd(character, managers);
-          }
-        } finally {
-          // Restore button state
-          ankiBtn.textContent = originalText;
-          ankiBtn.disabled = false;
+        // handleAnkiAdd and handleMultiCardAnkiAdd call createCardFromPopup
+        // which manages the button state (loading -> success/error)
+        // So we don't override it here
+        if (isMultiCard && currentCard) {
+          await this.handleMultiCardAnkiAdd(currentCard, managers);
+        } else {
+          await this.handleAnkiAdd(character, managers);
         }
       });
     }

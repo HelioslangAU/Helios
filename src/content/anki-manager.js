@@ -177,14 +177,16 @@ class AnkiManager {
   }
 
   // Capture audio for sentence with subtitle timing (like asbplayer)
-  async captureAudioForSentence(sentence, character) {
+  async captureAudioForSentence(sentence) {
     try {
       if (!sentence || !window.HeliosAudioRecorder) {
         return null;
       }
 
-      // Try to get subtitle timing - pass character to find the actual subtitle line
-      const timing = this.getSubtitleTimingForCharacter(character || sentence);
+      console.log('[Helios Anki] Capturing audio for sentence:', sentence);
+
+      // Get subtitle timing by finding subtitle containing this sentence
+      const timing = this.getSubtitleTimingForSentence(sentence);
 
       // Find video element
       const videoElement = window.HeliosScreenshotCapturer?.findVideoElement();
@@ -240,31 +242,81 @@ class AnkiManager {
     }
   }
 
-  // Get subtitle timing for a character/word - finds the full subtitle line containing the word
-  getSubtitleTimingForCharacter(character) {
+  // Get subtitle timing for a sentence - finds the subtitle containing this sentence
+  getSubtitleTimingForSentence(sentence) {
     try {
+      console.log('[Helios Anki] Looking for subtitle for sentence:', sentence);
+
       // Try to access video feature manager for subtitle data
-      if (window.videoFeatureManager?.subtitleCollection) {
-        const subtitles = window.videoFeatureManager.subtitleCollection.subtitles;
-
-        // Find subtitle entry containing this character/word
-        for (const subtitle of subtitles) {
-          if (subtitle.text && subtitle.text.includes(character)) {
-            console.log('[Helios Anki] Found subtitle line for character "' + character + '":', subtitle.text);
-            return {
-              start: subtitle.start,
-              end: subtitle.end,
-              text: subtitle.text  // Return full subtitle text for logging
-            };
-          }
-        }
-
-        console.warn('[Helios Anki] No subtitle found containing character:', character);
+      if (!window.videoFeatureManager) {
+        console.warn('[Helios Anki] videoFeatureManager not available');
+        return null;
       }
 
+      // BEST APPROACH (like asbplayer): Get currently active subtitle from overlay
+      if (window.videoFeatureManager.subtitleOverlay?.currentSubtitles) {
+        const currentSubs = window.videoFeatureManager.subtitleOverlay.currentSubtitles;
+        if (currentSubs.length > 0) {
+          const currentSub = currentSubs[0]; // Get first active subtitle
+          console.log('[Helios Anki] Using current active subtitle:', currentSub.text);
+          return {
+            start: currentSub.start,
+            end: currentSub.end,
+            text: currentSub.text
+          };
+        }
+      }
+
+      // FALLBACK: Search through all subtitles for match
+      if (!window.videoFeatureManager.subtitleCollection) {
+        console.warn('[Helios Anki] subtitleCollection not available');
+        return null;
+      }
+
+      const subtitles = window.videoFeatureManager.subtitleCollection.subtitles;
+      console.log('[Helios Anki] Searching through', subtitles.length, 'subtitles');
+
+      // Try exact match first
+      for (const subtitle of subtitles) {
+        if (subtitle.text === sentence) {
+          console.log('[Helios Anki] Found exact match:', subtitle.text);
+          return {
+            start: subtitle.start,
+            end: subtitle.end,
+            text: subtitle.text
+          };
+        }
+      }
+
+      // Try partial match - subtitle contains sentence
+      for (const subtitle of subtitles) {
+        if (subtitle.text && subtitle.text.includes(sentence)) {
+          console.log('[Helios Anki] Found subtitle containing sentence:', subtitle.text);
+          return {
+            start: subtitle.start,
+            end: subtitle.end,
+            text: subtitle.text
+          };
+        }
+      }
+
+      // Try reverse - sentence contains subtitle
+      for (const subtitle of subtitles) {
+        if (subtitle.text && sentence.includes(subtitle.text)) {
+          console.log('[Helios Anki] Found subtitle (reverse match):', subtitle.text);
+          return {
+            start: subtitle.start,
+            end: subtitle.end,
+            text: subtitle.text
+          };
+        }
+      }
+
+      console.warn('[Helios Anki] No subtitle found for sentence:', sentence);
       return null;
+
     } catch (error) {
-      console.warn('[Helios Anki] Could not get subtitle timing:', error);
+      console.error('[Helios Anki] Error getting subtitle timing:', error);
       return null;
     }
   }
