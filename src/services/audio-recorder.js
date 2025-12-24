@@ -1,7 +1,7 @@
 /**
  * Audio Recorder Service
  * Handles audio recording from video content for Anki cards
- * Records sentence audio based on subtitle timing
+ * Based on asbplayer's approach
  */
 
 class AudioRecorder {
@@ -9,19 +9,16 @@ class AudioRecorder {
         this.recording = false;
         this.mediaRecorder = null;
         this.audioChunks = [];
-        this.audioContext = null;
     }
 
     /**
-     * Record audio from video element for a specific duration
+     * Record audio from video element (asbplayer approach)
      * @param {HTMLVideoElement} videoElement - The video element to record from
-     * @param {number} duration - Duration in milliseconds
-     * @param {number} paddingBefore - Padding before in seconds (default: 0.25)
-     * @param {number} paddingAfter - Padding after in seconds (default: 0.25)
-     * @param {number|null} startTime - Time to seek to before recording (in seconds), or null for current position
+     * @param {number} seekToTime - Time to seek to in seconds (already includes padding before)
+     * @param {number} duration - Duration in milliseconds to record
      * @returns {Promise<string|null>} Base64 data URL of recorded audio
      */
-    async recordFromVideo(videoElement, duration, paddingBefore = 0.25, paddingAfter = 0.25, startTime = null) {
+    async recordFromVideo(videoElement, seekToTime, duration) {
         if (!videoElement) {
             console.error('[Helios Audio] No video element provided');
             return null;
@@ -37,53 +34,51 @@ class AudioRecorder {
             if (typeof videoElement.captureStream !== 'function' &&
                 typeof videoElement.mozCaptureStream !== 'function') {
                 console.error('[Helios Audio] Video element does not support captureStream');
-                return this.recordFromTab(duration + (paddingBefore + paddingAfter) * 1000);
+                return null;
             }
 
             // Save original state
             const originalTime = videoElement.currentTime;
             const wasPaused = videoElement.paused;
-            console.log('[Helios Audio] Original state - time:', originalTime, 'paused:', wasPaused);
+            console.log('[Helios Audio] Original state - time:', originalTime, 's, paused:', wasPaused);
 
-            // Seek to start time if provided (already includes paddingBefore)
-            if (startTime !== null) {
-                const seekToTime = Math.max(0, startTime);
-                console.log('[Helios Audio] Seeking to start time:', seekToTime, 's');
-                videoElement.currentTime = seekToTime;
-                // Wait for seek to complete
-                await new Promise(resolve => {
-                    const onSeeked = () => {
-                        videoElement.removeEventListener('seeked', onSeeked);
-                        resolve();
-                    };
-                    videoElement.addEventListener('seeked', onSeeked);
-                });
-            }
+            // Step 1: Seek to start position (like asbplayer: subtitle.start - paddingBefore)
+            console.log('[Helios Audio] Seeking to:', seekToTime, 's');
+            videoElement.currentTime = seekToTime;
 
-            // CRITICAL: Video must be PLAYING for captureStream to record audio (like asbplayer)
-            if (wasPaused) {
-                console.log('[Helios Audio] Video was paused, starting playback for recording');
-                await videoElement.play();
-            }
+            // Wait for seek to complete
+            await new Promise(resolve => {
+                const onSeeked = () => {
+                    videoElement.removeEventListener('seeked', onSeeked);
+                    resolve();
+                };
+                videoElement.addEventListener('seeked', onSeeked);
+            });
 
-            // Capture stream from video element AFTER starting playback
+            console.log('[Helios Audio] Seek complete, current time:', videoElement.currentTime, 's');
+
+            // Step 2: Play the video (CRITICAL - must play before capturing stream)
+            await videoElement.play();
+            console.log('[Helios Audio] Video playing');
+
+            // Step 3: Capture stream from video element (AFTER playing)
             const stream = this.captureVideoStream(videoElement);
             if (!stream) {
+                // Restore state before returning
+                if (wasPaused) {
+                    videoElement.pause();
+                }
+                videoElement.currentTime = originalTime;
                 return null;
             }
 
-            // Calculate total duration with paddingAfter only (paddingBefore already applied in seek)
-            const totalDuration = duration + (paddingAfter * 1000);
-            console.log('[Helios Audio] Recording for duration:', totalDuration, 'ms');
+            // Step 4: Start recording
+            console.log('[Helios Audio] Starting recording for', duration, 'ms');
+            const audioDataUrl = await this.recordStream(stream, duration);
 
-            // Record the audio
-            const audioDataUrl = await this.recordStream(stream, totalDuration);
-
-            // Restore original state
-            if (startTime !== null) {
-                console.log('[Helios Audio] Restoring original position:', originalTime);
-                videoElement.currentTime = originalTime;
-            }
+            // Step 5: Restore original state
+            console.log('[Helios Audio] Recording complete, restoring state');
+            videoElement.currentTime = originalTime;
 
             if (wasPaused) {
                 console.log('[Helios Audio] Restoring pause state');
@@ -105,7 +100,11 @@ class AudioRecorder {
      */
     captureVideoStream(videoElement) {
         try {
-            console.log('[Helios Audio] Video state - paused:', videoElement.paused, 'muted:', videoElement.muted, 'currentTime:', videoElement.currentTime);
+            console.log('[Helios Audio] Capturing stream - video state:', {
+                paused: videoElement.paused,
+                muted: videoElement.muted,
+                currentTime: videoElement.currentTime
+            });
 
             let stream = null;
 
@@ -121,11 +120,11 @@ class AudioRecorder {
             }
 
             if (!stream) {
-                console.error('[Helios Audio] Failed to capture stream from video - API not available');
+                console.error('[Helios Audio] Failed to capture stream - API not available');
                 return null;
             }
 
-            console.log('[Helios Audio] Stream captured, video tracks:', stream.getVideoTracks().length, 'audio tracks:', stream.getAudioTracks().length);
+            console.log('[Helios Audio] Stream captured - video tracks:', stream.getVideoTracks().length, 'audio tracks:', stream.getAudioTracks().length);
 
             // Check if we have audio tracks
             if (stream.getAudioTracks().length === 0) {
@@ -136,12 +135,12 @@ class AudioRecorder {
             // Create new MediaStream with only audio tracks (like asbplayer)
             const audioStream = new MediaStream();
 
-            // Stop video tracks
+            // Stop video tracks (we don't need them)
             for (const track of stream.getVideoTracks()) {
                 track.stop();
             }
 
-            // Add only enabled audio tracks
+            // Add enabled audio tracks
             for (const track of stream.getAudioTracks()) {
                 if (track.enabled) {
                     audioStream.addTrack(track);
@@ -150,49 +149,27 @@ class AudioRecorder {
 
             // Log audio track details
             const audioTrack = audioStream.getAudioTracks()[0];
-            console.log('[Helios Audio] Audio track details:', {
+            console.log('[Helios Audio] Audio track:', {
                 id: audioTrack.id,
-                kind: audioTrack.kind,
-                label: audioTrack.label,
                 enabled: audioTrack.enabled,
-                muted: audioTrack.muted,
                 readyState: audioTrack.readyState
             });
 
-            // CRITICAL: Route audio to speakers using AudioContext (like asbplayer)
-            // This must be done HERE in captureStream, not later in recordStream
+            // Route audio to speakers using AudioContext (like asbplayer)
             try {
                 const output = new AudioContext();
                 const source = output.createMediaStreamSource(audioStream);
                 source.connect(output.destination);
-                console.log('[Helios Audio] Audio routed to AudioContext in captureStream');
+                console.log('[Helios Audio] Audio routed to speakers');
             } catch (error) {
-                console.warn('[Helios Audio] Could not route to AudioContext:', error);
+                console.warn('[Helios Audio] Could not route to speakers:', error);
             }
 
-            console.log('[Helios Audio] Successfully captured audio stream from video');
             return audioStream;
 
         } catch (error) {
-            console.error('[Helios Audio] Error capturing video stream:', error);
-            console.error('[Helios Audio] Error stack:', error.stack);
+            console.error('[Helios Audio] Error capturing stream:', error);
             return null;
-        }
-    }
-
-    /**
-     * Route audio stream to speakers so user can still hear
-     * @param {MediaStream} stream
-     */
-    routeToSpeakers(stream) {
-        try {
-            // Skip routing - it can interfere with recording
-            // The video element is already playing audio to speakers
-            console.log('[Helios Audio] Audio already playing through video element');
-
-        } catch (error) {
-            console.warn('[Helios Audio] Could not route to speakers:', error);
-            // Non-critical, continue anyway
         }
     }
 
@@ -208,36 +185,33 @@ class AudioRecorder {
                 this.recording = true;
                 this.audioChunks = [];
 
-                // Create MediaRecorder WITHOUT options - let browser choose best format
-                // This is how asbplayer does it
+                // Create MediaRecorder WITHOUT options - let browser choose (like asbplayer)
                 this.mediaRecorder = new MediaRecorder(stream);
 
                 // Collect data chunks
                 this.mediaRecorder.ondataavailable = (event) => {
-                    console.log('[Helios Audio] ondataavailable fired, data size:', event.data?.size || 0);
                     if (event.data && event.data.size > 0) {
                         this.audioChunks.push(event.data);
-                        console.log('[Helios Audio] Added chunk, total chunks:', this.audioChunks.length);
+                        console.log('[Helios Audio] Chunk received:', event.data.size, 'bytes, total chunks:', this.audioChunks.length);
                     }
                 };
 
-                // Handle recording stop (onstop fires when stop() is called)
+                // Handle recording stop
                 this.mediaRecorder.onstop = async () => {
                     this.recording = false;
 
                     try {
-                        console.log('[Helios Audio] Recording stopped, collected chunks:', this.audioChunks.length);
+                        console.log('[Helios Audio] Recording stopped, chunks:', this.audioChunks.length);
 
                         if (this.audioChunks.length === 0) {
-                            console.error('[Helios Audio] No audio chunks collected');
+                            console.error('[Helios Audio] No audio data captured');
                             resolve(null);
                             return;
                         }
 
-                        // Create blob from chunks (use mimeType from MediaRecorder)
+                        // Create blob from chunks
                         const audioBlob = new Blob(this.audioChunks, { type: this.mediaRecorder.mimeType });
-
-                        console.log('[Helios Audio] Created blob, size:', audioBlob.size, 'bytes, type:', audioBlob.type);
+                        console.log('[Helios Audio] Blob created:', audioBlob.size, 'bytes, type:', audioBlob.type);
 
                         // Convert to base64 data URL
                         const dataUrl = await this.blobToDataUrl(audioBlob);
@@ -245,11 +219,11 @@ class AudioRecorder {
                         // Stop all tracks
                         stream.getTracks().forEach(track => track.stop());
 
-                        console.log('[Helios Audio] Recording complete, final size:', audioBlob.size, 'bytes');
+                        console.log('[Helios Audio] Recording complete, size:', audioBlob.size, 'bytes');
                         resolve(dataUrl);
 
                     } catch (error) {
-                        console.error('[Helios Audio] Error processing recorded audio:', error);
+                        console.error('[Helios Audio] Error processing audio:', error);
                         resolve(null);
                     }
                 };
@@ -262,16 +236,13 @@ class AudioRecorder {
                 };
 
                 // Start recording WITHOUT timeslice (like asbplayer)
-                // ondataavailable will fire when stop() is called
                 this.mediaRecorder.start();
-                console.log('[Helios Audio] Recording started, duration:', duration, 'ms');
-                console.log('[Helios Audio] MediaRecorder state:', this.mediaRecorder.state);
-                console.log('[Helios Audio] MediaRecorder mimeType:', this.mediaRecorder.mimeType);
+                console.log('[Helios Audio] Recording started - duration:', duration, 'ms, mimeType:', this.mediaRecorder.mimeType);
 
                 // Stop after duration
                 setTimeout(() => {
                     if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
-                        console.log('[Helios Audio] Stopping recording after timeout');
+                        console.log('[Helios Audio] Stopping recording after', duration, 'ms');
                         this.mediaRecorder.stop();
                     }
                 }, duration);
@@ -282,27 +253,6 @@ class AudioRecorder {
                 resolve(null);
             }
         });
-    }
-
-    /**
-     * Get supported MIME type for recording
-     * @returns {string}
-     */
-    getSupportedMimeType() {
-        const types = [
-            'audio/webm;codecs=opus',
-            'audio/webm',
-            'audio/ogg;codecs=opus',
-            'audio/mp4'
-        ];
-
-        for (const type of types) {
-            if (MediaRecorder.isTypeSupported(type)) {
-                return type;
-            }
-        }
-
-        return ''; // Let browser choose default
     }
 
     /**
@@ -320,34 +270,6 @@ class AudioRecorder {
     }
 
     /**
-     * Record from tab capture (fallback for DRM content)
-     * @param {number} duration - Duration in milliseconds
-     * @returns {Promise<string|null>}
-     */
-    async recordFromTab(duration) {
-        try {
-            console.log('[Helios Audio] Requesting tab capture for audio recording');
-
-            const response = await chrome.runtime.sendMessage({
-                action: 'CAPTURE_TAB_AUDIO',
-                duration: duration
-            });
-
-            if (response && response.success) {
-                console.log('[Helios Audio] Tab audio captured successfully');
-                return response.dataUrl;
-            } else {
-                console.error('[Helios Audio] Failed to capture tab audio:', response?.error);
-                return null;
-            }
-
-        } catch (error) {
-            console.error('[Helios Audio] Error requesting tab audio capture:', error);
-            return null;
-        }
-    }
-
-    /**
      * Stop any ongoing recording
      */
     stop() {
@@ -355,17 +277,6 @@ class AudioRecorder {
             this.mediaRecorder.stop();
         }
         this.recording = false;
-    }
-
-    /**
-     * Cleanup resources
-     */
-    cleanup() {
-        this.stop();
-        if (this.audioContext) {
-            this.audioContext.close();
-            this.audioContext = null;
-        }
     }
 }
 

@@ -176,7 +176,7 @@ class AnkiManager {
     return videos.length > 0;
   }
 
-  // Capture audio for sentence with subtitle timing
+  // Capture audio for sentence with subtitle timing (like asbplayer)
   async captureAudioForSentence(sentence, character) {
     try {
       if (!sentence || !window.HeliosAudioRecorder) {
@@ -193,32 +193,43 @@ class AnkiManager {
         return null;
       }
 
-      let duration, startTime;
-      const paddingBefore = 0.25; // seconds
-      const paddingAfter = 0.25; // seconds
+      const paddingBefore = 250; // milliseconds (0.25 seconds)
+      const paddingAfter = 250; // milliseconds (0.25 seconds)
 
-      if (timing) {
-        // Use subtitle timing - record the ENTIRE subtitle line (like asbplayer)
-        // timing.start and timing.end are in milliseconds (from SubtitleEntry)
-        // Seek to: subtitle.start - padding (in seconds for video.currentTime)
-        // Record for: subtitle duration + paddingAfter (padding is in ms, added in audio-recorder)
-        startTime = (timing.start / 1000) - paddingBefore; // Convert ms to seconds, include padding before
-        duration = timing.end - timing.start; // Duration in ms (padding after will be added by recorder)
-        console.log('[Helios Anki] Recording audio - seeking to:', startTime, 's, subtitle duration:', duration, 'ms, text:', timing.text);
-      } else {
-        // Fallback: estimate based on sentence length (rough estimate: 150ms per character)
-        duration = Math.max(2000, Math.min(sentence.length * 150, 10000));
-        startTime = null; // No timing info, record from current position
-        console.log('[Helios Anki] Recording audio with estimated duration:', duration, 'ms');
+      if (!timing) {
+        console.warn('[Helios Anki] No subtitle timing found, cannot record audio');
+        return null;
       }
 
-      // Record audio (will seek to start, play, record, then return to original position)
+      // Like asbplayer's approach:
+      // 1. Calculate seek position: subtitle.start - paddingBefore
+      // 2. Calculate record duration: (subtitle.end - subtitle.start) + paddingAfter
+      // 3. Seek and play
+      // 4. Start recording
+
+      const subtitleStart = timing.start; // ms
+      const subtitleEnd = timing.end; // ms
+
+      // Seek to position (with padding before)
+      const seekToTimeMs = Math.max(0, subtitleStart - paddingBefore);
+      const seekToTimeSec = seekToTimeMs / 1000;
+
+      // Duration to record
+      const recordDurationMs = (subtitleEnd - subtitleStart) + paddingAfter;
+
+      console.log('[Helios Anki] Recording audio for subtitle:', {
+        text: timing.text,
+        subtitleStart: subtitleStart + 'ms',
+        subtitleEnd: subtitleEnd + 'ms',
+        seekTo: seekToTimeSec + 's',
+        recordDuration: recordDurationMs + 'ms'
+      });
+
+      // Record audio using asbplayer's approach
       const audioDataUrl = await window.HeliosAudioRecorder.recordFromVideo(
         videoElement,
-        duration,
-        paddingBefore,
-        paddingAfter,
-        startTime // Pass start time for seeking
+        seekToTimeSec,
+        recordDurationMs
       );
 
       return audioDataUrl;
