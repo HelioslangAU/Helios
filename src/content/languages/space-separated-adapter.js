@@ -872,13 +872,54 @@ class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
       }
 
       const dictionaryForm = this.findDictionaryForm(word, dictionary);
-      words.push({
-        word: word,
-        start: start,
-        end: end,
-        dictionaryForm: dictionaryForm, // Store the base form for dictionary lookup
-        isTargetLang: dictionaryForm ? true : false
-      });
+      
+      // If not found and word contains hyphens, split into separate words
+      if (!dictionaryForm && word.includes('-')) {
+        const parts = word.split('-');
+        let currentPos = start;
+        
+        for (let i = 0; i < parts.length; i++) {
+          const part = parts[i];
+          if (part) {
+            // Add the word part
+            const partStart = currentPos;
+            const partEnd = partStart + part.length;
+            const partDictionaryForm = this.findDictionaryForm(part, dictionary);
+            
+            words.push({
+              word: part,
+              start: partStart,
+              end: partEnd,
+              dictionaryForm: partDictionaryForm,
+              isTargetLang: partDictionaryForm ? true : false
+            });
+            
+            currentPos = partEnd;
+          }
+          
+          // Add hyphen as non-word content (except after the last part)
+          if (i < parts.length - 1) {
+            const hyphenStart = currentPos;
+            const hyphenEnd = hyphenStart + 1;
+            words.push({
+              word: '-',
+              start: hyphenStart,
+              end: hyphenEnd,
+              isTargetLang: false
+            });
+            currentPos = hyphenEnd;
+          }
+        }
+      } else {
+        // Word found in dictionary or no hyphens, add as single word
+        words.push({
+          word: word,
+          start: start,
+          end: end,
+          dictionaryForm: dictionaryForm, // Store the base form for dictionary lookup
+          isTargetLang: dictionaryForm ? true : false
+        });
+      }
 
       lastIndex = end;
     }

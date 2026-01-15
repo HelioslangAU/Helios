@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Helios",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "A browser extension for language learning with subtitle reading, popup dictionary, vocab tracking, and Anki integration",
 
 
