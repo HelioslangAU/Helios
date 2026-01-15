@@ -1344,7 +1344,7 @@ class PlatformVideoSidebar {
         }
       }
     } else {
-      const matches = text.match(/[\p{L}\p{M}]+/gu);
+      const matches = text.match(/[\p{L}\p{M}]+(?:[''-][\p{L}\p{M}]+)*/gu);
       if (matches) {
         words.push(...matches.map(w => w.toLowerCase()));
       }
@@ -1422,11 +1422,34 @@ class PlatformVideoSidebar {
         // Use language-aware word extraction (EXACTLY like YouTube)
         const extractedWords = await adapter.extractWords(entry.text, dictionary);
 
+        // Additional safeguard: preload ALL extracted words (including those marked as non-target)
+        // This ensures words that weren't found during initial extraction can be found after preloading
+        const allExtractedWords = extractedWords.map(({ word }) => word.toLowerCase());
+        if (allExtractedWords.length > 0 && window.dictionaryManager.preloadWords) {
+          await window.dictionaryManager.preloadWords(allExtractedWords);
+        }
+
+        // Refresh dictionary reference after preloading
+        const dictionaryAfterPreload = window.dictionaryManager?.dictionary || {};
+
+        // Re-check words that were marked as non-target - they might be in dictionary now
+        // This fixes cases where words weren't found during initial extraction due to timing
+        extractedWords.forEach(extractedWord => {
+          if (extractedWord.isTargetLang === false && adapter && adapter.findDictionaryForm) {
+            const dictionaryForm = adapter.findDictionaryForm(extractedWord.word, dictionaryAfterPreload);
+            if (dictionaryForm) {
+              // Word is in dictionary - mark as target language
+              extractedWord.isTargetLang = true;
+              extractedWord.dictionaryForm = dictionaryForm;
+            }
+          }
+        });
+
         // Check if language uses spaces between words (not CJK languages)
         const currentLang = window.languageRegistry?.getCurrentLanguage();
         const usesSpaces = currentLang && !['zh', 'ja', 'ko'].includes(currentLang);
 
-        extractedWords.forEach(({ word, offset, isTargetLang }, index) => {
+        extractedWords.forEach(({ word, offset, isTargetLang, dictionaryForm }, index) => {
           const wordSpan = document.createElement('span');
 
           if (isTargetLang !== false) {
@@ -1436,14 +1459,18 @@ class PlatformVideoSidebar {
 
             // Mark as subtitle word for hover-without-shift functionality
             wordSpan.setAttribute('data-subtitle-word', 'true');
-            wordSpan.setAttribute('data-helios-word', word);
+            // Use dictionaryForm if available (normalized form), otherwise use original word
+            // This ensures lookups work correctly even if the original word has different casing
+            const wordForLookup = dictionaryForm || word.toLowerCase();
+            wordSpan.setAttribute('data-helios-word', wordForLookup);
 
             // Check if word is unknown and add styling
-            const cleanWord = word.toLowerCase();
+            // Use dictionaryForm if available (normalized form), otherwise use lowercase word
+            const cleanWord = dictionaryForm || word.toLowerCase();
 
             // Underline unknown words (no length restriction, matches YouTube sidebar and caption overlay)
             if (window.vocabManager &&
-                dictionary[cleanWord] &&
+                dictionaryAfterPreload[cleanWord] &&
                 !window.vocabManager.isWordKnown(cleanWord) &&
                 !window.vocabManager.isWordIgnored(cleanWord)) {
               wordSpan.classList.add('unknown-word');
@@ -1475,9 +1502,27 @@ class PlatformVideoSidebar {
           wordSpan.textContent = word;
           primaryText.appendChild(wordSpan);
 
-          // Add space after word (except for last word) for languages that use spaces
+          // Add space after word/punctuation if:
+          // 1. Language uses spaces
+          // 2. This is not the last word
+          // 3. Next item is a word (not punctuation)
+          // 4. Current item is either a word OR punctuation that should have space after it (not hyphens)
           if (usesSpaces && index < extractedWords.length - 1) {
-            primaryText.appendChild(document.createTextNode(' '));
+            const currentIsWord = isTargetLang !== false;
+            const nextWord = extractedWords[index + 1];
+            const nextIsWord = nextWord && nextWord.isTargetLang !== false;
+            
+            // Check if current item is punctuation that should have space after it
+            const punctuationWithSpaceAfter = /^[.!?,:;]$/.test(word.trim());
+            const isHyphen = word.trim() === '-';
+            
+            // Add space if:
+            // - Current is a word and next is a word, OR
+            // - Current is punctuation that should have space after it and next is a word
+            // But NOT if current is a hyphen
+            if (nextIsWord && !isHyphen && (currentIsWord || punctuationWithSpaceAfter)) {
+              primaryText.appendChild(document.createTextNode(' '));
+            }
           }
         });
       } else {
@@ -2140,10 +2185,20 @@ class PlatformVideoSidebar {
    */
   async _loadSettings() {
     try {
-      const result = await chrome.storage.local.get(['platformSidebarSettings', 'videoFeatureEnabled']);
+      const result = await chrome.storage.local.get(['platformSidebarSettings', 'videoFeatureEnabled', 'extensionEnabled']);
+
+      // Check global extension toggle FIRST
+      const extensionEnabled = result.extensionEnabled !== false; // Default to true
 
       // Check global video feature toggle
       this.videoFeatureEnabled = result.videoFeatureEnabled !== false; // Default to true
+
+      // If extension is disabled globally, don't enable video features
+      if (!extensionEnabled) {
+        console.log('[Helios Platform Sidebar] Extension is disabled globally - sidebar will not initialize');
+        this.videoFeatureEnabled = false;
+        return; // Exit early, don't initialize
+      }
 
       if (result.platformSidebarSettings) {
         const loaded = result.platformSidebarSettings;
@@ -2235,18 +2290,37 @@ class PlatformVideoSidebar {
 // Initialize platform sidebar
 window.platformVideoSidebar = new PlatformVideoSidebar();
 
-// Listen for video feature toggle changes
+// Listen for video feature toggle changes AND global extension toggle
 chrome.storage.onChanged.addListener((changes, namespace) => {
-  if (namespace === 'local' && changes.videoFeatureEnabled) {
-    const isEnabled = changes.videoFeatureEnabled.newValue !== false;
+  if (namespace === 'local') {
+    // Handle global extension toggle (extensionEnabled)
+    if (changes.extensionEnabled) {
+      const isEnabled = changes.extensionEnabled.newValue !== false;
 
-    if (!isEnabled && window.platformVideoSidebar) {
-      console.log('[Helios Platform Sidebar] Video features disabled - destroying sidebar');
-      window.platformVideoSidebar.destroy();
-      window.platformVideoSidebar = null;
-    } else if (isEnabled && !window.platformVideoSidebar) {
-      console.log('[Helios Platform Sidebar] Video features enabled - reinitializing sidebar');
-      window.platformVideoSidebar = new PlatformVideoSidebar();
+      if (!isEnabled && window.platformVideoSidebar) {
+        console.log('[Helios Platform Sidebar] Extension disabled - hiding and disabling sidebar');
+        window.platformVideoSidebar.hide();
+        // Optionally destroy to clean up completely
+        window.platformVideoSidebar.destroy();
+        window.platformVideoSidebar = null;
+      } else if (isEnabled && !window.platformVideoSidebar) {
+        console.log('[Helios Platform Sidebar] Extension enabled - reinitializing sidebar');
+        window.platformVideoSidebar = new PlatformVideoSidebar();
+      }
+    }
+
+    // Handle video feature specific toggle (videoFeatureEnabled)
+    if (changes.videoFeatureEnabled) {
+      const isEnabled = changes.videoFeatureEnabled.newValue !== false;
+
+      if (!isEnabled && window.platformVideoSidebar) {
+        console.log('[Helios Platform Sidebar] Video features disabled - destroying sidebar');
+        window.platformVideoSidebar.destroy();
+        window.platformVideoSidebar = null;
+      } else if (isEnabled && !window.platformVideoSidebar) {
+        console.log('[Helios Platform Sidebar] Video features enabled - reinitializing sidebar');
+        window.platformVideoSidebar = new PlatformVideoSidebar();
+      }
     }
   }
 });

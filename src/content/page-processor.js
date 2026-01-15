@@ -351,10 +351,19 @@ class PageProcessor {
     }
 
     const adapter = this.languageRegistry.getAdapter();
-    const words = adapter ? await adapter.extractWords(subtitleText, this.dictionaryManager.dictionary) : [];
+    const allWords = adapter ? await adapter.extractWords(subtitleText, this.dictionaryManager.dictionary) : [];
+    
+    // Filter to only target language words (exclude punctuation, spaces, non-target language)
+    const words = allWords.filter(({ isTargetLang }) => isTargetLang !== false);
     
     let totalWords = words.length;
     let knownWords = words.filter(({ word }) => this.vocabManager.isWordKnown(word)).length;
+
+    // Print all unknown words to console
+    const unknownWords = words
+      .filter(({ word }) => !this.vocabManager.isWordKnown(word))
+      .map(({ word }) => word);
+    console.log('📝 Unknown words:', unknownWords);
 
     // Store totals for sidebar access
     this.lastTotalWords = totalWords;
@@ -384,7 +393,9 @@ class PageProcessor {
 
     for (const textNode of textNodes) {
         const adapter = this.languageRegistry.getAdapter();
-        const words = adapter ? await adapter.extractWords(textNode.textContent, this.dictionaryManager.dictionary) : [];
+        const allWords = adapter ? await adapter.extractWords(textNode.textContent, this.dictionaryManager.dictionary) : [];
+        // Filter to only target language words (exclude punctuation, spaces, non-target language)
+        const words = allWords.filter(({ isTargetLang }) => isTargetLang !== false);
         for (const { word } of words) {
             totalWords++;
             if (this.vocabManager.isWordKnown(word)) {
@@ -455,7 +466,9 @@ class PageProcessor {
   async analyzeASBPlayerSubtitlesComprehension(subtitlesText) {
   // subtitlesText: string containing all subtitles for the video
   const adapter = this.languageRegistry.getAdapter();
-  const words = adapter ? await adapter.extractWords(subtitlesText, this.dictionaryManager.dictionary) : [];
+  const allWords = adapter ? await adapter.extractWords(subtitlesText, this.dictionaryManager.dictionary) : [];
+  // Filter to only target language words (exclude punctuation, spaces, non-target language)
+  const words = allWords.filter(({ isTargetLang }) => isTargetLang !== false);
   let totalWords = words.length;
   let knownWords = words.filter(({ word }) => this.vocabManager.isWordKnown(word)).length;
   if (totalWords === 0) return 100;
