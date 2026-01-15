@@ -80,8 +80,27 @@ class AnkiManager {
     }
   }
 
+  // Format definition for Anki export: replace semicolons with newlines and add bullet points
+  formatDefinitionForAnki(definition) {
+    if (!definition) return definition;
+    // Replace semicolons (with optional spaces) with newlines
+    // Handle both "; " and ";" patterns, and also "\n;" from variant enhancements
+    let formatted = definition
+      .replace(/;\s*/g, '\n')  // Replace "; " or ";" with newline
+      .replace(/\n+/g, '\n')  // Collapse multiple newlines into one
+      .trim();                 // Remove leading/trailing whitespace
+    
+    // Split by newlines and add bullet point to each definition
+    const lines = formatted.split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0); // Remove empty lines
+    
+    // Add bullet point (∙) to each line and join with <br> for Anki HTML rendering
+    return lines.map(line => `∙ ${line}`).join('<br>');
+  }
+
   // Extract word data from character and context
-  extractWordData(character) {
+  async extractWordData(character) {
     // Get current language from registry
     const currentLanguage = window.languageRegistry?.getCurrentLanguage() || 'zh';
 
@@ -102,7 +121,22 @@ class AnkiManager {
         wordData.simplified = match.simplified || character;
         // Use pinyin for Chinese, pronunciation for other languages
         wordData.pinyin = match.pinyin || match.pronunciation || match.reading || "";
-        wordData.definition = match.definition || match.meaning || "";
+        let definition = match.definition || match.meaning || "";
+        
+        // Enhance variant definitions (e.g., "variant of {something}") by including base definitions
+        const adapter = window.languageRegistry?.getAdapter();
+        if (adapter && adapter.enhanceVariantDefinition && definition) {
+          definition = await adapter.enhanceVariantDefinition(
+            definition,
+            this.dictionaryManager.dictionary,
+            this.dictionaryManager.getDefinition ? 
+              (word) => this.dictionaryManager.getDefinition(word) : 
+              null
+          );
+        }
+        
+        // Format definition: replace semicolons with newlines for Anki export
+        wordData.definition = this.formatDefinitionForAnki(definition);
         wordData.frequency = match.frequency || match.frq || "";
       }
     }
@@ -193,7 +227,7 @@ class AnkiManager {
       let wordData;
       if (typeof data === 'string') {
         // If we just got a character string, extract everything.
-        wordData = this.extractWordData(data);
+        wordData = await this.extractWordData(data);
       } else {
         // If we got an object, it should already have everything, including the pre-captured sentence.
         // We just ensure the timestamp and URL are present.
@@ -205,6 +239,23 @@ class AnkiManager {
         // If sentence is somehow missing, extract it as a fallback.
         if (!wordData.sentence) {
             wordData.sentence = this.extractSentenceContext(data.character);
+        }
+        
+        // Enhance variant definitions if definition exists and wasn't already enhanced
+        const adapter = window.languageRegistry?.getAdapter();
+        if (adapter && adapter.enhanceVariantDefinition && wordData.definition && this.dictionaryManager?.dictionary) {
+          wordData.definition = await adapter.enhanceVariantDefinition(
+            wordData.definition,
+            this.dictionaryManager.dictionary,
+            this.dictionaryManager.getDefinition ? 
+              (word) => this.dictionaryManager.getDefinition(word) : 
+              null
+          );
+        }
+        
+        // Format definition: replace semicolons with newlines for Anki export
+        if (wordData.definition) {
+          wordData.definition = this.formatDefinitionForAnki(wordData.definition);
         }
       }
 
