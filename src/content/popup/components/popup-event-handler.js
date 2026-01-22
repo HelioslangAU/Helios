@@ -70,6 +70,9 @@ class PopupEventHandler {
     const ankiBtn = popup.querySelector(".anki-btn");
     if (ankiBtn && !ankiBtn.disabled) {
       ankiBtn.addEventListener("click", async () => {
+        // handleAnkiAdd and handleMultiCardAnkiAdd call createCardFromPopup
+        // which manages the button state (loading -> success/error)
+        // So we don't override it here
         if (isMultiCard && currentCard) {
           await this.handleMultiCardAnkiAdd(currentCard, managers);
         } else {

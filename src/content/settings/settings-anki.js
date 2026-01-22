@@ -27,6 +27,8 @@ class HeliosSettingsAnki {
         { value: "sentence", label: "Sentence (这个答案是对的)" },
         { value: "source", label: "Source URL" },
         { value: "frequency", label: "Frequency Rank (129)" },
+        { value: "screenshot", label: "Screenshot (image)" },
+        { value: "sentenceAudio", label: "Sentence Audio (audio file)" },
       ];
     } else if (language === 'fr') {
       // French-specific fields
@@ -37,6 +39,8 @@ class HeliosSettingsAnki {
         { value: "meaning", label: "Meaning (accurate; exact)" },
         { value: "sentence", label: "Sentence (Cette mesure est très précise)" },
         { value: "source", label: "Source URL" },
+        { value: "screenshot", label: "Screenshot (image)" },
+        { value: "sentenceAudio", label: "Sentence Audio (audio file)" },
       ];
     } else if (language === 'es') {
       // Spanish-specific fields
@@ -47,6 +51,8 @@ class HeliosSettingsAnki {
         { value: "meaning", label: "Meaning (precise; accurate)" },
         { value: "sentence", label: "Sentence (Es necesario ser preciso)" },
         { value: "source", label: "Source URL" },
+        { value: "screenshot", label: "Screenshot (image)" },
+        { value: "sentenceAudio", label: "Sentence Audio (audio file)" },
       ];
     } else if (language === 'en') {
       // English-specific fields
@@ -57,6 +63,8 @@ class HeliosSettingsAnki {
         { value: "meaning", label: "Meaning (exact; accurate)" },
         { value: "sentence", label: "Sentence (The measurements must be precise)" },
         { value: "source", label: "Source URL" },
+        { value: "screenshot", label: "Screenshot (image)" },
+        { value: "sentenceAudio", label: "Sentence Audio (audio file)" },
       ];
     } else {
       // Generic fallback
@@ -68,6 +76,8 @@ class HeliosSettingsAnki {
         { value: "sentence", label: "Sentence" },
         { value: "source", label: "Source URL" },
         { value: "frequency", label: "Frequency Rank" },
+        { value: "screenshot", label: "Screenshot (image)" },
+        { value: "sentenceAudio", label: "Sentence Audio (audio file)" },
       ];
     }
   }
@@ -413,6 +423,8 @@ class HeliosSettingsAnki {
         simplified: "对",
         source: "https://example.com",
         frequency: "129",
+        screenshot: "[screenshot.jpg]",
+        sentenceAudio: "[audio.webm]",
       },
       fr: {
         "": "—",
@@ -421,6 +433,8 @@ class HeliosSettingsAnki {
         meaning: "accurate; exact",
         sentence: "Cette mesure est très précise",
         source: "https://example.com",
+        screenshot: "[screenshot.jpg]",
+        sentenceAudio: "[audio.webm]",
       },
       es: {
         "": "—",
@@ -429,6 +443,8 @@ class HeliosSettingsAnki {
         meaning: "precise; accurate",
         sentence: "Es necesario ser preciso",
         source: "https://example.com",
+        screenshot: "[screenshot.jpg]",
+        sentenceAudio: "[audio.webm]",
       },
       en: {
         "": "—",
@@ -437,6 +453,8 @@ class HeliosSettingsAnki {
         meaning: "exact; accurate",
         sentence: "The measurements must be precise",
         source: "https://example.com",
+        screenshot: "[screenshot.jpg]",
+        sentenceAudio: "[audio.webm]",
       },
     };
 
@@ -493,7 +511,12 @@ class HeliosSettingsAnki {
       Traditional: "traditional",
       Simplified: "simplified",
       Source: "source",
-      Audio: "audio",
+      Audio: "sentenceAudio",
+      SentenceAudio: "sentenceAudio",
+      "Sentence Audio": "sentenceAudio",
+      Screenshot: "screenshot",
+      Image: "screenshot",
+      Picture: "screenshot",
       Frequency: "frequency",
     };
 

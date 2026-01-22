@@ -100,7 +100,7 @@ class AnkiManager {
   }
 
   // Extract word data from character and context
-  async extractWordData(character) {
+  async extractWordData(character, options = {}) {
     // Get current language from registry
     const currentLanguage = window.languageRegistry?.getCurrentLanguage() || 'zh';
 
@@ -122,19 +122,19 @@ class AnkiManager {
         // Use pinyin for Chinese, pronunciation for other languages
         wordData.pinyin = match.pinyin || match.pronunciation || match.reading || "";
         let definition = match.definition || match.meaning || "";
-        
+
         // Enhance variant definitions (e.g., "variant of {something}") by including base definitions
         const adapter = window.languageRegistry?.getAdapter();
         if (adapter && adapter.enhanceVariantDefinition && definition) {
           definition = await adapter.enhanceVariantDefinition(
             definition,
             this.dictionaryManager.dictionary,
-            this.dictionaryManager.getDefinition ? 
-              (word) => this.dictionaryManager.getDefinition(word) : 
+            this.dictionaryManager.getDefinition ?
+              (word) => this.dictionaryManager.getDefinition(word) :
               null
           );
         }
-        
+
         // Format definition: replace semicolons with newlines for Anki export
         wordData.definition = this.formatDefinitionForAnki(definition);
         wordData.frequency = match.frequency || match.frq || "";
@@ -144,7 +144,235 @@ class AnkiManager {
     // Extract sentence context
     wordData.sentence = this.extractSentenceContext(character);
 
+    // Capture media if requested and available
+    if (options.captureMedia !== false) {
+      await this.captureMediaForCard(wordData);
+    }
+
     return wordData;
+  }
+
+  // Capture screenshot and audio for Anki card
+  async captureMediaForCard(wordData) {
+    try {
+      // Check if we need to capture media (based on settings)
+      const needsMedia = await this.checkIfNeedsMedia();
+      if (!needsMedia) {
+        return;
+      }
+
+      // Capture screenshot if on video platform or if screenshot field is mapped
+      if (window.HeliosScreenshotCapturer) {
+        console.log('[Helios Anki] Capturing screenshot...');
+        const screenshot = await window.HeliosScreenshotCapturer.captureIntelligent();
+        if (screenshot) {
+          wordData.screenshotDataUrl = screenshot;
+          console.log('[Helios Anki] Screenshot captured');
+        }
+      }
+
+      // Capture audio if on video platform with subtitles
+      if (window.HeliosAudioRecorder && this.isOnVideoPage()) {
+        const audioData = await this.captureAudioForSentence(wordData.sentence);
+        if (audioData) {
+          wordData.sentenceAudioDataUrl = audioData;
+          console.log('[Helios Anki] Audio captured');
+        }
+      }
+
+    } catch (error) {
+      console.warn('[Helios Anki] Error capturing media:', error);
+      // Non-critical, continue without media
+    }
+  }
+
+  // Check if media capture is needed based on field mappings
+  async checkIfNeedsMedia() {
+    try {
+      const response = await this.sendMessage("ANKI_CHECK_MEDIA_NEEDED");
+      return response.needsScreenshot || response.needsAudio;
+    } catch (error) {
+      // If we can't check, assume we need it
+      return true;
+    }
+  }
+
+  // Check if we're on a video page
+  isOnVideoPage() {
+    // Check if platform detector exists and identifies a video platform
+    if (window.PlatformDetector) {
+      const platform = window.PlatformDetector.detectPlatform();
+      return platform !== 'unknown';
+    }
+
+    // Fallback: check for video elements
+    const videos = document.querySelectorAll('video');
+    return videos.length > 0;
+  }
+
+  // Capture audio for sentence with subtitle timing (like asbplayer)
+  async captureAudioForSentence(sentence) {
+    try {
+      if (!sentence || !window.HeliosAudioRecorder) {
+        return null;
+      }
+
+      console.log('[Helios Anki] Capturing audio for sentence:', sentence);
+
+      // Get subtitle timing by finding subtitle containing this sentence
+      const timing = this.getSubtitleTimingForSentence(sentence);
+
+      // Find video element
+      const videoElement = window.HeliosScreenshotCapturer?.findVideoElement();
+      if (!videoElement) {
+        console.warn('[Helios Anki] No video element found for audio capture');
+        return null;
+      }
+
+      const paddingBefore = 250; // milliseconds (0.25 seconds)
+      const paddingAfter = 250; // milliseconds (0.25 seconds)
+
+      if (!timing) {
+        console.warn('[Helios Anki] No subtitle timing found, cannot record audio');
+        return null;
+      }
+
+      // Like asbplayer's approach:
+      // 1. Calculate seek position: subtitle.start - paddingBefore
+      // 2. Calculate record duration: (subtitle.end - subtitle.start) + paddingAfter
+      // 3. Seek and play
+      // 4. Start recording
+
+      const subtitleStart = timing.start; // ms
+      const subtitleEnd = timing.end; // ms
+
+      // Seek to position (with padding before)
+      const seekToTimeMs = Math.max(0, subtitleStart - paddingBefore);
+      const seekToTimeSec = seekToTimeMs / 1000;
+
+      // Duration to record
+      const recordDurationMs = (subtitleEnd - subtitleStart) + paddingAfter;
+
+      console.log('[Helios Anki] Recording audio for subtitle:', {
+        text: timing.text,
+        subtitleStart: subtitleStart + 'ms',
+        subtitleEnd: subtitleEnd + 'ms',
+        seekTo: seekToTimeSec + 's',
+        recordDuration: recordDurationMs + 'ms'
+      });
+
+      // Record audio using asbplayer's approach
+      const audioDataUrl = await window.HeliosAudioRecorder.recordFromVideo(
+        videoElement,
+        seekToTimeSec,
+        recordDurationMs
+      );
+
+      return audioDataUrl;
+
+    } catch (error) {
+      console.error('[Helios Anki] Error capturing audio:', error);
+      return null;
+    }
+  }
+
+  // Get subtitle timing for a sentence - finds the subtitle containing this sentence
+  getSubtitleTimingForSentence(sentence) {
+    try {
+      console.log('[Helios Anki] Looking for subtitle for sentence:', sentence);
+
+      // Get the primary video binding (contains subtitle data)
+      const binding = this._getPrimaryVideoBinding();
+      if (!binding) {
+        console.warn('[Helios Anki] No video binding available');
+        return null;
+      }
+
+      // BEST APPROACH (like asbplayer): Get currently active subtitle from overlay
+      if (binding.overlay?.currentSubtitles) {
+        const currentSubs = binding.overlay.currentSubtitles;
+        if (currentSubs.length > 0) {
+          const currentSub = currentSubs[0]; // Get first active subtitle
+          console.log('[Helios Anki] Using current active subtitle:', currentSub.text);
+          return {
+            start: currentSub.start,
+            end: currentSub.end,
+            text: currentSub.text
+          };
+        }
+      }
+
+      // FALLBACK: Search through all subtitles for match
+      const subtitleCollection = binding.getSubtitles();
+      if (!subtitleCollection || subtitleCollection.isEmpty()) {
+        console.warn('[Helios Anki] No subtitles loaded');
+        return null;
+      }
+
+      const subtitles = subtitleCollection.getAll();
+      console.log('[Helios Anki] Searching through', subtitles.length, 'subtitles');
+
+      // Try exact match first
+      for (const subtitle of subtitles) {
+        if (subtitle.text === sentence) {
+          console.log('[Helios Anki] Found exact match:', subtitle.text);
+          return {
+            start: subtitle.start,
+            end: subtitle.end,
+            text: subtitle.text
+          };
+        }
+      }
+
+      // Try partial match - subtitle contains sentence
+      for (const subtitle of subtitles) {
+        if (subtitle.text && subtitle.text.includes(sentence)) {
+          console.log('[Helios Anki] Found subtitle containing sentence:', subtitle.text);
+          return {
+            start: subtitle.start,
+            end: subtitle.end,
+            text: subtitle.text
+          };
+        }
+      }
+
+      // Try reverse - sentence contains subtitle
+      for (const subtitle of subtitles) {
+        if (subtitle.text && sentence.includes(subtitle.text)) {
+          console.log('[Helios Anki] Found subtitle (reverse match):', subtitle.text);
+          return {
+            start: subtitle.start,
+            end: subtitle.end,
+            text: subtitle.text
+          };
+        }
+      }
+
+      console.warn('[Helios Anki] No subtitle found for sentence:', sentence);
+      return null;
+
+    } catch (error) {
+      console.error('[Helios Anki] Error getting subtitle timing:', error);
+      return null;
+    }
+  }
+
+  // Get primary video binding (helper method)
+  _getPrimaryVideoBinding() {
+    try {
+      // Check if video feature is initialized
+      if (!window.heliosVideoFeature || !window.heliosVideoFeature.videoDetector) {
+        return null;
+      }
+
+      // Get primary binding from video detector
+      const binding = window.heliosVideoFeature.videoDetector.getPrimaryBinding();
+      return binding;
+
+    } catch (error) {
+      console.error('[Helios Anki] Error getting video binding:', error);
+      return null;
+    }
   }
 
   // Extract sentence context from the page
@@ -226,8 +454,8 @@ class AnkiManager {
 
       let wordData;
       if (typeof data === 'string') {
-        // If we just got a character string, extract everything.
-        wordData = await this.extractWordData(data);
+        // If we just got a character string, extract everything (including media).
+        wordData = await this.extractWordData(data, options);
       } else {
         // If we got an object, it should already have everything, including the pre-captured sentence.
         // We just ensure the timestamp and URL are present.
@@ -240,22 +468,27 @@ class AnkiManager {
         if (!wordData.sentence) {
             wordData.sentence = this.extractSentenceContext(data.character);
         }
-        
+
         // Enhance variant definitions if definition exists and wasn't already enhanced
         const adapter = window.languageRegistry?.getAdapter();
         if (adapter && adapter.enhanceVariantDefinition && wordData.definition && this.dictionaryManager?.dictionary) {
           wordData.definition = await adapter.enhanceVariantDefinition(
             wordData.definition,
             this.dictionaryManager.dictionary,
-            this.dictionaryManager.getDefinition ? 
-              (word) => this.dictionaryManager.getDefinition(word) : 
+            this.dictionaryManager.getDefinition ?
+              (word) => this.dictionaryManager.getDefinition(word) :
               null
           );
         }
-        
+
         // Format definition: replace semicolons with newlines for Anki export
         if (wordData.definition) {
           wordData.definition = this.formatDefinitionForAnki(wordData.definition);
+        }
+
+        // Capture media if not already present
+        if (!wordData.screenshotDataUrl && !wordData.sentenceAudioDataUrl) {
+          await this.captureMediaForCard(wordData);
         }
       }
 
