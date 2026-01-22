@@ -1150,23 +1150,34 @@ class SubtitleOverlay {
         // Use language-aware word extraction
         const extractedWords = await adapter.extractWords(subtitle.text, dictionary);
 
-        // Additional safeguard: preload the actual extracted words to ensure they're in cache
-        // This is especially important for longer words (4+ characters) that jieba finds
-        const extractedWordsToPreload = extractedWords
-          .filter(({ isTargetLang }) => isTargetLang !== false)
-          .map(({ word }) => word.toLowerCase());
-        if (extractedWordsToPreload.length > 0 && window.dictionaryManager.preloadWords) {
-          await window.dictionaryManager.preloadWords(extractedWordsToPreload);
+        // Additional safeguard: preload ALL extracted words (including those marked as non-target)
+        // This ensures words that weren't found during initial extraction can be found after preloading
+        const allExtractedWords = extractedWords.map(({ word }) => word.toLowerCase());
+        if (allExtractedWords.length > 0 && window.dictionaryManager.preloadWords) {
+          await window.dictionaryManager.preloadWords(allExtractedWords);
         }
 
         // Refresh dictionary reference after preloading to ensure cache is up to date
         const dictionaryAfterPreload = window.dictionaryManager?.dictionary || {};
 
+        // Re-check words that were marked as non-target - they might be in dictionary now
+        // This fixes cases where words weren't found during initial extraction due to timing
+        extractedWords.forEach(extractedWord => {
+          if (extractedWord.isTargetLang === false && adapter && adapter.findDictionaryForm) {
+            const dictionaryForm = adapter.findDictionaryForm(extractedWord.word, dictionaryAfterPreload);
+            if (dictionaryForm) {
+              // Word is in dictionary - mark as target language
+              extractedWord.isTargetLang = true;
+              extractedWord.dictionaryForm = dictionaryForm;
+            }
+          }
+        });
+
         // Check if language uses spaces between words (not CJK languages)
         const currentLang = window.languageRegistry?.getCurrentLanguage();
         const usesSpaces = currentLang && !['zh', 'ja', 'ko'].includes(currentLang);
 
-        extractedWords.forEach(({ word, offset, isTargetLang }, index) => {
+        extractedWords.forEach(({ word, offset, isTargetLang, dictionaryForm }, index) => {
           // Create word span or plain text based on whether it's target language
           const wordSpan = document.createElement('span');
 
@@ -1175,14 +1186,18 @@ class SubtitleOverlay {
             wordSpan.className = 'helios-subtitle-word';
             wordSpan.style.cursor = 'pointer';
             wordSpan.style.pointerEvents = 'auto';
-            wordSpan.setAttribute('data-helios-word', word);
+            // Use dictionaryForm if available (normalized form), otherwise use original word
+            // This ensures lookups work correctly even if the original word has different casing
+            const wordForLookup = dictionaryForm || word.toLowerCase();
+            wordSpan.setAttribute('data-helios-word', wordForLookup);
 
             // Mark this element as a subtitle word so we can intercept events
             wordSpan.setAttribute('data-subtitle-word', 'true');
 
             // Check if word is unknown and add styling
             // Only underline if: word is in dictionary, not known, and not ignored
-            const cleanWord = word.toLowerCase();
+            // Use dictionaryForm if available (normalized form), otherwise use lowercase word
+            const cleanWord = dictionaryForm || word.toLowerCase();
 
             if (window.vocabManager &&
                 dictionaryAfterPreload[cleanWord] &&
@@ -1231,7 +1246,28 @@ class SubtitleOverlay {
           wordSpan.textContent = word;
           primarySubtitleEl.appendChild(wordSpan);
 
-          // No need to add spaces - extractWords already includes them as non-target segments
+          // Add space after word/punctuation if:
+          // 1. Language uses spaces
+          // 2. This is not the last word
+          // 3. Next item is a word (not punctuation)
+          // 4. Current item is either a word OR punctuation that should have space after it (not hyphens)
+          if (usesSpaces && index < extractedWords.length - 1) {
+            const currentIsWord = isTargetLang !== false;
+            const nextWord = extractedWords[index + 1];
+            const nextIsWord = nextWord && nextWord.isTargetLang !== false;
+            
+            // Check if current item is punctuation that should have space after it
+            const punctuationWithSpaceAfter = /^[.!?,:;]$/.test(word.trim());
+            const isHyphen = word.trim() === '-';
+            
+            // Add space if:
+            // - Current is a word and next is a word, OR
+            // - Current is punctuation that should have space after it and next is a word
+            // But NOT if current is a hyphen
+            if (nextIsWord && !isHyphen && (currentIsWord || punctuationWithSpaceAfter)) {
+              primarySubtitleEl.appendChild(document.createTextNode(' '));
+            }
+          }
         });
       } else {
         // Fallback: display text as-is if no adapter available
