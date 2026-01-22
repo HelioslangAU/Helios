@@ -247,15 +247,16 @@ class AnkiManager {
     try {
       console.log('[Helios Anki] Looking for subtitle for sentence:', sentence);
 
-      // Try to access video feature manager for subtitle data
-      if (!window.heliosVideoFeature) {
-        console.warn('[Helios Anki] heliosVideoFeature not available');
+      // Get the primary video binding (contains subtitle data)
+      const binding = this._getPrimaryVideoBinding();
+      if (!binding) {
+        console.warn('[Helios Anki] No video binding available');
         return null;
       }
 
       // BEST APPROACH (like asbplayer): Get currently active subtitle from overlay
-      if (window.heliosVideoFeature.subtitleOverlay?.currentSubtitles) {
-        const currentSubs = window.heliosVideoFeature.subtitleOverlay.currentSubtitles;
+      if (binding.overlay?.currentSubtitles) {
+        const currentSubs = binding.overlay.currentSubtitles;
         if (currentSubs.length > 0) {
           const currentSub = currentSubs[0]; // Get first active subtitle
           console.log('[Helios Anki] Using current active subtitle:', currentSub.text);
@@ -268,12 +269,13 @@ class AnkiManager {
       }
 
       // FALLBACK: Search through all subtitles for match
-      if (!window.heliosVideoFeature.subtitleCollection) {
-        console.warn('[Helios Anki] subtitleCollection not available');
+      const subtitleCollection = binding.getSubtitles();
+      if (!subtitleCollection || subtitleCollection.isEmpty()) {
+        console.warn('[Helios Anki] No subtitles loaded');
         return null;
       }
 
-      const subtitles = window.heliosVideoFeature.subtitleCollection.subtitles;
+      const subtitles = subtitleCollection.getAll();
       console.log('[Helios Anki] Searching through', subtitles.length, 'subtitles');
 
       // Try exact match first
@@ -317,6 +319,24 @@ class AnkiManager {
 
     } catch (error) {
       console.error('[Helios Anki] Error getting subtitle timing:', error);
+      return null;
+    }
+  }
+
+  // Get primary video binding (helper method)
+  _getPrimaryVideoBinding() {
+    try {
+      // Check if video feature is initialized
+      if (!window.heliosVideoFeature || !window.heliosVideoFeature.videoDetector) {
+        return null;
+      }
+
+      // Get primary binding from video detector
+      const binding = window.heliosVideoFeature.videoDetector.getPrimaryBinding();
+      return binding;
+
+    } catch (error) {
+      console.error('[Helios Anki] Error getting video binding:', error);
       return null;
     }
   }
