@@ -255,6 +255,11 @@ class SubtitleOverlay {
 
     // Mouse down on drag handle or container - start dragging
     const startDrag = (e) => {
+      // Only allow left-click (button 0) for dragging - prevent right-click drag
+      if (e.button !== 0) {
+        return;
+      }
+
       // Don't start drag if clicking on a word (for hover lookup) or resize handle
       if (e.target.classList.contains('helios-subtitle-word') ||
           e.target.classList.contains('helios-subtitle-resize-handle')) {
