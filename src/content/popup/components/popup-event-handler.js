@@ -33,7 +33,6 @@ class PopupEventHandler {
   static setupMouseEvents(popup, managers) {
     popup.addEventListener("mouseenter", () => {
       managers.popupManager.isMouseOverPopup = true;
-      // Cancel any pending hide when mouse enters popup
       if (managers.popupManager.hideTimeout) {
         clearTimeout(managers.popupManager.hideTimeout);
         managers.popupManager.hideTimeout = null;
@@ -42,8 +41,6 @@ class PopupEventHandler {
 
     popup.addEventListener("mouseleave", () => {
       managers.popupManager.isMouseOverPopup = false;
-      // Trigger hide check when leaving popup
-      // The global mouse tracker will also detect this for redundancy
       managers.popupManager.scheduleHidePopup();
     });
   }

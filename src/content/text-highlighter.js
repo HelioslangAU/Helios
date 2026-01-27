@@ -35,11 +35,9 @@ class HighlightManager {
     this.currentHighlight = highlightSpan;
     this.isMouseOverHighlight = true; // Set immediately when creating highlight
 
-    // Add mouse events to the highlight
     highlightSpan.addEventListener('mouseenter', () => {
       this.isMouseOverHighlight = true;
-      // Cancel any pending hide when mouse enters highlight
-      if (window.popupManager && window.popupManager.hideTimeout) {
+      if (window.popupManager?.hideTimeout) {
         clearTimeout(window.popupManager.hideTimeout);
         window.popupManager.hideTimeout = null;
       }
@@ -47,24 +45,18 @@ class HighlightManager {
 
     highlightSpan.addEventListener('mouseleave', () => {
       this.isMouseOverHighlight = false;
-      // Trigger hide check when leaving highlighted word
-      // The global mouse tracker will also detect this for redundancy
-      if (window.popupManager) {
-        window.popupManager.scheduleHidePopup();
-      }
+      window.popupManager?.scheduleHidePopup();
     });
   }
 
   removeLookupHighlight() {
-    if (this.currentHighlight && this.currentHighlight.parentNode) {
+    if (this.currentHighlight?.parentNode) {
       const parent = this.currentHighlight.parentNode;
-      const text = this.currentHighlight.textContent;
-      const textNode = document.createTextNode(text);
+      const textNode = document.createTextNode(this.currentHighlight.textContent);
       parent.replaceChild(textNode, this.currentHighlight);
       parent.normalize();
       this.currentHighlight = null;
     }
-    // Reset the mouse tracking flag when highlight is removed
     this.isMouseOverHighlight = false;
   }
 }
