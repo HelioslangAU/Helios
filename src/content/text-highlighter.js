@@ -38,12 +38,17 @@ class HighlightManager {
     // Add mouse events to the highlight
     highlightSpan.addEventListener('mouseenter', () => {
       this.isMouseOverHighlight = true;
+      // Cancel any pending hide when mouse enters highlight
+      if (window.popupManager && window.popupManager.hideTimeout) {
+        clearTimeout(window.popupManager.hideTimeout);
+        window.popupManager.hideTimeout = null;
+      }
     });
 
     highlightSpan.addEventListener('mouseleave', () => {
       this.isMouseOverHighlight = false;
       // Trigger hide check when leaving highlighted word
-      // If mouse enters popup within 150ms, popup stays (isMouseOverPopup will be true)
+      // The global mouse tracker will also detect this for redundancy
       if (window.popupManager) {
         window.popupManager.scheduleHidePopup();
       }

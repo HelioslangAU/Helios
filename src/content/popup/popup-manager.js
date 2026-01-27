@@ -24,6 +24,11 @@ class PopupManager {
     this.popupCreationInProgress = false;
     this.currentPopupRequestId = null;
 
+    // Global mouse tracking for better hide detection
+    this.globalMouseMoveHandler = null;
+    this.lastMousePosition = { x: 0, y: 0 };
+    this.mouseCheckInterval = null;
+
     // Initialize managers
     this.ankiManager = new AnkiManager();
     this.ankiManager.initialize(this.dictionaryManager);
@@ -154,6 +159,9 @@ class PopupManager {
       // Remove creating class to enable transitions after initial setup
       popup.classList.remove('creating');
 
+      // Start global mouse tracking for better hide detection
+      this._startGlobalMouseTracking();
+
       // Track word lookup for recent vocabulary
       if (dictionaryData && dictionaryData.matches && dictionaryData.matches.length > 0) {
         this.vocabManager.trackWordLookup(character, dictionaryData.matches[0]);
@@ -179,6 +187,86 @@ class PopupManager {
     }
   }
 
+  /**
+   * Start global mouse tracking to detect when mouse leaves popup/highlight area
+   * This provides more reliable detection than relying solely on mouseenter/mouseleave events
+   * @private
+   */
+  _startGlobalMouseTracking() {
+    // Clean up any existing tracking first
+    this._stopGlobalMouseTracking();
+
+    // Track mouse position globally
+    this.globalMouseMoveHandler = (e) => {
+      this.lastMousePosition = { x: e.clientX, y: e.clientY };
+    };
+    document.addEventListener('mousemove', this.globalMouseMoveHandler, { passive: true });
+
+    // Periodically check if mouse is still over popup or highlight
+    this.mouseCheckInterval = setInterval(() => {
+      if (!this.popup) {
+        this._stopGlobalMouseTracking();
+        return;
+      }
+
+      // Get elements at current mouse position
+      const elementAtMouse = document.elementFromPoint(
+        this.lastMousePosition.x,
+        this.lastMousePosition.y
+      );
+
+      if (!elementAtMouse) return;
+
+      // Check if mouse is over popup or its children
+      const isOverPopup = this.popup && this.popup.contains(elementAtMouse);
+
+      // Check if mouse is over highlight or its children
+      const isOverHighlight = this.highlightManager?.currentHighlight &&
+                             this.highlightManager.currentHighlight.contains(elementAtMouse);
+
+      // Check if mouse is over a subtitle word (data-subtitle-word attribute)
+      let isOverSubtitleWord = false;
+      let checkElement = elementAtMouse;
+      for (let i = 0; i < 5 && checkElement; i++) {
+        if (checkElement.getAttribute?.('data-subtitle-word') === 'true') {
+          isOverSubtitleWord = true;
+          break;
+        }
+        checkElement = checkElement.parentElement;
+      }
+
+      // Update flags based on actual DOM position
+      const wasOverPopup = this.isMouseOverPopup;
+      const wasOverHighlight = this.highlightManager?.isMouseOverHighlight;
+
+      this.isMouseOverPopup = isOverPopup;
+      if (this.highlightManager) {
+        this.highlightManager.isMouseOverHighlight = isOverHighlight || isOverSubtitleWord;
+      }
+
+      // If mouse was over popup/highlight but now isn't, trigger hide
+      if ((wasOverPopup || wasOverHighlight) && !isOverPopup && !isOverHighlight && !isOverSubtitleWord) {
+        this.scheduleHidePopup();
+      }
+    }, 50); // Check every 50ms for responsive detection
+  }
+
+  /**
+   * Stop global mouse tracking
+   * @private
+   */
+  _stopGlobalMouseTracking() {
+    if (this.globalMouseMoveHandler) {
+      document.removeEventListener('mousemove', this.globalMouseMoveHandler);
+      this.globalMouseMoveHandler = null;
+    }
+
+    if (this.mouseCheckInterval) {
+      clearInterval(this.mouseCheckInterval);
+      this.mouseCheckInterval = null;
+    }
+  }
+
   scheduleHidePopup() {
     clearTimeout(this.hideTimeout);
 
@@ -188,14 +276,14 @@ class PopupManager {
     }
 
     // Hide popup after a short delay when mouse leaves both word and popup
-    // 100ms is enough time for mouse travel while feeling more responsive
+    // Reduced to 50ms for more responsive hiding with fast mouse movement
     this.hideTimeout = setTimeout(() => {
       // For both subtitle words and regular words, only hide if mouse is not over popup or highlight
       if (!this.isMouseOverPopup && !this.highlightManager.isMouseOverHighlight) {
         this.hidePopup();
         this.highlightManager.removeLookupHighlight();
       }
-    }, 100);
+    }, 50);
   }
 
   hidePopup(event) {
@@ -208,6 +296,9 @@ class PopupManager {
 
     clearTimeout(this.hideTimeout);
     this.settingsManager.onPopupDestroyed();
+
+    // Stop global mouse tracking
+    this._stopGlobalMouseTracking();
 
     // Clean up keyboard listener
     if (PopupEventHandler && PopupEventHandler.cleanupKeyboardListener) {
@@ -228,6 +319,10 @@ class PopupManager {
         popup.remove();
       }
     });
+
+    // Stop global mouse tracking
+    this._stopGlobalMouseTracking();
+
     // Clean up keyboard listener
     if (PopupEventHandler && PopupEventHandler.cleanupKeyboardListener) {
       PopupEventHandler.cleanupKeyboardListener();
