@@ -54,8 +54,18 @@ class SubtitleSelectorModal {
         </div>
         <div class="helios-subtitle-selector-list"></div>
         <div class="helios-subtitle-selector-footer">
-          <button class="helios-subtitle-selector-cancel">Cancel</button>
-          <button class="helios-subtitle-selector-ok">Select</button>
+          <button class="helios-subtitle-selector-import" title="Import your own subtitle file (SRT, VTT)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Import File
+          </button>
+          <div class="helios-subtitle-selector-actions">
+            <button class="helios-subtitle-selector-cancel">Cancel</button>
+            <button class="helios-subtitle-selector-ok">Select</button>
+          </div>
         </div>
       </div>
     `;
@@ -79,6 +89,10 @@ class SubtitleSelectorModal {
     // OK button
     const okBtn = this.modal.querySelector('.helios-subtitle-selector-ok');
     okBtn.addEventListener('click', () => this._handleSelect());
+
+    // Import button
+    const importBtn = this.modal.querySelector('.helios-subtitle-selector-import');
+    importBtn.addEventListener('click', () => this._handleImport());
 
     // Click outside to close
     this.modal.addEventListener('click', (e) => {
@@ -191,6 +205,32 @@ class SubtitleSelectorModal {
       this.onTrackSelected(track);
     }
     this.hide();
+  }
+
+  /**
+   * Handle Import button click
+   */
+  _handleImport() {
+    // Check if file loader is available
+    if (!window.heliosVideoFeature?.fileLoader) {
+      console.error('[Helios Subtitle Selector] File loader not available');
+      // Dispatch notification event that sidebar can catch
+      document.dispatchEvent(new CustomEvent('helios-video-notification', {
+        detail: { message: 'Subtitle import not available', type: 'error' }
+      }));
+      return;
+    }
+
+    // Hide the modal first
+    this.hide();
+
+    // Show notification to guide user
+    document.dispatchEvent(new CustomEvent('helios-video-notification', {
+      detail: { message: 'Select a subtitle file (SRT or VTT)', type: 'info' }
+    }));
+
+    // Trigger the file picker
+    window.heliosVideoFeature.fileLoader.openFilePicker();
   }
 
   /**
