@@ -117,6 +117,16 @@ class ChineseLanguageLearningExtension {
 
     console.log(`✅ Dictionary and resources ready`);
 
+    // Initialize AnkiManager - sync will trigger automatically when connection is detected
+    if (window.AnkiManager) {
+      const ankiManager = new AnkiManager();
+      ankiManager.initialize(this.dictionaryManager);
+      // Check connection (will trigger sync if connected and not already synced)
+      ankiManager.checkAnkiConnect().catch(error => {
+        console.warn("🃏 Anki connection check failed:", error);
+      });
+    }
+
     // Extension is enabled if we got here - create all components
     this.pageProcessor = new PageProcessor(this.dictionaryManager, this.vocabManager, this.languageRegistry);
     window.pageProcessor = this.pageProcessor;

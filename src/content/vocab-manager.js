@@ -4,6 +4,7 @@ class VocabManager {
     // Format: { 'zh': Set(), 'en': Set(), 'fr': Set(), ... }
     this.knownWordsByLanguage = {};
     this.ignoredWordsByLanguage = {};
+    this.learningWordsByLanguage = {};
 
     // Deprecated sets removed - using per-language structure only
 
@@ -32,6 +33,14 @@ class VocabManager {
     return this.ignoredWordsByLanguage[this.currentLanguage];
   }
 
+  getCurrentLanguageLearningWords() {
+    // Create set for current language if it doesn't exist (lazy initialization)
+    if (!this.learningWordsByLanguage[this.currentLanguage]) {
+      this.learningWordsByLanguage[this.currentLanguage] = new Set();
+    }
+    return this.learningWordsByLanguage[this.currentLanguage];
+  }
+
   /**
    * Normalize word to lowercase for consistent storage and lookup
    * @param {string} word - Word to normalize
@@ -51,7 +60,8 @@ class VocabManager {
       // Load new per-language format
       const newResult = await chrome.storage.local.get([
         'knownWordsByLanguage',
-        'ignoredWordsByLanguage'
+        'ignoredWordsByLanguage',
+        'learningWordsByLanguage'
       ]);
 
       // Load new format if available - MERGE instead of replace to preserve in-memory changes
@@ -95,6 +105,26 @@ class VocabManager {
         console.log('Ignored words loaded (per-language format):', this.ignoredWordsByLanguage);
       }
 
+      if (newResult.learningWordsByLanguage) {
+        Object.keys(newResult.learningWordsByLanguage).forEach(lang => {
+          // Normalize words when loading to ensure consistency
+          const normalizedWords = newResult.learningWordsByLanguage[lang]
+            .map(word => this.normalizeWord(word))
+            .filter(word => word); // Filter out invalid words
+          
+          // Merge with existing Set instead of replacing to preserve in-memory additions
+          if (!this.learningWordsByLanguage[lang]) {
+            this.learningWordsByLanguage[lang] = new Set(normalizedWords);
+          } else {
+            // Add words from storage to existing Set (preserves any in-memory additions)
+            normalizedWords.forEach(word => {
+              this.learningWordsByLanguage[lang].add(word);
+            });
+          }
+        });
+        console.log('Learning words loaded (per-language format):', this.learningWordsByLanguage);
+      }
+
       console.log(`Vocab loaded successfully. Current language: ${this.currentLanguage}, Known words:`, this.getCurrentLanguageKnownWords().size);
     } catch (err) {
       console.warn('Failed to load known words from extension storage.', err);
@@ -106,6 +136,7 @@ class VocabManager {
       // Convert Sets to Arrays for storage
       const knownWordsObj = {};
       const ignoredWordsObj = {};
+      const learningWordsObj = {};
 
       Object.keys(this.knownWordsByLanguage).forEach(lang => {
         knownWordsObj[lang] = [...this.knownWordsByLanguage[lang]];
@@ -115,6 +146,15 @@ class VocabManager {
         ignoredWordsObj[lang] = [...this.ignoredWordsByLanguage[lang]];
       });
 
+      // Save learning words - include all languages, even if Sets are empty
+      Object.keys(this.learningWordsByLanguage).forEach(lang => {
+        learningWordsObj[lang] = [...this.learningWordsByLanguage[lang]];
+      });
+      // Also ensure current language is saved even if Set is empty (to persist deletions)
+      if (this.learningWordsByLanguage[this.currentLanguage]) {
+        learningWordsObj[this.currentLanguage] = [...this.learningWordsByLanguage[this.currentLanguage]];
+      }
+
       // Get current language words for backward compatibility (fallback to 'zh' if current language doesn't exist)
       const currentKnownWords = this.knownWordsByLanguage[this.currentLanguage] || this.knownWordsByLanguage['zh'] || new Set();
       const currentIgnoredWords = this.ignoredWordsByLanguage[this.currentLanguage] || this.ignoredWordsByLanguage['zh'] || new Set();
@@ -122,6 +162,7 @@ class VocabManager {
       await chrome.storage.local.set({
         knownWordsByLanguage: knownWordsObj,
         ignoredWordsByLanguage: ignoredWordsObj,
+        learningWordsByLanguage: learningWordsObj,
 
       });
       console.log(`Known words saved to extension storage (per-language). Current language: ${this.currentLanguage}`);
@@ -134,6 +175,7 @@ class VocabManager {
     // Clear current language words
     this.getCurrentLanguageKnownWords().clear();
     this.getCurrentLanguageIgnoredWords().clear();
+    this.getCurrentLanguageLearningWords().clear();
     try {
       await chrome.storage.local.set({ chineseExtensionKnownWords: [], chineseExtensionIgnoredWords: [] });
       await this.saveKnownWords(); // Save the cleared state
@@ -271,6 +313,9 @@ class VocabManager {
     }
     
     // If not a non-lemma word, proceed with normal marking
+    // Remove from learning and ignored when marking as known
+    this.getCurrentLanguageLearningWords().delete(normalizedWord);
+    this.getCurrentLanguageIgnoredWords().delete(normalizedWord);
     this.getCurrentLanguageKnownWords().add(normalizedWord);
     await this.saveKnownWords();
     console.log(`Marked word as known (${this.currentLanguage}):`, normalizedWord);
@@ -280,7 +325,10 @@ class VocabManager {
   async markWordAsUnknown(word) {
     const normalizedWord = this.normalizeWord(word);
     if (!normalizedWord) return;
+    // Remove from all other states when marking as unknown
     this.getCurrentLanguageKnownWords().delete(normalizedWord);
+    this.getCurrentLanguageLearningWords().delete(normalizedWord);
+    this.getCurrentLanguageIgnoredWords().delete(normalizedWord);
     await this.saveKnownWords();
     console.log(`Marked word as unknown (${this.currentLanguage}):`, normalizedWord);
     this.notifySidebarUpdate(normalizedWord, false);
@@ -289,6 +337,9 @@ class VocabManager {
   async markWordAsIgnored(word) {
     const normalizedWord = this.normalizeWord(word);
     if (!normalizedWord) return;
+    // Remove from known and learning when marking as ignored
+    this.getCurrentLanguageKnownWords().delete(normalizedWord);
+    this.getCurrentLanguageLearningWords().delete(normalizedWord);
     this.getCurrentLanguageIgnoredWords().add(normalizedWord);
     await this.saveKnownWords();
     console.log(`Marked word as ignored (${this.currentLanguage}):`, normalizedWord);
@@ -316,12 +367,41 @@ class VocabManager {
     return this.getCurrentLanguageIgnoredWords().has(normalizedWord);
   }
 
+  async markWordAsLearning(word) {
+    const normalizedWord = this.normalizeWord(word);
+    if (!normalizedWord) return;
+    // Remove from known and ignored when marking as learning
+    this.getCurrentLanguageKnownWords().delete(normalizedWord);
+    this.getCurrentLanguageIgnoredWords().delete(normalizedWord);
+    this.getCurrentLanguageLearningWords().add(normalizedWord);
+    await this.saveKnownWords();
+    console.log(`Marked word as learning (${this.currentLanguage}):`, normalizedWord);
+    this.notifySidebarUpdate(normalizedWord, true);
+  }
+
+  async markWordAsUnlearning(word) {
+    const normalizedWord = this.normalizeWord(word);
+    if (!normalizedWord) return;
+    this.getCurrentLanguageLearningWords().delete(normalizedWord);
+    await this.saveKnownWords();
+    console.log(`Marked word as unlearning (${this.currentLanguage}):`, normalizedWord);
+    this.notifySidebarUpdate(normalizedWord, false);
+  }
+
+  isWordLearning(word) {
+    const normalizedWord = this.normalizeWord(word);
+    if (!normalizedWord) return false;
+    return this.getCurrentLanguageLearningWords().has(normalizedWord);
+  }
+
   // Batch operations for better performance
   async markMultipleWordsAsKnown(words) {
     //console.log('Marking multiple words as known:', words);
-    // Only load if we don't have data for the current language yet
+    // Load all vocabulary data to ensure we have the latest state
     // This prevents overwriting in-memory changes from previous operations
-    if (!this.knownWordsByLanguage[this.currentLanguage]) {
+    if (!this.knownWordsByLanguage[this.currentLanguage] || 
+        !this.learningWordsByLanguage[this.currentLanguage] ||
+        !this.ignoredWordsByLanguage[this.currentLanguage]) {
       await this.loadKnownWords();
     }
     
@@ -337,9 +417,14 @@ class VocabManager {
     const canValidate = adapter && typeof adapter.isValidWord === 'function' && dictionary && Object.keys(dictionary).length > 0;
     
     const currentSet = this.getCurrentLanguageKnownWords();
+    const currentLearningSet = this.getCurrentLanguageLearningWords();
+    const currentIgnoredSet = this.getCurrentLanguageIgnoredWords();
     const initialSize = currentSet.size;
+    const initialLearningSize = currentLearningSet.size;
     let processedWordsCount = 0;
     let skippedWordsCount = 0;
+    const changedWords = [];
+    let removedFromLearning = 0;
     
     words.forEach(word => {
       const normalizedWord = this.normalizeWord(word);
@@ -352,8 +437,23 @@ class VocabManager {
           }
         }
         processedWordsCount++;
+        // Remove from learning and ignored sets when marking as known
+        const wasLearning = currentLearningSet.has(normalizedWord);
+        const wasIgnored = currentIgnoredSet.has(normalizedWord);
+        if (wasLearning) {
+          currentLearningSet.delete(normalizedWord);
+          removedFromLearning++;
+        }
+        if (wasIgnored) {
+          currentIgnoredSet.delete(normalizedWord);
+        }
         // Set.add() adds the word (returns true if new, false if duplicate)
+        const wasNew = !currentSet.has(normalizedWord);
         currentSet.add(normalizedWord);
+        // Track word if it was new OR if it changed status (was learning/ignored, now known)
+        if (wasNew || wasLearning || wasIgnored) {
+          changedWords.push(normalizedWord);
+        }
       }
     });
     
@@ -361,13 +461,17 @@ class VocabManager {
     const newWordsCount = finalSize - initialSize;
     
     await this.saveKnownWords();
+    const finalLearningSize = currentLearningSet.size;
     console.log(`Marked multiple words as known (${this.currentLanguage}):`, words);
     if (canValidate) {
-      console.log(`Initial size: ${initialSize}, Final size: ${finalSize}, New words: ${newWordsCount}, Processed: ${processedWordsCount}, Skipped: ${skippedWordsCount}`);
+      console.log(`Known: Initial ${initialSize}, Final ${finalSize}, New ${newWordsCount}, Processed ${processedWordsCount}, Skipped ${skippedWordsCount}`);
+      console.log(`Learning: Initial ${initialLearningSize}, Final ${finalLearningSize}, Removed ${removedFromLearning}`);
     } else {
-      console.log(`Initial size: ${initialSize}, Final size: ${finalSize}, New words: ${newWordsCount}, Processed: ${processedWordsCount} (validation skipped - adapter/dictionary not available)`);
+      console.log(`Known: Initial ${initialSize}, Final ${finalSize}, New ${newWordsCount}, Processed ${processedWordsCount} (validation skipped)`);
+      console.log(`Learning: Initial ${initialLearningSize}, Final ${finalLearningSize}, Removed ${removedFromLearning}`);
     }
-    this.notifySidebarUpdate();
+    // Pass changed words to notifySidebarUpdate so it can update styling
+    this.notifySidebarUpdate(changedWords.length > 0 ? changedWords : null, true);
     return { newWordsCount, processedWordsCount };
   }
 
@@ -382,6 +486,60 @@ class VocabManager {
     await this.saveKnownWords();
     console.log(`Marked multiple words as unknown (${this.currentLanguage}):`, words);
     this.notifySidebarUpdate(words, false);
+  }
+
+  async markMultipleWordsAsLearning(words) {
+    // Only load if we don't have data for the current language yet
+    if (!this.learningWordsByLanguage[this.currentLanguage]) {
+      await this.loadKnownWords();
+    }
+    
+    // Get language adapter and dictionary for validation
+    const languageRegistry = window.languageRegistry;
+    const adapter = languageRegistry?.adapters?.get(this.currentLanguage) || languageRegistry?.getAdapter();
+    const dictionary = window.dictionaryManager?.dictionary || {};
+    
+    // Only validate if both adapter and dictionary are available
+    const canValidate = adapter && typeof adapter.isValidWord === 'function' && dictionary && Object.keys(dictionary).length > 0;
+    
+    const currentLearningSet = this.getCurrentLanguageLearningWords();
+    const currentKnownSet = this.getCurrentLanguageKnownWords();
+    const currentIgnoredSet = this.getCurrentLanguageIgnoredWords();
+    const initialSize = currentLearningSet.size;
+    let processedWordsCount = 0;
+    let skippedWordsCount = 0;
+    
+    words.forEach(word => {
+      const normalizedWord = this.normalizeWord(word);
+      if (normalizedWord) {
+        // Check if word exists in dictionary before adding (only if validation is available)
+        if (canValidate) {
+          if (!adapter.isValidWord(normalizedWord, dictionary)) {
+            skippedWordsCount++;
+            return; // Skip this word if it's not in the dictionary
+          }
+        }
+        processedWordsCount++;
+        // Remove from known and ignored when marking as learning
+        currentKnownSet.delete(normalizedWord);
+        currentIgnoredSet.delete(normalizedWord);
+        // Add to learning set
+        currentLearningSet.add(normalizedWord);
+      }
+    });
+    
+    const finalSize = currentLearningSet.size;
+    const newWordsCount = finalSize - initialSize;
+    
+    await this.saveKnownWords();
+    console.log(`Marked multiple words as learning (${this.currentLanguage}):`, words);
+    if (canValidate) {
+      console.log(`Initial size: ${initialSize}, Final size: ${finalSize}, New words: ${newWordsCount}, Processed: ${processedWordsCount}, Skipped: ${skippedWordsCount}`);
+    } else {
+      console.log(`Initial size: ${initialSize}, Final size: ${finalSize}, New words: ${newWordsCount}, Processed: ${processedWordsCount} (validation skipped - adapter/dictionary not available)`);
+    }
+    this.notifySidebarUpdate();
+    return { newWordsCount, processedWordsCount };
   }
 
   notifySidebarUpdate(changedWords = null, isKnownOrIgnored = true) {
@@ -419,6 +577,7 @@ class VocabManager {
   async clearAllKnownWords() {
     this.getCurrentLanguageKnownWords().clear();
     this.getCurrentLanguageIgnoredWords().clear();
+    this.getCurrentLanguageLearningWords().clear();
     await this.saveKnownWords();
     console.log(`All known words cleared for language: ${this.currentLanguage}`);
   }
