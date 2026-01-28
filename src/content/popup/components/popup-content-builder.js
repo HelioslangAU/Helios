@@ -404,11 +404,11 @@ class PopupContentBuilder {
 
   static getMarkButtonText(isKnown, isIgnored) {
     if (isKnown) {
-      return "Mark Ignore";
+      return "Known";
     } else if (isIgnored) {
-      return "Mark Unknown";
+      return "Ignored";
     } else {
-      return "Mark Known";
+      return "Unknown";
     }
   }
 }

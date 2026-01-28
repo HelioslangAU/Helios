@@ -489,32 +489,32 @@
 }
 
 .mark-known-btn {
-  background: var(--popup-green);
-  color: white;
-}
-
-.mark-ignore-btn {
-  background: #6b7280;
-  color: white;
-}
-
-.mark-ignore-btn:hover {
-  background: #4b5563;
-  opacity: 0.9;
-}
-
-.mark-known-btn:hover {
-  background: #059669;
-  opacity: 0.9;
-}
-
-.mark-unknown-btn {
   background: var(--popup-orange-primary);
   color: white;
 }
 
-.mark-unknown-btn:hover {
+.mark-ignore-btn {
+  background: var(--popup-green);
+  color: white;
+}
+
+.mark-ignore-btn:hover {
+  background: #059669;
+  opacity: 0.9;
+}
+
+.mark-known-btn:hover {
   background: var(--popup-orange-secondary);
+  opacity: 0.9;
+}
+
+.mark-unknown-btn {
+  background: #6b7280;
+  color: white;
+}
+
+.mark-unknown-btn:hover {
+  background: #4b5563;
   opacity: 0.9;
 }
 

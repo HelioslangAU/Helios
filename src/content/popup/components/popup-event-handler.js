@@ -530,16 +530,16 @@ class PopupEventHandler {
 
     switch (state) {
       case "known":
-        button.textContent = "Mark Ignore";
+        button.textContent = "Known";
         button.className = "mark-ignore-btn";
         break;
       case "ignored":
-        button.textContent = "Mark Unknown";
+        button.textContent = "Ignored";
         button.className = "mark-unknown-btn";
         break;
       case "unknown":
       default:
-        button.textContent = "Mark Known";
+        button.textContent = "Unknown";
         button.className = "mark-known-btn";
         break;
     }
