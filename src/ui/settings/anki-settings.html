@@ -76,6 +76,29 @@
       <div class="help-text">Add sentence context to new cards</div>
     </div>
   </div>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Import Young Words as Learning</label>
+      <label class="toggle-switch">
+        <input type="checkbox" id="anki-import-young-as-learning" checked />
+        <span class="toggle-slider"></span>
+      </label>
+      <div class="help-text">
+        Cards with interval &lt; 21 days will be imported as learning words instead of known words
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Update Learning Words from Anki</label>
+      <label class="toggle-switch">
+        <input type="checkbox" id="anki-auto-sync-learning-words" checked />
+        <span class="toggle-slider"></span>
+      </label>
+      <div class="help-text">
+        Automatically sync learning words on startup and promote to known when interval reaches 21 days
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="section-card">
@@ -95,6 +118,16 @@
       </button>
       <div class="help-text">
         Extracts all expressions from your selected deck and marks them as known words.
+        Requires deck, note type, and expression field mapping to be configured.
+      </div>
+    </div>
+    <div class="form-group">
+      <button class="btn btn-anki" id="anki-sync-learning-words" disabled>
+        <span>🔄</span>
+        Sync Learning Words
+      </button>
+      <div class="help-text">
+        Manually sync learning words from Anki and promote to known when interval reaches 21 days.
         Requires deck, note type, and expression field mapping to be configured.
       </div>
     </div>

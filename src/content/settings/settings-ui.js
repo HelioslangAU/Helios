@@ -29,6 +29,9 @@ class HeliosSettingsUI {
         if (this.manager.vocabulary?.updateAnkiImportButtonState) {
           this.manager.vocabulary.updateAnkiImportButtonState();
         }
+        if (this.manager.vocabulary?.updateAnkiSyncButtonState) {
+          this.manager.vocabulary.updateAnkiSyncButtonState();
+        }
         break;
       case "advanced":
         this.setupAdvancedEventListeners();
@@ -805,6 +808,11 @@ class HeliosSettingsUI {
       ?.addEventListener("click", () =>
         this.manager.vocabulary.importKnownWordsFromAnki()
       );
+    document
+      .getElementById("vocab-anki-sync-learning-words")
+      ?.addEventListener("click", () =>
+        this.manager.vocabulary.syncLearningWordsFromAnki()
+      );
   }
 
   setupAdvancedEventListeners() {
@@ -1050,6 +1058,9 @@ class HeliosSettingsUI {
     // Update Anki import button state
     if (this.manager.vocabulary?.updateAnkiImportButtonState) {
       this.manager.vocabulary.updateAnkiImportButtonState();
+    }
+    if (this.manager.vocabulary?.updateAnkiSyncButtonState) {
+      this.manager.vocabulary.updateAnkiSyncButtonState();
     }
   }
 

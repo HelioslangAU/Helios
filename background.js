@@ -311,6 +311,7 @@ class BackgroundService {
           await this.handleAnkiGetDeckNotes(
             message.deck,
             message.noteType,
+            message.expressionField,
             sendResponse
           );
           break;
@@ -465,6 +466,8 @@ class BackgroundService {
         allowDuplicates: false,
         includeSentence: true,
         tags: ["helios"],
+        importYoungAsLearning: true,
+        autoSyncLearningWords: true,
       };
 
       sendResponse({
@@ -626,10 +629,14 @@ class BackgroundService {
       });
     }
   }
-  async handleAnkiGetDeckNotes(deck, noteType, sendResponse) {
+  async handleAnkiGetDeckNotes(deck, noteType, expressionField, sendResponse) {
     try {
       if (!deck || !noteType) {
         throw new Error("Deck and note type are required");
+      }
+
+      if (!expressionField) {
+        throw new Error("Expression field is required");
       }
 
       // Find all notes in the deck with the specified note type
@@ -639,25 +646,170 @@ class BackgroundService {
       if (noteIds.length === 0) {
         sendResponse({
           success: true,
-          notes: [],
+          expressions: [],
         });
         return;
       }
 
-      // Get full note information including fields
-      const notes = await this.invokeAnki("notesInfo", { notes: noteIds });
+      // Process in batches to avoid memory issues
+      const BATCH_SIZE = 1000;
+      const allCardIds = [];
+      const noteIdToCardIds = new Map();
+
+      // First pass: Get card IDs from notes (in batches)
+      for (let i = 0; i < noteIds.length; i += BATCH_SIZE) {
+        const batchNoteIds = noteIds.slice(i, i + BATCH_SIZE);
+        const batchNotes = await this.invokeAnki("notesInfo", { notes: batchNoteIds });
+
+        for (const note of batchNotes) {
+          if (note.cards && Array.isArray(note.cards)) {
+            noteIdToCardIds.set(note.noteId, note.cards);
+            allCardIds.push(...note.cards);
+          }
+        }
+      }
+
+      // Get card intervals (small data - just IDs and intervals)
+      const cardIdToInterval = new Map();
+      if (allCardIds.length > 0) {
+        // Process cards in batches
+        for (let i = 0; i < allCardIds.length; i += 1000) {
+          const batchCardIds = allCardIds.slice(i, i + 1000);
+          const batchCards = await this.invokeAnki("cardsInfo", { cards: batchCardIds });
+
+          // Debug: log first batch structure
+          if (i === 0 && batchCards.length > 0) {
+            console.log("🃏 First card structure from AnkiConnect:", {
+              sampleCard: batchCards[0],
+              allFields: Object.keys(batchCards[0]),
+              cardIdField: batchCards[0].cardId || batchCards[0].cid || batchCards[0].id,
+              intervalField: batchCards[0].interval,
+              ivlField: batchCards[0].ivl
+            });
+          }
+
+          for (const card of batchCards) {
+            // AnkiConnect cardsInfo returns 'interval' field (in days)
+            // 'ivl' is the internal database field, but AnkiConnect exposes it as 'interval'
+            // Check both possible field names
+            let intervalValue = 0;
+            if (card.interval !== undefined && card.interval !== null) {
+              intervalValue = card.interval;
+            } else if (card.ivl !== undefined && card.ivl !== null) {
+              intervalValue = card.ivl;
+            }
+            
+            // Anki intervals: negative = learning, 0 = new, positive = days
+            // Convert to days if needed (AnkiConnect should already return days)
+            const interval = intervalValue < 0 ? 0 : intervalValue;
+            
+            // Use cardId or cid as the key (AnkiConnect might use either)
+            // Also normalize to number for consistent matching
+            const cardId = card.cardId || card.cid || card.id;
+            if (cardId !== undefined && cardId !== null) {
+              // Store as both number and string to handle type mismatches
+              const numCardId = typeof cardId === 'string' ? Number(cardId) : cardId;
+              const strCardId = String(cardId);
+              cardIdToInterval.set(numCardId, interval);
+              cardIdToInterval.set(strCardId, interval);
+            }
+            
+            // Debug logging for first few cards to verify interval retrieval
+            if (cardIdToInterval.size <= 10) {
+              console.log("🃏 Card interval debug:", {
+                cardId: cardId,
+                interval: card.interval,
+                ivl: card.ivl,
+                finalInterval: interval,
+                allCardFields: Object.keys(card)
+              });
+            }
+          }
+        }
+        
+        // Log summary statistics
+        const intervals = Array.from(cardIdToInterval.values());
+        const intervalsOver21 = intervals.filter(ivl => ivl >= 21).length;
+        console.log(`🃏 Interval summary: Total cards: ${intervals.length}, Over 21 days: ${intervalsOver21}, Under 21 days: ${intervals.length - intervalsOver21}`);
+      }
+
+      // Second pass: Extract only the expression field and calculate maxInterval
+      const expressions = [];
+
+      for (let i = 0; i < noteIds.length; i += BATCH_SIZE) {
+        const batchNoteIds = noteIds.slice(i, i + BATCH_SIZE);
+        const batchNotes = await this.invokeAnki("notesInfo", { notes: batchNoteIds });
+
+        for (const note of batchNotes) {
+          // Get expression from the specified field
+          const fields = note.fields || {};
+          const expressionFieldData = fields[expressionField];
+          const expression = expressionFieldData?.value || "";
+
+          if (!expression) continue;
+
+          // Calculate max interval for this note
+          const cardIds = noteIdToCardIds.get(note.noteId) || [];
+          let maxInterval = -Infinity;
+          for (const cardId of cardIds) {
+            // Try both the original cardId and as a number/string to handle type mismatches
+            let interval = cardIdToInterval.get(cardId);
+            if (interval === undefined) {
+              // Try as number if it was a string, or vice versa
+              const numCardId = typeof cardId === 'string' ? Number(cardId) : String(cardId);
+              interval = cardIdToInterval.get(numCardId);
+            }
+            
+            if (interval !== undefined) {
+              maxInterval = Math.max(maxInterval, interval);
+            } else {
+              // Debug: log if we can't find interval for a card
+              if (expressions.length < 3) {
+                console.warn("🃏 Could not find interval for cardId:", cardId, typeof cardId, "Available cardIds in map (first 5):", Array.from(cardIdToInterval.keys()).slice(0, 5).map(id => ({id, type: typeof id})));
+              }
+            }
+          }
+          // If no cards found or all intervals undefined, treat as new card (0 days)
+          if (maxInterval === -Infinity) maxInterval = 0;
+          
+          // Debug logging for first few expressions
+          if (expressions.length < 3) {
+            console.log("🃏 Expression interval debug:", {
+              expression: expression.substring(0, 20),
+              cardIds: cardIds,
+              maxInterval: maxInterval
+            });
+          }
+
+          // Return minimal data: just expression and maxInterval
+          expressions.push({
+            expression: expression,
+            maxInterval: maxInterval,
+          });
+        }
+      }
 
       sendResponse({
         success: true,
-        notes: notes,
+        expressions: expressions,
       });
     } catch (error) {
       console.error("🃏 Error getting deck notes:", error);
-      sendResponse({
-        success: false,
-        error: error.message,
-        notes: [],
-      });
+      
+      // Check if it's a size error and provide helpful message
+      if (error.message && error.message.includes("64MB")) {
+        sendResponse({
+          success: false,
+          error: "Deck is too large. Please try importing a smaller deck or contact support for assistance.",
+          expressions: [],
+        });
+      } else {
+        sendResponse({
+          success: false,
+          error: error.message,
+          expressions: [],
+        });
+      }
     }
   }
 

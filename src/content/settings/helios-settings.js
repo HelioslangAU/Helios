@@ -95,6 +95,8 @@ class HeliosSettingsManager {
       ankiCheckDuplicates: true,
       ankiIncludeSentence: true,
       ankiFieldMappings: {},
+      ankiImportYoungAsLearning: true,
+      ankiAutoSyncLearningWords: true,
 
       // Vocabulary
       knownWords: [],

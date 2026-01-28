@@ -14,8 +14,12 @@
       <div class="stat-label">Known Words</div>
     </div>
     <div class="stat-card">
-      <div class="stat-value" id="stat-anki-cards">-</div>
-      <div class="stat-label">Anki Cards Created</div>
+      <div class="stat-value" id="stat-learning-words">-</div>
+      <div class="stat-label">Learning Words</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat-ignored-words">-</div>
+      <div class="stat-label">Ignored Words</div>
     </div>
   </div>
 </div>
@@ -75,6 +79,16 @@
       </button>
       <div class="help-text">
         Extracts all expressions from your configured Anki deck and marks them as known words.
+        Requires Anki deck, note type, and expression field mapping to be configured in Anki settings.
+      </div>
+    </div>
+    <div class="form-group">
+      <button class="btn btn-anki" id="vocab-anki-sync-learning-words" disabled>
+        <span>🔄</span>
+        Sync Learning Words
+      </button>
+      <div class="help-text">
+        Manually sync learning words from Anki and promote to known when interval reaches 21 days.
         Requires Anki deck, note type, and expression field mapping to be configured in Anki settings.
       </div>
     </div>
