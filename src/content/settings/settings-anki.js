@@ -103,6 +103,9 @@ class HeliosSettingsAnki {
         // Load current settings
         await this.loadCurrentSettings();
 
+        // Update import button state after initialization
+        this.updateImportButtonState();
+
         console.log("🃏 Anki integration initialized successfully");
       } else {
         this.showConnectionError();
@@ -269,6 +272,14 @@ class HeliosSettingsAnki {
         this.onSettingChange(e)
       );
     }
+
+    // Import known words button
+    const importButton = document.getElementById("anki-import-known-words");
+    if (importButton) {
+      importButton.addEventListener("click", () =>
+        this.importKnownWordsFromAnki()
+      );
+    }
   }
 
   // Handle deck change
@@ -279,6 +290,9 @@ class HeliosSettingsAnki {
     // Update settings
     this.manager.settings.ankiDeck = deck;
     await this.saveSettings();
+
+    // Update import button state
+    this.updateImportButtonState();
   }
 
   // Handle note type change
@@ -297,6 +311,9 @@ class HeliosSettingsAnki {
     } else {
       this.clearFieldMappingTable();
     }
+
+    // Update import button state
+    this.updateImportButtonState();
   }
 
   // Handle setting changes
@@ -489,6 +506,9 @@ class HeliosSettingsAnki {
         }
 
         await this.saveSettings();
+
+        // Update import button state
+        this.updateImportButtonState();
       });
     });
   }
@@ -615,6 +635,9 @@ class HeliosSettingsAnki {
 
       // Load field mappings
       this.manager.settings.ankiFieldMappings = settings.fieldMappings || {};
+
+      // Update import button state
+      this.updateImportButtonState();
     } catch (error) {
       console.error("🃏 Error loading current settings:", error);
     }
@@ -862,6 +885,176 @@ class HeliosSettingsAnki {
       }
     } catch (error) {
       alert(`Error creating test card: ${error.message}`);
+    }
+  }
+
+  // Update import button state based on prerequisites
+  updateImportButtonState() {
+    const importButton = document.getElementById("anki-import-known-words");
+    if (!importButton) return;
+
+    const deck = this.manager.settings.ankiDeck;
+    const noteType = this.manager.settings.ankiNoteType;
+    const fieldMappings = this.manager.settings.ankiFieldMappings || {};
+
+    // Check if expression or expressionRubyTxt is mapped
+    const hasExpressionMapping = Object.values(fieldMappings).some(
+      (mapping) => mapping === "expression" || mapping === "expressionRubyTxt"
+    );
+
+    // Enable button only if all prerequisites are met
+    const canImport = deck && noteType && hasExpressionMapping;
+    importButton.disabled = !canImport;
+
+    if (canImport) {
+      // Button is ready - use normal styling
+      importButton.innerHTML = "<span>📥</span>Import Known Words";
+      importButton.title = "Import known words from Anki deck";
+      importButton.className = "btn btn-anki";
+    } else {
+      // Button not ready - use red/danger styling
+      importButton.innerHTML = "<span>⚠️</span>Anki not set up";
+      importButton.title =
+        "Select deck, note type, and map expression field to enable import";
+      importButton.className = "btn btn-danger";
+    }
+  }
+
+  // Import known words from Anki deck
+  async importKnownWordsFromAnki() {
+    const importButton = document.getElementById("anki-import-known-words");
+    if (!importButton) return;
+
+    try {
+      // Validate prerequisites
+      const deck = this.manager.settings.ankiDeck;
+      const noteType = this.manager.settings.ankiNoteType;
+      const fieldMappings = this.manager.settings.ankiFieldMappings || {};
+
+      if (!deck) {
+        alert("Please select an Anki deck first");
+        return;
+      }
+
+      if (!noteType) {
+        alert("Please select a note type first");
+        return;
+      }
+
+      // Find the field mapped to expression or expressionRubyTxt
+      let expressionField = null;
+      let isRubyText = false;
+
+      for (const [fieldName, mapping] of Object.entries(fieldMappings)) {
+        if (mapping === "expression") {
+          expressionField = fieldName;
+          isRubyText = false;
+          break;
+        } else if (mapping === "expressionRubyTxt") {
+          expressionField = fieldName;
+          isRubyText = true;
+          break;
+        }
+      }
+
+      if (!expressionField) {
+        alert(
+          'Please map a field to "Expression" or "Expression with Ruby Pinyin" first'
+        );
+        return;
+      }
+
+      // Update button to loading state
+      importButton.innerHTML = "<span>⏳</span>Importing...";
+      importButton.disabled = true;
+
+      // Get all notes from the deck
+      const response = await this.sendMessage("ANKI_GET_DECK_NOTES", {
+        deck,
+        noteType,
+      });
+
+      if (!response.success) {
+        throw new Error(response.error || "Failed to get notes from Anki");
+      }
+
+      const notes = response.notes || [];
+
+      if (notes.length === 0) {
+        alert("No notes found in the selected deck");
+        this.updateImportButtonState();
+        return;
+      }
+
+      // Extract expressions from notes
+      const expressions = new Set(); // Use Set to automatically deduplicate
+
+      for (const note of notes) {
+        const fields = note.fields || {};
+        let expression = fields[expressionField]?.value || "";
+
+        if (!expression) continue;
+
+        // Remove HTML tags if present
+        const tempDiv = document.createElement("div");
+        tempDiv.innerHTML = expression;
+        expression = tempDiv.textContent || tempDiv.innerText || "";
+
+        // Trim whitespace
+        expression = expression.trim();
+
+        if (!expression) continue;
+
+        // If it's expressionRubyTxt, remove everything after first "["
+        if (isRubyText && expression.includes("[")) {
+          expression = expression.split("[")[0].trim();
+        }
+
+        if (expression) {
+          expressions.add(expression);
+        }
+      }
+
+      if (expressions.size === 0) {
+        alert("No valid expressions found in the deck");
+        this.updateImportButtonState();
+        return;
+      }
+
+      // Get vocab manager and ensure language is set correctly
+      const vocabManager = this.manager.vocabulary?.vocabManager;
+      if (!vocabManager) {
+        throw new Error("Vocabulary manager not available");
+      }
+
+      // Ensure vocab manager has the correct language
+      const targetLanguage =
+        this.manager.settings.targetLanguage ||
+        window.languageRegistry?.getCurrentLanguage() ||
+        "zh";
+      vocabManager.setCurrentLanguage(targetLanguage);
+
+      // Import words
+      const wordsArray = Array.from(expressions);
+      const result = await vocabManager.markMultipleWordsAsKnown(wordsArray);
+
+      // Reset button first (before alert which might block)
+      // Use updateImportButtonState to ensure correct styling
+      this.updateImportButtonState();
+      
+      // Show success message
+      const message = `Successfully imported ${result.newWordsCount} known word${result.newWordsCount !== 1 ? "s" : ""} from Anki deck "${deck}"`;
+      alert(message);
+
+      console.log(
+        `🃏 Imported ${result.newWordsCount} words from Anki deck:`,
+        wordsArray
+      );
+    } catch (error) {
+      console.error("🃏 Error importing known words from Anki:", error);
+      alert(`Error importing words: ${error.message}`);
+      // Update button state to ensure correct styling
+      this.updateImportButtonState();
     }
   }
 }

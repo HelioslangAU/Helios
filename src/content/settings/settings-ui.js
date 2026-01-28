@@ -25,6 +25,10 @@ class HeliosSettingsUI {
         break;
       case "vocabulary":
         this.setupVocabularyEventListeners();
+        // Update Anki import button state when vocabulary tab is loaded
+        if (this.manager.vocabulary?.updateAnkiImportButtonState) {
+          this.manager.vocabulary.updateAnkiImportButtonState();
+        }
         break;
       case "advanced":
         this.setupAdvancedEventListeners();
@@ -793,6 +797,11 @@ class HeliosSettingsUI {
     document
       .getElementById("reset-all-data")
       ?.addEventListener("click", () => this.manager.vocabulary.resetAllData());
+    document
+      .getElementById("vocab-anki-import-known-words")
+      ?.addEventListener("click", () =>
+        this.manager.vocabulary.importKnownWordsFromAnki()
+      );
   }
 
   setupAdvancedEventListeners() {
@@ -1025,6 +1034,10 @@ class HeliosSettingsUI {
 
   updateVocabularyUI(tabElement) {
     // Vocabulary settings UI updates - statistics will be loaded separately
+    // Update Anki import button state
+    if (this.manager.vocabulary?.updateAnkiImportButtonState) {
+      this.manager.vocabulary.updateAnkiImportButtonState();
+    }
   }
 
   updateAdvancedUI(tabElement) {

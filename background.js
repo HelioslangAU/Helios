@@ -306,6 +306,13 @@ class BackgroundService {
 
         case "CAPTURE_TAB_AUDIO":
           await this.handleCaptureTabAudio(message.duration, sender, sendResponse);
+
+          case "ANKI_GET_DECK_NOTES":
+          await this.handleAnkiGetDeckNotes(
+            message.deck,
+            message.noteType,
+            sendResponse
+          );
           break;
 
         // === EXTENSION HANDLERS ===
@@ -616,6 +623,40 @@ class BackgroundService {
         success: false,
         error: error.message,
         dataUrl: null
+      });
+    }
+  }
+  async handleAnkiGetDeckNotes(deck, noteType, sendResponse) {
+    try {
+      if (!deck || !noteType) {
+        throw new Error("Deck and note type are required");
+      }
+
+      // Find all notes in the deck with the specified note type
+      const query = `deck:"${deck}" note:"${noteType}"`;
+      const noteIds = await this.invokeAnki("findNotes", { query });
+
+      if (noteIds.length === 0) {
+        sendResponse({
+          success: true,
+          notes: [],
+        });
+        return;
+      }
+
+      // Get full note information including fields
+      const notes = await this.invokeAnki("notesInfo", { notes: noteIds });
+
+      sendResponse({
+        success: true,
+        notes: notes,
+      });
+    } catch (error) {
+      console.error("🃏 Error getting deck notes:", error);
+      sendResponse({
+        success: false,
+        error: error.message,
+        notes: [],
       });
     }
   }
