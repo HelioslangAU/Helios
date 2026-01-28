@@ -27,6 +27,8 @@ class HeliosSettingsAnki {
         { value: "sentence", label: "Sentence (这个答案是对的)" },
         { value: "source", label: "Source URL" },
         { value: "frequency", label: "Frequency Rank (129)" },
+        { value: "screenshot", label: "Screenshot (image)" },
+        { value: "sentenceAudio", label: "Sentence Audio (audio file)" },
       ];
     } else if (language === 'fr') {
       // French-specific fields
@@ -37,6 +39,8 @@ class HeliosSettingsAnki {
         { value: "meaning", label: "Meaning (accurate; exact)" },
         { value: "sentence", label: "Sentence (Cette mesure est très précise)" },
         { value: "source", label: "Source URL" },
+        { value: "screenshot", label: "Screenshot (image)" },
+        { value: "sentenceAudio", label: "Sentence Audio (audio file)" },
       ];
     } else if (language === 'es') {
       // Spanish-specific fields
@@ -47,6 +51,8 @@ class HeliosSettingsAnki {
         { value: "meaning", label: "Meaning (precise; accurate)" },
         { value: "sentence", label: "Sentence (Es necesario ser preciso)" },
         { value: "source", label: "Source URL" },
+        { value: "screenshot", label: "Screenshot (image)" },
+        { value: "sentenceAudio", label: "Sentence Audio (audio file)" },
       ];
     } else if (language === 'en') {
       // English-specific fields
@@ -57,6 +63,8 @@ class HeliosSettingsAnki {
         { value: "meaning", label: "Meaning (exact; accurate)" },
         { value: "sentence", label: "Sentence (The measurements must be precise)" },
         { value: "source", label: "Source URL" },
+        { value: "screenshot", label: "Screenshot (image)" },
+        { value: "sentenceAudio", label: "Sentence Audio (audio file)" },
       ];
     } else {
       // Generic fallback
@@ -68,6 +76,8 @@ class HeliosSettingsAnki {
         { value: "sentence", label: "Sentence" },
         { value: "source", label: "Source URL" },
         { value: "frequency", label: "Frequency Rank" },
+        { value: "screenshot", label: "Screenshot (image)" },
+        { value: "sentenceAudio", label: "Sentence Audio (audio file)" },
       ];
     }
   }
@@ -93,6 +103,10 @@ class HeliosSettingsAnki {
         // Load current settings
         await this.loadCurrentSettings();
 
+        // Update import button state after initialization
+        this.updateImportButtonState();
+        this.updateSyncButtonState();
+
         console.log("🃏 Anki integration initialized successfully");
       } else {
         this.showConnectionError();
@@ -112,9 +126,11 @@ class HeliosSettingsAnki {
       }
 
       const message = { action, ...data };
+      // Use longer timeout for deck notes requests (large decks can take time)
+      const timeoutDuration = action === "ANKI_GET_DECK_NOTES" ? 60000 : 10000; // 60s for deck notes, 10s for others
       const timeout = setTimeout(() => {
         reject(new Error("Message timeout"));
-      }, 10000);
+      }, timeoutDuration);
 
       chrome.runtime.sendMessage(message, (response) => {
         clearTimeout(timeout);
@@ -259,6 +275,37 @@ class HeliosSettingsAnki {
         this.onSettingChange(e)
       );
     }
+
+    // New learning words toggles
+    const importYoungAsLearning = document.getElementById("anki-import-young-as-learning");
+    if (importYoungAsLearning) {
+      importYoungAsLearning.addEventListener("change", (e) =>
+        this.onSettingChange(e)
+      );
+    }
+
+    const autoSyncLearningWords = document.getElementById("anki-auto-sync-learning-words");
+    if (autoSyncLearningWords) {
+      autoSyncLearningWords.addEventListener("change", (e) =>
+        this.onSettingChange(e)
+      );
+    }
+
+    // Import known words button
+    const importButton = document.getElementById("anki-import-known-words");
+    if (importButton) {
+      importButton.addEventListener("click", () =>
+        this.importKnownWordsFromAnki()
+      );
+    }
+
+    // Sync learning words button
+    const syncButton = document.getElementById("anki-sync-learning-words");
+    if (syncButton) {
+      syncButton.addEventListener("click", () =>
+        this.syncLearningWordsFromAnki()
+      );
+    }
   }
 
   // Handle deck change
@@ -269,6 +316,10 @@ class HeliosSettingsAnki {
     // Update settings
     this.manager.settings.ankiDeck = deck;
     await this.saveSettings();
+
+    // Update import button state
+    this.updateImportButtonState();
+    this.updateSyncButtonState();
   }
 
   // Handle note type change
@@ -287,6 +338,9 @@ class HeliosSettingsAnki {
     } else {
       this.clearFieldMappingTable();
     }
+
+    // Update import button state
+    this.updateImportButtonState();
   }
 
   // Handle setting changes
@@ -303,6 +357,12 @@ class HeliosSettingsAnki {
         break;
       case "anki-include-sentence":
         this.manager.settings.ankiIncludeSentence = value;
+        break;
+      case "anki-import-young-as-learning":
+        this.manager.settings.ankiImportYoungAsLearning = value;
+        break;
+      case "anki-auto-sync-learning-words":
+        this.manager.settings.ankiAutoSyncLearningWords = value;
         break;
     }
 
@@ -413,6 +473,8 @@ class HeliosSettingsAnki {
         simplified: "对",
         source: "https://example.com",
         frequency: "129",
+        screenshot: "[screenshot.jpg]",
+        sentenceAudio: "[audio.webm]",
       },
       fr: {
         "": "—",
@@ -421,6 +483,8 @@ class HeliosSettingsAnki {
         meaning: "accurate; exact",
         sentence: "Cette mesure est très précise",
         source: "https://example.com",
+        screenshot: "[screenshot.jpg]",
+        sentenceAudio: "[audio.webm]",
       },
       es: {
         "": "—",
@@ -429,6 +493,8 @@ class HeliosSettingsAnki {
         meaning: "precise; accurate",
         sentence: "Es necesario ser preciso",
         source: "https://example.com",
+        screenshot: "[screenshot.jpg]",
+        sentenceAudio: "[audio.webm]",
       },
       en: {
         "": "—",
@@ -437,6 +503,8 @@ class HeliosSettingsAnki {
         meaning: "exact; accurate",
         sentence: "The measurements must be precise",
         source: "https://example.com",
+        screenshot: "[screenshot.jpg]",
+        sentenceAudio: "[audio.webm]",
       },
     };
 
@@ -471,6 +539,10 @@ class HeliosSettingsAnki {
         }
 
         await this.saveSettings();
+
+        // Update import button state
+        this.updateImportButtonState();
+        this.updateSyncButtonState();
       });
     });
   }
@@ -493,7 +565,12 @@ class HeliosSettingsAnki {
       Traditional: "traditional",
       Simplified: "simplified",
       Source: "source",
-      Audio: "audio",
+      Audio: "sentenceAudio",
+      SentenceAudio: "sentenceAudio",
+      "Sentence Audio": "sentenceAudio",
+      Screenshot: "screenshot",
+      Image: "screenshot",
+      Picture: "screenshot",
       Frequency: "frequency",
     };
 
@@ -590,8 +667,33 @@ class HeliosSettingsAnki {
         this.manager.settings.ankiIncludeSentence = includeSentence.checked;
       }
 
+      // Load new learning words toggles
+      const importYoungAsLearning = document.getElementById("anki-import-young-as-learning");
+      if (importYoungAsLearning) {
+        // Check both settings locations (ankiSettings and manager.settings)
+        const importYoungValue = settings.importYoungAsLearning !== undefined 
+          ? settings.importYoungAsLearning 
+          : (this.manager.settings.ankiImportYoungAsLearning !== false);
+        importYoungAsLearning.checked = importYoungValue;
+        this.manager.settings.ankiImportYoungAsLearning = importYoungValue;
+      }
+
+      const autoSyncLearningWords = document.getElementById("anki-auto-sync-learning-words");
+      if (autoSyncLearningWords) {
+        // Check both settings locations (ankiSettings and manager.settings)
+        const autoSyncValue = settings.autoSyncLearningWords !== undefined 
+          ? settings.autoSyncLearningWords 
+          : (this.manager.settings.ankiAutoSyncLearningWords !== false);
+        autoSyncLearningWords.checked = autoSyncValue;
+        this.manager.settings.ankiAutoSyncLearningWords = autoSyncValue;
+      }
+
       // Load field mappings
       this.manager.settings.ankiFieldMappings = settings.fieldMappings || {};
+
+      // Update import button state
+      this.updateImportButtonState();
+      this.updateSyncButtonState();
     } catch (error) {
       console.error("🃏 Error loading current settings:", error);
     }
@@ -607,6 +709,8 @@ class HeliosSettingsAnki {
         checkDuplicates: this.manager.settings.ankiCheckDuplicates !== false,
         allowDuplicates: this.manager.settings.ankiCheckDuplicates === false,
         includeSentence: this.manager.settings.ankiIncludeSentence !== false,
+        importYoungAsLearning: this.manager.settings.ankiImportYoungAsLearning !== false,
+        autoSyncLearningWords: this.manager.settings.ankiAutoSyncLearningWords !== false,
         tags: ["helios"],
       };
 
@@ -839,6 +943,323 @@ class HeliosSettingsAnki {
       }
     } catch (error) {
       alert(`Error creating test card: ${error.message}`);
+    }
+  }
+
+  // Update import button state based on prerequisites
+  updateImportButtonState() {
+    const importButton = document.getElementById("anki-import-known-words");
+    if (!importButton) return;
+
+    const deck = this.manager.settings.ankiDeck;
+    const noteType = this.manager.settings.ankiNoteType;
+    const fieldMappings = this.manager.settings.ankiFieldMappings || {};
+
+    // Check if expression or expressionRubyTxt is mapped
+    const hasExpressionMapping = Object.values(fieldMappings).some(
+      (mapping) => mapping === "expression" || mapping === "expressionRubyTxt"
+    );
+
+    // Enable button only if all prerequisites are met
+    const canImport = deck && noteType && hasExpressionMapping;
+    importButton.disabled = !canImport;
+
+    if (canImport) {
+      // Button is ready - use normal styling
+      importButton.innerHTML = "<span>📥</span>Import Known Words";
+      importButton.title = "Import known words from Anki deck";
+      importButton.className = "btn btn-anki";
+    } else {
+      // Button not ready - use red/danger styling
+      importButton.innerHTML = "<span>⚠️</span>Anki not set up";
+      importButton.title =
+        "Select deck, note type, and map expression field to enable import";
+      importButton.className = "btn btn-danger";
+    }
+  }
+
+  // Update sync button state based on prerequisites
+  updateSyncButtonState() {
+    const syncButton = document.getElementById("anki-sync-learning-words");
+    if (!syncButton) return;
+
+    const deck = this.manager.settings.ankiDeck;
+    const noteType = this.manager.settings.ankiNoteType;
+    const fieldMappings = this.manager.settings.ankiFieldMappings || {};
+
+    // Check if expression or expressionRubyTxt is mapped
+    const hasExpressionMapping = Object.values(fieldMappings).some(
+      (mapping) => mapping === "expression" || mapping === "expressionRubyTxt"
+    );
+
+    // Enable button only if all prerequisites are met
+    const canSync = deck && noteType && hasExpressionMapping;
+    syncButton.disabled = !canSync;
+
+    if (canSync) {
+      // Button is ready - use normal styling
+      syncButton.innerHTML = "<span>🔄</span>Sync Learning Words";
+      syncButton.title = "Sync learning words from Anki and promote to known when interval >= 21 days";
+      syncButton.className = "btn btn-anki";
+    } else {
+      // Button not ready - use red/danger styling
+      syncButton.innerHTML = "<span>⚠️</span>Anki not set up";
+      syncButton.title =
+        "Select deck, note type, and map expression field to enable sync";
+      syncButton.className = "btn btn-danger";
+    }
+  }
+
+  // Import known words from Anki deck
+  async importKnownWordsFromAnki() {
+    const importButton = document.getElementById("anki-import-known-words");
+    if (!importButton) return;
+
+    try {
+      // Validate prerequisites
+      const deck = this.manager.settings.ankiDeck;
+      const noteType = this.manager.settings.ankiNoteType;
+      const fieldMappings = this.manager.settings.ankiFieldMappings || {};
+
+      if (!deck) {
+        alert("Please select an Anki deck first");
+        return;
+      }
+
+      if (!noteType) {
+        alert("Please select a note type first");
+        return;
+      }
+
+      // Find the field mapped to expression or expressionRubyTxt
+      let expressionField = null;
+      let isRubyText = false;
+
+      for (const [fieldName, mapping] of Object.entries(fieldMappings)) {
+        if (mapping === "expression") {
+          expressionField = fieldName;
+          isRubyText = false;
+          break;
+        } else if (mapping === "expressionRubyTxt") {
+          expressionField = fieldName;
+          isRubyText = true;
+          break;
+        }
+      }
+
+      if (!expressionField) {
+        alert(
+          'Please map a field to "Expression" or "Expression with Ruby Pinyin" first'
+        );
+        return;
+      }
+
+      // Update button to loading state
+      importButton.innerHTML = "<span>⏳</span>Importing...";
+      importButton.disabled = true;
+
+      // Get all expressions from the deck (optimized - only expression field and intervals)
+      const response = await this.sendMessage("ANKI_GET_DECK_NOTES", {
+        deck,
+        noteType,
+        expressionField,
+      });
+
+      if (!response.success) {
+        throw new Error(response.error || "Failed to get notes from Anki");
+      }
+
+      const expressions = response.expressions || [];
+
+      if (expressions.length === 0) {
+        alert("No notes found in the selected deck");
+        this.updateImportButtonState();
+        this.updateSyncButtonState();
+        return;
+      }
+
+      // Check if import young as learning is enabled
+      const importYoungAsLearning = this.manager.settings.ankiImportYoungAsLearning !== false;
+
+      // Process expressions and categorize by interval
+      const expressionsToImportAsKnown = new Set();
+      const expressionsToImportAsLearning = new Set();
+
+      for (const item of expressions) {
+        let expression = item.expression;
+
+        if (!expression) continue;
+
+        // Remove HTML tags if present
+        const tempDiv = document.createElement("div");
+        tempDiv.innerHTML = expression;
+        expression = tempDiv.textContent || tempDiv.innerText || "";
+
+        // Trim whitespace
+        expression = expression.trim();
+
+        if (!expression) continue;
+
+        // If it's expressionRubyTxt, remove everything after first "["
+        if (isRubyText && expression.includes("[")) {
+          expression = expression.split("[")[0].trim();
+        }
+
+        if (!expression) continue;
+
+        // Check interval if importYoungAsLearning is enabled
+        let shouldImportAsLearning = false;
+        if (importYoungAsLearning) {
+          // maxInterval is already calculated in background script
+          const maxInterval = item.maxInterval || 0;
+          // If max interval is less than 21 days, import as learning
+          shouldImportAsLearning = maxInterval < 21;
+        }
+
+        if (shouldImportAsLearning) {
+          expressionsToImportAsLearning.add(expression);
+        } else {
+          expressionsToImportAsKnown.add(expression);
+        }
+      }
+
+      const totalExpressions = expressionsToImportAsKnown.size + expressionsToImportAsLearning.size;
+
+      if (totalExpressions === 0) {
+        alert("No valid expressions found in the deck");
+        this.updateImportButtonState();
+        this.updateSyncButtonState();
+        return;
+      }
+
+      // Get vocab manager and ensure language is set correctly
+      const vocabManager = this.manager.vocabulary?.vocabManager;
+      if (!vocabManager) {
+        throw new Error("Vocabulary manager not available");
+      }
+
+      // Ensure vocab manager has the correct language
+      const targetLanguage =
+        this.manager.settings.targetLanguage ||
+        window.languageRegistry?.getCurrentLanguage() ||
+        "zh";
+      vocabManager.setCurrentLanguage(targetLanguage);
+
+      // Import words as known and learning
+      let knownResult = { newWordsCount: 0, processedWordsCount: 0 };
+      let learningResult = { newWordsCount: 0, processedWordsCount: 0 };
+
+      if (expressionsToImportAsKnown.size > 0) {
+        const knownWordsArray = Array.from(expressionsToImportAsKnown);
+        knownResult = await vocabManager.markMultipleWordsAsKnown(knownWordsArray);
+      }
+
+      if (expressionsToImportAsLearning.size > 0) {
+        const learningWordsArray = Array.from(expressionsToImportAsLearning);
+        learningResult = await vocabManager.markMultipleWordsAsLearning(learningWordsArray);
+      }
+
+      // Reset button first (before alert which might block)
+      // Use updateImportButtonState to ensure correct styling
+      this.updateImportButtonState();
+      this.updateSyncButtonState();
+      
+      // Show success message with breakdown
+      let message = `Successfully imported ${totalExpressions} word${totalExpressions !== 1 ? "s" : ""} from Anki deck "${deck}"`;
+      if (importYoungAsLearning) {
+        message += `\n- ${knownResult.newWordsCount} imported as known (interval ≥ 21 days)`;
+        message += `\n- ${learningResult.newWordsCount} imported as learning (interval < 21 days)`;
+      } else {
+        message += `\n- ${knownResult.newWordsCount} imported as known`;
+      }
+      alert(message);
+
+      console.log(
+        `🃏 Imported ${totalExpressions} words from Anki deck:`,
+        `${knownResult.newWordsCount} known, ${learningResult.newWordsCount} learning`
+      );
+    } catch (error) {
+      console.error("🃏 Error importing known words from Anki:", error);
+      alert(`Error importing words: ${error.message}`);
+      // Update button state to ensure correct styling
+      this.updateImportButtonState();
+      this.updateSyncButtonState();
+    }
+  }
+
+  // Sync learning words from Anki
+  async syncLearningWordsFromAnki() {
+    const syncButton = document.getElementById("anki-sync-learning-words");
+    if (!syncButton) return;
+
+    try {
+      // Validate prerequisites
+      const deck = this.manager.settings.ankiDeck;
+      const noteType = this.manager.settings.ankiNoteType;
+      const fieldMappings = this.manager.settings.ankiFieldMappings || {};
+
+      if (!deck) {
+        alert("Please select an Anki deck first");
+        return;
+      }
+
+      if (!noteType) {
+        alert("Please select a note type first");
+        return;
+      }
+
+      // Find the field mapped to expression or expressionRubyTxt
+      let expressionField = null;
+      let isRubyText = false;
+
+      for (const [fieldName, mapping] of Object.entries(fieldMappings)) {
+        if (mapping === "expression") {
+          expressionField = fieldName;
+          isRubyText = false;
+          break;
+        } else if (mapping === "expressionRubyTxt") {
+          expressionField = fieldName;
+          isRubyText = true;
+          break;
+        }
+      }
+
+      if (!expressionField) {
+        alert(
+          'Please map a field to "Expression" or "Expression with Ruby Pinyin" first'
+        );
+        return;
+      }
+
+      // Update button to loading state
+      syncButton.innerHTML = "<span>⏳</span>Syncing...";
+      syncButton.disabled = true;
+
+      // Get AnkiManager instance
+      if (!window.AnkiManager) {
+        throw new Error("AnkiManager not available");
+      }
+
+      const ankiManager = new AnkiManager();
+      ankiManager.initialize(this.manager.dictionary?.dictionaryManager);
+
+      // Perform sync
+      const result = await ankiManager.syncLearningWordsFromAnki();
+
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      // Show success message
+      const message = `Sync complete! ${result.synced || 0} words synced, ${result.promoted || 0} words promoted to known.`;
+      alert(message);
+
+      // Update button state
+      this.updateSyncButtonState();
+    } catch (error) {
+      console.error("🃏 Error syncing learning words from Anki:", error);
+      alert(`Error syncing learning words: ${error.message}`);
+      this.updateSyncButtonState();
     }
   }
 }

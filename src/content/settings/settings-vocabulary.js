@@ -32,6 +32,8 @@ class HeliosSettingsVocabulary {
     }
 
     this.vocabManager = new VocabManager();
+    // Make vocabManager available globally for AnkiManager
+    window.vocabManager = this.vocabManager;
     
     // Set the current language from settings if available
     let targetLanguage = 'zh'; // default
@@ -63,6 +65,10 @@ class HeliosSettingsVocabulary {
     
     await this.vocabManager.loadKnownWords();
     await this.loadStatistics();
+    
+    // Setup Anki import button state
+    this.updateAnkiImportButtonState();
+    this.updateAnkiSyncButtonState();
   }
 
   async loadStatistics() {
@@ -73,23 +79,20 @@ class HeliosSettingsVocabulary {
         // Reload vocab manager to ensure we have latest data
         await this.vocabManager.loadKnownWords();
 
-        // Get statistics from storage
-        const result = await chrome.storage.local.get([
-          "ankiCardsCreated",
-        ]);
-
-        console.log("🔍 Raw storage data:", result);
-
-        // Anki cards created
-        const ankiCards = result.ankiCardsCreated || 0;
-
         // Get known words count for current language using vocab manager
         const knownWordsCount = this.vocabManager.getKnownWordsCount();
+        
+        // Get learning words count for current language
+        const learningWordsCount = this.vocabManager.getCurrentLanguageLearningWords().size;
+        
+        // Get ignored words count for current language
+        const ignoredWordsCount = this.vocabManager.getCurrentLanguageIgnoredWords().size;
 
         // Update UI elements
         const elements = {
           "stat-known-words": knownWordsCount,
-          "stat-anki-cards": ankiCards,
+          "stat-learning-words": learningWordsCount,
+          "stat-ignored-words": ignoredWordsCount,
         };
 
         Object.entries(elements).forEach(([id, value]) => {
@@ -115,7 +118,8 @@ class HeliosSettingsVocabulary {
     // Set default values when storage is not available
     const defaultStats = {
       "stat-known-words": "0",
-      "stat-anki-cards": "0",
+      "stat-learning-words": "0",
+      "stat-ignored-words": "0",
     };
 
     Object.entries(defaultStats).forEach(([id, value]) => {
@@ -351,6 +355,353 @@ class HeliosSettingsVocabulary {
     } catch (error) {
       console.error("🔍 Error resetting data:", error);
       alert("Error resetting data. Please try again.");
+    }
+  }
+
+  // Send message to background script
+  async sendMessage(action, data = {}) {
+    return new Promise((resolve, reject) => {
+      if (!chrome.runtime?.sendMessage) {
+        reject(new Error("Chrome extension context not available"));
+        return;
+      }
+
+      const message = { action, ...data };
+      // Use longer timeout for deck notes requests (large decks can take time)
+      const timeoutDuration = action === "ANKI_GET_DECK_NOTES" ? 60000 : 10000; // 60s for deck notes, 10s for others
+      const timeout = setTimeout(() => {
+        reject(new Error("Message timeout"));
+      }, timeoutDuration);
+
+      chrome.runtime.sendMessage(message, (response) => {
+        clearTimeout(timeout);
+
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+        } else if (response?.success) {
+          resolve(response);
+        } else {
+          reject(new Error(response?.error || "Unknown error"));
+        }
+      });
+    });
+  }
+
+  // Update Anki import button state based on prerequisites
+  updateAnkiImportButtonState() {
+    const importButton = document.getElementById("vocab-anki-import-known-words");
+    if (!importButton) return;
+
+    const deck = this.manager.settings.ankiDeck;
+    const noteType = this.manager.settings.ankiNoteType;
+    const fieldMappings = this.manager.settings.ankiFieldMappings || {};
+
+    // Check if expression or expressionRubyTxt is mapped
+    const hasExpressionMapping = Object.values(fieldMappings).some(
+      (mapping) => mapping === "expression" || mapping === "expressionRubyTxt"
+    );
+
+    // Enable button only if all prerequisites are met
+    const canImport = deck && noteType && hasExpressionMapping;
+    importButton.disabled = !canImport;
+
+    if (canImport) {
+      // Button is ready - use normal styling
+      importButton.innerHTML = "<span>📥</span>Import Known Words from Anki";
+      importButton.title = "Import known words from Anki deck";
+      importButton.className = "btn btn-anki";
+    } else {
+      // Button not ready - use red/danger styling
+      importButton.innerHTML = "<span>⚠️</span>Anki not set up";
+      importButton.title =
+        "Configure Anki deck, note type, and expression field mapping in Anki settings to enable import";
+      importButton.className = "btn btn-danger";
+    }
+  }
+
+  // Update Anki sync button state based on prerequisites
+  updateAnkiSyncButtonState() {
+    const syncButton = document.getElementById("vocab-anki-sync-learning-words");
+    if (!syncButton) return;
+
+    const deck = this.manager.settings.ankiDeck;
+    const noteType = this.manager.settings.ankiNoteType;
+    const fieldMappings = this.manager.settings.ankiFieldMappings || {};
+
+    // Check if expression or expressionRubyTxt is mapped
+    const hasExpressionMapping = Object.values(fieldMappings).some(
+      (mapping) => mapping === "expression" || mapping === "expressionRubyTxt"
+    );
+
+    // Enable button only if all prerequisites are met
+    const canSync = deck && noteType && hasExpressionMapping;
+    syncButton.disabled = !canSync;
+
+    if (canSync) {
+      // Button is ready - use normal styling
+      syncButton.innerHTML = "<span>🔄</span>Sync Learning Words";
+      syncButton.title = "Sync learning words from Anki and promote to known when interval >= 21 days";
+      syncButton.className = "btn btn-anki";
+    } else {
+      // Button not ready - use red/danger styling
+      syncButton.innerHTML = "<span>⚠️</span>Anki not set up";
+      syncButton.title =
+        "Configure Anki deck, note type, and expression field mapping in Anki settings to enable sync";
+      syncButton.className = "btn btn-danger";
+    }
+  }
+
+  // Import known words from Anki deck
+  async importKnownWordsFromAnki() {
+    const importButton = document.getElementById("vocab-anki-import-known-words");
+    if (!importButton) return;
+
+    try {
+      // Validate prerequisites
+      const deck = this.manager.settings.ankiDeck;
+      const noteType = this.manager.settings.ankiNoteType;
+      const fieldMappings = this.manager.settings.ankiFieldMappings || {};
+
+      if (!deck) {
+        alert("Please select an Anki deck first in Anki settings");
+        return;
+      }
+
+      if (!noteType) {
+        alert("Please select a note type first in Anki settings");
+        return;
+      }
+
+      // Find the field mapped to expression or expressionRubyTxt
+      let expressionField = null;
+      let isRubyText = false;
+
+      for (const [fieldName, mapping] of Object.entries(fieldMappings)) {
+        if (mapping === "expression") {
+          expressionField = fieldName;
+          isRubyText = false;
+          break;
+        } else if (mapping === "expressionRubyTxt") {
+          expressionField = fieldName;
+          isRubyText = true;
+          break;
+        }
+      }
+
+      if (!expressionField) {
+        alert(
+          'Please map a field to "Expression" or "Expression with Ruby Pinyin" in Anki settings first'
+        );
+        return;
+      }
+
+      // Update button to loading state
+      importButton.innerHTML = "<span>⏳</span>Importing...";
+      importButton.disabled = true;
+
+      // Get all expressions from the deck (optimized - only expression field and intervals)
+      const response = await this.sendMessage("ANKI_GET_DECK_NOTES", {
+        deck,
+        noteType,
+        expressionField,
+      });
+
+      if (!response.success) {
+        throw new Error(response.error || "Failed to get notes from Anki");
+      }
+
+      const expressions = response.expressions || [];
+
+      if (expressions.length === 0) {
+        alert("No notes found in the selected deck");
+        this.updateAnkiImportButtonState();
+        this.updateAnkiSyncButtonState();
+        return;
+      }
+
+      // Check if import young as learning is enabled
+      const importYoungAsLearning = this.manager.settings.ankiImportYoungAsLearning !== false;
+
+      // Process expressions and categorize by interval
+      const expressionsToImportAsKnown = new Set();
+      const expressionsToImportAsLearning = new Set();
+
+      for (const item of expressions) {
+        let expression = item.expression;
+
+        if (!expression) continue;
+
+        // Remove HTML tags if present
+        const tempDiv = document.createElement("div");
+        tempDiv.innerHTML = expression;
+        expression = tempDiv.textContent || tempDiv.innerText || "";
+
+        // Trim whitespace
+        expression = expression.trim();
+
+        if (!expression) continue;
+
+        // If it's expressionRubyTxt, remove everything after first "["
+        if (isRubyText && expression.includes("[")) {
+          expression = expression.split("[")[0].trim();
+        }
+
+        if (!expression) continue;
+
+        // Check interval if importYoungAsLearning is enabled
+        let shouldImportAsLearning = false;
+        if (importYoungAsLearning) {
+          // maxInterval is already calculated in background script
+          const maxInterval = item.maxInterval || 0;
+          // If max interval is less than 21 days, import as learning
+          shouldImportAsLearning = maxInterval < 21;
+        }
+
+        if (shouldImportAsLearning) {
+          expressionsToImportAsLearning.add(expression);
+        } else {
+          expressionsToImportAsKnown.add(expression);
+        }
+      }
+
+      const totalExpressions = expressionsToImportAsKnown.size + expressionsToImportAsLearning.size;
+
+      if (totalExpressions === 0) {
+        alert("No valid expressions found in the deck");
+        this.updateAnkiImportButtonState();
+        this.updateAnkiSyncButtonState();
+        return;
+      }
+
+      // Ensure vocab manager has the correct language
+      const targetLanguage =
+        this.manager.settings.targetLanguage ||
+        window.languageRegistry?.getCurrentLanguage() ||
+        "zh";
+      this.vocabManager.setCurrentLanguage(targetLanguage);
+
+      // Import words as known and learning
+      let knownResult = { newWordsCount: 0, processedWordsCount: 0 };
+      let learningResult = { newWordsCount: 0, processedWordsCount: 0 };
+
+      if (expressionsToImportAsKnown.size > 0) {
+        const knownWordsArray = Array.from(expressionsToImportAsKnown);
+        knownResult = await this.vocabManager.markMultipleWordsAsKnown(knownWordsArray);
+      }
+
+      if (expressionsToImportAsLearning.size > 0) {
+        const learningWordsArray = Array.from(expressionsToImportAsLearning);
+        learningResult = await this.vocabManager.markMultipleWordsAsLearning(learningWordsArray);
+      }
+
+      // Reset button first (before alert which might block)
+      // Use updateAnkiImportButtonState to ensure correct styling
+      this.updateAnkiImportButtonState();
+      
+      // Reload statistics to update the count
+      await this.loadStatistics();
+      
+      // Show success message with breakdown
+      let message = `Successfully imported ${totalExpressions} word${totalExpressions !== 1 ? "s" : ""} from Anki deck "${deck}"`;
+      if (importYoungAsLearning) {
+        message += `\n- ${knownResult.newWordsCount} imported as known (interval ≥ 21 days)`;
+        message += `\n- ${learningResult.newWordsCount} imported as learning (interval < 21 days)`;
+      } else {
+        message += `\n- ${knownResult.newWordsCount} imported as known`;
+      }
+      alert(message);
+
+      console.log(
+        `🃏 Imported ${totalExpressions} words from Anki deck:`,
+        `${knownResult.newWordsCount} known, ${learningResult.newWordsCount} learning`
+      );
+    } catch (error) {
+      console.error("🃏 Error importing known words from Anki:", error);
+      alert(`Error importing words: ${error.message}`);
+      // Update button state to ensure correct styling
+      this.updateAnkiImportButtonState();
+      this.updateAnkiSyncButtonState();
+    }
+  }
+
+  // Sync learning words from Anki
+  async syncLearningWordsFromAnki() {
+    const syncButton = document.getElementById("vocab-anki-sync-learning-words");
+    if (!syncButton) return;
+
+    try {
+      // Validate prerequisites
+      const deck = this.manager.settings.ankiDeck;
+      const noteType = this.manager.settings.ankiNoteType;
+      const fieldMappings = this.manager.settings.ankiFieldMappings || {};
+
+      if (!deck) {
+        alert("Please select an Anki deck first in Anki settings");
+        return;
+      }
+
+      if (!noteType) {
+        alert("Please select a note type first in Anki settings");
+        return;
+      }
+
+      // Find the field mapped to expression or expressionRubyTxt
+      let expressionField = null;
+      let isRubyText = false;
+
+      for (const [fieldName, mapping] of Object.entries(fieldMappings)) {
+        if (mapping === "expression") {
+          expressionField = fieldName;
+          isRubyText = false;
+          break;
+        } else if (mapping === "expressionRubyTxt") {
+          expressionField = fieldName;
+          isRubyText = true;
+          break;
+        }
+      }
+
+      if (!expressionField) {
+        alert(
+          'Please map a field to "Expression" or "Expression with Ruby Pinyin" in Anki settings first'
+        );
+        return;
+      }
+
+      // Update button to loading state
+      syncButton.innerHTML = "<span>⏳</span>Syncing...";
+      syncButton.disabled = true;
+
+      // Get AnkiManager instance
+      if (!window.AnkiManager) {
+        throw new Error("AnkiManager not available");
+      }
+
+      const ankiManager = new AnkiManager();
+      if (this.dictionaryManager) {
+        ankiManager.initialize(this.dictionaryManager);
+      }
+
+      // Perform sync
+      const result = await ankiManager.syncLearningWordsFromAnki();
+
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      // Show success message
+      const message = `Sync complete! ${result.synced || 0} words synced, ${result.promoted || 0} words promoted to known.`;
+      alert(message);
+
+      // Reload statistics to reflect changes
+      await this.loadStatistics();
+
+      // Update button state
+      this.updateAnkiSyncButtonState();
+    } catch (error) {
+      console.error("🃏 Error syncing learning words from Anki:", error);
+      alert(`Error syncing learning words: ${error.message}`);
+      this.updateAnkiSyncButtonState();
     }
   }
 }

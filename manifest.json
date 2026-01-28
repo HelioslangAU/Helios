@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
   "name": "Helios",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "description": "A browser extension for language learning with subtitle reading, popup dictionary, vocab tracking, and Anki integration",
 
 
-  "permissions": ["storage", "alarms", "offscreen"],
+  "permissions": ["storage", "alarms", "offscreen", "activeTab", "tabCapture", "tabs", "scripting"],
 
   "host_permissions": [
     "https://*/*",
@@ -36,6 +36,9 @@
         "src/content/utils/activation-controller.js",
         "src/content/utils/shortcut-helper.js",
         "src/content/utils/text-scanner.js",
+        "src/services/screenshot-capturer.js",
+        "src/services/audio-recorder.js",
+        "src/services/media-storage.js",
         "src/content/utils/lookup-controller.js",
         "src/content/utils/language-switch-coordinator.js",
         "src/content/settings/settings-sync.js",

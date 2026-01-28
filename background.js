@@ -296,6 +296,26 @@ class BackgroundService {
           );
           break;
 
+        case "ANKI_CHECK_MEDIA_NEEDED":
+          await this.handleAnkiCheckMediaNeeded(sendResponse);
+          break;
+
+        case "CAPTURE_SCREENSHOT":
+          await this.handleCaptureScreenshot(sender, sendResponse);
+          break;
+
+        case "CAPTURE_TAB_AUDIO":
+          await this.handleCaptureTabAudio(message.duration, sender, sendResponse);
+
+          case "ANKI_GET_DECK_NOTES":
+          await this.handleAnkiGetDeckNotes(
+            message.deck,
+            message.noteType,
+            message.expressionField,
+            sendResponse
+          );
+          break;
+
         // === EXTENSION HANDLERS ===
         case "toggleExtension":
           await this.handleToggleExtension(message.enabled, sendResponse);
@@ -381,8 +401,8 @@ class BackgroundService {
         throw new Error("Deck and note type must be configured in settings");
       }
 
-      // Build card fields
-      const fields = this.buildCardFields(
+      // Build card fields (now async for media handling)
+      const fields = await this.buildCardFields(
         wordData,
         finalSettings.fieldMappings || {}
       );
@@ -409,7 +429,9 @@ class BackgroundService {
         fields: fields,
         tags: finalSettings.tags || ["helios"],
         options: {
-          allowDuplicate: finalSettings.allowDuplicates || false,
+          // Always allow duplicates because AnkiConnect checks ALL fields (including sentence)
+          // Our duplicate check above only checks the word/character field
+          allowDuplicate: true,
         },
       };
 
@@ -444,6 +466,8 @@ class BackgroundService {
         allowDuplicates: false,
         includeSentence: true,
         tags: ["helios"],
+        importYoungAsLearning: true,
+        autoSyncLearningWords: true,
       };
 
       sendResponse({
@@ -520,6 +544,272 @@ class BackgroundService {
         error: error.message,
         fields: [],
       });
+    }
+  }
+
+  async handleAnkiCheckMediaNeeded(sendResponse) {
+    try {
+      // Load current Anki settings
+      const settings = await chrome.storage.local.get("ankiSettings");
+      const ankiSettings = settings.ankiSettings || {};
+      const fieldMappings = ankiSettings.fieldMappings || {};
+
+      // Check if any field is mapped to screenshot or sentenceAudio
+      const mappedValues = Object.values(fieldMappings);
+      const needsScreenshot = mappedValues.includes('screenshot');
+      const needsAudio = mappedValues.includes('sentenceAudio');
+
+      sendResponse({
+        success: true,
+        needsScreenshot,
+        needsAudio
+      });
+    } catch (error) {
+      sendResponse({
+        success: false,
+        needsScreenshot: false,
+        needsAudio: false,
+        error: error.message
+      });
+    }
+  }
+
+  async handleCaptureScreenshot(sender, sendResponse) {
+    try {
+      console.log('[Helios Background] Screenshot capture request received from tab:', sender.tab?.id);
+
+      if (!sender.tab || !sender.tab.id) {
+        throw new Error('No tab information in sender');
+      }
+
+      // Get the tab information
+      const tab = await chrome.tabs.get(sender.tab.id);
+      console.log('[Helios Background] Capturing screenshot for tab:', tab.id, 'in window:', tab.windowId);
+
+      // Capture the visible tab (using the tab's window ID, just like asbplayer)
+      const dataUrl = await chrome.tabs.captureVisibleTab(
+        tab.windowId,
+        { format: 'jpeg', quality: 95 }
+      );
+
+      console.log('[Helios Background] Screenshot captured successfully, size:', dataUrl.length, 'bytes');
+
+      sendResponse({
+        success: true,
+        dataUrl: dataUrl
+      });
+    } catch (error) {
+      console.error('[Helios Background] Screenshot capture error:', error);
+      console.error('[Helios Background] Error stack:', error.stack);
+      sendResponse({
+        success: false,
+        error: error.message,
+        dataUrl: null
+      });
+    }
+  }
+
+  async handleCaptureTabAudio(duration, sender, sendResponse) {
+    try {
+      // Tab audio capture is complex and requires offscreen document
+      // For now, return an error indicating this feature needs implementation
+      console.warn('[Helios Background] Tab audio capture not yet implemented');
+
+      sendResponse({
+        success: false,
+        error: 'Tab audio capture is not yet implemented. Please use video element capture instead.',
+        dataUrl: null
+      });
+    } catch (error) {
+      console.error('[Helios Background] Tab audio capture error:', error);
+      sendResponse({
+        success: false,
+        error: error.message,
+        dataUrl: null
+      });
+    }
+  }
+  async handleAnkiGetDeckNotes(deck, noteType, expressionField, sendResponse) {
+    try {
+      if (!deck || !noteType) {
+        throw new Error("Deck and note type are required");
+      }
+
+      if (!expressionField) {
+        throw new Error("Expression field is required");
+      }
+
+      // Find all notes in the deck with the specified note type
+      const query = `deck:"${deck}" note:"${noteType}"`;
+      const noteIds = await this.invokeAnki("findNotes", { query });
+
+      if (noteIds.length === 0) {
+        sendResponse({
+          success: true,
+          expressions: [],
+        });
+        return;
+      }
+
+      // Process in batches to avoid memory issues
+      const BATCH_SIZE = 1000;
+      const allCardIds = [];
+      const noteIdToCardIds = new Map();
+
+      // First pass: Get card IDs from notes (in batches)
+      for (let i = 0; i < noteIds.length; i += BATCH_SIZE) {
+        const batchNoteIds = noteIds.slice(i, i + BATCH_SIZE);
+        const batchNotes = await this.invokeAnki("notesInfo", { notes: batchNoteIds });
+
+        for (const note of batchNotes) {
+          if (note.cards && Array.isArray(note.cards)) {
+            noteIdToCardIds.set(note.noteId, note.cards);
+            allCardIds.push(...note.cards);
+          }
+        }
+      }
+
+      // Get card intervals (small data - just IDs and intervals)
+      const cardIdToInterval = new Map();
+      if (allCardIds.length > 0) {
+        // Process cards in batches
+        for (let i = 0; i < allCardIds.length; i += 1000) {
+          const batchCardIds = allCardIds.slice(i, i + 1000);
+          const batchCards = await this.invokeAnki("cardsInfo", { cards: batchCardIds });
+
+          // Debug: log first batch structure
+          if (i === 0 && batchCards.length > 0) {
+            console.log("🃏 First card structure from AnkiConnect:", {
+              sampleCard: batchCards[0],
+              allFields: Object.keys(batchCards[0]),
+              cardIdField: batchCards[0].cardId || batchCards[0].cid || batchCards[0].id,
+              intervalField: batchCards[0].interval,
+              ivlField: batchCards[0].ivl
+            });
+          }
+
+          for (const card of batchCards) {
+            // AnkiConnect cardsInfo returns 'interval' field (in days)
+            // 'ivl' is the internal database field, but AnkiConnect exposes it as 'interval'
+            // Check both possible field names
+            let intervalValue = 0;
+            if (card.interval !== undefined && card.interval !== null) {
+              intervalValue = card.interval;
+            } else if (card.ivl !== undefined && card.ivl !== null) {
+              intervalValue = card.ivl;
+            }
+            
+            // Anki intervals: negative = learning, 0 = new, positive = days
+            // Convert to days if needed (AnkiConnect should already return days)
+            const interval = intervalValue < 0 ? 0 : intervalValue;
+            
+            // Use cardId or cid as the key (AnkiConnect might use either)
+            // Also normalize to number for consistent matching
+            const cardId = card.cardId || card.cid || card.id;
+            if (cardId !== undefined && cardId !== null) {
+              // Store as both number and string to handle type mismatches
+              const numCardId = typeof cardId === 'string' ? Number(cardId) : cardId;
+              const strCardId = String(cardId);
+              cardIdToInterval.set(numCardId, interval);
+              cardIdToInterval.set(strCardId, interval);
+            }
+            
+            // Debug logging for first few cards to verify interval retrieval
+            if (cardIdToInterval.size <= 10) {
+              console.log("🃏 Card interval debug:", {
+                cardId: cardId,
+                interval: card.interval,
+                ivl: card.ivl,
+                finalInterval: interval,
+                allCardFields: Object.keys(card)
+              });
+            }
+          }
+        }
+        
+        // Log summary statistics
+        const intervals = Array.from(cardIdToInterval.values());
+        const intervalsOver21 = intervals.filter(ivl => ivl >= 21).length;
+        console.log(`🃏 Interval summary: Total cards: ${intervals.length}, Over 21 days: ${intervalsOver21}, Under 21 days: ${intervals.length - intervalsOver21}`);
+      }
+
+      // Second pass: Extract only the expression field and calculate maxInterval
+      const expressions = [];
+
+      for (let i = 0; i < noteIds.length; i += BATCH_SIZE) {
+        const batchNoteIds = noteIds.slice(i, i + BATCH_SIZE);
+        const batchNotes = await this.invokeAnki("notesInfo", { notes: batchNoteIds });
+
+        for (const note of batchNotes) {
+          // Get expression from the specified field
+          const fields = note.fields || {};
+          const expressionFieldData = fields[expressionField];
+          const expression = expressionFieldData?.value || "";
+
+          if (!expression) continue;
+
+          // Calculate max interval for this note
+          const cardIds = noteIdToCardIds.get(note.noteId) || [];
+          let maxInterval = -Infinity;
+          for (const cardId of cardIds) {
+            // Try both the original cardId and as a number/string to handle type mismatches
+            let interval = cardIdToInterval.get(cardId);
+            if (interval === undefined) {
+              // Try as number if it was a string, or vice versa
+              const numCardId = typeof cardId === 'string' ? Number(cardId) : String(cardId);
+              interval = cardIdToInterval.get(numCardId);
+            }
+            
+            if (interval !== undefined) {
+              maxInterval = Math.max(maxInterval, interval);
+            } else {
+              // Debug: log if we can't find interval for a card
+              if (expressions.length < 3) {
+                console.warn("🃏 Could not find interval for cardId:", cardId, typeof cardId, "Available cardIds in map (first 5):", Array.from(cardIdToInterval.keys()).slice(0, 5).map(id => ({id, type: typeof id})));
+              }
+            }
+          }
+          // If no cards found or all intervals undefined, treat as new card (0 days)
+          if (maxInterval === -Infinity) maxInterval = 0;
+          
+          // Debug logging for first few expressions
+          if (expressions.length < 3) {
+            console.log("🃏 Expression interval debug:", {
+              expression: expression.substring(0, 20),
+              cardIds: cardIds,
+              maxInterval: maxInterval
+            });
+          }
+
+          // Return minimal data: just expression and maxInterval
+          expressions.push({
+            expression: expression,
+            maxInterval: maxInterval,
+          });
+        }
+      }
+
+      sendResponse({
+        success: true,
+        expressions: expressions,
+      });
+    } catch (error) {
+      console.error("🃏 Error getting deck notes:", error);
+      
+      // Check if it's a size error and provide helpful message
+      if (error.message && error.message.includes("64MB")) {
+        sendResponse({
+          success: false,
+          error: "Deck is too large. Please try importing a smaller deck or contact support for assistance.",
+          expressions: [],
+        });
+      } else {
+        sendResponse({
+          success: false,
+          error: error.message,
+          expressions: [],
+        });
+      }
     }
   }
 
@@ -613,7 +903,7 @@ class BackgroundService {
     }).join(' ');
   }
 
-  buildCardFields(wordData, fieldMappings) {
+  async buildCardFields(wordData, fieldMappings) {
     const fields = {};
     const language = wordData.language || 'zh'; // Default to Chinese if not specified
     const isChinese = language === 'zh';
@@ -651,6 +941,21 @@ class BackgroundService {
       };
     }
 
+    // Handle media fields (screenshot and audio)
+    if (wordData.screenshotDataUrl) {
+      const screenshotField = await this.storeMediaFile(wordData.screenshotDataUrl, 'screenshot');
+      if (screenshotField) {
+        dataMap.screenshot = screenshotField;
+      }
+    }
+
+    if (wordData.sentenceAudioDataUrl) {
+      const audioField = await this.storeMediaFile(wordData.sentenceAudioDataUrl, 'audio');
+      if (audioField) {
+        dataMap.sentenceAudio = audioField;
+      }
+    }
+
     // Apply field mappings
     for (const [fieldName, dataType] of Object.entries(fieldMappings)) {
       if (dataType && dataMap[dataType]) {
@@ -674,6 +979,76 @@ class BackgroundService {
     }
 
     return fields;
+  }
+
+  // Store media file via AnkiConnect
+  async storeMediaFile(dataUrl, type) {
+    try {
+      if (!dataUrl) {
+        return null;
+      }
+
+      // Extract base64 data from data URL
+      const base64Data = this.extractBase64FromDataUrl(dataUrl);
+      if (!base64Data) {
+        console.error('[Helios Media] Failed to extract base64 data');
+        return null;
+      }
+
+      // Generate filename
+      const timestamp = Date.now();
+      const random = Math.floor(Math.random() * 10000);
+      let extension = '';
+
+      if (type === 'screenshot') {
+        extension = 'jpg';
+      } else if (type === 'audio') {
+        // Detect audio format from data URL
+        if (dataUrl.includes('audio/webm')) {
+          extension = 'webm';
+        } else if (dataUrl.includes('audio/mp3')) {
+          extension = 'mp3';
+        } else {
+          extension = 'webm'; // Default
+        }
+      }
+
+      const fileName = `helios_${type}_${timestamp}_${random}.${extension}`;
+
+      // Store via AnkiConnect
+      console.log('[Helios Media] Storing media file:', fileName);
+      await this.invokeAnki('storeMediaFile', {
+        filename: fileName,
+        data: base64Data
+      });
+
+      // Format as Anki field value
+      if (type === 'screenshot') {
+        return `<img src="${fileName}">`;
+      } else if (type === 'audio') {
+        return `[sound:${fileName}]`;
+      }
+
+      return fileName;
+
+    } catch (error) {
+      console.error('[Helios Media] Error storing media file:', error);
+      return null;
+    }
+  }
+
+  // Extract base64 from data URL
+  extractBase64FromDataUrl(dataUrl) {
+    if (!dataUrl || !dataUrl.includes(',')) {
+      return null;
+    }
+
+    const parts = dataUrl.split(',');
+    if (parts.length !== 2) {
+      return null;
+    }
+
+    return parts[1];
   }
 
   async findDuplicates(character, fieldMappings, noteType) {

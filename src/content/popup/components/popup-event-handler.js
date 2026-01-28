@@ -33,19 +33,20 @@ class PopupEventHandler {
   static setupMouseEvents(popup, managers) {
     popup.addEventListener("mouseenter", () => {
       managers.popupManager.isMouseOverPopup = true;
+      if (managers.popupManager.hideTimeout) {
+        clearTimeout(managers.popupManager.hideTimeout);
+        managers.popupManager.hideTimeout = null;
+      }
     });
 
     popup.addEventListener("mouseleave", () => {
       managers.popupManager.isMouseOverPopup = false;
-      // Trigger hide check when leaving popup
-      // For subtitle words: hide when leaving popup
-      // For regular words: if mouse enters subtitle word within 150ms, popup stays (isMouseOverHighlight will be true)
       managers.popupManager.scheduleHidePopup();
     });
   }
 
   static setupMarkButtonEvents(popup, character, managers, isMultiCard, currentCard = null) {
-    const markButton = popup.querySelector(".mark-known-btn, .mark-ignore-btn, .mark-unknown-btn");
+    const markButton = popup.querySelector(".mark-known-btn, .mark-ignore-btn, .mark-unknown-btn, .mark-learning-btn");
 
     if (markButton) {
       markButton.addEventListener("click", async () => {
@@ -70,6 +71,9 @@ class PopupEventHandler {
     const ankiBtn = popup.querySelector(".anki-btn");
     if (ankiBtn && !ankiBtn.disabled) {
       ankiBtn.addEventListener("click", async () => {
+        // handleAnkiAdd and handleMultiCardAnkiAdd call createCardFromPopup
+        // which manages the button state (loading -> success/error)
+        // So we don't override it here
         if (isMultiCard && currentCard) {
           await this.handleMultiCardAnkiAdd(currentCard, managers);
         } else {
@@ -131,6 +135,7 @@ class PopupEventHandler {
       hotkeyMarkUnknown: { key: "1", ctrl: false, shift: false, alt: false, meta: false },
       hotkeyMarkIgnored: { key: "2", ctrl: false, shift: false, alt: false, meta: false },
       hotkeyMarkKnown: { key: "3", ctrl: false, shift: false, alt: false, meta: false },
+      hotkeyMarkLearning: { key: "4", ctrl: false, shift: false, alt: false, meta: false },
       hotkeyAnkiAdd: { key: "q", ctrl: false, shift: false, alt: false, meta: false }
     };
 
@@ -150,6 +155,9 @@ class PopupEventHandler {
             hotkeyMarkKnown: typeof popupShortcuts.markKnown === 'object'
               ? popupShortcuts.markKnown
               : { key: popupShortcuts.markKnown || "3", ctrl: false, shift: false, alt: false, meta: false },
+            hotkeyMarkLearning: typeof popupShortcuts.markLearning === 'object'
+              ? popupShortcuts.markLearning
+              : { key: popupShortcuts.markLearning || "4", ctrl: false, shift: false, alt: false, meta: false },
             hotkeyAnkiAdd: typeof popupShortcuts.ankiAdd === 'object'
               ? popupShortcuts.ankiAdd
               : { key: popupShortcuts.ankiAdd || "q", ctrl: false, shift: false, alt: false, meta: false }
@@ -166,6 +174,7 @@ class PopupEventHandler {
             hotkeyMarkUnknown: { key: result.hotkeyMarkUnknown || "1", ctrl: false, shift: false, alt: false, meta: false },
             hotkeyMarkIgnored: { key: result.hotkeyMarkIgnored || "2", ctrl: false, shift: false, alt: false, meta: false },
             hotkeyMarkKnown: { key: result.hotkeyMarkKnown || "3", ctrl: false, shift: false, alt: false, meta: false },
+            hotkeyMarkLearning: { key: result.hotkeyMarkLearning || "4", ctrl: false, shift: false, alt: false, meta: false },
             hotkeyAnkiAdd: { key: result.hotkeyAnkiAdd || "q", ctrl: false, shift: false, alt: false, meta: false }
           };
         }
@@ -198,6 +207,7 @@ class PopupEventHandler {
       hotkeyMarkUnknown: "1",
       hotkeyMarkIgnored: "2",
       hotkeyMarkKnown: "3",
+      hotkeyMarkLearning: "4",
       hotkeyAnkiAdd: "q"
     };
 
@@ -230,6 +240,8 @@ class PopupEventHandler {
       targetState = "ignored";
     } else if (matchesShortcut(settings.hotkeyMarkKnown)) {
       targetState = "known";
+    } else if (matchesShortcut(settings.hotkeyMarkLearning)) {
+      targetState = "learning";
     } else if (matchesShortcut(settings.hotkeyAnkiAdd)) {
       isAnkiAction = true;
     }
@@ -294,11 +306,14 @@ class PopupEventHandler {
       case "known":
         await this.handleMarkKnown(targetCharacter);
         break;
+      case "learning":
+        await this.handleMarkLearning(targetCharacter);
+        break;
     }
 
     // Update button state
     const markButton = managers.popupManager.popup.querySelector(
-      ".mark-known-btn, .mark-ignore-btn, .mark-unknown-btn"
+      ".mark-known-btn, .mark-ignore-btn, .mark-unknown-btn, .mark-learning-btn"
     );
     if (markButton) {
       this.updateMarkButton(markButton, targetState);
@@ -355,13 +370,14 @@ class PopupEventHandler {
 
   static getCurrentMarkState(button) {
     if (button.classList.contains("mark-ignore-btn")) return "known";
+    if (button.classList.contains("mark-learning-btn")) return "learning";
     if (button.classList.contains("mark-unknown-btn")) return "ignored";
     if (button.classList.contains("mark-known-btn")) return "unknown";
     return "unknown";
   }
 
   static getNextMarkState(currentState) {
-    const stateCycle = { unknown: "known", known: "ignored", ignored: "unknown" };
+    const stateCycle = { unknown: "known", known: "learning", learning: "ignored", ignored: "unknown" };
     return stateCycle[currentState] || "unknown";
   }
 
@@ -381,6 +397,9 @@ class PopupEventHandler {
     switch (targetState) {
       case "known":
         await this.handleMarkKnown(targetCharacter);
+        break;
+      case "learning":
+        await this.handleMarkLearning(targetCharacter);
         break;
       case "ignored":
         await this.handleMarkIgnored(targetCharacter);
@@ -409,6 +428,18 @@ class PopupEventHandler {
     await window.vocabManager.markWordAsUnknown(character);
     if (window.pageProcessor) {
       window.pageProcessor.updateWordStyling(character, false);
+    }
+    // Update counter via chrome storage listener (will trigger in extension tab)
+    this.notifyCounterUpdate();
+    // Update side tab stats
+    this.updateSideTabStats();
+  }
+
+  static async handleMarkLearning(character) {
+    await window.vocabManager.markWordAsUnignored(character);
+    await window.vocabManager.markWordAsLearning(character);
+    if (window.pageProcessor) {
+      window.pageProcessor.updateWordStyling(character, true);
     }
     // Update counter via chrome storage listener (will trigger in extension tab)
     this.notifyCounterUpdate();
@@ -522,20 +553,24 @@ class PopupEventHandler {
 
   static updateMarkButton(button, state) {
     // Clear all state classes
-    button.classList.remove("mark-known-btn", "mark-ignore-btn", "mark-unknown-btn");
+    button.classList.remove("mark-known-btn", "mark-ignore-btn", "mark-unknown-btn", "mark-learning-btn");
 
     switch (state) {
       case "known":
-        button.textContent = "Mark Ignore";
+        button.textContent = "Known";
         button.className = "mark-ignore-btn";
         break;
+      case "learning":
+        button.textContent = "Learning";
+        button.className = "mark-learning-btn";
+        break;
       case "ignored":
-        button.textContent = "Mark Unknown";
+        button.textContent = "Ignored";
         button.className = "mark-unknown-btn";
         break;
       case "unknown":
       default:
-        button.textContent = "Mark Known";
+        button.textContent = "Unknown";
         button.className = "mark-known-btn";
         break;
     }

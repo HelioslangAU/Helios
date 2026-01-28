@@ -255,6 +255,11 @@ class SubtitleOverlay {
 
     // Mouse down on drag handle or container - start dragging
     const startDrag = (e) => {
+      // Only allow left-click (button 0) for dragging - prevent right-click drag
+      if (e.button !== 0) {
+        return;
+      }
+
       // Don't start drag if clicking on a word (for hover lookup) or resize handle
       if (e.target.classList.contains('helios-subtitle-word') ||
           e.target.classList.contains('helios-subtitle-resize-handle')) {
@@ -898,15 +903,18 @@ class SubtitleOverlay {
 
       const cleanWord = word.toLowerCase();
 
-      // Remove existing unknown-word class
-      wordSpan.classList.remove('unknown-word');
+      // Remove existing word state classes
+      wordSpan.classList.remove('unknown-word', 'learning-word');
 
       // Re-check if word should be underlined
       if (window.vocabManager &&
           dictionary[cleanWord] &&
           !window.vocabManager.isWordKnown(cleanWord) &&
-          !window.vocabManager.isWordIgnored(cleanWord)) {
+          !window.vocabManager.isWordIgnored(cleanWord) &&
+          !window.vocabManager.isWordLearning(cleanWord)) {
         wordSpan.classList.add('unknown-word');
+      } else if (window.vocabManager.isWordLearning(cleanWord)) {
+        wordSpan.classList.add('learning-word');
       }
     });
   }
@@ -996,12 +1004,16 @@ class SubtitleOverlay {
       const cleanWord = word.toLowerCase();
       const shouldUnderline = dictionary[cleanWord] &&
                              !window.vocabManager.isWordKnown(cleanWord) &&
-                             !window.vocabManager.isWordIgnored(cleanWord);
+                             !window.vocabManager.isWordIgnored(cleanWord) &&
+                             !window.vocabManager.isWordLearning(cleanWord);
 
+      // Remove all word state classes first
+      wordSpan.classList.remove('unknown-word', 'learning-word');
+      
       if (shouldUnderline) {
         wordSpan.classList.add('unknown-word');
-      } else {
-        wordSpan.classList.remove('unknown-word');
+      } else if (window.vocabManager.isWordLearning(cleanWord)) {
+        wordSpan.classList.add('learning-word');
       }
     });
   }
@@ -1202,8 +1214,11 @@ class SubtitleOverlay {
             if (window.vocabManager &&
                 dictionaryAfterPreload[cleanWord] &&
                 !window.vocabManager.isWordKnown(cleanWord) &&
-                !window.vocabManager.isWordIgnored(cleanWord)) {
+                !window.vocabManager.isWordIgnored(cleanWord) &&
+                !window.vocabManager.isWordLearning(cleanWord)) {
               wordSpan.classList.add('unknown-word');
+            } else if (window.vocabManager.isWordLearning(cleanWord)) {
+              wordSpan.classList.add('learning-word');
             }
 
             // Add pause on hover listeners

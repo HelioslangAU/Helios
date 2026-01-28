@@ -110,6 +110,7 @@ class MultiCardPopupManager extends PopupManager {
 
     const isKnown = this.vocabManager.isWordKnown(displayCharacter);
     const isIgnored = this.vocabManager.isWordIgnored(displayCharacter);
+    const isLearning = this.vocabManager.isWordLearning(displayCharacter);
     const frequency = this.frequencyManager?.getFrequency(displayCharacter);
 
 
@@ -120,6 +121,7 @@ class MultiCardPopupManager extends PopupManager {
       card,
       isKnown,
       isIgnored,
+      isLearning,
       frequency,
       this.settingsManager.settings,
       currentLanguage,

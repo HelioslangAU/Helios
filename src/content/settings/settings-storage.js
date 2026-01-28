@@ -163,6 +163,7 @@ class HeliosSettingsStorage {
       "hotkey-mark-unknown": "markUnknown",
       "hotkey-mark-ignored": "markIgnored",
       "hotkey-mark-known": "markKnown",
+      "hotkey-mark-learning": "markLearning",
       "hotkey-anki-add": "ankiAdd"
     };
 
@@ -322,6 +323,7 @@ class HeliosSettingsStorage {
       "hotkey-mark-unknown": "hotkeyMarkUnknown",
       "hotkey-mark-ignored": "hotkeyMarkIgnored",
       "hotkey-mark-known": "hotkeyMarkKnown",
+      "hotkey-mark-learning": "hotkeyMarkLearning",
       "hotkey-anki-add": "hotkeyAnkiAdd",
     };
 

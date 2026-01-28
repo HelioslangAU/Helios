@@ -25,6 +25,13 @@ class HeliosSettingsUI {
         break;
       case "vocabulary":
         this.setupVocabularyEventListeners();
+        // Update Anki import button state when vocabulary tab is loaded
+        if (this.manager.vocabulary?.updateAnkiImportButtonState) {
+          this.manager.vocabulary.updateAnkiImportButtonState();
+        }
+        if (this.manager.vocabulary?.updateAnkiSyncButtonState) {
+          this.manager.vocabulary.updateAnkiSyncButtonState();
+        }
         break;
       case "advanced":
         this.setupAdvancedEventListeners();
@@ -279,6 +286,7 @@ class HeliosSettingsUI {
       "hotkey-mark-unknown",
       "hotkey-mark-ignored",
       "hotkey-mark-known",
+      "hotkey-mark-learning",
       "hotkey-anki-add"
     ];
 
@@ -537,6 +545,7 @@ class HeliosSettingsUI {
         "hotkey-mark-unknown": "markUnknown",
         "hotkey-mark-ignored": "markIgnored",
         "hotkey-mark-known": "markKnown",
+        "hotkey-mark-learning": "markLearning",
         "hotkey-anki-add": "ankiAdd"
       };
       const key = legacyMap[shortcutId];
@@ -548,6 +557,7 @@ class HeliosSettingsUI {
         "hotkey-mark-unknown": { key: "1", ctrl: false, shift: false, alt: false, meta: false },
         "hotkey-mark-ignored": { key: "2", ctrl: false, shift: false, alt: false, meta: false },
         "hotkey-mark-known": { key: "3", ctrl: false, shift: false, alt: false, meta: false },
+        "hotkey-mark-learning": { key: "4", ctrl: false, shift: false, alt: false, meta: false },
         "hotkey-anki-add": { key: "q", ctrl: false, shift: false, alt: false, meta: false }
       };
       return defaults[shortcutId] || null;
@@ -793,6 +803,16 @@ class HeliosSettingsUI {
     document
       .getElementById("reset-all-data")
       ?.addEventListener("click", () => this.manager.vocabulary.resetAllData());
+    document
+      .getElementById("vocab-anki-import-known-words")
+      ?.addEventListener("click", () =>
+        this.manager.vocabulary.importKnownWordsFromAnki()
+      );
+    document
+      .getElementById("vocab-anki-sync-learning-words")
+      ?.addEventListener("click", () =>
+        this.manager.vocabulary.syncLearningWordsFromAnki()
+      );
   }
 
   setupAdvancedEventListeners() {
@@ -982,6 +1002,16 @@ class HeliosSettingsUI {
       console.log("🔍 Set hotkey mark known:", hotkeyMarkKnown.value);
     }
 
+    const hotkeyMarkLearning = tabElement.querySelector("#hotkey-mark-learning");
+    if (hotkeyMarkLearning) {
+      const shortcut = popupShortcuts.markLearning || 
+        (this.manager.settings.hotkeyMarkLearning ? 
+          { key: this.manager.settings.hotkeyMarkLearning, ctrl: false, shift: false, alt: false, meta: false } : 
+          { key: "4", ctrl: false, shift: false, alt: false, meta: false });
+      hotkeyMarkLearning.value = this.formatHotkeyDisplay(shortcut);
+      console.log("🔍 Set hotkey mark learning:", hotkeyMarkLearning.value);
+    }
+
     const hotkeyAnkiAdd = tabElement.querySelector("#hotkey-anki-add");
     if (hotkeyAnkiAdd) {
       const shortcut = popupShortcuts.ankiAdd || 
@@ -1025,6 +1055,13 @@ class HeliosSettingsUI {
 
   updateVocabularyUI(tabElement) {
     // Vocabulary settings UI updates - statistics will be loaded separately
+    // Update Anki import button state
+    if (this.manager.vocabulary?.updateAnkiImportButtonState) {
+      this.manager.vocabulary.updateAnkiImportButtonState();
+    }
+    if (this.manager.vocabulary?.updateAnkiSyncButtonState) {
+      this.manager.vocabulary.updateAnkiSyncButtonState();
+    }
   }
 
   updateAdvancedUI(tabElement) {

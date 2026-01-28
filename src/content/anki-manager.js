@@ -8,6 +8,7 @@ class AnkiManager {
       ready: false,
       error: null,
     };
+    this.hasSyncedOnConnection = false; // Track if we've synced after connection
   }
 
   // Initialize with dictionary manager
@@ -26,9 +27,11 @@ class AnkiManager {
       }
 
       const message = { action, ...data };
+      // Use longer timeout for deck notes requests (large decks can take time)
+      const timeoutDuration = action === "ANKI_GET_DECK_NOTES" ? 60000 : 10000; // 60s for deck notes, 10s for others
       const timeout = setTimeout(() => {
         reject(new Error("Message timeout"));
-      }, 10000);
+      }, timeoutDuration);
 
       chrome.runtime.sendMessage(message, (response) => {
         clearTimeout(timeout);
@@ -47,13 +50,30 @@ class AnkiManager {
   // Test connection to Anki
   async checkAnkiConnect() {
     try {
+      const wasConnected = this.status.connected;
       const response = await this.sendMessage("ANKI_TEST_CONNECTION");
       this.status.connected = response.success;
       this.status.error = response.error;
+      
+      // If we just connected (wasn't connected before, now is), trigger sync
+      if (!wasConnected && response.success && !this.hasSyncedOnConnection) {
+        this.hasSyncedOnConnection = true;
+        // Sync in background (don't block connection check)
+        this.syncLearningWordsFromAnki().catch(error => {
+          console.warn("🃏 Anki sync on connection failed:", error);
+        });
+      }
+      
+      // Reset sync flag if connection is lost
+      if (!response.success) {
+        this.hasSyncedOnConnection = false;
+      }
+      
       return response.success;
     } catch (error) {
       this.status.connected = false;
       this.status.error = error.message;
+      this.hasSyncedOnConnection = false;
       return false;
     }
   }
@@ -100,7 +120,7 @@ class AnkiManager {
   }
 
   // Extract word data from character and context
-  async extractWordData(character) {
+  async extractWordData(character, options = {}) {
     // Get current language from registry
     const currentLanguage = window.languageRegistry?.getCurrentLanguage() || 'zh';
 
@@ -122,19 +142,19 @@ class AnkiManager {
         // Use pinyin for Chinese, pronunciation for other languages
         wordData.pinyin = match.pinyin || match.pronunciation || match.reading || "";
         let definition = match.definition || match.meaning || "";
-        
+
         // Enhance variant definitions (e.g., "variant of {something}") by including base definitions
         const adapter = window.languageRegistry?.getAdapter();
         if (adapter && adapter.enhanceVariantDefinition && definition) {
           definition = await adapter.enhanceVariantDefinition(
             definition,
             this.dictionaryManager.dictionary,
-            this.dictionaryManager.getDefinition ? 
-              (word) => this.dictionaryManager.getDefinition(word) : 
+            this.dictionaryManager.getDefinition ?
+              (word) => this.dictionaryManager.getDefinition(word) :
               null
           );
         }
-        
+
         // Format definition: replace semicolons with newlines for Anki export
         wordData.definition = this.formatDefinitionForAnki(definition);
         wordData.frequency = match.frequency || match.frq || "";
@@ -144,7 +164,235 @@ class AnkiManager {
     // Extract sentence context
     wordData.sentence = this.extractSentenceContext(character);
 
+    // Capture media if requested and available
+    if (options.captureMedia !== false) {
+      await this.captureMediaForCard(wordData);
+    }
+
     return wordData;
+  }
+
+  // Capture screenshot and audio for Anki card
+  async captureMediaForCard(wordData) {
+    try {
+      // Check if we need to capture media (based on settings)
+      const needsMedia = await this.checkIfNeedsMedia();
+      if (!needsMedia) {
+        return;
+      }
+
+      // Capture screenshot if on video platform or if screenshot field is mapped
+      if (window.HeliosScreenshotCapturer) {
+        console.log('[Helios Anki] Capturing screenshot...');
+        const screenshot = await window.HeliosScreenshotCapturer.captureIntelligent();
+        if (screenshot) {
+          wordData.screenshotDataUrl = screenshot;
+          console.log('[Helios Anki] Screenshot captured');
+        }
+      }
+
+      // Capture audio if on video platform with subtitles
+      if (window.HeliosAudioRecorder && this.isOnVideoPage()) {
+        const audioData = await this.captureAudioForSentence(wordData.sentence);
+        if (audioData) {
+          wordData.sentenceAudioDataUrl = audioData;
+          console.log('[Helios Anki] Audio captured');
+        }
+      }
+
+    } catch (error) {
+      console.warn('[Helios Anki] Error capturing media:', error);
+      // Non-critical, continue without media
+    }
+  }
+
+  // Check if media capture is needed based on field mappings
+  async checkIfNeedsMedia() {
+    try {
+      const response = await this.sendMessage("ANKI_CHECK_MEDIA_NEEDED");
+      return response.needsScreenshot || response.needsAudio;
+    } catch (error) {
+      // If we can't check, assume we need it
+      return true;
+    }
+  }
+
+  // Check if we're on a video page
+  isOnVideoPage() {
+    // Check if platform detector exists and identifies a video platform
+    if (window.PlatformDetector) {
+      const platform = window.PlatformDetector.detectPlatform();
+      return platform !== 'unknown';
+    }
+
+    // Fallback: check for video elements
+    const videos = document.querySelectorAll('video');
+    return videos.length > 0;
+  }
+
+  // Capture audio for sentence with subtitle timing (like asbplayer)
+  async captureAudioForSentence(sentence) {
+    try {
+      if (!sentence || !window.HeliosAudioRecorder) {
+        return null;
+      }
+
+      console.log('[Helios Anki] Capturing audio for sentence:', sentence);
+
+      // Get subtitle timing by finding subtitle containing this sentence
+      const timing = this.getSubtitleTimingForSentence(sentence);
+
+      // Find video element
+      const videoElement = window.HeliosScreenshotCapturer?.findVideoElement();
+      if (!videoElement) {
+        console.warn('[Helios Anki] No video element found for audio capture');
+        return null;
+      }
+
+      const paddingBefore = 250; // milliseconds (0.25 seconds)
+      const paddingAfter = 250; // milliseconds (0.25 seconds)
+
+      if (!timing) {
+        console.warn('[Helios Anki] No subtitle timing found, cannot record audio');
+        return null;
+      }
+
+      // Like asbplayer's approach:
+      // 1. Calculate seek position: subtitle.start - paddingBefore
+      // 2. Calculate record duration: (subtitle.end - subtitle.start) + paddingAfter
+      // 3. Seek and play
+      // 4. Start recording
+
+      const subtitleStart = timing.start; // ms
+      const subtitleEnd = timing.end; // ms
+
+      // Seek to position (with padding before)
+      const seekToTimeMs = Math.max(0, subtitleStart - paddingBefore);
+      const seekToTimeSec = seekToTimeMs / 1000;
+
+      // Duration to record
+      const recordDurationMs = (subtitleEnd - subtitleStart) + paddingAfter;
+
+      console.log('[Helios Anki] Recording audio for subtitle:', {
+        text: timing.text,
+        subtitleStart: subtitleStart + 'ms',
+        subtitleEnd: subtitleEnd + 'ms',
+        seekTo: seekToTimeSec + 's',
+        recordDuration: recordDurationMs + 'ms'
+      });
+
+      // Record audio using asbplayer's approach
+      const audioDataUrl = await window.HeliosAudioRecorder.recordFromVideo(
+        videoElement,
+        seekToTimeSec,
+        recordDurationMs
+      );
+
+      return audioDataUrl;
+
+    } catch (error) {
+      console.error('[Helios Anki] Error capturing audio:', error);
+      return null;
+    }
+  }
+
+  // Get subtitle timing for a sentence - finds the subtitle containing this sentence
+  getSubtitleTimingForSentence(sentence) {
+    try {
+      console.log('[Helios Anki] Looking for subtitle for sentence:', sentence);
+
+      // Get the primary video binding (contains subtitle data)
+      const binding = this._getPrimaryVideoBinding();
+      if (!binding) {
+        console.warn('[Helios Anki] No video binding available');
+        return null;
+      }
+
+      // BEST APPROACH (like asbplayer): Get currently active subtitle from overlay
+      if (binding.overlay?.currentSubtitles) {
+        const currentSubs = binding.overlay.currentSubtitles;
+        if (currentSubs.length > 0) {
+          const currentSub = currentSubs[0]; // Get first active subtitle
+          console.log('[Helios Anki] Using current active subtitle:', currentSub.text);
+          return {
+            start: currentSub.start,
+            end: currentSub.end,
+            text: currentSub.text
+          };
+        }
+      }
+
+      // FALLBACK: Search through all subtitles for match
+      const subtitleCollection = binding.getSubtitles();
+      if (!subtitleCollection || subtitleCollection.isEmpty()) {
+        console.warn('[Helios Anki] No subtitles loaded');
+        return null;
+      }
+
+      const subtitles = subtitleCollection.getAll();
+      console.log('[Helios Anki] Searching through', subtitles.length, 'subtitles');
+
+      // Try exact match first
+      for (const subtitle of subtitles) {
+        if (subtitle.text === sentence) {
+          console.log('[Helios Anki] Found exact match:', subtitle.text);
+          return {
+            start: subtitle.start,
+            end: subtitle.end,
+            text: subtitle.text
+          };
+        }
+      }
+
+      // Try partial match - subtitle contains sentence
+      for (const subtitle of subtitles) {
+        if (subtitle.text && subtitle.text.includes(sentence)) {
+          console.log('[Helios Anki] Found subtitle containing sentence:', subtitle.text);
+          return {
+            start: subtitle.start,
+            end: subtitle.end,
+            text: subtitle.text
+          };
+        }
+      }
+
+      // Try reverse - sentence contains subtitle
+      for (const subtitle of subtitles) {
+        if (subtitle.text && sentence.includes(subtitle.text)) {
+          console.log('[Helios Anki] Found subtitle (reverse match):', subtitle.text);
+          return {
+            start: subtitle.start,
+            end: subtitle.end,
+            text: subtitle.text
+          };
+        }
+      }
+
+      console.warn('[Helios Anki] No subtitle found for sentence:', sentence);
+      return null;
+
+    } catch (error) {
+      console.error('[Helios Anki] Error getting subtitle timing:', error);
+      return null;
+    }
+  }
+
+  // Get primary video binding (helper method)
+  _getPrimaryVideoBinding() {
+    try {
+      // Check if video feature is initialized
+      if (!window.heliosVideoFeature || !window.heliosVideoFeature.videoDetector) {
+        return null;
+      }
+
+      // Get primary binding from video detector
+      const binding = window.heliosVideoFeature.videoDetector.getPrimaryBinding();
+      return binding;
+
+    } catch (error) {
+      console.error('[Helios Anki] Error getting video binding:', error);
+      return null;
+    }
   }
 
   // Extract sentence context from the page
@@ -226,8 +474,8 @@ class AnkiManager {
 
       let wordData;
       if (typeof data === 'string') {
-        // If we just got a character string, extract everything.
-        wordData = await this.extractWordData(data);
+        // If we just got a character string, extract everything (including media).
+        wordData = await this.extractWordData(data, options);
       } else {
         // If we got an object, it should already have everything, including the pre-captured sentence.
         // We just ensure the timestamp and URL are present.
@@ -240,22 +488,27 @@ class AnkiManager {
         if (!wordData.sentence) {
             wordData.sentence = this.extractSentenceContext(data.character);
         }
-        
+
         // Enhance variant definitions if definition exists and wasn't already enhanced
         const adapter = window.languageRegistry?.getAdapter();
         if (adapter && adapter.enhanceVariantDefinition && wordData.definition && this.dictionaryManager?.dictionary) {
           wordData.definition = await adapter.enhanceVariantDefinition(
             wordData.definition,
             this.dictionaryManager.dictionary,
-            this.dictionaryManager.getDefinition ? 
-              (word) => this.dictionaryManager.getDefinition(word) : 
+            this.dictionaryManager.getDefinition ?
+              (word) => this.dictionaryManager.getDefinition(word) :
               null
           );
         }
-        
+
         // Format definition: replace semicolons with newlines for Anki export
         if (wordData.definition) {
           wordData.definition = this.formatDefinitionForAnki(wordData.definition);
+        }
+
+        // Capture media if not already present
+        if (!wordData.screenshotDataUrl && !wordData.sentenceAudioDataUrl) {
+          await this.captureMediaForCard(wordData);
         }
       }
 
@@ -270,6 +523,29 @@ class AnkiManager {
 
         // Update statistics
         this.updateAnkiStatistics(true);
+
+        // If auto-sync learning words is enabled, mark the word as learning
+        try {
+          const settings = await this.getSettings();
+          if (settings.autoSyncLearningWords && window.vocabManager) {
+            const character = wordData.character;
+            if (character) {
+              // Ensure vocab manager has the correct language set
+              const currentLanguage = window.languageRegistry?.getCurrentLanguage() || wordData.language || 'zh';
+              window.vocabManager.setCurrentLanguage(currentLanguage);
+              
+              // Mark word as learning
+              await window.vocabManager.markWordAsLearning(character);
+              console.log(`🃏 Marked word as learning (auto-sync enabled): ${character}`);
+              
+              // Update popup button state if popup is open
+              this.updatePopupButtonState(character);
+            }
+          }
+        } catch (error) {
+          // Non-critical error - log but don't fail card creation
+          console.warn("🃏 Error marking word as learning:", error);
+        }
 
         return {
           success: true,
@@ -524,10 +800,23 @@ class AnkiManager {
   async getSettings() {
     try {
       const response = await this.sendMessage("ANKI_LOAD_SETTINGS");
-      return response.settings || {};
+      const settings = response.settings || {};
+      
+      // Ensure defaults for new learning words settings
+      if (settings.importYoungAsLearning === undefined) {
+        settings.importYoungAsLearning = true;
+      }
+      if (settings.autoSyncLearningWords === undefined) {
+        settings.autoSyncLearningWords = true;
+      }
+      
+      return settings;
     } catch (error) {
       console.error("Error getting settings:", error);
-      return {};
+      return {
+        importYoungAsLearning: true,
+        autoSyncLearningWords: true,
+      };
     }
   }
 
@@ -572,6 +861,214 @@ class AnkiManager {
       return status.connected && settings.deck && settings.noteType;
     } catch (error) {
       return false;
+    }
+  }
+
+  // Sync learning words from Anki - promote to known if interval >= 21 days
+  async syncLearningWordsFromAnki() {
+    try {
+      // Check if auto-sync is enabled
+      const settings = await this.getSettings();
+      if (!settings.autoSyncLearningWords) {
+        console.log("🃏 Auto-sync learning words is disabled");
+        return { synced: 0, promoted: 0 };
+      }
+
+      // Validate prerequisites
+      if (!settings.deck || !settings.noteType) {
+        console.log("🃏 Anki not fully configured, skipping sync");
+        return { synced: 0, promoted: 0 };
+      }
+
+      const fieldMappings = settings.fieldMappings || {};
+      
+      // Find the field mapped to expression or expressionRubyTxt
+      let expressionField = null;
+      let isRubyText = false;
+
+      for (const [fieldName, mapping] of Object.entries(fieldMappings)) {
+        if (mapping === "expression") {
+          expressionField = fieldName;
+          isRubyText = false;
+          break;
+        } else if (mapping === "expressionRubyTxt") {
+          expressionField = fieldName;
+          isRubyText = true;
+          break;
+        }
+      }
+
+      if (!expressionField) {
+        console.log("🃏 No expression field mapped, skipping sync");
+        return { synced: 0, promoted: 0 };
+      }
+
+      // Get all expressions from the deck (optimized - only expression field and intervals)
+      const response = await this.sendMessage("ANKI_GET_DECK_NOTES", {
+        deck: settings.deck,
+        noteType: settings.noteType,
+        expressionField,
+      });
+
+      if (!response.success || !response.expressions || response.expressions.length === 0) {
+        console.log("🃏 No notes found in deck, skipping sync");
+        return { synced: 0, promoted: 0 };
+      }
+
+      const expressions = response.expressions;
+
+      // Create a map of normalized expression to maxInterval
+      const expressionToInterval = new Map();
+      for (const item of expressions) {
+        let expression = item.expression;
+
+        if (!expression) continue;
+
+        // Remove HTML tags if present
+        const tempDiv = document.createElement("div");
+        tempDiv.innerHTML = expression;
+        expression = tempDiv.textContent || tempDiv.innerText || "";
+
+        // Trim whitespace
+        expression = expression.trim();
+
+        if (!expression) continue;
+
+        // If it's expressionRubyTxt, remove everything after first "["
+        if (isRubyText && expression.includes("[")) {
+          expression = expression.split("[")[0].trim();
+        }
+
+        if (expression) {
+          const normalizedExpression = expression.toLowerCase();
+          // maxInterval is already calculated in background script
+          const maxInterval = item.maxInterval || 0;
+          expressionToInterval.set(normalizedExpression, maxInterval);
+        }
+      }
+
+      // Get current learning words
+      if (!window.vocabManager) {
+        console.log("🃏 VocabManager not available, skipping sync");
+        return { synced: 0, promoted: 0 };
+      }
+
+      const learningWords = window.vocabManager.getCurrentLanguageLearningWords();
+      const learningWordsArray = Array.from(learningWords);
+
+      if (learningWordsArray.length === 0) {
+        console.log("🃏 No learning words to sync");
+        return { synced: 0, promoted: 0 };
+      }
+
+      // Check each learning word against Anki intervals
+      const wordsToPromote = [];
+      let syncedCount = 0;
+
+      for (const learningWord of learningWordsArray) {
+        const normalizedWord = learningWord.toLowerCase();
+        const maxInterval = expressionToInterval.get(normalizedWord);
+
+        if (maxInterval === undefined) {
+          // Word is in learning but not in Anki deck - leave as learning
+          continue;
+        }
+
+        syncedCount++;
+
+        // If max interval is >= 21 days, promote to known
+        if (maxInterval >= 21) {
+          wordsToPromote.push(learningWord);
+        }
+      }
+
+      // Promote words to known
+      if (wordsToPromote.length > 0) {
+        await window.vocabManager.markMultipleWordsAsKnown(wordsToPromote);
+        // Words are automatically removed from learning set in markMultipleWordsAsKnown
+        console.log(`🃏 Promoted ${wordsToPromote.length} learning words to known (interval >= 21 days)`);
+      }
+
+      console.log(`🃏 Sync complete: ${syncedCount} words checked, ${wordsToPromote.length} promoted to known`);
+
+      return { synced: syncedCount, promoted: wordsToPromote.length };
+    } catch (error) {
+      console.error("🃏 Error syncing learning words from Anki:", error);
+      return { synced: 0, promoted: 0, error: error.message };
+    }
+  }
+
+  // Update popup button state after vocabulary changes
+  updatePopupButtonState(character) {
+    try {
+      if (!character || !window.vocabManager) {
+        return;
+      }
+
+      // Find the current popup
+      const popup = document.querySelector('.chinese-lang-extension-popup');
+      if (!popup) {
+        return; // No popup open
+      }
+
+      // Find all mark buttons (for both single and multi-card popups)
+      const markButtons = popup.querySelectorAll(".mark-known-btn, .mark-ignore-btn, .mark-unknown-btn, .mark-learning-btn");
+      if (!markButtons || markButtons.length === 0) {
+        return; // No mark buttons found
+      }
+
+      // Check the word's current state
+      const isKnown = window.vocabManager.isWordKnown(character);
+      const isLearning = window.vocabManager.isWordLearning(character);
+      const isIgnored = window.vocabManager.isWordIgnored(character);
+
+      // Determine the state
+      let state = "unknown";
+      if (isKnown) {
+        state = "known";
+      } else if (isLearning) {
+        state = "learning";
+      } else if (isIgnored) {
+        state = "ignored";
+      }
+
+      // Helper function to update a single button
+      const updateButton = (button) => {
+        button.classList.remove("mark-known-btn", "mark-ignore-btn", "mark-unknown-btn", "mark-learning-btn");
+        
+        switch (state) {
+          case "known":
+            button.textContent = "Known";
+            button.className = "mark-ignore-btn";
+            break;
+          case "learning":
+            button.textContent = "Learning";
+            button.className = "mark-learning-btn";
+            break;
+          case "ignored":
+            button.textContent = "Ignored";
+            button.className = "mark-unknown-btn";
+            break;
+          case "unknown":
+          default:
+            button.textContent = "Unknown";
+            button.className = "mark-known-btn";
+            break;
+        }
+      };
+
+      // Update all mark buttons
+      // For multi-card popups, all buttons represent the same word (different pronunciations)
+      // For single-card popups, there's just one button
+      // We update all of them to reflect the word's current state
+      markButtons.forEach(button => {
+        updateButton(button);
+      });
+
+      console.log(`🃏 Updated popup button state to: ${state} (${markButtons.length} button(s))`);
+    } catch (error) {
+      // Non-critical error - log but don't fail
+      console.warn("🃏 Error updating popup button state:", error);
     }
   }
 }
