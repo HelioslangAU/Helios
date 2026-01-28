@@ -149,7 +149,7 @@ class PopupContentBuilder {
   }
 
   static createBasicContent(character, dictionaryData, vocabManager, frequencyManager, settings = {}, languageCode = null, dictionary = null) {
-    const { matches, isKnown, isIgnored, frequency } = dictionaryData;
+    const { matches, isKnown, isIgnored, isLearning, frequency } = dictionaryData;
     const lengthClass = this.getWordLengthClass(character);
     const languageClass = languageCode ? this.getLanguageClass(languageCode) : '';
     const combinedClasses = `${lengthClass} ${languageClass}`.trim();
@@ -184,14 +184,14 @@ class PopupContentBuilder {
         ${infoBoxes}
         <div class="definitions-scroll">${definitionsHtml}</div>
         <div class="popup-buttons">
-          ${this.createMarkButton(isKnown, isIgnored)}
+          ${this.createMarkButton(isKnown, isIgnored, isLearning)}
         </div>
         ${this.createAnkiButton()}
       </div>
     `;
   }
 
-  static createCardContent(displayCharacter, card, isKnown, isIgnored, frequency, settings = {}, languageCode = null, dictionary = null) {
+  static createCardContent(displayCharacter, card, isKnown, isIgnored, isLearning, frequency, settings = {}, languageCode = null, dictionary = null) {
     const { pinyin: cardPinyin, entries } = card;
     // Use card's pinyin if available (may be empty string), otherwise fall back to first entry's pinyin
     // This ensures each card shows its own pinyin corresponding to its entries
@@ -213,8 +213,8 @@ class PopupContentBuilder {
         ${infoBoxes}
         <div class="definitions-scroll">${definitionsHtml}</div>
         <div class="popup-buttons">
-          <button class="${this.getMarkButtonClass(isKnown, isIgnored)}" data-card-id="${displayCharacter}-${pinyin}">
-            ${this.getMarkButtonText(isKnown, isIgnored)}
+          <button class="${this.getMarkButtonClass(isKnown, isIgnored, isLearning)}" data-card-id="${displayCharacter}-${pinyin}">
+            ${this.getMarkButtonText(isKnown, isIgnored, isLearning)}
           </button>
         </div>
         ${this.createAnkiButton()}
@@ -222,7 +222,7 @@ class PopupContentBuilder {
     `;
   }
 
-  static createCardContentInner(displayCharacter, card, isKnown, isIgnored, frequency, settings = {}, languageCode = null, dictionary = null) {
+  static createCardContentInner(displayCharacter, card, isKnown, isIgnored, isLearning, frequency, settings = {}, languageCode = null, dictionary = null) {
     const { pinyin: cardPinyin, entries } = card;
     // Use card's pinyin if available (may be empty string), otherwise fall back to first entry's pinyin
     // This ensures each card shows its own pinyin corresponding to its entries
@@ -243,8 +243,8 @@ class PopupContentBuilder {
       ${infoBoxes}
       <div class="definitions-scroll">${definitionsHtml}</div>
       <div class="popup-buttons">
-        <button class="${this.getMarkButtonClass(isKnown, isIgnored)}" data-card-id="${displayCharacter}-${pinyin}">
-          ${this.getMarkButtonText(isKnown, isIgnored)}
+        <button class="${this.getMarkButtonClass(isKnown, isIgnored, isLearning)}" data-card-id="${displayCharacter}-${pinyin}">
+          ${this.getMarkButtonText(isKnown, isIgnored, isLearning)}
         </button>
       </div>
       ${this.createAnkiButton()}
@@ -388,13 +388,15 @@ class PopupContentBuilder {
     `;
   }
 
-  static createMarkButton(isKnown, isIgnored) {
-    return `<button class="${this.getMarkButtonClass(isKnown, isIgnored)}">${this.getMarkButtonText(isKnown, isIgnored)}</button>`;
+  static createMarkButton(isKnown, isIgnored, isLearning = false) {
+    return `<button class="${this.getMarkButtonClass(isKnown, isIgnored, isLearning)}">${this.getMarkButtonText(isKnown, isIgnored, isLearning)}</button>`;
   }
 
-  static getMarkButtonClass(isKnown, isIgnored) {
+  static getMarkButtonClass(isKnown, isIgnored, isLearning = false) {
     if (isKnown) {
       return "mark-ignore-btn";
+    } else if (isLearning) {
+      return "mark-learning-btn";
     } else if (isIgnored) {
       return "mark-unknown-btn";
     } else {
@@ -402,9 +404,11 @@ class PopupContentBuilder {
     }
   }
 
-  static getMarkButtonText(isKnown, isIgnored) {
+  static getMarkButtonText(isKnown, isIgnored, isLearning = false) {
     if (isKnown) {
       return "Known";
+    } else if (isLearning) {
+      return "Learning";
     } else if (isIgnored) {
       return "Ignored";
     } else {

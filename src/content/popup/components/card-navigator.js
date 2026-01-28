@@ -75,6 +75,7 @@ class CardNavigator {
 
       const isKnown = this.popupManager.vocabManager.isWordKnown(displayCharacter);
       const isIgnored = this.popupManager.vocabManager.isWordIgnored(displayCharacter);
+      const isLearning = this.popupManager.vocabManager.isWordLearning(displayCharacter);
       const frequency = this.popupManager.frequencyManager?.getFrequency(displayCharacter);
 
       // Clear old content and add new content
@@ -84,6 +85,7 @@ class CardNavigator {
         newCard,
         isKnown,
         isIgnored,
+        isLearning,
         frequency,
         this.popupManager.settingsManager.settings,
         currentLanguage,

@@ -494,9 +494,21 @@ class PageProcessor {
       .lang-unknown-word:hover {
         background-color: rgba(255, 68, 68, 0.1) !important;
       }
+      .lang-learning-word {
+        text-decoration: underline !important;
+        text-decoration-color: #9333ea !important;
+        text-decoration-thickness: 2px !important;
+        text-underline-offset: 2px !important;
+        cursor: help !important;
+      }
+      .lang-learning-word:hover {
+        background-color: rgba(147, 51, 234, 0.1) !important;
+      }
       /* NEVER underline words inside popup - absolute priority */
       .chinese-lang-extension-popup .lang-unknown-word,
-      .chinese-lang-extension-popup * .lang-unknown-word {
+      .chinese-lang-extension-popup * .lang-unknown-word,
+      .chinese-lang-extension-popup .lang-learning-word,
+      .chinese-lang-extension-popup * .lang-learning-word {
         text-decoration: none !important;
         background-color: transparent !important;
       }
@@ -603,8 +615,12 @@ class PageProcessor {
       
       if (!this.vocabManager.isWordKnown(lowercaseWord) && 
           hasDictionaryEntry && 
-          !this.vocabManager.isWordIgnored(lowercaseWord)) {
+          !this.vocabManager.isWordIgnored(lowercaseWord) &&
+          !this.vocabManager.isWordLearning(lowercaseWord)) {
         span.className = 'lang-unknown-word';
+        this.unknownWordElements.set(lowercaseWord, span);
+      } else if (hasDictionaryEntry && this.vocabManager.isWordLearning(lowercaseWord)) {
+        span.className = 'lang-learning-word';
         this.unknownWordElements.set(lowercaseWord, span);
       }
 
@@ -676,13 +692,20 @@ class PageProcessor {
     elements.forEach(element => {
       const elementWord = element.getAttribute('data-word');
       if (elementWord && elementWord.toLowerCase() === normalizedWord) {
+        // Remove all state classes first
+        element.classList.remove('lang-unknown-word', 'lang-learning-word');
+        
         if (isKnownOrIgnored) {
-          // Remove underline for both known and ignored words
-          element.classList.remove('lang-unknown-word');
+          // Check if it's learning, known, or ignored
+          if (this.vocabManager.isWordLearning(normalizedWord)) {
+            element.classList.add('lang-learning-word');
+          }
+          // Known and ignored words don't get underlined
           updatedCount++;
         } else {
-          // Add underline only for unknown words (not ignored)
-          if (!this.vocabManager.isWordIgnored(normalizedWord)) {
+          // Add underline for unknown words (not ignored, not learning)
+          if (!this.vocabManager.isWordIgnored(normalizedWord) && 
+              !this.vocabManager.isWordLearning(normalizedWord)) {
             element.classList.add('lang-unknown-word');
             updatedCount++;
           }

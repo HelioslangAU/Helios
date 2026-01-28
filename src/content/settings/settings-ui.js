@@ -283,6 +283,7 @@ class HeliosSettingsUI {
       "hotkey-mark-unknown",
       "hotkey-mark-ignored",
       "hotkey-mark-known",
+      "hotkey-mark-learning",
       "hotkey-anki-add"
     ];
 
@@ -541,6 +542,7 @@ class HeliosSettingsUI {
         "hotkey-mark-unknown": "markUnknown",
         "hotkey-mark-ignored": "markIgnored",
         "hotkey-mark-known": "markKnown",
+        "hotkey-mark-learning": "markLearning",
         "hotkey-anki-add": "ankiAdd"
       };
       const key = legacyMap[shortcutId];
@@ -552,6 +554,7 @@ class HeliosSettingsUI {
         "hotkey-mark-unknown": { key: "1", ctrl: false, shift: false, alt: false, meta: false },
         "hotkey-mark-ignored": { key: "2", ctrl: false, shift: false, alt: false, meta: false },
         "hotkey-mark-known": { key: "3", ctrl: false, shift: false, alt: false, meta: false },
+        "hotkey-mark-learning": { key: "4", ctrl: false, shift: false, alt: false, meta: false },
         "hotkey-anki-add": { key: "q", ctrl: false, shift: false, alt: false, meta: false }
       };
       return defaults[shortcutId] || null;
@@ -989,6 +992,16 @@ class HeliosSettingsUI {
           { key: "3", ctrl: false, shift: false, alt: false, meta: false });
       hotkeyMarkKnown.value = this.formatHotkeyDisplay(shortcut);
       console.log("🔍 Set hotkey mark known:", hotkeyMarkKnown.value);
+    }
+
+    const hotkeyMarkLearning = tabElement.querySelector("#hotkey-mark-learning");
+    if (hotkeyMarkLearning) {
+      const shortcut = popupShortcuts.markLearning || 
+        (this.manager.settings.hotkeyMarkLearning ? 
+          { key: this.manager.settings.hotkeyMarkLearning, ctrl: false, shift: false, alt: false, meta: false } : 
+          { key: "4", ctrl: false, shift: false, alt: false, meta: false });
+      hotkeyMarkLearning.value = this.formatHotkeyDisplay(shortcut);
+      console.log("🔍 Set hotkey mark learning:", hotkeyMarkLearning.value);
     }
 
     const hotkeyAnkiAdd = tabElement.querySelector("#hotkey-anki-add");

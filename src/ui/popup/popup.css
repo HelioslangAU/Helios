@@ -469,7 +469,8 @@
 /* Mark Known/Unknown Buttons - Apple-style Clean */
 .mark-known-btn,
 .mark-ignore-btn,
-.mark-unknown-btn {
+.mark-unknown-btn,
+.mark-learning-btn {
   padding: 7px 14px;
   border: none;
   border-radius: 10px;
@@ -515,6 +516,16 @@
 
 .mark-unknown-btn:hover {
   background: #4b5563;
+  opacity: 0.9;
+}
+
+.mark-learning-btn {
+  background: #9333ea;
+  color: white;
+}
+
+.mark-learning-btn:hover {
+  background: #7e22ce;
   opacity: 0.9;
 }
 
@@ -825,6 +836,7 @@
 .chinese-lang-extension-popup.theme-light .mark-known-btn,
 .chinese-lang-extension-popup.theme-light .mark-ignore-btn,
 .chinese-lang-extension-popup.theme-light .mark-unknown-btn,
+.chinese-lang-extension-popup.theme-light .mark-learning-btn,
 .chinese-lang-extension-popup.theme-light .anki-btn,
 .chinese-lang-extension-popup.theme-light .pronunciation-btn {
   /* Buttons maintain their default styling in light mode */
@@ -872,7 +884,8 @@
 
 .chinese-lang-extension-popup.size-small .mark-known-btn,
 .chinese-lang-extension-popup.size-small .mark-ignore-btn,
-.chinese-lang-extension-popup.size-small .mark-unknown-btn {
+.chinese-lang-extension-popup.size-small .mark-unknown-btn,
+.chinese-lang-extension-popup.size-small .mark-learning-btn {
   padding: 6px 12px;
   font-size: 10px;
 }
@@ -938,7 +951,8 @@
 
 .chinese-lang-extension-popup.size-large .mark-known-btn,
 .chinese-lang-extension-popup.size-large .mark-ignore-btn,
-.chinese-lang-extension-popup.size-large .mark-unknown-btn {
+.chinese-lang-extension-popup.size-large .mark-unknown-btn,
+.chinese-lang-extension-popup.size-large .mark-learning-btn {
   padding: 10px 18px;
   font-size: 13px;
 }
@@ -990,7 +1004,8 @@
 
 .chinese-lang-extension-popup.size-extra-large .mark-known-btn,
 .chinese-lang-extension-popup.size-extra-large .mark-ignore-btn,
-.chinese-lang-extension-popup.size-extra-large .mark-unknown-btn {
+.chinese-lang-extension-popup.size-extra-large .mark-unknown-btn,
+.chinese-lang-extension-popup.size-extra-large .mark-learning-btn {
   padding: 12px 20px;
   font-size: 14px;
 }

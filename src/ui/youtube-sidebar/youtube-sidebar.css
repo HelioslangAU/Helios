@@ -435,6 +435,18 @@
   color: #ff6666;
 }
 
+.yt-subtitle-word.learning-word {
+  text-decoration: underline;
+  text-decoration-color: #9333ea;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+.yt-subtitle-word.learning-word:hover {
+  background: rgba(147, 51, 234, 0.2);
+  color: #a855f7;
+}
+
 /* ============================================================================
    VIDEO CONTAINER ADJUSTMENTS - PUSH VIDEO LEFT APPROACH
    ============================================================================

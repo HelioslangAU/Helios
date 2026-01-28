@@ -118,6 +118,7 @@ class PopupManager {
       
       dictionaryData.isKnown = this.vocabManager.isWordKnown(character);
       dictionaryData.isIgnored = this.vocabManager.isWordIgnored(character);
+      dictionaryData.isLearning = this.vocabManager.isWordLearning(character);
       dictionaryData.frequency = this.frequencyManager?.getFrequency(character);
 
       // Build content
