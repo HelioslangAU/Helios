@@ -68,6 +68,11 @@ class SubtitleListPanel {
     let initialY;
 
     handle.addEventListener('mousedown', (e) => {
+      // Only allow left-click (button 0) for dragging - prevent right-click drag
+      if (e.button !== 0) {
+        return;
+      }
+
       isDragging = true;
       initialX = e.clientX - this.panel.offsetLeft;
       initialY = e.clientY - this.panel.offsetTop;

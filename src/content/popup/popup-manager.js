@@ -24,6 +24,12 @@ class PopupManager {
     this.popupCreationInProgress = false;
     this.currentPopupRequestId = null;
 
+    // Global mouse tracking for better hide detection
+    this.globalMouseMoveHandler = null;
+    this.mouseLeaveHandler = null;
+    this.lastMousePosition = { x: 0, y: 0 };
+    this.mouseCheckInterval = null;
+
     // Initialize managers
     this.ankiManager = new AnkiManager();
     this.ankiManager.initialize(this.dictionaryManager);
@@ -154,6 +160,9 @@ class PopupManager {
       // Remove creating class to enable transitions after initial setup
       popup.classList.remove('creating');
 
+      // Start global mouse tracking for better hide detection
+      this._startGlobalMouseTracking();
+
       // Track word lookup for recent vocabulary
       if (dictionaryData && dictionaryData.matches && dictionaryData.matches.length > 0) {
         this.vocabManager.trackWordLookup(character, dictionaryData.matches[0]);
@@ -179,38 +188,153 @@ class PopupManager {
     }
   }
 
+  /**
+   * Start global mouse tracking to detect when mouse leaves popup/highlight area
+   * This provides more reliable detection than relying solely on mouseenter/mouseleave events
+   * @private
+   */
+  _startGlobalMouseTracking() {
+    this._stopGlobalMouseTracking();
+
+    this.globalMouseMoveHandler = (e) => {
+      this.lastMousePosition = { x: e.clientX, y: e.clientY };
+    };
+    document.addEventListener('mousemove', this.globalMouseMoveHandler, { passive: true });
+
+    this.mouseLeaveHandler = () => {
+      this._clearHoverStates();
+      this.scheduleHidePopup();
+    };
+    document.addEventListener('mouseleave', this.mouseLeaveHandler, { passive: true });
+
+    this.mouseCheckInterval = setInterval(() => {
+      if (!this.popup) {
+        this._stopGlobalMouseTracking();
+        return;
+      }
+
+      const elementAtMouse = document.elementFromPoint(
+        this.lastMousePosition.x,
+        this.lastMousePosition.y
+      );
+
+      if (!elementAtMouse) {
+        this._handleMouseOutsideDocument();
+        return;
+      }
+
+      this._updateHoverStates(elementAtMouse);
+    }, 50);
+  }
+
+  _handleMouseOutsideDocument() {
+    const wasActive = this.isMouseOverPopup || this.highlightManager?.isMouseOverHighlight;
+    this._clearHoverStates();
+    if (wasActive) {
+      this.scheduleHidePopup();
+    }
+  }
+
+  _isMouseOverRelevantElement(element) {
+    const isOverPopup = this.popup && this.popup.contains(element);
+    const isOverHighlight = this.highlightManager?.currentHighlight?.contains(element);
+
+    let isOverSubtitleWord = false;
+    let checkElement = element;
+    for (let i = 0; i < 5 && checkElement; i++) {
+      if (checkElement.getAttribute?.('data-subtitle-word') === 'true') {
+        isOverSubtitleWord = true;
+        break;
+      }
+      checkElement = checkElement.parentElement;
+    }
+
+    return { isOverPopup, isOverHighlight, isOverSubtitleWord };
+  }
+
+  _isScrollbarOrOutside(element, isOverPopup, isOverHighlight, isOverSubtitleWord) {
+    return !document.body.contains(element) ||
+           element.tagName === 'HTML' ||
+           (element === document.body && !isOverPopup && !isOverHighlight && !isOverSubtitleWord);
+  }
+
+  _updateHoverStates(elementAtMouse) {
+    const { isOverPopup, isOverHighlight, isOverSubtitleWord } = this._isMouseOverRelevantElement(elementAtMouse);
+    const isScrollbarOrOutside = this._isScrollbarOrOutside(elementAtMouse, isOverPopup, isOverHighlight, isOverSubtitleWord);
+
+    const wasOverPopup = this.isMouseOverPopup;
+    const wasOverHighlight = this.highlightManager?.isMouseOverHighlight;
+
+    if (isScrollbarOrOutside) {
+      this._clearHoverStates();
+      if (wasOverPopup || wasOverHighlight) {
+        this.scheduleHidePopup();
+      }
+    } else {
+      this.isMouseOverPopup = isOverPopup;
+      if (this.highlightManager) {
+        this.highlightManager.isMouseOverHighlight = isOverHighlight || isOverSubtitleWord;
+      }
+
+      if ((wasOverPopup || wasOverHighlight) && !isOverPopup && !isOverHighlight && !isOverSubtitleWord) {
+        this.scheduleHidePopup();
+      }
+    }
+  }
+
+  _clearHoverStates() {
+    this.isMouseOverPopup = false;
+    if (this.highlightManager) {
+      this.highlightManager.isMouseOverHighlight = false;
+    }
+  }
+
+  /**
+   * Stop global mouse tracking
+   * @private
+   */
+  _stopGlobalMouseTracking() {
+    if (this.globalMouseMoveHandler) {
+      document.removeEventListener('mousemove', this.globalMouseMoveHandler);
+      this.globalMouseMoveHandler = null;
+    }
+
+    if (this.mouseLeaveHandler) {
+      document.removeEventListener('mouseleave', this.mouseLeaveHandler);
+      this.mouseLeaveHandler = null;
+    }
+
+    if (this.mouseCheckInterval) {
+      clearInterval(this.mouseCheckInterval);
+      this.mouseCheckInterval = null;
+    }
+  }
+
   scheduleHidePopup() {
     clearTimeout(this.hideTimeout);
 
-    // Don't auto-hide in persistent mode (unless this is a subtitle word popup)
     if (!this.isSubtitleWordPopup && this.settingsManager.shouldPreventAutoHide()) {
       return;
     }
 
-    // Hide popup after a short delay when mouse leaves both word and popup
-    // 100ms is enough time for mouse travel while feeling more responsive
     this.hideTimeout = setTimeout(() => {
-      // For both subtitle words and regular words, only hide if mouse is not over popup or highlight
       if (!this.isMouseOverPopup && !this.highlightManager.isMouseOverHighlight) {
         this.hidePopup();
         this.highlightManager.removeLookupHighlight();
       }
-    }, 100);
+    }, 50);
   }
 
   hidePopup(event) {
-    if (!this.popup) {
-      return;
-    }
-    if (event?.target && this.popup.contains(event.target)) {
+    if (!this.popup || (event?.target && this.popup.contains(event.target))) {
       return;
     }
 
     clearTimeout(this.hideTimeout);
     this.settingsManager.onPopupDestroyed();
+    this._stopGlobalMouseTracking();
 
-    // Clean up keyboard listener
-    if (PopupEventHandler && PopupEventHandler.cleanupKeyboardListener) {
+    if (PopupEventHandler?.cleanupKeyboardListener) {
       PopupEventHandler.cleanupKeyboardListener();
     }
 
@@ -223,27 +347,24 @@ class PopupManager {
 
   removeAllPopupsFromPage() {
     const allPopups = document.querySelectorAll('.chinese-lang-extension-popup');
-    allPopups.forEach(popup => {
-      if (popup.parentNode) {
-        popup.remove();
-      }
-    });
-    // Clean up keyboard listener
-    if (PopupEventHandler && PopupEventHandler.cleanupKeyboardListener) {
+    allPopups.forEach(popup => popup.parentNode?.remove());
+
+    this._stopGlobalMouseTracking();
+
+    if (PopupEventHandler?.cleanupKeyboardListener) {
       PopupEventHandler.cleanupKeyboardListener();
     }
+
     this._resetState();
   }
 
   _resetState() {
     this.popup = null;
-    this.currentCharacter = null; // Clear current character
+    this.currentCharacter = null;
     this.isMouseOverPopup = false;
-    this.isSubtitleWordPopup = false; // Reset subtitle word flag
-    // Clear any pending timers
+    this.isSubtitleWordPopup = false;
     clearTimeout(this.hideTimeout);
     this.hideTimeout = null;
-    // Don't reset popupCreationInProgress here - let it be reset by the next creation
   }
   incrementSessionCounter() {
     if (window.chrome && chrome.storage && chrome.storage.local) {

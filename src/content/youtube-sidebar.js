@@ -1829,15 +1829,20 @@ class YouTubeSidebar {
   /**
    * Show sidebar
    * Uses the new modular architecture to cleanly handle layout and positioning
-   * IMPORTANT: Forces theater mode before showing sidebar
+   * IMPORTANT: Forces theater mode before showing sidebar and keeps it enforced
    */
   async show() {
     if (!this.sidebar) return;
 
-    // CRITICAL: Force theater mode FIRST (sidebar only works in theater mode)
-    const theaterEnabled = await this.theaterModeController.enable();
+    // CRITICAL: Force theater mode FIRST with enforcement enabled
+    // The enforcement will continuously ensure theater mode stays enabled
+    // Pass true to enable continuous enforcement
+    const theaterEnabled = await this.theaterModeController.enable(true);
     if (!theaterEnabled) {
       console.warn('[Helios YouTube Sidebar] Failed to enable theater mode, sidebar may not display correctly');
+      // Even if initial enable failed, enforcement may recover it
+    } else {
+      console.log('[Helios YouTube Sidebar] Theater mode enabled with enforcement active');
     }
 
     // Remove hidden class from sidebar
