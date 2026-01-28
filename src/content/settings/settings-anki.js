@@ -552,6 +552,8 @@ class HeliosSettingsAnki {
     const autoMappings = {
       Front: "expression",
       Back: "meaning",
+      "Target Word": "expression",
+      Word: "expression",
       Expression: "expression",
       Chinese: "expression",
       Character: "expression",
@@ -1035,7 +1037,13 @@ class HeliosSettingsAnki {
       let expressionField = null;
       let isRubyText = false;
 
+      // Only consider mappings for fields that actually exist
+      const validFields = new Set(this.currentNoteTypeFields || []);
+
       for (const [fieldName, mapping] of Object.entries(fieldMappings)) {
+        if (!validFields.has(fieldName)) {
+          continue;
+        }
         if (mapping === "expression") {
           expressionField = fieldName;
           isRubyText = false;

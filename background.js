@@ -735,6 +735,7 @@ class BackgroundService {
 
       // Second pass: Extract only the expression field and calculate maxInterval
       const expressions = [];
+      let debugNoteCount = 0;
 
       for (let i = 0; i < noteIds.length; i += BATCH_SIZE) {
         const batchNoteIds = noteIds.slice(i, i + BATCH_SIZE);
@@ -745,6 +746,18 @@ class BackgroundService {
           const fields = note.fields || {};
           const expressionFieldData = fields[expressionField];
           const expression = expressionFieldData?.value || "";
+
+          // Extra debug for the first few notes so we can see what Anki is returning
+          if (debugNoteCount < 5) {
+            console.log("🃏 Note fields debug:", {
+              noteId: note.noteId || note.id,
+              availableFieldNames: Object.keys(fields),
+              requestedExpressionField: expressionField,
+              expressionFieldData,
+              rawExpressionValue: expression
+            });
+            debugNoteCount++;
+          }
 
           if (!expression) continue;
 
