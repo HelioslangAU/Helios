@@ -1786,11 +1786,14 @@ class YouTubeSidebar {
     this._showNotification('Loading available captions...', 'info');
 
     try {
-      const tracks = await youtubeLoader.getAvailableTracks();
+      let tracks = await youtubeLoader.getAvailableTracks();
 
-      if (tracks.length === 0) {
-        this._showNotification('No caption tracks available', 'error');
-        return;
+      // If there are no existing YouTube caption tracks, still open the selector
+      // so the user can use the "Import File" option to add their own subtitles.
+      if (!tracks || tracks.length === 0) {
+        console.log('[Helios YouTube Sidebar] No built-in caption tracks available, showing import-only selector');
+        this._showNotification('No built-in captions found. You can import your own file.', 'info');
+        tracks = [];
       }
 
       // Create or get subtitle selector modal

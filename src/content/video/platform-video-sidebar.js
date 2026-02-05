@@ -1821,11 +1821,14 @@ class PlatformVideoSidebar {
     this._showNotification('Loading available captions...', 'info');
 
     try {
-      const tracks = await platformLoader.getAvailableTracks();
+      let tracks = await platformLoader.getAvailableTracks();
 
-      if (tracks.length === 0) {
-        this._showNotification('No caption tracks available', 'error');
-        return;
+      // If there are no existing tracks, still open the selector so the user
+      // can use the "Import File" option to add their own subtitles.
+      if (!tracks || tracks.length === 0) {
+        console.log('[Helios Platform Sidebar] No built-in caption tracks available, showing import-only selector');
+        this._showNotification('No built-in captions found. You can import your own file.', 'info');
+        tracks = [];
       }
 
       console.log('[Helios Platform Sidebar] Available tracks:', tracks.length);
