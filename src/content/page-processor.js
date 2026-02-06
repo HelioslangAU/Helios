@@ -351,19 +351,22 @@ class PageProcessor {
     }
 
     const adapter = this.languageRegistry.getAdapter();
-    const allWords = adapter ? await adapter.extractWords(subtitleText, this.dictionaryManager.dictionary) : [];
-    
+
+    // Cache segmentation results so we don't rerun jieba for every vocab change
+    if (!this._subtitleWordsCache || this._subtitleWordsCache.text !== subtitleText) {
+      const allWords = adapter ? await adapter.extractWords(subtitleText, this.dictionaryManager.dictionary) : [];
+      this._subtitleWordsCache = {
+        text: subtitleText,
+        allWords
+      };
+    }
+
+    const allWords = this._subtitleWordsCache.allWords || [];
     // Filter to only target language words (exclude punctuation, spaces, non-target language)
     const words = allWords.filter(({ isTargetLang }) => isTargetLang !== false);
     
     let totalWords = words.length;
     let knownWords = words.filter(({ word }) => this.vocabManager.isWordKnown(word)).length;
-
-    // Print all unknown words to console
-    const unknownWords = words
-      .filter(({ word }) => !this.vocabManager.isWordKnown(word))
-      .map(({ word }) => word);
-    console.log('📝 Unknown words:', unknownWords);
 
     // Store totals for sidebar access
     this.lastTotalWords = totalWords;

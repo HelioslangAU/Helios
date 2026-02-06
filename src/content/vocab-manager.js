@@ -266,6 +266,7 @@ class VocabManager {
   }
 
   async markWordAsKnown(word) {
+    const t0 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
     const normalizedWord = this.normalizeWord(word);
     if (!normalizedWord) return;
     
@@ -304,8 +305,13 @@ class VocabManager {
             this.getCurrentLanguageIgnoredWords().add(normalizedWord);
             console.log(`Marked non-lemma word as ignored (${this.currentLanguage}):`, normalizedWord);
             
+            const saveT0 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
             await this.saveKnownWords();
+            const saveT1 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
+            console.log('[Helios VocabManager] saveKnownWords (non-lemma) took', (saveT1 - saveT0).toFixed(1), 'ms');
             this.notifySidebarUpdate(normalizedBaseForm, true);
+            const t1 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
+            console.log('[Helios VocabManager] markWordAsKnown (non-lemma)', normalizedWord, '->', normalizedBaseForm, 'total', (t1 - t0).toFixed(1), 'ms');
             return;
           }
         }
@@ -317,42 +323,65 @@ class VocabManager {
     this.getCurrentLanguageLearningWords().delete(normalizedWord);
     this.getCurrentLanguageIgnoredWords().delete(normalizedWord);
     this.getCurrentLanguageKnownWords().add(normalizedWord);
+    const saveT0 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
     await this.saveKnownWords();
+    const saveT1 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
+    console.log('[Helios VocabManager] saveKnownWords (known)', normalizedWord, 'took', (saveT1 - saveT0).toFixed(1), 'ms');
     console.log(`Marked word as known (${this.currentLanguage}):`, normalizedWord);
     this.notifySidebarUpdate(normalizedWord, true);
+    const t1 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
+    console.log('[Helios VocabManager] markWordAsKnown total for', normalizedWord, 'took', (t1 - t0).toFixed(1), 'ms');
   }
 
   async markWordAsUnknown(word) {
+    const t0 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
     const normalizedWord = this.normalizeWord(word);
     if (!normalizedWord) return;
     // Remove from all other states when marking as unknown
     this.getCurrentLanguageKnownWords().delete(normalizedWord);
     this.getCurrentLanguageLearningWords().delete(normalizedWord);
     this.getCurrentLanguageIgnoredWords().delete(normalizedWord);
+    const saveT0 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
     await this.saveKnownWords();
+    const saveT1 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
+    console.log('[Helios VocabManager] saveKnownWords (unknown)', normalizedWord, 'took', (saveT1 - saveT0).toFixed(1), 'ms');
     console.log(`Marked word as unknown (${this.currentLanguage}):`, normalizedWord);
     this.notifySidebarUpdate(normalizedWord, false);
+    const t1 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
+    console.log('[Helios VocabManager] markWordAsUnknown total for', normalizedWord, 'took', (t1 - t0).toFixed(1), 'ms');
   }
 
   async markWordAsIgnored(word) {
+    const t0 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
     const normalizedWord = this.normalizeWord(word);
     if (!normalizedWord) return;
     // Remove from known and learning when marking as ignored
     this.getCurrentLanguageKnownWords().delete(normalizedWord);
     this.getCurrentLanguageLearningWords().delete(normalizedWord);
     this.getCurrentLanguageIgnoredWords().add(normalizedWord);
+    const saveT0 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
     await this.saveKnownWords();
+    const saveT1 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
+    console.log('[Helios VocabManager] saveKnownWords (ignored)', normalizedWord, 'took', (saveT1 - saveT0).toFixed(1), 'ms');
     console.log(`Marked word as ignored (${this.currentLanguage}):`, normalizedWord);
     this.notifySidebarUpdate(normalizedWord, true);
+    const t1 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
+    console.log('[Helios VocabManager] markWordAsIgnored total for', normalizedWord, 'took', (t1 - t0).toFixed(1), 'ms');
   }
 
   async markWordAsUnignored(word) {
+    const t0 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
     const normalizedWord = this.normalizeWord(word);
     if (!normalizedWord) return;
     this.getCurrentLanguageIgnoredWords().delete(normalizedWord);
+    const saveT0 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
     await this.saveKnownWords();
+    const saveT1 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
+    console.log('[Helios VocabManager] saveKnownWords (unignored)', normalizedWord, 'took', (saveT1 - saveT0).toFixed(1), 'ms');
     console.log(`Marked word as unignored (${this.currentLanguage}):`, normalizedWord);
     this.notifySidebarUpdate(normalizedWord, false);
+    const t1 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
+    console.log('[Helios VocabManager] markWordAsUnignored total for', normalizedWord, 'took', (t1 - t0).toFixed(1), 'ms');
   }
 
   isWordKnown(word) {
@@ -368,24 +397,36 @@ class VocabManager {
   }
 
   async markWordAsLearning(word) {
+    const t0 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
     const normalizedWord = this.normalizeWord(word);
     if (!normalizedWord) return;
     // Remove from known and ignored when marking as learning
     this.getCurrentLanguageKnownWords().delete(normalizedWord);
     this.getCurrentLanguageIgnoredWords().delete(normalizedWord);
     this.getCurrentLanguageLearningWords().add(normalizedWord);
+    const saveT0 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
     await this.saveKnownWords();
+    const saveT1 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
+    console.log('[Helios VocabManager] saveKnownWords (learning)', normalizedWord, 'took', (saveT1 - saveT0).toFixed(1), 'ms');
     console.log(`Marked word as learning (${this.currentLanguage}):`, normalizedWord);
     this.notifySidebarUpdate(normalizedWord, true);
+    const t1 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
+    console.log('[Helios VocabManager] markWordAsLearning total for', normalizedWord, 'took', (t1 - t0).toFixed(1), 'ms');
   }
 
   async markWordAsUnlearning(word) {
+    const t0 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
     const normalizedWord = this.normalizeWord(word);
     if (!normalizedWord) return;
     this.getCurrentLanguageLearningWords().delete(normalizedWord);
+    const saveT0 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
     await this.saveKnownWords();
+    const saveT1 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
+    console.log('[Helios VocabManager] saveKnownWords (unlearning)', normalizedWord, 'took', (saveT1 - saveT0).toFixed(1), 'ms');
     console.log(`Marked word as unlearning (${this.currentLanguage}):`, normalizedWord);
     this.notifySidebarUpdate(normalizedWord, false);
+    const t1 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
+    console.log('[Helios VocabManager] markWordAsUnlearning total for', normalizedWord, 'took', (t1 - t0).toFixed(1), 'ms');
   }
 
   isWordLearning(word) {
@@ -460,8 +501,11 @@ class VocabManager {
     const finalSize = currentSet.size;
     const newWordsCount = finalSize - initialSize;
     
+    const saveT0 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
     await this.saveKnownWords();
+    const saveT1 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
     const finalLearningSize = currentLearningSet.size;
+    console.log('[Helios VocabManager] saveKnownWords (multi-known) took', (saveT1 - saveT0).toFixed(1), 'ms', 'for', processedWordsCount, 'processed words');
     console.log(`Marked multiple words as known (${this.currentLanguage}):`, words);
     if (canValidate) {
       console.log(`Known: Initial ${initialSize}, Final ${finalSize}, New ${newWordsCount}, Processed ${processedWordsCount}, Skipped ${skippedWordsCount}`);
@@ -483,7 +527,10 @@ class VocabManager {
         currentSet.delete(normalizedWord);
       }
     });
+    const saveT0 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
     await this.saveKnownWords();
+    const saveT1 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
+    console.log('[Helios VocabManager] saveKnownWords (multi-unknown) took', (saveT1 - saveT0).toFixed(1), 'ms', 'for', words.length, 'words');
     console.log(`Marked multiple words as unknown (${this.currentLanguage}):`, words);
     this.notifySidebarUpdate(words, false);
   }
@@ -531,7 +578,10 @@ class VocabManager {
     const finalSize = currentLearningSet.size;
     const newWordsCount = finalSize - initialSize;
     
+    const saveT0 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
     await this.saveKnownWords();
+    const saveT1 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
+    console.log('[Helios VocabManager] saveKnownWords (multi-learning) took', (saveT1 - saveT0).toFixed(1), 'ms', 'for', processedWordsCount, 'processed words');
     console.log(`Marked multiple words as learning (${this.currentLanguage}):`, words);
     if (canValidate) {
       console.log(`Initial size: ${initialSize}, Final size: ${finalSize}, New words: ${newWordsCount}, Processed: ${processedWordsCount}, Skipped: ${skippedWordsCount}`);
@@ -543,6 +593,31 @@ class VocabManager {
   }
 
   notifySidebarUpdate(changedWords = null, isKnownOrIgnored = true) {
+    const t0 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
+    // Normalize changedWords to a deduplicated array (or null) so listeners can use it efficiently
+    let wordsArray = null;
+    if (Array.isArray(changedWords)) {
+      if (changedWords.length > 0) {
+        // Deduplicate while preserving order
+        const seen = new Set();
+        wordsArray = changedWords.filter(word => {
+          if (!word) return false;
+          if (seen.has(word)) return false;
+          seen.add(word);
+          return true;
+        });
+      }
+    } else if (changedWords) {
+      wordsArray = [changedWords];
+    }
+
+    const totalChanged = wordsArray ? wordsArray.length : 0;
+    if (totalChanged > 0) {
+      console.log('[Helios VocabManager] notifySidebarUpdate for', totalChanged, 'words:', wordsArray);
+    } else {
+      console.log('[Helios VocabManager] notifySidebarUpdate with full-page fallback (no specific changedWords)');
+    }
+
     // Notify sidebar manager of vocabulary changes
     if (window.sidebarManager && window.sidebarManager.onVocabUpdate) {
       // Use a small delay to ensure processing is complete
@@ -552,18 +627,26 @@ class VocabManager {
     }
 
     // Also trigger page highlight update, but avoid full reprocess when we know the words
-    if (changedWords && window.pageProcessor && window.pageProcessor.updateWordStyling) {
-      const wordsArray = Array.isArray(changedWords) ? changedWords : [changedWords];
+    if (wordsArray && window.pageProcessor && window.pageProcessor.updateWordStyling) {
       wordsArray.forEach(word => window.pageProcessor.updateWordStyling(word, isKnownOrIgnored));
-    } else if (window.pageProcessor && window.pageProcessor.reprocessPage) {
+    } else if (!wordsArray && window.pageProcessor && window.pageProcessor.reprocessPage) {
       // Fallback: full reprocess when we don't know which words changed
+      console.warn('[Helios VocabManager] Triggering full pageProcessor.reprocessPage() due to missing changedWords');
       requestAnimationFrame(() => {
         window.pageProcessor.reprocessPage();
       });
     }
 
-    // Dispatch custom event for video subtitle underlining updates
-    document.dispatchEvent(new CustomEvent('helios-vocab-updated'));
+    // Dispatch custom event for video subtitle underlining updates, including detail payload
+    document.dispatchEvent(new CustomEvent('helios-vocab-updated', {
+      detail: {
+        words: wordsArray,
+        isKnownOrIgnored
+      }
+    }));
+
+    const t1 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
+    console.log('[Helios VocabManager] notifySidebarUpdate total took', (t1 - t0).toFixed(1), 'ms');
   }
 
   getKnownWordsCount() {

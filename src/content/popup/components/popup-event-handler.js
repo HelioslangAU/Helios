@@ -585,19 +585,9 @@ class PopupEventHandler {
 
   static updateSideTabStats() {
     // Update side tab stats after marking words
-    if (window.bannerManager && window.pageProcessor && window.vocabManager) {
-      // Small delay to ensure vocab changes are saved first
-      setTimeout(() => {
-        const comprehension = window.pageProcessor.calculateComprehensionPercentage();
-        const knownWords = window.vocabManager.getKnownWordsCount();
-
-        window.bannerManager.updateStats({
-          knownWords: knownWords,
-          comprehension: comprehension
-        });
-
-        console.log("📊 Side tab stats updated - Known words:", knownWords, "Comprehension:", comprehension + "%");
-      }, 100);
+    // Delegate to BannerManager's debounced refresh logic to avoid duplicate heavy calculations
+    if (window.bannerManager && typeof window.bannerManager.refreshData === 'function') {
+      window.bannerManager.refreshData();
     }
   }
 }

@@ -247,9 +247,15 @@ class YouTubeSidebar {
     });
 
     // Listen for vocabulary updates to refresh underlining
-    document.addEventListener('helios-vocab-updated', () => {
+    document.addEventListener('helios-vocab-updated', (e) => {
+      const detail = e && e.detail;
+      const rawWords = detail ? detail.words : null;
+      const changedWords = Array.isArray(rawWords) || typeof rawWords === 'string'
+        ? rawWords
+        : null;
+
       // Update underlining without full re-render to avoid jarring refresh
-      this._updateUnderlining().catch(err => {
+      this._updateUnderlining(changedWords).catch(err => {
         console.error('[Helios YouTube Sidebar] Error updating underlining:', err);
       });
     });
@@ -1568,10 +1574,74 @@ class YouTubeSidebar {
   /**
    * Update underlining on existing word spans without re-rendering
    * This preserves scroll position and avoids jarring refresh
+   * @param {string|string[]|null} changedWords - Optional word or list of words whose state changed
    */
-  async _updateUnderlining() {
+  async _updateUnderlining(changedWords = null) {
     if (!this.listContainer || !window.vocabManager || !window.dictionaryManager) return;
 
+    const t0 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
+
+    const hasChangedWords = Array.isArray(changedWords)
+      ? changedWords.length > 0
+      : !!changedWords;
+
+    // Fast path: only update spans for specific changed words
+    if (hasChangedWords) {
+      const wordsArray = Array.isArray(changedWords) ? changedWords : [changedWords];
+      const normalizedWords = Array.from(new Set(
+        wordsArray
+          .map(w => (w && typeof w === 'string' ? w.toLowerCase() : null))
+          .filter(Boolean)
+      ));
+
+      if (normalizedWords.length === 0) {
+        return;
+      }
+
+      const dictionary = window.dictionaryManager.dictionary || {};
+      const hasCssEscape = window.CSS && typeof window.CSS.escape === 'function';
+
+      normalizedWords.forEach(cleanWord => {
+        let wordSpans;
+        if (hasCssEscape) {
+          const selector = `.yt-subtitle-word[data-helios-word="${CSS.escape(cleanWord)}"]`;
+          wordSpans = this.listContainer.querySelectorAll(selector);
+        } else {
+          // Fallback: scan all subtitle word spans when CSS.escape is unavailable
+          const allSpans = this.listContainer.querySelectorAll('.yt-subtitle-word');
+          wordSpans = Array.from(allSpans).filter(span => {
+            const spanWord = (span.getAttribute('data-helios-word') || span.textContent || '').toLowerCase();
+            return spanWord === cleanWord;
+          });
+        }
+
+        let updatedCount = 0;
+        wordSpans.forEach(wordSpan => {
+          const shouldUnderline = dictionary[cleanWord] &&
+                                 !window.vocabManager.isWordKnown(cleanWord) &&
+                                 !window.vocabManager.isWordIgnored(cleanWord) &&
+                                 !window.vocabManager.isWordLearning(cleanWord);
+
+          // Remove all word state classes first
+          wordSpan.classList.remove('unknown-word', 'learning-word');
+          
+          if (shouldUnderline) {
+            wordSpan.classList.add('unknown-word');
+          } else if (window.vocabManager.isWordLearning(cleanWord)) {
+            wordSpan.classList.add('learning-word');
+          }
+          updatedCount++;
+        });
+        console.log('[Helios YouTube Sidebar] Fast-path underlining update for word', cleanWord, '- spans updated:', updatedCount);
+      });
+
+      const t1 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
+      console.log('[Helios YouTube Sidebar] _updateUnderlining fast-path for', normalizedWords.length, 'word(s) took', (t1 - t0).toFixed(1), 'ms');
+      return;
+    }
+
+    // Fallback: full update of all subtitle word spans (used for bulk operations)
+    console.warn('[Helios YouTube Sidebar] Falling back to full O(N) underlining update for all subtitle words');
     const wordSpans = this.listContainer.querySelectorAll('.yt-subtitle-word');
     const wordsToCheck = Array.from(wordSpans).map(span => {
       const word = span.textContent || span.getAttribute('data-helios-word');
@@ -1585,6 +1655,7 @@ class YouTubeSidebar {
 
     const dictionary = window.dictionaryManager.dictionary || {};
 
+    let updatedCount = 0;
     wordSpans.forEach(wordSpan => {
       const word = wordSpan.textContent || wordSpan.getAttribute('data-helios-word');
       if (!word) return;
@@ -1603,7 +1674,11 @@ class YouTubeSidebar {
       } else if (window.vocabManager.isWordLearning(cleanWord)) {
         wordSpan.classList.add('learning-word');
       }
+      updatedCount++;
     });
+
+    const t1 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
+    console.log('[Helios YouTube Sidebar] Full O(N) underlining update touched', wordSpans.length, 'spans, updated', updatedCount, 'spans in', (t1 - t0).toFixed(1), 'ms');
   }
 
   /**

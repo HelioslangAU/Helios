@@ -96,7 +96,15 @@ class BannerManager {
             const subtitleText = this.getVideoSubtitleText();
             
             if (subtitleText !== null) {
-                // Video subtitles are active - calculate words from subtitle text
+                // Video subtitles are active - reuse PageProcessor's cached totals
+                if (window.pageProcessor && typeof window.pageProcessor.getTotalWordsCount === 'function') {
+                    const cachedTotal = window.pageProcessor.getTotalWordsCount();
+                    if (cachedTotal && Number.isFinite(cachedTotal)) {
+                        return cachedTotal;
+                    }
+                }
+
+                // Fallback: if cache is not available yet, derive from adapter once
                 const adapter = window.languageRegistry?.getAdapter();
                 if (adapter) {
                     const words = await adapter.extractWords(subtitleText, window.dictionaryManager?.dictionary || {});
