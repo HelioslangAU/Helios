@@ -192,6 +192,7 @@ class YouTubeSidebar {
       this.increaseSizeBtn = this.sidebar.querySelector('#yt-increase-size-btn');
       this.decreaseSizeBtn = this.sidebar.querySelector('#yt-decrease-size-btn');
       this.sizeInput = this.sidebar.querySelector('#yt-size-input');
+      this.opacityInput = this.sidebar.querySelector('#yt-opacity-input');
 
       // Navigation behavior settings elements
       this.autoPlayToggle = this.sidebar.querySelector('#yt-auto-play-toggle');
@@ -821,6 +822,17 @@ class YouTubeSidebar {
         e.preventDefault();
       });
     }
+
+    // Background opacity control
+    if (this.opacityInput) {
+      const applyOpacity = (pct) => {
+        if (this.videoBinding && this.videoBinding.overlay && !isNaN(pct) && pct >= 0 && pct <= 100) {
+          this.videoBinding.overlay.setSubtitleBackgroundOpacity(pct / 100);
+        }
+      };
+      this.opacityInput.addEventListener('change', (e) => applyOpacity(parseInt(e.target.value, 10)));
+      this.opacityInput.addEventListener('input', (e) => applyOpacity(parseInt(e.target.value, 10)));
+    }
   }
 
   /**
@@ -996,6 +1008,12 @@ class YouTubeSidebar {
     if (this.sizeInput && this.videoBinding && this.videoBinding.overlay) {
       const currentSize = this.videoBinding.overlay.subtitleSize || 40;
       this.sizeInput.value = currentSize;
+    }
+
+    // Update background opacity input (0–100%)
+    if (this.opacityInput && this.videoBinding && this.videoBinding.overlay) {
+      const opacity = this.videoBinding.overlay.getSubtitleBackgroundOpacity();
+      this.opacityInput.value = Math.round((opacity !== undefined ? opacity : 0.4) * 100);
     }
 
     // Hotkey inputs removed - configure in main settings Video Player tab

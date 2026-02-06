@@ -202,6 +202,7 @@ class PlatformVideoSidebar {
       this.increaseSizeBtn = this.sidebar.querySelector('#yt-increase-size-btn');
       this.decreaseSizeBtn = this.sidebar.querySelector('#yt-decrease-size-btn');
       this.sizeInput = this.sidebar.querySelector('#yt-size-input');
+      this.opacityInput = this.sidebar.querySelector('#yt-opacity-input');
 
       // Get hotkey input elements
       this.hotkeyPrevInput = this.sidebar.querySelector('#yt-hotkey-prev');
@@ -1029,6 +1030,17 @@ class PlatformVideoSidebar {
         this._adjustSubtitleSize(delta);
       }, { passive: false });
     }
+
+    // Background opacity control
+    if (this.opacityInput) {
+      const applyOpacity = (pct) => {
+        if (this.videoBinding && this.videoBinding.overlay && !isNaN(pct) && pct >= 0 && pct <= 100) {
+          this.videoBinding.overlay.setSubtitleBackgroundOpacity(pct / 100);
+        }
+      };
+      this.opacityInput.addEventListener('change', (e) => applyOpacity(parseInt(e.target.value, 10)));
+      this.opacityInput.addEventListener('input', (e) => applyOpacity(parseInt(e.target.value, 10)));
+    }
   }
 
   /**
@@ -1139,6 +1151,12 @@ class PlatformVideoSidebar {
     if (this.sizeInput && this.videoBinding && this.videoBinding.overlay) {
       const currentSize = this.videoBinding.overlay.getSubtitleSize();
       this.sizeInput.value = currentSize;
+    }
+
+    // Update opacity input with current overlay background opacity (0–100%)
+    if (this.opacityInput && this.videoBinding && this.videoBinding.overlay) {
+      const opacity = this.videoBinding.overlay.getSubtitleBackgroundOpacity();
+      this.opacityInput.value = Math.round(opacity * 100);
     }
 
     if (this.hotkeyPrevInput) {

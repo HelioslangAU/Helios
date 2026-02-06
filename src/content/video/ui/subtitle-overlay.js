@@ -13,6 +13,7 @@ class SubtitleOverlay {
     this.offsetMs = 0;
     this.contentPositionOffset = 75; // Distance from bottom like ASB Player
     this.subtitleSize = 36; // Font size in pixels (ASBplayer default: 36px)
+    this.subtitleBackgroundOpacity = 0.4; // 0–1, black background behind subtitle text (matches video-styles.css)
     this.pauseOnHover = false; // Pause video when hovering over subtitle words
     this.pausedByHover = false; // Track if video is currently paused by hover feature
     this.resumeTimeout = null; // Timeout for delayed resume
@@ -723,6 +724,12 @@ class SubtitleOverlay {
         this.subtitleSize = subtitleSize;
       }
 
+      // Load saved background opacity (platform-specific)
+      const backgroundOpacity = platformSettings?.backgroundOpacity;
+      if (backgroundOpacity !== undefined) {
+        this.subtitleBackgroundOpacity = Math.max(0, Math.min(1, backgroundOpacity));
+      }
+
       // Load saved visibility state (platform-specific or legacy)
       const visibility = platformSettings?.visibility !== undefined ? platformSettings.visibility : result.subtitleVisibility;
       if (visibility !== undefined) {
@@ -809,6 +816,27 @@ class SubtitleOverlay {
       console.log(`[Helios Subtitle Overlay] Saved size for ${platform}:`, this.subtitleSize);
     } catch (error) {
       console.error('[Helios Subtitle Overlay] Failed to save size:', error);
+    }
+  }
+
+  /**
+   * Save background opacity to storage (platform-specific)
+   */
+  async _saveBackgroundOpacity() {
+    try {
+      const platform = this._detectPlatform();
+
+      const result = await chrome.storage.local.get(['subtitleSettings']);
+      const subtitleSettings = result.subtitleSettings || {};
+
+      if (!subtitleSettings[platform]) {
+        subtitleSettings[platform] = {};
+      }
+      subtitleSettings[platform].backgroundOpacity = this.subtitleBackgroundOpacity;
+
+      await chrome.storage.local.set({ subtitleSettings });
+    } catch (error) {
+      console.error('[Helios Subtitle Overlay] Failed to save background opacity:', error);
     }
   }
 
@@ -1220,6 +1248,7 @@ class SubtitleOverlay {
       primarySubtitleEl.className = 'helios-subtitle-text helios-subtitle-primary';
       primarySubtitleEl.setAttribute('data-subtitle-index', subtitle.index);
       primarySubtitleEl.style.fontSize = this.subtitleSize + 'px'; // Apply saved font size (ASBplayer-style)
+      primarySubtitleEl.style.background = 'rgba(0, 0, 0, ' + this.subtitleBackgroundOpacity + ')';
 
       // Extract words using language adapter (handles Chinese, English, etc.)
       const adapter = window.languageRegistry?.getAdapter();
@@ -1379,6 +1408,7 @@ class SubtitleOverlay {
           secondarySubtitleEl.className = 'helios-subtitle-text helios-subtitle-secondary';
           secondarySubtitleEl.textContent = matchingSecondary.text;
           secondarySubtitleEl.style.fontSize = (this.subtitleSize * 0.8) + 'px'; // Secondary subtitles 80% of primary size
+          secondarySubtitleEl.style.background = 'rgba(0, 0, 0, ' + Math.min(1, this.subtitleBackgroundOpacity * 1.1) + ')'; // Slightly more opaque than primary
           secondarySubtitleEl.style.userSelect = 'text';
           dualContainer.appendChild(secondarySubtitleEl);
         }
@@ -1553,6 +1583,24 @@ class SubtitleOverlay {
 
     // Save to settings
     this._saveSize();
+  }
+
+  /**
+   * Get current subtitle background opacity (0–1)
+   */
+  getSubtitleBackgroundOpacity() {
+    return this.subtitleBackgroundOpacity;
+  }
+
+  /**
+   * Set subtitle background opacity (0–1)
+   */
+  setSubtitleBackgroundOpacity(opacity) {
+    const clamped = Math.max(0, Math.min(1, opacity));
+    this.subtitleBackgroundOpacity = clamped;
+
+    this._render();
+    this._saveBackgroundOpacity();
   }
 
   /**
