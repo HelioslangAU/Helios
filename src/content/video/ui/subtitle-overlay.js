@@ -13,6 +13,7 @@ class SubtitleOverlay {
     this.offsetMs = 0;
     this.contentPositionOffset = 75; // Distance from bottom like ASB Player
     this.subtitleSize = 36; // Font size in pixels (ASBplayer default: 36px)
+    this.subtitleBackgroundOpacity = 0.4; // 0–1, black background behind subtitle text (matches video-styles.css)
     this.pauseOnHover = false; // Pause video when hovering over subtitle words
     this.pausedByHover = false; // Track if video is currently paused by hover feature
     this.resumeTimeout = null; // Timeout for delayed resume
@@ -723,6 +724,12 @@ class SubtitleOverlay {
         this.subtitleSize = subtitleSize;
       }
 
+      // Load saved background opacity (platform-specific)
+      const backgroundOpacity = platformSettings?.backgroundOpacity;
+      if (backgroundOpacity !== undefined) {
+        this.subtitleBackgroundOpacity = Math.max(0, Math.min(1, backgroundOpacity));
+      }
+
       // Load saved visibility state (platform-specific or legacy)
       const visibility = platformSettings?.visibility !== undefined ? platformSettings.visibility : result.subtitleVisibility;
       if (visibility !== undefined) {
@@ -813,6 +820,27 @@ class SubtitleOverlay {
   }
 
   /**
+   * Save background opacity to storage (platform-specific)
+   */
+  async _saveBackgroundOpacity() {
+    try {
+      const platform = this._detectPlatform();
+
+      const result = await chrome.storage.local.get(['subtitleSettings']);
+      const subtitleSettings = result.subtitleSettings || {};
+
+      if (!subtitleSettings[platform]) {
+        subtitleSettings[platform] = {};
+      }
+      subtitleSettings[platform].backgroundOpacity = this.subtitleBackgroundOpacity;
+
+      await chrome.storage.local.set({ subtitleSettings });
+    } catch (error) {
+      console.error('[Helios Subtitle Overlay] Failed to save background opacity:', error);
+    }
+  }
+
+  /**
    * Save visibility state to storage (persists across all videos)
    * Now platform-specific
    */
@@ -855,11 +883,17 @@ class SubtitleOverlay {
    * Setup listener for vocabulary updates to refresh underlining
    */
   _setupVocabUpdateListener() {
-    document.addEventListener('helios-vocab-updated', () => {
+    document.addEventListener('helios-vocab-updated', (e) => {
+      const detail = e && e.detail;
+      const rawWords = detail ? detail.words : null;
+      const changedWords = Array.isArray(rawWords) || typeof rawWords === 'string'
+        ? rawWords
+        : null;
+
       // Update underlining WITHOUT full re-render to preserve popup
       if (this.currentSubtitles.length > 0) {
         setTimeout(async () => {
-          await this._updateSubtitleUnderlining();
+          await this._updateSubtitleUnderlining(changedWords);
         }, 50);
       }
     });
@@ -881,9 +915,72 @@ class SubtitleOverlay {
    * Update underlining on existing subtitle words without re-rendering
    * Used when vocabulary changes to avoid closing popup
    */
-  async _updateSubtitleUnderlining() {
+  async _updateSubtitleUnderlining(changedWords = null) {
     if (!window.dictionaryManager || !window.vocabManager) return;
+
+    const t0 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
     
+    const hasChangedWords = Array.isArray(changedWords)
+      ? changedWords.length > 0
+      : !!changedWords;
+
+    // Fast path: only update spans for specific changed words
+    if (hasChangedWords) {
+      const wordsArray = Array.isArray(changedWords) ? changedWords : [changedWords];
+      const normalizedWords = Array.from(new Set(
+        wordsArray
+          .map(w => (w && typeof w === 'string' ? w.toLowerCase() : null))
+          .filter(Boolean)
+      ));
+
+      if (normalizedWords.length === 0) {
+        return;
+      }
+
+      const dictionary = window.dictionaryManager?.dictionary || {};
+      const hasCssEscape = window.CSS && typeof window.CSS.escape === 'function';
+
+      normalizedWords.forEach(cleanWord => {
+        let wordSpans;
+        if (hasCssEscape) {
+          const selector = `.helios-subtitle-word[data-helios-word="${CSS.escape(cleanWord)}"]`;
+          wordSpans = this.container.querySelectorAll(selector);
+        } else {
+          // Fallback: scan all subtitle word spans when CSS.escape is unavailable
+          const allSpans = this.container.querySelectorAll('.helios-subtitle-word');
+          wordSpans = Array.from(allSpans).filter(span => {
+            const spanWord = (span.getAttribute('data-helios-word') || '').toLowerCase();
+            return spanWord === cleanWord;
+          });
+        }
+
+        let updatedCount = 0;
+        wordSpans.forEach(wordSpan => {
+          // Remove existing word state classes
+          wordSpan.classList.remove('unknown-word', 'learning-word');
+
+          // Re-check if word should be underlined
+          if (window.vocabManager &&
+              dictionary[cleanWord] &&
+              !window.vocabManager.isWordKnown(cleanWord) &&
+              !window.vocabManager.isWordIgnored(cleanWord) &&
+              !window.vocabManager.isWordLearning(cleanWord)) {
+            wordSpan.classList.add('unknown-word');
+          } else if (window.vocabManager.isWordLearning(cleanWord)) {
+            wordSpan.classList.add('learning-word');
+          }
+          updatedCount++;
+        });
+        console.log('[Helios Subtitle Overlay] Fast-path underlining update for word', cleanWord, '- spans updated:', updatedCount);
+      });
+
+      const t1 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
+      console.log('[Helios Subtitle Overlay] _updateSubtitleUnderlining fast-path for', normalizedWords.length, 'word(s) took', (t1 - t0).toFixed(1), 'ms');
+      return;
+    }
+
+    // Fallback: full update of all subtitle word spans (used for bulk operations)
+    console.warn('[Helios Subtitle Overlay] Falling back to full O(N) underlining update for all subtitle words');
     const wordSpans = this.container.querySelectorAll('.helios-subtitle-word');
     const wordsToCheck = Array.from(wordSpans).map(span => {
       const word = span.getAttribute('data-helios-word');
@@ -897,6 +994,7 @@ class SubtitleOverlay {
 
     const dictionary = window.dictionaryManager?.dictionary || {};
     
+    let updatedCount = 0;
     wordSpans.forEach(wordSpan => {
       const word = wordSpan.getAttribute('data-helios-word');
       if (!word) return;
@@ -916,7 +1014,11 @@ class SubtitleOverlay {
       } else if (window.vocabManager.isWordLearning(cleanWord)) {
         wordSpan.classList.add('learning-word');
       }
+      updatedCount++;
     });
+
+    const t1 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
+    console.log('[Helios Subtitle Overlay] Full O(N) underlining update touched', wordSpans.length, 'spans, updated', updatedCount, 'spans in', (t1 - t0).toFixed(1), 'ms');
   }
 
   /**
@@ -1146,6 +1248,7 @@ class SubtitleOverlay {
       primarySubtitleEl.className = 'helios-subtitle-text helios-subtitle-primary';
       primarySubtitleEl.setAttribute('data-subtitle-index', subtitle.index);
       primarySubtitleEl.style.fontSize = this.subtitleSize + 'px'; // Apply saved font size (ASBplayer-style)
+      primarySubtitleEl.style.background = 'rgba(0, 0, 0, ' + this.subtitleBackgroundOpacity + ')';
 
       // Extract words using language adapter (handles Chinese, English, etc.)
       const adapter = window.languageRegistry?.getAdapter();
@@ -1305,6 +1408,7 @@ class SubtitleOverlay {
           secondarySubtitleEl.className = 'helios-subtitle-text helios-subtitle-secondary';
           secondarySubtitleEl.textContent = matchingSecondary.text;
           secondarySubtitleEl.style.fontSize = (this.subtitleSize * 0.8) + 'px'; // Secondary subtitles 80% of primary size
+          secondarySubtitleEl.style.background = 'rgba(0, 0, 0, ' + Math.min(1, this.subtitleBackgroundOpacity * 1.1) + ')'; // Slightly more opaque than primary
           secondarySubtitleEl.style.userSelect = 'text';
           dualContainer.appendChild(secondarySubtitleEl);
         }
@@ -1479,6 +1583,24 @@ class SubtitleOverlay {
 
     // Save to settings
     this._saveSize();
+  }
+
+  /**
+   * Get current subtitle background opacity (0–1)
+   */
+  getSubtitleBackgroundOpacity() {
+    return this.subtitleBackgroundOpacity;
+  }
+
+  /**
+   * Set subtitle background opacity (0–1)
+   */
+  setSubtitleBackgroundOpacity(opacity) {
+    const clamped = Math.max(0, Math.min(1, opacity));
+    this.subtitleBackgroundOpacity = clamped;
+
+    this._render();
+    this._saveBackgroundOpacity();
   }
 
   /**

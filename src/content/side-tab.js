@@ -33,17 +33,27 @@ class HeliosSideTab {
         this.partialComprehension = document.getElementById('partial-comprehension');
         this.partialKnownWords = document.getElementById('partial-known-words');
         this.partialPageWords = document.getElementById('partial-page-words');
+        this.partialUniqueComprehension = document.getElementById('partial-unique-comprehension');
+        this.partialT1Sentences = document.getElementById('partial-t1-sentences');
 
         // Stat elements - Full view
         this.fullComprehension = document.getElementById('full-comprehension');
         this.fullKnownWords = document.getElementById('full-known-words');
+        this.fullLearningWords = document.getElementById('full-learning-words');
+        this.fullIgnoredWords = document.getElementById('full-ignored-words');
         this.fullPageWords = document.getElementById('full-page-words');
         this.comprehensionProgress = document.getElementById('comprehension-progress');
+        this.fullUniqueComprehension = document.getElementById('full-unique-comprehension');
+        this.fullT1Sentences = document.getElementById('full-t1-sentences');
 
         // Data
         this.knownWordsCount = 0;
+        this.learningWordsCount = 0;
+        this.ignoredWordsCount = 0;
         this.comprehensionPercentage = 0;
         this.pageWordsCount = 0;
+        this.uniqueComprehensionPercentage = 0;
+        this.t1SentencePercentage = 0;
 
         // Position state
         this.position = 'right'; // 'left' or 'right'
@@ -272,7 +282,7 @@ class HeliosSideTab {
 
     /**
      * Update stats
-     * @param {Object} stats - { knownWords, comprehension, pageWords }
+     * @param {Object} stats - { knownWords, learningWords, ignoredWords, comprehension, pageWords, uniqueComprehension, t1SentencePercentage }
      */
     updateStats(stats) {
         // Re-query all elements to ensure fresh references
@@ -281,6 +291,16 @@ class HeliosSideTab {
         if (stats.knownWords !== undefined) {
             this.knownWordsCount = stats.knownWords;
             this.updateKnownWords(stats.knownWords);
+        }
+
+        if (stats.learningWords !== undefined) {
+            this.learningWordsCount = stats.learningWords;
+            this.updateLearningWords(stats.learningWords);
+        }
+
+        if (stats.ignoredWords !== undefined) {
+            this.ignoredWordsCount = stats.ignoredWords;
+            this.updateIgnoredWords(stats.ignoredWords);
         }
 
         if (stats.comprehension !== undefined) {
@@ -292,6 +312,14 @@ class HeliosSideTab {
             this.pageWordsCount = stats.pageWords;
             this.updatePageWords(stats.pageWords);
         }
+
+        if (stats.uniqueComprehension !== undefined) {
+            this.updateUniqueComprehension(stats.uniqueComprehension);
+        }
+
+        if (stats.t1SentencePercentage !== undefined) {
+            this.updateT1SentenceCoverage(stats.t1SentencePercentage);
+        }
     }
 
     /**
@@ -302,12 +330,18 @@ class HeliosSideTab {
         this.partialComprehension = document.getElementById('partial-comprehension');
         this.partialKnownWords = document.getElementById('partial-known-words');
         this.partialPageWords = document.getElementById('partial-page-words');
+        this.partialUniqueComprehension = document.getElementById('partial-unique-comprehension');
+        this.partialT1Sentences = document.getElementById('partial-t1-sentences');
 
         // Stat elements - Full view
         this.fullComprehension = document.getElementById('full-comprehension');
         this.fullKnownWords = document.getElementById('full-known-words');
+        this.fullLearningWords = document.getElementById('full-learning-words');
+        this.fullIgnoredWords = document.getElementById('full-ignored-words');
         this.fullPageWords = document.getElementById('full-page-words');
         this.comprehensionProgress = document.getElementById('comprehension-progress');
+        this.fullUniqueComprehension = document.getElementById('full-unique-comprehension');
+        this.fullT1Sentences = document.getElementById('full-t1-sentences');
 
         // Pinyin elements
         this.pinyinContainer = document.getElementById('pinyin-toggle-container');
@@ -327,7 +361,10 @@ class HeliosSideTab {
         }
 
         if (this.fullComprehension) {
-            this.fullComprehension.textContent = formatted;
+            const pctSpan = this.fullComprehension.querySelector('.stat-main-percentage');
+            if (pctSpan) {
+                pctSpan.textContent = formatted;
+            }
         }
 
         if (this.comprehensionProgress) {
@@ -341,13 +378,46 @@ class HeliosSideTab {
      */
     updateKnownWords(count) {
         const formatted = this.formatNumber(count);
+        const tooltipText = `${count} known words`;
 
         if (this.partialKnownWords) {
             this.partialKnownWords.textContent = formatted;
+            const item = this.partialKnownWords.closest('.partial-stat-item');
+            if (item) {
+                item.setAttribute('data-tooltip', tooltipText);
+            }
         }
 
         if (this.fullKnownWords) {
-            this.fullKnownWords.textContent = formatted;
+            // In expanded view, always show the exact count (with commas)
+            this.fullKnownWords.textContent = Number.isFinite(count)
+                ? count.toLocaleString()
+                : formatted;
+            this.fullKnownWords.title = tooltipText;
+        }
+    }
+
+    /**
+     * Update learning words display (expanded view only)
+     * @param {number} count
+     */
+    updateLearningWords(count) {
+        if (this.fullLearningWords) {
+            this.fullLearningWords.textContent = Number.isFinite(count)
+                ? count.toLocaleString()
+                : `${count}`;
+        }
+    }
+
+    /**
+     * Update ignored words display (expanded view only)
+     * @param {number} count
+     */
+    updateIgnoredWords(count) {
+        if (this.fullIgnoredWords) {
+            this.fullIgnoredWords.textContent = Number.isFinite(count)
+                ? count.toLocaleString()
+                : `${count}`;
         }
     }
 
@@ -364,6 +434,128 @@ class HeliosSideTab {
 
         if (this.fullPageWords) {
             this.fullPageWords.textContent = formatted;
+        }
+    }
+
+    /**
+     * Update unique-word comprehension display
+     * @param {number} percentage
+     */
+    updateUniqueComprehension(percentage) {
+        this.uniqueComprehensionPercentage = percentage;
+        const formatted = `${Math.round(percentage)}%`;
+
+        if (this.partialUniqueComprehension) {
+            this.partialUniqueComprehension.textContent = formatted;
+        }
+
+        if (this.fullUniqueComprehension) {
+            const pctSpan = this.fullUniqueComprehension.querySelector('.stat-main-percentage');
+            if (pctSpan) {
+                pctSpan.textContent = formatted;
+            }
+        }
+    }
+
+    /**
+     * Update the hover tooltip text for comprehension with raw counts.
+     * @param {number} knownTokens
+     * @param {number} totalTokens
+     */
+    updateComprehensionTooltip(knownTokens, totalTokens) {
+        const tooltipText = `${knownTokens}/${totalTokens} words known`;
+
+        // Partial view tooltip (CSS-driven via data-tooltip)
+        if (this.partialComprehension) {
+            const item = this.partialComprehension.closest('.partial-stat-item');
+            if (item) {
+                item.setAttribute('data-tooltip', tooltipText);
+            }
+        }
+
+        // Full view: show percentage + raw counts and native title tooltip
+        if (this.fullComprehension) {
+            const pctSpan = this.fullComprehension.querySelector('.stat-main-percentage');
+            const countSpan = this.fullComprehension.querySelector('.stat-secondary-count');
+            if (pctSpan) {
+                pctSpan.textContent = `${Math.round(this.comprehensionPercentage || 0)}%`;
+            }
+            if (countSpan) {
+                countSpan.textContent = `${knownTokens}/${totalTokens}`;
+            }
+            this.fullComprehension.title = tooltipText;
+        }
+    }
+
+    /**
+     * Update the hover tooltip text for unique-word stats with raw counts.
+     * @param {number} knownUnique
+     * @param {number} totalUnique
+     */
+    updateUniqueTooltip(knownUnique, totalUnique) {
+        const tooltipText = `${knownUnique}/${totalUnique} unique words known`;
+
+        // Partial view tooltip (CSS-driven via data-tooltip)
+        if (this.partialUniqueComprehension) {
+            const item = this.partialUniqueComprehension.closest('.partial-stat-item');
+            if (item) {
+                item.setAttribute('data-tooltip', tooltipText);
+            }
+        }
+
+        // Full view: show percentage + raw counts and native title tooltip
+        if (this.fullUniqueComprehension) {
+            const pctSpan = this.fullUniqueComprehension.querySelector('.stat-main-percentage');
+            const countSpan = this.fullUniqueComprehension.querySelector('.stat-secondary-count');
+            if (pctSpan) {
+                pctSpan.textContent = `${Math.round(this.uniqueComprehensionPercentage || 0)}%`;
+            }
+            if (countSpan) {
+                countSpan.textContent = `${knownUnique}/${totalUnique}`;
+            }
+            this.fullUniqueComprehension.title = tooltipText;
+        }
+    }
+
+    /**
+     * Update the hover tooltip and display for T1 sentence stats with raw counts.
+     * @param {number} t1Count
+     * @param {number} totalSentences
+     */
+    updateT1Tooltip(t1Count, totalSentences) {
+        const tooltipText = `${t1Count}/${totalSentences} sentences are T1 (all but one word known)`;
+
+        // Full view: show percentage + raw counts and native title tooltip
+        if (this.fullT1Sentences) {
+            const pctSpan = this.fullT1Sentences.querySelector('.stat-main-percentage');
+            const countSpan = this.fullT1Sentences.querySelector('.stat-secondary-count');
+            if (pctSpan) {
+                pctSpan.textContent = `${Math.round(this.t1SentencePercentage || 0)}%`;
+            }
+            if (countSpan) {
+                countSpan.textContent = `${t1Count}/${totalSentences}`;
+            }
+            this.fullT1Sentences.title = tooltipText;
+        }
+    }
+
+    /**
+     * Update T1 sentence coverage display
+     * @param {number} percentage
+     */
+    updateT1SentenceCoverage(percentage) {
+        this.t1SentencePercentage = percentage;
+        const formatted = `${Math.round(percentage)}%`;
+
+        if (this.partialT1Sentences) {
+            this.partialT1Sentences.textContent = formatted;
+        }
+
+        if (this.fullT1Sentences) {
+            const pctSpan = this.fullT1Sentences.querySelector('.stat-main-percentage');
+            if (pctSpan) {
+                pctSpan.textContent = formatted;
+            }
         }
     }
 
