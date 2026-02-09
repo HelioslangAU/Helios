@@ -703,6 +703,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     transition: all 0.3s var(--transition-timing);
@@ -745,12 +746,86 @@
     font-weight: 600;
 }
 
+.stat-card-subtitle {
+    font-size: 12px;
+    color: var(--helios-text-muted);
+    margin-top: 2px;
+}
+
+.vocab-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.vocab-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.vocab-item-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.vocab-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 9999px;
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.4);
+}
+
+.vocab-known-dot {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(52, 211, 153, 0.9));
+}
+
+.vocab-learning-dot {
+    /* Use same purple tone as learning underline (#9333ea) */
+    background: linear-gradient(135deg, rgba(147, 51, 234, 0.95), rgba(192, 132, 252, 0.9));
+}
+
+.vocab-ignored-dot {
+    background: linear-gradient(135deg, rgba(148, 163, 184, 0.95), rgba(148, 163, 184, 0.8));
+}
+
+.vocab-item-label {
+    font-size: 13px;
+    color: var(--helios-text-secondary);
+}
+
+.vocab-item-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--helios-text-primary);
+}
+
 .stat-card-value {
     font-size: 36px;
     font-weight: 900;
     color: var(--helios-text-primary);
     line-height: 1;
     letter-spacing: -1px;
+}
+
+.comprehension-value,
+#full-unique-comprehension,
+#full-t1-sentences {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+
+.stat-main-percentage {
+    text-align: left;
+}
+
+.stat-secondary-count {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--helios-text-muted);
+    text-align: right;
 }
 
 .comprehension-value {

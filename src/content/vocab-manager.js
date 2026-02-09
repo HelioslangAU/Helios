@@ -653,6 +653,14 @@ class VocabManager {
     return this.getCurrentLanguageKnownWords().size;
   }
 
+  getIgnoredWordsCount() {
+    return this.getCurrentLanguageIgnoredWords().size;
+  }
+
+  getLearningWordsCount() {
+    return this.getCurrentLanguageLearningWords().size;
+  }
+
   getAllKnownWords() {
     return [...this.getCurrentLanguageKnownWords()];
   }
