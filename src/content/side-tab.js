@@ -33,12 +33,16 @@ class HeliosSideTab {
         this.partialComprehension = document.getElementById('partial-comprehension');
         this.partialKnownWords = document.getElementById('partial-known-words');
         this.partialPageWords = document.getElementById('partial-page-words');
+        this.partialUniqueComprehension = document.getElementById('partial-unique-comprehension');
+        this.partialT1Sentences = document.getElementById('partial-t1-sentences');
 
         // Stat elements - Full view
         this.fullComprehension = document.getElementById('full-comprehension');
         this.fullKnownWords = document.getElementById('full-known-words');
         this.fullPageWords = document.getElementById('full-page-words');
         this.comprehensionProgress = document.getElementById('comprehension-progress');
+        this.fullUniqueComprehension = document.getElementById('full-unique-comprehension');
+        this.fullT1Sentences = document.getElementById('full-t1-sentences');
 
         // Data
         this.knownWordsCount = 0;
@@ -272,7 +276,7 @@ class HeliosSideTab {
 
     /**
      * Update stats
-     * @param {Object} stats - { knownWords, comprehension, pageWords }
+     * @param {Object} stats - { knownWords, comprehension, pageWords, uniqueComprehension, t1SentencePercentage }
      */
     updateStats(stats) {
         // Re-query all elements to ensure fresh references
@@ -292,6 +296,14 @@ class HeliosSideTab {
             this.pageWordsCount = stats.pageWords;
             this.updatePageWords(stats.pageWords);
         }
+
+        if (stats.uniqueComprehension !== undefined) {
+            this.updateUniqueComprehension(stats.uniqueComprehension);
+        }
+
+        if (stats.t1SentencePercentage !== undefined) {
+            this.updateT1SentenceCoverage(stats.t1SentencePercentage);
+        }
     }
 
     /**
@@ -302,12 +314,16 @@ class HeliosSideTab {
         this.partialComprehension = document.getElementById('partial-comprehension');
         this.partialKnownWords = document.getElementById('partial-known-words');
         this.partialPageWords = document.getElementById('partial-page-words');
+        this.partialUniqueComprehension = document.getElementById('partial-unique-comprehension');
+        this.partialT1Sentences = document.getElementById('partial-t1-sentences');
 
         // Stat elements - Full view
         this.fullComprehension = document.getElementById('full-comprehension');
         this.fullKnownWords = document.getElementById('full-known-words');
         this.fullPageWords = document.getElementById('full-page-words');
         this.comprehensionProgress = document.getElementById('comprehension-progress');
+        this.fullUniqueComprehension = document.getElementById('full-unique-comprehension');
+        this.fullT1Sentences = document.getElementById('full-t1-sentences');
 
         // Pinyin elements
         this.pinyinContainer = document.getElementById('pinyin-toggle-container');
@@ -364,6 +380,38 @@ class HeliosSideTab {
 
         if (this.fullPageWords) {
             this.fullPageWords.textContent = formatted;
+        }
+    }
+
+    /**
+     * Update unique-word comprehension display
+     * @param {number} percentage
+     */
+    updateUniqueComprehension(percentage) {
+        const formatted = `${Math.round(percentage)}%`;
+
+        if (this.partialUniqueComprehension) {
+            this.partialUniqueComprehension.textContent = formatted;
+        }
+
+        if (this.fullUniqueComprehension) {
+            this.fullUniqueComprehension.textContent = formatted;
+        }
+    }
+
+    /**
+     * Update T1 sentence coverage display
+     * @param {number} percentage
+     */
+    updateT1SentenceCoverage(percentage) {
+        const formatted = `${Math.round(percentage)}%`;
+
+        if (this.partialT1Sentences) {
+            this.partialT1Sentences.textContent = formatted;
+        }
+
+        if (this.fullT1Sentences) {
+            this.fullT1Sentences.textContent = formatted;
         }
     }
 

@@ -32,6 +32,27 @@
                 <div class="partial-value" id="partial-known-words">0</div>
             </div>
 
+            <div class="partial-stat-item" data-tooltip="Unique words known">
+                <div class="partial-icon unique-icon">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 4h16v4H4z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M4 10h10v4H4z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M4 16h6v4H4z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <div class="partial-value" id="partial-unique-comprehension">100%</div>
+            </div>
+
+            <div class="partial-stat-item" data-tooltip="% of T1 sentences (all but one word known)">
+                <div class="partial-icon t1-icon">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+                        <path d="M8 12l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <div class="partial-value" id="partial-t1-sentences">100%</div>
+            </div>
+
             <!-- Pinyin Toggle (Chinese Only) - Compact version for partial view -->
             <button class="partial-stat-item partial-pinyin-item" id="partial-pinyin-btn" data-tooltip="Toggle Pinyin" style="display: none;">
                 <div class="partial-icon pinyin-icon">
@@ -96,6 +117,16 @@
                     <div class="stat-card-footer">
                         <div class="progress-bar">
                             <div class="progress-fill" id="comprehension-progress" style="width: 0%"></div>
+                        </div>
+                        <div class="comprehension-submetrics">
+                            <div class="comprehension-submetric-row">
+                                <span class="comprehension-submetric-label">Unique known</span>
+                                <span class="comprehension-submetric-value" id="full-unique-comprehension">100%</span>
+                            </div>
+                            <div class="comprehension-submetric-row">
+                                <span class="comprehension-submetric-label">T1 sentences</span>
+                                <span class="comprehension-submetric-value" id="full-t1-sentences">100%</span>
+                            </div>
                         </div>
                     </div>
                 </div>
