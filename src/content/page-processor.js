@@ -30,18 +30,58 @@ class PageProcessor {
   }
 
   /**
+   * Get a signature of current video subtitle state (count + text length) for stability checks.
+   * @returns {{ count: number, length: number }|null} - null if no video subtitles
+   */
+  _getVideoSubtitleSignature() {
+    if (!window.heliosVideoFeature?.isInitialized) return null;
+    const binding = window.heliosVideoFeature.getPrimaryBinding();
+    if (!binding) return null;
+    const collection = binding.getSubtitles();
+    if (!collection || collection.isEmpty()) return null;
+    const text = this.getVideoSubtitleText();
+    return { count: collection.getCount(), length: text ? text.length : 0 };
+  }
+
+  /**
+   * Wait for subtitle load to stabilize, then recalculate comprehension and notify.
+   * Retries at intervals so that platforms that load subtitles in chunks get full data before T1/stats.
+   */
+  async _recalculateComprehensionAfterSubtitleLoad() {
+    const delays = [100, 500, 1500, 3000];
+    let lastSignature = null;
+    let lastNotifiedSignature = null;
+
+    for (const delayMs of delays) {
+      await new Promise((r) => setTimeout(r, delayMs));
+      const sig = this._getVideoSubtitleSignature();
+      if (!sig) break;
+      if (sig.count === 0 && sig.length === 0) break;
+
+      const changed = !lastSignature || sig.count !== lastSignature.count || sig.length !== lastSignature.length;
+      lastSignature = sig;
+
+      if (changed || lastNotifiedSignature === null) {
+        await this.calculateComprehensionPercentage();
+        this.notifySidebarUpdate();
+        lastNotifiedSignature = sig;
+        console.log(`📊 Comprehension recalculated after subtitle load (${sig.count} cues, ${sig.length} chars)`);
+      }
+
+      // If nothing changed since previous delay, assume stable (optional early exit)
+      if (!changed && lastNotifiedSignature && sig.count === lastNotifiedSignature.count && sig.length === lastNotifiedSignature.length) {
+        break;
+      }
+    }
+  }
+
+  /**
    * Setup event listeners for video subtitle events
    */
   setupSubtitleEventListeners() {
-    // Listen for when subtitles are loaded (only fires once when subtitles are first loaded)
+    // Listen for when subtitles are loaded (may fire when first batch is ready; full load can be delayed)
     document.addEventListener('helios-subtitles-loaded', () => {
-      // Recalculate comprehension when subtitles are loaded
-      setTimeout(async () => {
-        await this.calculateComprehensionPercentage();
-        // Notify sidebar after calculation
-        this.notifySidebarUpdate();
-        console.log('📊 Comprehension recalculated after subtitle load');
-      }, 100);
+      this._recalculateComprehensionAfterSubtitleLoad();
     });
 
     // Note: We do NOT listen to 'helios-video-timeupdate' because:
@@ -341,11 +381,38 @@ class PageProcessor {
   }
 
   /**
+   * Get video subtitle text and per-cue ranges (each cue = one "sentence" for T1).
+   * @returns {{ text: string, cueRanges: Array<{ start: number, end: number }> }|null}
+   */
+  getVideoSubtitleTextAndCueRanges() {
+    if (!window.heliosVideoFeature?.isInitialized) return null;
+    const binding = window.heliosVideoFeature.getPrimaryBinding();
+    if (!binding) return null;
+    const collection = binding.getSubtitles();
+    if (!collection || collection.isEmpty()) return null;
+    const entries = collection.getAll();
+    if (entries.length === 0) return null;
+
+    const cueRanges = [];
+    let index = 0;
+    const parts = [];
+    for (const entry of entries) {
+      const text = entry.text || '';
+      cueRanges.push({ start: index, end: index + text.length });
+      parts.push(text);
+      index += text.length + 1; // +1 for space between cues
+    }
+    const text = parts.join(' ');
+    return { text, cueRanges };
+  }
+
+  /**
    * Calculate comprehension percentage from subtitle text
    * @param {string} subtitleText - Combined subtitle text
+   * @param {Array<{ start: number, end: number }>} [cueRanges] - Per-cue ranges in subtitleText (each cue = one sentence for T1)
    * @returns {Promise<number>} - Comprehension percentage
    */
-  async calculateSubtitleComprehension(subtitleText) {
+  async calculateSubtitleComprehension(subtitleText, cueRanges = null) {
     if (!subtitleText || !subtitleText.trim()) {
       return 100; // If no text, consider comprehension 100%
     }
@@ -364,6 +431,10 @@ class PageProcessor {
       .filter(({ word }) => !this.vocabManager.isWordKnown(word))
       .map(({ word }) => word);
     console.log('📝 Unknown words:', unknownWords);
+    const stats = this._calculateCoreStatsFromWords(words, subtitleText, adapter, {
+      logT1Stats: true,
+      cueRanges: cueRanges || undefined
+    });
 
     // Store totals for sidebar access
     this.lastTotalWords = totalWords;
@@ -375,12 +446,12 @@ class PageProcessor {
   }
 
   async calculateComprehensionPercentage() {
-    // First, check if video subtitles are active
-    const subtitleText = this.getVideoSubtitleText();
+    // First, check if video subtitles are active (get text + per-cue ranges so each cue = one sentence for T1)
+    const subtitleData = this.getVideoSubtitleTextAndCueRanges();
     
-    if (subtitleText !== null) {
+    if (subtitleData !== null) {
       // Video subtitles are active - calculate based on subtitle text only
-      const percentage = await this.calculateSubtitleComprehension(subtitleText);
+      const percentage = await this.calculateSubtitleComprehension(subtitleData.text, subtitleData.cueRanges);
       // NOTE: Do NOT call notifySidebarUpdate() here - let the caller decide when to notify
       // This prevents circular calls with refreshData()
       return percentage;
@@ -423,6 +494,181 @@ class PageProcessor {
 
   getKnownWordsCount() {
     return this.lastKnownWords || 0;
+  }
+  /**
+   * Get unique word stats for the last processed content.
+   * @returns {{ totalUnique: number, knownUnique: number }}
+   */
+  getUniqueWordStats() {
+    return {
+      totalUnique: this.lastUniqueWordsTotal || 0,
+      knownUnique: this.lastUniqueWordsKnown || 0
+    };
+  }
+
+  /**
+   * Get T1 sentence stats for the last processed content.
+   * A sentence counts if it has at least one target-language word.
+   * It is T1 when exactly one of those words is not known/ignored.
+   * @returns {{ totalSentences: number, t1Sentences: number }}
+   */
+  getT1SentenceStats() {
+    return {
+      totalSentences: this.lastSentencesWithWords || 0,
+      t1Sentences: this.lastT1Sentences || 0
+    };
+  }
+
+  /**
+   * Core stats helper used by both subtitle and page-based comprehension.
+   * Computes token-level, unique-word, and sentence-level T1 stats.
+   * @param {Array} words - Array of word objects from extractWords (must already be filtered to target language)
+   * @param {string} [text] - Full text these words came from (optional for token-only stats)
+   * @param {Object} [adapter] - Language adapter (required when text is provided for sentence splitting)
+   * @param {Object} [options] - Options: { logT1Stats: boolean } - log T1 sentence stats (used for subtitle path only)
+   * @returns {{
+   *   totalTokens: number,
+   *   knownTokens: number,
+   *   uniqueTotal: number,
+   *   uniqueKnown: number,
+   *   uniqueWords: Set<string>,
+   *   uniqueKnownWords: Set<string>,
+   *   sentencesWithWords: number,
+   *   t1Sentences: number
+   * }}
+   */
+  _calculateCoreStatsFromWords(words, text = null, adapter = null, options = {}) {
+    const stats = {
+      totalTokens: 0,
+      knownTokens: 0,
+      uniqueWords: new Set(),
+      uniqueKnownWords: new Set(),
+      sentencesWithWords: 0,
+      t1Sentences: 0
+    };
+
+    if (!Array.isArray(words) || words.length === 0) {
+      return {
+        ...stats,
+        uniqueTotal: 0,
+        uniqueKnown: 0
+      };
+    }
+
+    // Token-level and unique-word stats
+    for (const { word } of words) {
+      if (!word) continue;
+      stats.totalTokens++;
+
+      const normalized = typeof word === 'string' ? word.toLowerCase() : word;
+      stats.uniqueWords.add(normalized);
+
+      const isKnownOrIgnored =
+        this.vocabManager.isWordKnown(word) ||
+        this.vocabManager.isWordIgnored(word);
+
+      if (isKnownOrIgnored) {
+        stats.knownTokens++;
+        stats.uniqueKnownWords.add(normalized);
+      }
+    }
+
+    // Sentence-level T1 stats: use per-cue ranges (subtitle) or regex sentence boundaries (page text)
+    const ranges = options.cueRanges && options.cueRanges.length > 0
+      ? options.cueRanges
+      : (text && adapter && typeof adapter.getSentenceBoundary === 'function'
+          ? this._splitTextIntoSentenceRanges(
+              text,
+              adapter.getSentenceBoundary() || /(?<=[.!?。！？\n])/
+            )
+          : []);
+
+    if (ranges.length > 0) {
+      let wordsInSentencesWithWords = 0;
+      for (const { start, end } of ranges) {
+        // Collect words that fall within this sentence/cue range
+        // NOTE: word offsets are based on the original full text
+        const sentenceWords = words.filter(
+          ({ start: wStart, end: wEnd }) =>
+            typeof wStart === 'number' &&
+            typeof wEnd === 'number' &&
+            wStart >= start &&
+            wEnd <= end
+        );
+
+        if (sentenceWords.length === 0) continue;
+
+        stats.sentencesWithWords++;
+        wordsInSentencesWithWords += sentenceWords.length;
+
+        let unknownCount = 0;
+        for (const { word } of sentenceWords) {
+          const isKnownOrIgnored =
+            this.vocabManager.isWordKnown(word) ||
+            this.vocabManager.isWordIgnored(word);
+          if (!isKnownOrIgnored) unknownCount++;
+        }
+
+        if (unknownCount === 1) stats.t1Sentences++;
+      }
+      if (options.logT1Stats) {
+        console.log(
+          `📊 T1 sentences: ${stats.sentencesWithWords} sentences with words, ${wordsInSentencesWithWords} total words in those sentences, ${stats.t1Sentences} T1`
+        );
+      }
+    }
+
+    return {
+      ...stats,
+      uniqueTotal: stats.uniqueWords.size,
+      uniqueKnown: stats.uniqueKnownWords.size
+    };
+  }
+
+  /**
+   * Split a text into sentence ranges (start/end indices) using a sentence-boundary regex.
+   * Works even when the regex produces zero-width matches (common with lookbehind boundaries).
+   * @param {string} text
+   * @param {RegExp} sentenceBoundary
+   * @returns {Array<{ start: number, end: number }>}
+   */
+  _splitTextIntoSentenceRanges(text, sentenceBoundary) {
+    if (!text) return [];
+
+    const source = sentenceBoundary instanceof RegExp ? sentenceBoundary.source : '(?<=[.!?。！？\\n])';
+    const flagsRaw = sentenceBoundary instanceof RegExp ? sentenceBoundary.flags : '';
+    const flags = flagsRaw.includes('g') ? flagsRaw : `${flagsRaw}g`;
+
+    let re;
+    try {
+      re = new RegExp(source, flags);
+    } catch (_) {
+      re = /(?<=[.!?。！？\n])/g;
+    }
+
+    const ranges = [];
+    let start = 0;
+    let match;
+
+    while ((match = re.exec(text)) !== null) {
+      const end = match.index;
+
+      // Avoid infinite loops on zero-width matches
+      if (re.lastIndex === match.index) {
+        re.lastIndex++;
+      }
+
+      if (end > start) {
+        ranges.push({ start, end });
+      }
+      start = end;
+    }
+
+    if (start < text.length) {
+      ranges.push({ start, end: text.length });
+    }
+
+    return ranges;
   }
 
   notifySidebarUpdate() {
