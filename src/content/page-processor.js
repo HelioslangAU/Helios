@@ -440,7 +440,11 @@ class PageProcessor {
       .filter(({ word }) => !this.vocabManager.isWordKnown(word))
       .map(({ word }) => word);
     console.log('📝 Unknown words:', unknownWords);
-    const stats = this._calculateCoreStatsFromWords(words, subtitleText, adapter);
+    const stats = this._calculateCoreStatsFromWords(words, subtitleText, adapter, {
+      logT1Stats: true,
+      cueRanges: cueRanges || undefined
+    });
+
 
 
     // Store totals for sidebar access
@@ -748,6 +752,7 @@ class PageProcessor {
    * @param {Array} words - Array of word objects from extractWords (must already be filtered to target language)
    * @param {string} [text] - Full text these words came from (optional for token-only stats)
    * @param {Object} [adapter] - Language adapter (required when text is provided for sentence splitting)
+   * @param {Object} [options] - Options: { logT1Stats: boolean } - log T1 sentence stats (used for subtitle path only)
    * @returns {{
    *   totalTokens: number,
    *   knownTokens: number,
@@ -759,7 +764,7 @@ class PageProcessor {
    *   t1Sentences: number
    * }}
    */
-  _calculateCoreStatsFromWords(words, text = null, adapter = null) {
+  _calculateCoreStatsFromWords(words, text = null, adapter = null, options = {}) {
     const stats = {
       totalTokens: 0,
       knownTokens: 0,
@@ -795,15 +800,20 @@ class PageProcessor {
       }
     }
 
-    // Sentence-level T1 stats (only when we have full text and adapter)
-    if (text && adapter && typeof adapter.getSentenceBoundary === 'function') {
-      const sentenceBoundary =
-        adapter.getSentenceBoundary() ||
-        /(?<=[.!?。！？\n])/;
+    // Sentence-level T1 stats: use per-cue ranges (subtitle) or regex sentence boundaries (page text)
+    const ranges = options.cueRanges && options.cueRanges.length > 0
+      ? options.cueRanges
+      : (text && adapter && typeof adapter.getSentenceBoundary === 'function'
+          ? this._splitTextIntoSentenceRanges(
+              text,
+              adapter.getSentenceBoundary() || /(?<=[.!?。！？\n])/
+            )
+          : []);
 
-      const ranges = this._splitTextIntoSentenceRanges(text, sentenceBoundary);
+    if (ranges.length > 0) {
+      let wordsInSentencesWithWords = 0;
       for (const { start, end } of ranges) {
-        // Collect words that fall within this sentence range
+        // Collect words that fall within this sentence/cue range
         // NOTE: word offsets are based on the original full text
         const sentenceWords = words.filter(
           ({ start: wStart, end: wEnd }) =>
@@ -816,6 +826,7 @@ class PageProcessor {
         if (sentenceWords.length === 0) continue;
 
         stats.sentencesWithWords++;
+        wordsInSentencesWithWords += sentenceWords.length;
 
         let unknownCount = 0;
         for (const { word } of sentenceWords) {
@@ -826,6 +837,11 @@ class PageProcessor {
         }
 
         if (unknownCount === 1) stats.t1Sentences++;
+      }
+      if (options.logT1Stats) {
+        console.log(
+          `📊 T1 sentences: ${stats.sentencesWithWords} sentences with words, ${wordsInSentencesWithWords} total words in those sentences, ${stats.t1Sentences} T1`
+        );
       }
     }
 
