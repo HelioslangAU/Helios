@@ -202,6 +202,7 @@ class PlatformVideoSidebar {
       this.increaseSizeBtn = this.sidebar.querySelector('#yt-increase-size-btn');
       this.decreaseSizeBtn = this.sidebar.querySelector('#yt-decrease-size-btn');
       this.sizeInput = this.sidebar.querySelector('#yt-size-input');
+      this.opacityInput = this.sidebar.querySelector('#yt-opacity-input');
 
       // Get hotkey input elements
       this.hotkeyPrevInput = this.sidebar.querySelector('#yt-hotkey-prev');
@@ -677,8 +678,11 @@ class PlatformVideoSidebar {
     });
 
     // Listen for vocabulary updates
-    document.addEventListener('helios-vocab-updated', () => {
-      this._updateUnderlining().catch(err => {
+    document.addEventListener('helios-vocab-updated', (e) => {
+      const rawWords = e?.detail?.words;
+      const changedWords = (Array.isArray(rawWords) || typeof rawWords === 'string') ? rawWords : null;
+
+      this._updateUnderlining(changedWords).catch(err => {
         console.error('[Helios Platform Sidebar] Error updating underlining:', err);
       });
     });
@@ -1026,6 +1030,17 @@ class PlatformVideoSidebar {
         this._adjustSubtitleSize(delta);
       }, { passive: false });
     }
+
+    // Background opacity control
+    if (this.opacityInput) {
+      const applyOpacity = (pct) => {
+        if (this.videoBinding && this.videoBinding.overlay && !isNaN(pct) && pct >= 0 && pct <= 100) {
+          this.videoBinding.overlay.setSubtitleBackgroundOpacity(pct / 100);
+        }
+      };
+      this.opacityInput.addEventListener('change', (e) => applyOpacity(parseInt(e.target.value, 10)));
+      this.opacityInput.addEventListener('input', (e) => applyOpacity(parseInt(e.target.value, 10)));
+    }
   }
 
   /**
@@ -1136,6 +1151,12 @@ class PlatformVideoSidebar {
     if (this.sizeInput && this.videoBinding && this.videoBinding.overlay) {
       const currentSize = this.videoBinding.overlay.getSubtitleSize();
       this.sizeInput.value = currentSize;
+    }
+
+    // Update opacity input with current overlay background opacity (0–100%)
+    if (this.opacityInput && this.videoBinding && this.videoBinding.overlay) {
+      const opacity = this.videoBinding.overlay.getSubtitleBackgroundOpacity();
+      this.opacityInput.value = Math.round(opacity * 100);
     }
 
     if (this.hotkeyPrevInput) {
@@ -1592,10 +1613,74 @@ class PlatformVideoSidebar {
 
   /**
    * Update underlining without re-rendering
+   * @param {string|string[]|null} changedWords - Optional word or list of words whose state changed
    */
-  async _updateUnderlining() {
+  async _updateUnderlining(changedWords = null) {
     if (!this.listContainer || !window.vocabManager || !window.dictionaryManager) return;
 
+    const t0 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
+
+    const hasChangedWords = Array.isArray(changedWords)
+      ? changedWords.length > 0
+      : !!changedWords;
+
+    // Fast path: only update spans for specific changed words
+    if (hasChangedWords) {
+      const wordsArray = Array.isArray(changedWords) ? changedWords : [changedWords];
+      const normalizedWords = Array.from(new Set(
+        wordsArray
+          .map(w => (w && typeof w === 'string' ? w.toLowerCase() : null))
+          .filter(Boolean)
+      ));
+
+      if (normalizedWords.length === 0) {
+        return;
+      }
+
+      const dictionary = window.dictionaryManager.dictionary || {};
+      const hasCssEscape = window.CSS && typeof window.CSS.escape === 'function';
+
+      normalizedWords.forEach(cleanWord => {
+        let wordSpans;
+        if (hasCssEscape) {
+          const selector = `.yt-subtitle-word[data-helios-word="${CSS.escape(cleanWord)}"]`;
+          wordSpans = this.listContainer.querySelectorAll(selector);
+        } else {
+          // Fallback: scan all subtitle word spans when CSS.escape is unavailable
+          const allSpans = this.listContainer.querySelectorAll('.yt-subtitle-word');
+          wordSpans = Array.from(allSpans).filter(span => {
+            const spanWord = (span.getAttribute('data-helios-word') || span.textContent || '').toLowerCase();
+            return spanWord === cleanWord;
+          });
+        }
+
+        let updatedCount = 0;
+        wordSpans.forEach(wordSpan => {
+          const shouldUnderline = dictionary[cleanWord] &&
+                                 !window.vocabManager.isWordKnown(cleanWord) &&
+                                 !window.vocabManager.isWordIgnored(cleanWord) &&
+                                 !window.vocabManager.isWordLearning(cleanWord);
+
+          // Remove all word state classes first
+          wordSpan.classList.remove('unknown-word', 'learning-word');
+          
+          if (shouldUnderline) {
+            wordSpan.classList.add('unknown-word');
+          } else if (window.vocabManager.isWordLearning(cleanWord)) {
+            wordSpan.classList.add('learning-word');
+          }
+          updatedCount++;
+        });
+        console.log('[Helios Platform Sidebar] Fast-path underlining update for word', cleanWord, '- spans updated:', updatedCount);
+      });
+
+      const t1 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
+      console.log('[Helios Platform Sidebar] _updateUnderlining fast-path for', normalizedWords.length, 'word(s) took', (t1 - t0).toFixed(1), 'ms');
+      return;
+    }
+
+    // Fallback: full update of all subtitle word spans (used for bulk operations)
+    console.warn('[Helios Platform Sidebar] Falling back to full O(N) underlining update for all subtitle words');
     const wordSpans = this.listContainer.querySelectorAll('.yt-subtitle-word');
     const wordsToCheck = Array.from(wordSpans).map(span => {
       const word = span.textContent || span.getAttribute('data-helios-word');
@@ -1608,6 +1693,7 @@ class PlatformVideoSidebar {
 
     const dictionary = window.dictionaryManager.dictionary || {};
 
+    let updatedCount = 0;
     wordSpans.forEach(wordSpan => {
       const word = wordSpan.textContent || wordSpan.getAttribute('data-helios-word');
       if (!word) return;
@@ -1626,7 +1712,11 @@ class PlatformVideoSidebar {
       } else if (window.vocabManager.isWordLearning(cleanWord)) {
         wordSpan.classList.add('learning-word');
       }
+      updatedCount++;
     });
+
+    const t1 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
+    console.log('[Helios Platform Sidebar] Full O(N) underlining update touched', wordSpans.length, 'spans, updated', updatedCount, 'spans in', (t1 - t0).toFixed(1), 'ms');
   }
 
   /**

@@ -4,8 +4,12 @@ class BannerManager {
         this.sideTabInstance = null;
         this.lastStats = {
             knownWords: 0,
+            learningWords: 0,
+            ignoredWords: 0,
             comprehension: 100,
-            pageWords: 0
+            pageWords: 0,
+            uniqueComprehension: 100,
+            t1SentencePercentage: 100
         };
         this.init();
     }
@@ -44,12 +48,58 @@ class BannerManager {
         // Calculate and update initial stats
         const comprehension = await window.pageProcessor.calculateComprehensionPercentage();
         const pageWords = await this.calculatePageWordsCount();
+        const knownWordsCount = window.vocabManager.getKnownWordsCount();
+        const learningWordsCount = window.vocabManager.getLearningWordsCount
+            ? window.vocabManager.getLearningWordsCount()
+            : 0;
+        const ignoredWordsCount = window.vocabManager.getIgnoredWordsCount
+            ? window.vocabManager.getIgnoredWordsCount()
+            : 0;
+
+        const uniqueStats = window.pageProcessor?.getUniqueWordStats
+            ? window.pageProcessor.getUniqueWordStats()
+            : { totalUnique: 0, knownUnique: 0 };
+        const t1Stats = window.pageProcessor?.getT1SentenceStats
+            ? window.pageProcessor.getT1SentenceStats()
+            : { totalSentences: 0, t1Sentences: 0 };
+
+        const uniqueComprehension =
+            uniqueStats.totalUnique > 0
+                ? Math.round((uniqueStats.knownUnique / uniqueStats.totalUnique) * 100)
+                : 100;
+
+        const t1SentencePercentage =
+            t1Stats.totalSentences > 0
+                ? Math.round((t1Stats.t1Sentences / t1Stats.totalSentences) * 100)
+                : 100;
 
         this.updateStats({
-            knownWords: window.vocabManager.getKnownWordsCount(),
+            knownWords: knownWordsCount,
+            learningWords: learningWordsCount,
+            ignoredWords: ignoredWordsCount,
             comprehension: comprehension,
-            pageWords: pageWords
+            pageWords: pageWords,
+            uniqueComprehension,
+            t1SentencePercentage
         });
+
+        // Set initial hover tooltips for comprehension and unique stats
+        const totalTokens = window.pageProcessor?.getTotalWordsCount
+            ? window.pageProcessor.getTotalWordsCount()
+            : 0;
+        const knownTokens = window.pageProcessor?.getKnownWordsCount
+            ? window.pageProcessor.getKnownWordsCount()
+            : 0;
+
+        if (this.sideTabInstance?.updateComprehensionTooltip) {
+            this.sideTabInstance.updateComprehensionTooltip(knownTokens, totalTokens);
+        }
+        if (this.sideTabInstance?.updateUniqueTooltip) {
+            this.sideTabInstance.updateUniqueTooltip(uniqueStats.knownUnique || 0, uniqueStats.totalUnique || 0);
+        }
+        if (this.sideTabInstance?.updateT1Tooltip) {
+            this.sideTabInstance.updateT1Tooltip(t1Stats.t1Sentences || 0, t1Stats.totalSentences || 0);
+        }
 
         // Update language-specific features
         this.updateLanguageFeatures();
@@ -96,7 +146,15 @@ class BannerManager {
             const subtitleText = this.getVideoSubtitleText();
             
             if (subtitleText !== null) {
-                // Video subtitles are active - calculate words from subtitle text
+                // Video subtitles are active - reuse PageProcessor's cached totals
+                if (window.pageProcessor && typeof window.pageProcessor.getTotalWordsCount === 'function') {
+                    const cachedTotal = window.pageProcessor.getTotalWordsCount();
+                    if (cachedTotal && Number.isFinite(cachedTotal)) {
+                        return cachedTotal;
+                    }
+                }
+
+                // Fallback: if cache is not available yet, derive from adapter once
                 const adapter = window.languageRegistry?.getAdapter();
                 if (adapter) {
                     const words = await adapter.extractWords(subtitleText, window.dictionaryManager?.dictionary || {});
@@ -204,7 +262,7 @@ class BannerManager {
 
     /**
      * Update all stats at once
-     * @param {Object} stats - { knownWords, comprehension, pageWords }
+     * @param {Object} stats - { knownWords, learningWords, ignoredWords, comprehension, pageWords, uniqueComprehension, t1SentencePercentage }
      */
     updateStats(stats) {
         if (!this.sideTabInstance) return;
@@ -217,6 +275,22 @@ class BannerManager {
                 this.lastStats.knownWords = val;
             }
             safeStats.knownWords = this.lastStats.knownWords;
+        }
+
+        if (stats.learningWords !== undefined) {
+            const val = Number(stats.learningWords);
+            if (Number.isFinite(val)) {
+                this.lastStats.learningWords = val;
+            }
+            safeStats.learningWords = this.lastStats.learningWords;
+        }
+
+        if (stats.ignoredWords !== undefined) {
+            const val = Number(stats.ignoredWords);
+            if (Number.isFinite(val)) {
+                this.lastStats.ignoredWords = val;
+            }
+            safeStats.ignoredWords = this.lastStats.ignoredWords;
         }
 
         if (stats.comprehension !== undefined) {
@@ -232,7 +306,23 @@ class BannerManager {
             if (Number.isFinite(val)) {
                 this.lastStats.pageWords = val;
             }
-            safeStats.pageWords = this.lastStats.pageWords;
+      safeStats.pageWords = this.lastStats.pageWords;
+    }
+
+    if (stats.uniqueComprehension !== undefined) {
+      const val = Number(stats.uniqueComprehension);
+      if (Number.isFinite(val)) {
+        this.lastStats.uniqueComprehension = val;
+      }
+      safeStats.uniqueComprehension = this.lastStats.uniqueComprehension;
+    }
+
+    if (stats.t1SentencePercentage !== undefined) {
+      const val = Number(stats.t1SentencePercentage);
+      if (Number.isFinite(val)) {
+        this.lastStats.t1SentencePercentage = val;
+      }
+      safeStats.t1SentencePercentage = this.lastStats.t1SentencePercentage;
         }
 
         this.sideTabInstance.updateStats(safeStats);
@@ -266,30 +356,93 @@ class BannerManager {
             clearTimeout(this.refreshTimeout);
         }
 
-        this.refreshTimeout = setTimeout(async () => {
-            try {
-                // Recalculate comprehension and page words
-                const comprehensionRaw = await window.pageProcessor?.calculateComprehensionPercentage();
-                const pageWordsRaw = await this.calculatePageWordsCount();
-                const knownWordsRaw = window.vocabManager?.getKnownWordsCount();
+      this.refreshTimeout = setTimeout(async () => {
+        try {
+          // Recalculate comprehension and page words
+          const comprehensionRaw = await window.pageProcessor?.calculateComprehensionPercentage();
+          const pageWordsRaw = await this.calculatePageWordsCount();
+          const knownWordsRaw = window.vocabManager?.getKnownWordsCount();
+          const learningWordsRaw = window.vocabManager?.getLearningWordsCount
+            ? window.vocabManager.getLearningWordsCount()
+            : NaN;
+          const ignoredWordsRaw = window.vocabManager?.getIgnoredWordsCount
+            ? window.vocabManager.getIgnoredWordsCount()
+            : NaN;
 
-                const comprehension = Number.isFinite(comprehensionRaw) ? comprehensionRaw : this.lastStats.comprehension;
-                const pageWords = Number.isFinite(pageWordsRaw) ? pageWordsRaw : this.lastStats.pageWords;
-                const knownWords = Number.isFinite(knownWordsRaw) ? knownWordsRaw : this.lastStats.knownWords;
+          const comprehension = Number.isFinite(comprehensionRaw) ? comprehensionRaw : this.lastStats.comprehension;
+          const pageWords = Number.isFinite(pageWordsRaw) ? pageWordsRaw : this.lastStats.pageWords;
+          const knownWords = Number.isFinite(knownWordsRaw) ? knownWordsRaw : this.lastStats.knownWords;
+          const learningWords = Number.isFinite(learningWordsRaw) ? learningWordsRaw : this.lastStats.learningWords;
+          const ignoredWords = Number.isFinite(ignoredWordsRaw) ? ignoredWordsRaw : this.lastStats.ignoredWords;
 
-                // Update all stats
-                this.updateStats({
-                    knownWords: knownWords,
-                    comprehension: comprehension,
-                    pageWords: pageWords
-                });
+          // Read derived stats from PageProcessor after comprehension calculation (which updates caches)
+          const uniqueStats = window.pageProcessor?.getUniqueWordStats
+            ? window.pageProcessor.getUniqueWordStats()
+            : { totalUnique: 0, knownUnique: 0 };
+          const t1Stats = window.pageProcessor?.getT1SentenceStats
+            ? window.pageProcessor.getT1SentenceStats()
+            : { totalSentences: 0, t1Sentences: 0 };
 
-                console.log('📊 Sidebar data refreshed - Comprehension:', comprehension + '%', 'Known Words:', knownWords, 'Page Words:', pageWords);
-            } catch (error) {
-                console.error('Error refreshing sidebar data:', error);
-            }
-            this.refreshTimeout = null;
-        }, 300); // 300ms debounce - prevents updates more frequent than every 300ms
+          const uniqueComprehension =
+            uniqueStats.totalUnique > 0
+              ? Math.round((uniqueStats.knownUnique / uniqueStats.totalUnique) * 100)
+              : 100;
+
+          const t1SentencePercentage =
+            t1Stats.totalSentences > 0
+              ? Math.round((t1Stats.t1Sentences / t1Stats.totalSentences) * 100)
+              : 100;
+
+          // Update all stats
+          this.updateStats({
+            knownWords: knownWords,
+            learningWords: learningWords,
+            ignoredWords: ignoredWords,
+            comprehension: comprehension,
+            pageWords: pageWords,
+            uniqueComprehension,
+            t1SentencePercentage
+          });
+
+          // Update hover tooltips with raw counts
+          const totalTokens = window.pageProcessor?.getTotalWordsCount
+            ? window.pageProcessor.getTotalWordsCount()
+            : 0;
+          const knownTokens = window.pageProcessor?.getKnownWordsCount
+            ? window.pageProcessor.getKnownWordsCount()
+            : 0;
+
+          if (this.sideTabInstance?.updateComprehensionTooltip) {
+            this.sideTabInstance.updateComprehensionTooltip(knownTokens, totalTokens);
+          }
+          if (this.sideTabInstance?.updateUniqueTooltip) {
+            this.sideTabInstance.updateUniqueTooltip(uniqueStats.knownUnique || 0, uniqueStats.totalUnique || 0);
+          }
+          if (this.sideTabInstance?.updateT1Tooltip) {
+            this.sideTabInstance.updateT1Tooltip(t1Stats.t1Sentences || 0, t1Stats.totalSentences || 0);
+          }
+
+          console.log(
+            '📊 Sidebar data refreshed - Comprehension:',
+            comprehension + '%',
+            'Known Words:',
+            knownWords,
+            'Learning Words:',
+            learningWords,
+            'Ignored Words:',
+            ignoredWords,
+            'Page Words:',
+            pageWords,
+            'Unique Comprehension:',
+            uniqueComprehension + '%',
+            'T1 Sentences:',
+            t1SentencePercentage + '%'
+          );
+        } catch (error) {
+          console.error('Error refreshing sidebar data:', error);
+        }
+        this.refreshTimeout = null;
+      }, 300); // 300ms debounce - prevents updates more frequent than every 300ms
     }
 
     /**

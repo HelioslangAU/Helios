@@ -90,7 +90,7 @@
     0px 0px 4px rgba(0, 0, 0, 0.8);
 
   /* Semi-transparent background */
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.4);
   padding: 6px 16px;
   border-radius: 4px;
   margin: 0;
@@ -106,9 +106,9 @@
   transition: all 0.2s ease;
 }
 
-.helios-subtitle-text:hover {
+/* .helios-subtitle-text:hover {
   background: rgba(0, 0, 0, 0.85);
-}
+} */
 
 /* Primary Subtitle (Target Language) */
 .helios-subtitle-primary {

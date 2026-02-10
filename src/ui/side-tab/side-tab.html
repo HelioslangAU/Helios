@@ -12,6 +12,16 @@
     <div class="side-tab-partial" id="side-tab-partial">
 
         <div class="partial-stats">
+            <div class="partial-stat-item" data-tooltip="Known Words">
+                <div class="partial-icon words-icon">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <div class="partial-value" id="partial-known-words">0</div>
+            </div>
+
             <div class="partial-stat-item" data-tooltip="Page Comprehension">
                 <div class="partial-icon comprehension-icon">
                     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -22,14 +32,25 @@
                 <div class="partial-value" id="partial-comprehension">0%</div>
             </div>
 
-            <div class="partial-stat-item" data-tooltip="Known Words">
-                <div class="partial-icon words-icon">
+            <div class="partial-stat-item" data-tooltip="Unique words known">
+                <div class="partial-icon unique-icon">
                     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M4 4h16v4H4z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M4 10h10v4H4z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M4 16h6v4H4z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                 </div>
-                <div class="partial-value" id="partial-known-words">0</div>
+                <div class="partial-value" id="partial-unique-comprehension">100%</div>
+            </div>
+
+            <div class="partial-stat-item" data-tooltip="% of T1 sentences (all but one word known)">
+                <div class="partial-icon t1-icon">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+                        <path d="M8 12l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <div class="partial-value" id="partial-t1-sentences">100%</div>
             </div>
 
             <!-- Pinyin Toggle (Chinese Only) - Compact version for partial view -->
@@ -82,17 +103,63 @@
             <div class="stats-section">
                 <div class="section-title">Page Analysis</div>
 
-                <div class="stat-card primary-stat">
+                <!-- Vocabulary breakdown (Known / Learning / Ignored) -->
+                <div class="stat-card">
                     <div class="stat-card-header">
-                        <div class="stat-card-icon comprehension-gradient">
+                        <div class="stat-card-icon words-icon">
                             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-                                <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                <path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                             </svg>
                         </div>
-                        <div class="stat-card-label">Comprehension</div>
+                        <div>
+                            <div class="stat-card-label">Vocabulary</div>
+                            <div class="stat-card-subtitle">Breakdown of known, learning, and ignored words.</div>
+                        </div>
                     </div>
-                    <div class="stat-card-value comprehension-value" id="full-comprehension">0%</div>
+                    <div class="vocab-breakdown">
+                        <div class="vocab-item">
+                            <div class="vocab-item-left">
+                                <div class="vocab-dot vocab-known-dot"></div>
+                                <span class="vocab-item-label">Known</span>
+                            </div>
+                            <div class="vocab-item-value" id="full-known-words">0</div>
+                        </div>
+                        <div class="vocab-item">
+                            <div class="vocab-item-left">
+                                <div class="vocab-dot vocab-learning-dot"></div>
+                                <span class="vocab-item-label">Learning</span>
+                            </div>
+                            <div class="vocab-item-value" id="full-learning-words">0</div>
+                        </div>
+                        <div class="vocab-item">
+                            <div class="vocab-item-left">
+                                <div class="vocab-dot vocab-ignored-dot"></div>
+                                <span class="vocab-item-label">Ignored</span>
+                            </div>
+                            <div class="vocab-item-value" id="full-ignored-words">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Overall Comprehension -->
+                <div class="stat-card">
+                    <div class="stat-card-header">
+                        <div class="stat-card-icon comprehension-icon">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="stat-card-label">Comprehension</div>
+                            <div class="stat-card-subtitle">Percent of words known out of all words that occur.</div>
+                        </div>
+                    </div>
+                    <div class="stat-card-value comprehension-value" id="full-comprehension">
+                        <span class="stat-main-percentage">0%</span>
+                        <span class="stat-secondary-count">0/0</span>
+                    </div>
                     <div class="stat-card-footer">
                         <div class="progress-bar">
                             <div class="progress-fill" id="comprehension-progress" style="width: 0%"></div>
@@ -100,17 +167,45 @@
                     </div>
                 </div>
 
-                <div class="stat-card stat-card-full-width">
+                <!-- Unique Words Known -->
+                <div class="stat-card">
                     <div class="stat-card-header">
-                        <div class="stat-card-icon known-gradient">
+                        <div class="stat-card-icon unique-icon">
                             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M22 11.08V12a10 10 0 11-5.93-9.14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                <path d="M22 4L12 14.01l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M4 4h16v4H4z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M4 10h10v4H4z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M4 16h6v4H4z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                             </svg>
                         </div>
-                        <div class="stat-card-label">Known Words</div>
+                        <div>
+                            <div class="stat-card-label">Unique Words Known</div>
+                            <div class="stat-card-subtitle">Repeated words are only counted once.</div>
+                        </div>
                     </div>
-                    <div class="stat-card-value" id="full-known-words">0</div>
+                    <div class="stat-card-value" id="full-unique-comprehension">
+                        <span class="stat-main-percentage">100%</span>
+                        <span class="stat-secondary-count">0/0</span>
+                    </div>
+                </div>
+
+                <!-- T1 Sentences -->
+                <div class="stat-card">
+                    <div class="stat-card-header">
+                        <div class="stat-card-icon t1-icon">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+                                <path d="M8 12l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="stat-card-label">T1 Sentences</div>
+                            <div class="stat-card-subtitle">Percentage of sentences where you know every word but one.</div>
+                        </div>
+                    </div>
+                    <div class="stat-card-value" id="full-t1-sentences">
+                        <span class="stat-main-percentage">100%</span>
+                        <span class="stat-secondary-count">0/0</span>
+                    </div>
                 </div>
             </div>
 
