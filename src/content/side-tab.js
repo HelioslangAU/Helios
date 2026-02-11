@@ -34,7 +34,7 @@ class HeliosSideTab {
         this.partialKnownWords = document.getElementById('partial-known-words');
         this.partialPageWords = document.getElementById('partial-page-words');
         this.partialUniqueComprehension = document.getElementById('partial-unique-comprehension');
-        this.partialT1Sentences = document.getElementById('partial-t1-sentences');
+        this.partialSentenceBreakdown = document.getElementById('partial-sentence-breakdown');
 
         // Stat elements - Full view
         this.fullComprehension = document.getElementById('full-comprehension');
@@ -44,7 +44,10 @@ class HeliosSideTab {
         this.fullPageWords = document.getElementById('full-page-words');
         this.comprehensionProgress = document.getElementById('comprehension-progress');
         this.fullUniqueComprehension = document.getElementById('full-unique-comprehension');
-        this.fullT1Sentences = document.getElementById('full-t1-sentences');
+        this.fullSentenceBreakdown = document.getElementById('full-sentence-breakdown');
+        this.breakdownT0 = document.getElementById('breakdown-t0');
+        this.breakdownT1 = document.getElementById('breakdown-t1');
+        this.breakdownT2 = document.getElementById('breakdown-t2');
 
         // Data
         this.knownWordsCount = 0;
@@ -53,7 +56,8 @@ class HeliosSideTab {
         this.comprehensionPercentage = 0;
         this.pageWordsCount = 0;
         this.uniqueComprehensionPercentage = 0;
-        this.t1SentencePercentage = 0;
+        this.sentenceBreakdownPercentage = 0;
+        this.sentenceBreakdown = { totalSentences: 0, t0Sentences: 0, t1Sentences: 0, t2Sentences: 0 };
 
         // Position state
         this.position = 'right'; // 'left' or 'right'
@@ -282,7 +286,7 @@ class HeliosSideTab {
 
     /**
      * Update stats
-     * @param {Object} stats - { knownWords, learningWords, ignoredWords, comprehension, pageWords, uniqueComprehension, t1SentencePercentage }
+     * @param {Object} stats - { knownWords, learningWords, ignoredWords, comprehension, pageWords, uniqueComprehension, sentenceBreakdownPercentage, sentenceBreakdown }
      */
     updateStats(stats) {
         // Re-query all elements to ensure fresh references
@@ -317,8 +321,13 @@ class HeliosSideTab {
             this.updateUniqueComprehension(stats.uniqueComprehension);
         }
 
-        if (stats.t1SentencePercentage !== undefined) {
-            this.updateT1SentenceCoverage(stats.t1SentencePercentage);
+        if (stats.sentenceBreakdownPercentage !== undefined) {
+            this.updateSentenceBreakdownCoverage(stats.sentenceBreakdownPercentage);
+        }
+
+        if (stats.sentenceBreakdown !== undefined) {
+            this.sentenceBreakdown = stats.sentenceBreakdown;
+            this.updateSentenceBreakdownBreakdown(stats.sentenceBreakdown);
         }
     }
 
@@ -331,7 +340,7 @@ class HeliosSideTab {
         this.partialKnownWords = document.getElementById('partial-known-words');
         this.partialPageWords = document.getElementById('partial-page-words');
         this.partialUniqueComprehension = document.getElementById('partial-unique-comprehension');
-        this.partialT1Sentences = document.getElementById('partial-t1-sentences');
+        this.partialSentenceBreakdown = document.getElementById('partial-sentence-breakdown');
 
         // Stat elements - Full view
         this.fullComprehension = document.getElementById('full-comprehension');
@@ -341,7 +350,10 @@ class HeliosSideTab {
         this.fullPageWords = document.getElementById('full-page-words');
         this.comprehensionProgress = document.getElementById('comprehension-progress');
         this.fullUniqueComprehension = document.getElementById('full-unique-comprehension');
-        this.fullT1Sentences = document.getElementById('full-t1-sentences');
+        this.fullSentenceBreakdown = document.getElementById('full-sentence-breakdown');
+        this.breakdownT0 = document.getElementById('breakdown-t0');
+        this.breakdownT1 = document.getElementById('breakdown-t1');
+        this.breakdownT2 = document.getElementById('breakdown-t2');
 
         // Pinyin elements
         this.pinyinContainer = document.getElementById('pinyin-toggle-container');
@@ -518,44 +530,68 @@ class HeliosSideTab {
     }
 
     /**
-     * Update the hover tooltip and display for T1 sentence stats with raw counts.
-     * @param {number} t1Count
-     * @param {number} totalSentences
+     * Update the hover tooltip and full-view display for sentence breakdown (overall % and count).
+     * @param {{ totalSentences: number, t0Sentences: number, t1Sentences: number, t2Sentences: number }} breakdown
      */
-    updateT1Tooltip(t1Count, totalSentences) {
-        const tooltipText = `${t1Count}/${totalSentences} sentences are T1 (all but one word known)`;
+    updateSentenceBreakdownTooltip(breakdown) {
+        const total = breakdown?.totalSentences || 0;
+        const inScope = (breakdown?.t0Sentences || 0) + (breakdown?.t1Sentences || 0) + (breakdown?.t2Sentences || 0);
+        const tooltipText = `${inScope}/${total} sentences are all known, all but 1, or all but 2 words`;
 
-        // Full view: show percentage + raw counts and native title tooltip
-        if (this.fullT1Sentences) {
-            const pctSpan = this.fullT1Sentences.querySelector('.stat-main-percentage');
-            const countSpan = this.fullT1Sentences.querySelector('.stat-secondary-count');
+        if (this.fullSentenceBreakdown) {
+            const pctSpan = this.fullSentenceBreakdown.querySelector('.stat-main-percentage');
+            const countSpan = this.fullSentenceBreakdown.querySelector('.stat-secondary-count');
             if (pctSpan) {
-                pctSpan.textContent = `${Math.round(this.t1SentencePercentage || 0)}%`;
+                pctSpan.textContent = `${Math.round(this.sentenceBreakdownPercentage || 0)}%`;
             }
             if (countSpan) {
-                countSpan.textContent = `${t1Count}/${totalSentences}`;
+                countSpan.textContent = `${inScope}/${total}`;
             }
-            this.fullT1Sentences.title = tooltipText;
+            this.fullSentenceBreakdown.title = tooltipText;
+        }
+        this.updateSentenceBreakdownBreakdown(breakdown || this.sentenceBreakdown);
+    }
+
+    /**
+     * Update sentence breakdown overall percentage (compact panel and main full value).
+     * @param {number} percentage
+     */
+    updateSentenceBreakdownCoverage(percentage) {
+        this.sentenceBreakdownPercentage = percentage;
+        const formatted = `${Math.round(percentage)}%`;
+
+        if (this.partialSentenceBreakdown) {
+            this.partialSentenceBreakdown.textContent = formatted;
+        }
+
+        if (this.fullSentenceBreakdown) {
+            const pctSpan = this.fullSentenceBreakdown.querySelector('.stat-main-percentage');
+            if (pctSpan) {
+                pctSpan.textContent = formatted;
+            }
         }
     }
 
     /**
-     * Update T1 sentence coverage display
-     * @param {number} percentage
+     * Update the expanded breakdown rows (All known %, T1 %, T2 %).
+     * @param {{ totalSentences: number, t0Sentences: number, t1Sentences: number, t2Sentences: number }} breakdown
      */
-    updateT1SentenceCoverage(percentage) {
-        this.t1SentencePercentage = percentage;
-        const formatted = `${Math.round(percentage)}%`;
+    updateSentenceBreakdownBreakdown(breakdown) {
+        const total = breakdown?.totalSentences || 0;
+        const t0 = breakdown?.t0Sentences || 0;
+        const t1 = breakdown?.t1Sentences || 0;
+        const t2 = breakdown?.t2Sentences || 0;
 
-        if (this.partialT1Sentences) {
-            this.partialT1Sentences.textContent = formatted;
+        const pct = (n) => (total > 0 ? Math.round((n / total) * 100) : 0);
+
+        if (this.breakdownT0) {
+            this.breakdownT0.textContent = `${pct(t0)}%`;
         }
-
-        if (this.fullT1Sentences) {
-            const pctSpan = this.fullT1Sentences.querySelector('.stat-main-percentage');
-            if (pctSpan) {
-                pctSpan.textContent = formatted;
-            }
+        if (this.breakdownT1) {
+            this.breakdownT1.textContent = `${pct(t1)}%`;
+        }
+        if (this.breakdownT2) {
+            this.breakdownT2.textContent = `${pct(t2)}%`;
         }
     }
 
