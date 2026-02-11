@@ -151,7 +151,8 @@ class AnkiManager {
             this.dictionaryManager.dictionary,
             this.dictionaryManager.getDefinition ?
               (word) => this.dictionaryManager.getDefinition(word) :
-              null
+              null,
+            matches
           );
         }
 
@@ -492,12 +493,14 @@ class AnkiManager {
         // Enhance variant definitions if definition exists and wasn't already enhanced
         const adapter = window.languageRegistry?.getAdapter();
         if (adapter && adapter.enhanceVariantDefinition && wordData.definition && this.dictionaryManager?.dictionary) {
+          const allEntries = wordData.character ? this.dictionaryManager.dictionary[wordData.character] : null;
           wordData.definition = await adapter.enhanceVariantDefinition(
             wordData.definition,
             this.dictionaryManager.dictionary,
             this.dictionaryManager.getDefinition ?
               (word) => this.dictionaryManager.getDefinition(word) :
-              null
+              null,
+            allEntries && Array.isArray(allEntries) ? allEntries : null
           );
         }
 

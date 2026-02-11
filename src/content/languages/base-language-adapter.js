@@ -222,6 +222,8 @@ class BaseLanguageAdapter {
     const variantPatterns = [
       // Chinese variants - handle format "erhua variant of 等一會|等一会[deng3 yi1 hui4]"
       /erhua\s+variant\s+of\s+(.+?)(?:\s*\[|;|$)/i,
+      /erhua\s+form\s+of\s+(.+?)(?:\s*\[|;|$)/i,
+
       // General variants
       /(?:non\s*)?standard\s*(?:spelling|variant)\s+of\s+(.+?)(?:\s*\[|;|$)/i,
       /variant\s+of\s+(.+?)(?:\s*\[|;|$)/i,
@@ -300,18 +302,51 @@ class BaseLanguageAdapter {
   }
 
   /**
+   * Split a definition string into individual definition parts (by ; or newline-semicolon)
+   * @param {string} definition - Definition text
+   * @returns {Array<string>} - Array of trimmed, non-empty definition parts
+   */
+  getDefinitionParts(definition) {
+    if (!definition || typeof definition !== 'string') return [];
+    return definition
+      .split(/\n;|;/)
+      .map(part => part.trim())
+      .filter(Boolean);
+  }
+
+  /**
    * Enhance variant definition by appending base variant's definition
    * @param {string} definition - Original variant definition
    * @param {Object} dictionary - Dictionary object to look up base variant
    * @param {Function} getDefinitionAsync - Async function to get definition if not in dictionary
+   * @param {Array<Object>} allEntriesForWord - Optional. All dictionary entries for the current word.
+   *   When the variant's base is the same word (e.g. 管 has "variant of 管[guan3]"), pass all entries
+   *   so we don't append definitions that are already in another entry for this word.
    * @returns {Promise<string>} - Enhanced definition with base variant's definition appended
    */
-  async enhanceVariantDefinition(definition, dictionary, getDefinitionAsync = null) {
+  async enhanceVariantDefinition(definition, dictionary, getDefinitionAsync = null, allEntriesForWord = null) {
     if (!definition) return definition;
 
     const variantInfo = this.detectVariantPattern(definition);
     if (!variantInfo || variantInfo.baseWords.length === 0) {
       return definition;
+    }
+
+    // Collect definition parts already present for this word (current definition + any other entries)
+    let existingParts = this.getDefinitionParts(definition);
+    if (allEntriesForWord && Array.isArray(allEntriesForWord)) {
+      const seen = new Set(existingParts);
+      for (const entry of allEntriesForWord) {
+        const def = entry.definition || entry.meaning;
+        if (def && def !== definition) {
+          for (const part of this.getDefinitionParts(def)) {
+            if (!seen.has(part)) {
+              seen.add(part);
+              existingParts.push(part);
+            }
+          }
+        }
+      }
     }
 
     // Try each base word until we find a definition
@@ -352,8 +387,12 @@ class BaseLanguageAdapter {
         // Get the first meaningful definition from base variant
         const baseDefinition = this.extractBaseDefinition(baseEntries);
         if (baseDefinition) {
-          // Append base definition to variant definition
-          return `${definition}\n;${baseDefinition}`;
+          // Only append parts that are not already in this word's definition list
+          const baseParts = this.getDefinitionParts(baseDefinition);
+          const newParts = baseParts.filter(part => !existingParts.includes(part));
+          if (newParts.length > 0) {
+            return `${definition}\n;${newParts.join('; ')}`;
+          }
         }
       }
     }
