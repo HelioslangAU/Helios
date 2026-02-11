@@ -1590,11 +1590,14 @@ class PageProcessor {
     console.log('Finished reprocessing, unknown words should be underlined');
   }
 
-  // Remove unknown word styling and clear tracked elements
+  // Remove unknown and learning word styling and clear tracked elements
   clearUnknownWordHighlights() {
     try {
       document.querySelectorAll('.lang-unknown-word').forEach((el) => {
         el.classList.remove('lang-unknown-word');
+      });
+      document.querySelectorAll('.lang-learning-word').forEach((el) => {
+        el.classList.remove('lang-learning-word');
       });
       this.unknownWordElements?.clear?.();
     } catch (_) {}
