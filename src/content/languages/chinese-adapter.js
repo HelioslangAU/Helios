@@ -259,10 +259,10 @@ class ChineseLanguageAdapter extends BaseLanguageAdapter {
 
       const [, traditional, simplified, pinyin, definitions] = match;
 
-      // Convert pinyin to accented format
+      // Convert pinyin to accented format (preserve spaces for syllable boundaries)
       const syllables = pinyin.split(' ');
       const accentedSyllables = syllables.map(syllable => this.decodePinyinSyllable(syllable));
-      const newPinyin = accentedSyllables.join('');
+      const newPinyin = accentedSyllables.join(' ');
 
       const entryData = {
         traditional: traditional.trim(),

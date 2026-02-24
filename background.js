@@ -880,9 +880,15 @@ class BackgroundService {
     };
 
     // Heuristic to split unspaced pinyin for multi-character words.
-    // This regex finds a vowel and splits before the following consonant.
+    // Handles cases where dictionary stores pinyin without spaces (e.g. qīngxiàng, pingyong).
     if (charCount > 1 && !pinyin.includes(' ')) {
-        const syllables = pinyin.replace(/([aeiouvüāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ])([b-df-hj-np-tv-z])/g, '$1 $2').split(' ');
+        let splitPinyin = pinyin;
+        // First: split after "ng" before a consonant (qingxiang -> qing xiang, pingyong -> ping yong)
+        splitPinyin = splitPinyin.replace(/(ng)([b-df-hj-np-tv-z])/gi, '$1 $2');
+        // Second: split on vowel+consonant boundaries (dama -> da ma).
+        // Exclude (vowel)(n) when n starts "ng" coda to avoid breaking qing/xiang.
+        splitPinyin = splitPinyin.replace(/([aeiouvüāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ])(n(?!g)|[b-df-hj-lp-tv-z])/gi, '$1 $2');
+        const syllables = splitPinyin.split(/\s+/).filter(Boolean);
         if (syllables.length === charCount) {
             pinyin = syllables.join(' ');
         }
