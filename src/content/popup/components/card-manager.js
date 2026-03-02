@@ -31,7 +31,8 @@ class CardManager {
               this.dictionaryManager.dictionary,
               this.dictionaryManager.getDefinition ? 
                 (word) => this.dictionaryManager.getDefinition(word) : 
-                null
+                null,
+              pinyinEntries
             );
             enhancedEntries.push({
               ...entry,
@@ -110,7 +111,8 @@ class CardManager {
                   this.dictionaryManager.dictionary,
                   this.dictionaryManager.getDefinition ? 
                     (word) => this.dictionaryManager.getDefinition(word) : 
-                    null
+                    null,
+                  pinyinEntries
                 );
                 enhancedEntries.push({
                   ...entry,
@@ -247,7 +249,8 @@ class CardManager {
               this.dictionaryManager.dictionary,
               this.dictionaryManager.getDefinition ? 
                 (word) => this.dictionaryManager.getDefinition(word) : 
-                null
+                null,
+              matches
             );
             
             // If definition was enhanced, create a new match with enhanced definition

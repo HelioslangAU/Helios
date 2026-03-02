@@ -43,14 +43,14 @@
                 <div class="partial-value" id="partial-unique-comprehension">100%</div>
             </div>
 
-            <div class="partial-stat-item" data-tooltip="% of T1 sentences (all but one word known)">
-                <div class="partial-icon t1-icon">
+            <div class="partial-stat-item" data-tooltip="Sentence breakdown: % of sentences that are all known, all but 1, or all but 2 words">
+                <div class="partial-icon sentence-breakdown-icon">
                     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
                         <path d="M8 12l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                 </div>
-                <div class="partial-value" id="partial-t1-sentences">100%</div>
+                <div class="partial-value" id="partial-sentence-breakdown">100%</div>
             </div>
 
             <!-- Pinyin Toggle (Chinese Only) - Compact version for partial view -->
@@ -188,23 +188,46 @@
                     </div>
                 </div>
 
-                <!-- T1 Sentences -->
+                <!-- Sentence breakdown -->
                 <div class="stat-card">
                     <div class="stat-card-header">
-                        <div class="stat-card-icon t1-icon">
+                        <div class="stat-card-icon sentence-breakdown-icon">
                             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
                                 <path d="M8 12l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                             </svg>
                         </div>
                         <div>
-                            <div class="stat-card-label">T1 Sentences</div>
-                            <div class="stat-card-subtitle">Percentage of sentences where you know every word but one.</div>
+                            <div class="stat-card-label">Sentence breakdown</div>
+                            <div class="stat-card-subtitle">Sentences where you know all words, all but one, or all but two.</div>
                         </div>
                     </div>
-                    <div class="stat-card-value" id="full-t1-sentences">
+                    <div class="stat-card-value" id="full-sentence-breakdown">
                         <span class="stat-main-percentage">100%</span>
                         <span class="stat-secondary-count">0/0</span>
+                    </div>
+                    <div class="sentence-breakdown-rows">
+                        <div class="sentence-breakdown-row">
+                            <div class="sentence-breakdown-row-left">
+                                <div class="vocab-dot sentence-breakdown-t0-dot"></div>
+                                <span class="sentence-breakdown-label">All known (0 unknown)</span>
+                            </div>
+                            <div class="sentence-breakdown-row-value" id="breakdown-t0">0%</div>
+                        </div>
+                        <div class="sentence-breakdown-row">
+                            <div class="sentence-breakdown-row-left">
+                                <div class="vocab-dot sentence-breakdown-t1-dot"></div>
+                                <span class="sentence-breakdown-label">T1 (1 unknown)</span>
+                            </div>
+                            <div class="sentence-breakdown-row-value" id="breakdown-t1">0%</div>
+                        </div>
+                        <div class="sentence-breakdown-row">
+                            <div class="sentence-breakdown-row-left">
+                                <div class="vocab-dot sentence-breakdown-t2-dot"></div>
+                                <span class="sentence-breakdown-label">T2 (2 unknown)</span>
+                            </div>
+                            <div class="sentence-breakdown-row-value" id="breakdown-t2">0%</div>
+                        </div>
                     </div>
                 </div>
             </div>
