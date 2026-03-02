@@ -880,17 +880,25 @@ class BackgroundService {
     };
 
     // Heuristic to split unspaced pinyin for multi-character words.
-    // Handles cases where dictionary stores pinyin without spaces (e.g. qīngxiàng, pingyong).
+    // Handles cases where dictionary stores pinyin without spaces (e.g. qīngxiàng, yúlùn).
     if (charCount > 1 && !pinyin.includes(' ')) {
         let splitPinyin = pinyin;
-        // First: split after "ng" before a consonant (qingxiang -> qing xiang, pingyong -> ping yong)
-        splitPinyin = splitPinyin.replace(/(ng)([b-df-hj-np-tv-z])/gi, '$1 $2');
-        // Second: split on vowel+consonant boundaries (dama -> da ma).
-        // Exclude (vowel)(n) when n starts "ng" coda to avoid breaking qing/xiang.
-        splitPinyin = splitPinyin.replace(/([aeiouvüāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ])(n(?!g)|[b-df-hj-lp-tv-z])/gi, '$1 $2');
-        const syllables = splitPinyin.split(/\s+/).filter(Boolean);
-        if (syllables.length === charCount) {
-            pinyin = syllables.join(' ');
+
+        // Try to match pinyin syllables directly (more robust than simple splitting).
+        const syllableRegex = /(?:zh|ch|sh|[bpmfdtnlgkhjqxzcsywr]?)(?:[aeiouvüāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]+(?:ng|n|r)?)/gi;
+        const matchedSyllables = splitPinyin.match(syllableRegex);
+        if (matchedSyllables && matchedSyllables.length === charCount) {
+          pinyin = matchedSyllables.join(' ');
+        } else {
+          // Fallback: split after "ng" before a consonant (qingxiang -> qing xiang, pingyong -> ping yong)
+          splitPinyin = splitPinyin.replace(/(ng)([b-df-hj-np-tv-z])/gi, '$1 $2');
+          // Then split on vowel+consonant boundaries (dama -> da ma).
+          // Exclude (vowel)(n) when n starts "ng" coda to avoid breaking qing/xiang.
+          splitPinyin = splitPinyin.replace(/([aeiouvüāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ])(n(?!g)|[b-df-hj-lp-tv-z])/gi, '$1 $2');
+          const syllables = splitPinyin.split(/\s+/).filter(Boolean);
+          if (syllables.length === charCount) {
+              pinyin = syllables.join(' ');
+          }
         }
     }
 
