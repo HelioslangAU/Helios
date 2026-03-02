@@ -9,7 +9,8 @@ class BannerManager {
             comprehension: 100,
             pageWords: 0,
             uniqueComprehension: 100,
-            t1SentencePercentage: 100
+            sentenceBreakdownPercentage: 100,
+            sentenceBreakdown: { totalSentences: 0, t0Sentences: 0, t1Sentences: 0, t2Sentences: 0 }
         };
         this.init();
     }
@@ -59,18 +60,18 @@ class BannerManager {
         const uniqueStats = window.pageProcessor?.getUniqueWordStats
             ? window.pageProcessor.getUniqueWordStats()
             : { totalUnique: 0, knownUnique: 0 };
-        const t1Stats = window.pageProcessor?.getT1SentenceStats
-            ? window.pageProcessor.getT1SentenceStats()
-            : { totalSentences: 0, t1Sentences: 0 };
+        const breakdown = window.pageProcessor?.getSentenceBreakdownStats
+            ? window.pageProcessor.getSentenceBreakdownStats()
+            : { totalSentences: 0, t0Sentences: 0, t1Sentences: 0, t2Sentences: 0 };
 
         const uniqueComprehension =
             uniqueStats.totalUnique > 0
                 ? Math.round((uniqueStats.knownUnique / uniqueStats.totalUnique) * 100)
                 : 100;
 
-        const t1SentencePercentage =
-            t1Stats.totalSentences > 0
-                ? Math.round((t1Stats.t1Sentences / t1Stats.totalSentences) * 100)
+        const sentenceBreakdownPercentage =
+            breakdown.totalSentences > 0
+                ? Math.round(((breakdown.t0Sentences + breakdown.t1Sentences + breakdown.t2Sentences) / breakdown.totalSentences) * 100)
                 : 100;
 
         this.updateStats({
@@ -80,7 +81,8 @@ class BannerManager {
             comprehension: comprehension,
             pageWords: pageWords,
             uniqueComprehension,
-            t1SentencePercentage
+            sentenceBreakdownPercentage,
+            sentenceBreakdown: breakdown
         });
 
         // Set initial hover tooltips for comprehension and unique stats
@@ -97,8 +99,8 @@ class BannerManager {
         if (this.sideTabInstance?.updateUniqueTooltip) {
             this.sideTabInstance.updateUniqueTooltip(uniqueStats.knownUnique || 0, uniqueStats.totalUnique || 0);
         }
-        if (this.sideTabInstance?.updateT1Tooltip) {
-            this.sideTabInstance.updateT1Tooltip(t1Stats.t1Sentences || 0, t1Stats.totalSentences || 0);
+        if (this.sideTabInstance?.updateSentenceBreakdownTooltip) {
+            this.sideTabInstance.updateSentenceBreakdownTooltip(breakdown);
         }
 
         // Update language-specific features
@@ -262,7 +264,7 @@ class BannerManager {
 
     /**
      * Update all stats at once
-     * @param {Object} stats - { knownWords, learningWords, ignoredWords, comprehension, pageWords, uniqueComprehension, t1SentencePercentage }
+     * @param {Object} stats - { knownWords, learningWords, ignoredWords, comprehension, pageWords, uniqueComprehension, sentenceBreakdownPercentage, sentenceBreakdown }
      */
     updateStats(stats) {
         if (!this.sideTabInstance) return;
@@ -317,12 +319,17 @@ class BannerManager {
       safeStats.uniqueComprehension = this.lastStats.uniqueComprehension;
     }
 
-    if (stats.t1SentencePercentage !== undefined) {
-      const val = Number(stats.t1SentencePercentage);
+    if (stats.sentenceBreakdownPercentage !== undefined) {
+      const val = Number(stats.sentenceBreakdownPercentage);
       if (Number.isFinite(val)) {
-        this.lastStats.t1SentencePercentage = val;
+        this.lastStats.sentenceBreakdownPercentage = val;
       }
-      safeStats.t1SentencePercentage = this.lastStats.t1SentencePercentage;
+      safeStats.sentenceBreakdownPercentage = this.lastStats.sentenceBreakdownPercentage;
+    }
+
+    if (stats.sentenceBreakdown !== undefined) {
+      this.lastStats.sentenceBreakdown = stats.sentenceBreakdown;
+      safeStats.sentenceBreakdown = this.lastStats.sentenceBreakdown;
         }
 
         this.sideTabInstance.updateStats(safeStats);
@@ -379,18 +386,18 @@ class BannerManager {
           const uniqueStats = window.pageProcessor?.getUniqueWordStats
             ? window.pageProcessor.getUniqueWordStats()
             : { totalUnique: 0, knownUnique: 0 };
-          const t1Stats = window.pageProcessor?.getT1SentenceStats
-            ? window.pageProcessor.getT1SentenceStats()
-            : { totalSentences: 0, t1Sentences: 0 };
+          const breakdown = window.pageProcessor?.getSentenceBreakdownStats
+            ? window.pageProcessor.getSentenceBreakdownStats()
+            : { totalSentences: 0, t0Sentences: 0, t1Sentences: 0, t2Sentences: 0 };
 
           const uniqueComprehension =
             uniqueStats.totalUnique > 0
               ? Math.round((uniqueStats.knownUnique / uniqueStats.totalUnique) * 100)
               : 100;
 
-          const t1SentencePercentage =
-            t1Stats.totalSentences > 0
-              ? Math.round((t1Stats.t1Sentences / t1Stats.totalSentences) * 100)
+          const sentenceBreakdownPercentage =
+            breakdown.totalSentences > 0
+              ? Math.round(((breakdown.t0Sentences + breakdown.t1Sentences + breakdown.t2Sentences) / breakdown.totalSentences) * 100)
               : 100;
 
           // Update all stats
@@ -401,7 +408,8 @@ class BannerManager {
             comprehension: comprehension,
             pageWords: pageWords,
             uniqueComprehension,
-            t1SentencePercentage
+            sentenceBreakdownPercentage,
+            sentenceBreakdown: breakdown
           });
 
           // Update hover tooltips with raw counts
@@ -418,8 +426,8 @@ class BannerManager {
           if (this.sideTabInstance?.updateUniqueTooltip) {
             this.sideTabInstance.updateUniqueTooltip(uniqueStats.knownUnique || 0, uniqueStats.totalUnique || 0);
           }
-          if (this.sideTabInstance?.updateT1Tooltip) {
-            this.sideTabInstance.updateT1Tooltip(t1Stats.t1Sentences || 0, t1Stats.totalSentences || 0);
+          if (this.sideTabInstance?.updateSentenceBreakdownTooltip) {
+            this.sideTabInstance.updateSentenceBreakdownTooltip(breakdown);
           }
 
           console.log(
@@ -435,8 +443,8 @@ class BannerManager {
             pageWords,
             'Unique Comprehension:',
             uniqueComprehension + '%',
-            'T1 Sentences:',
-            t1SentencePercentage + '%'
+            'Sentence breakdown:',
+            sentenceBreakdownPercentage + '%'
           );
         } catch (error) {
           console.error('Error refreshing sidebar data:', error);

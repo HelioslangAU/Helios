@@ -442,6 +442,7 @@ class PageProcessor {
     console.log('📝 Unknown words:', unknownWords);
     const stats = this._calculateCoreStatsFromWords(words, subtitleText, adapter, {
       logT1Stats: true,
+      logT2Stats: true,
       cueRanges: cueRanges || undefined
     });
 
@@ -453,7 +454,9 @@ class PageProcessor {
     this.lastUniqueWordsTotal = stats.uniqueTotal;
     this.lastUniqueWordsKnown = stats.uniqueKnown;
     this.lastSentencesWithWords = stats.sentencesWithWords;
+    this.lastT0Sentences = stats.t0Sentences;
     this.lastT1Sentences = stats.t1Sentences;
+    this.lastT2Sentences = stats.t2Sentences;
 
     if (stats.totalTokens === 0) return 100; // If no words, consider comprehension 100%
     console.log(
@@ -484,7 +487,9 @@ class PageProcessor {
       uniqueWords: new Set(),
       uniqueKnownWords: new Set(),
       sentencesWithWords: 0,
-      t1Sentences: 0
+      t0Sentences: 0,
+      t1Sentences: 0,
+      t2Sentences: 0
     };
 
     const adapter = this.languageRegistry.getAdapter();
@@ -517,7 +522,9 @@ class PageProcessor {
 
       // Aggregate sentence stats
       aggregateStats.sentencesWithWords += statsForNode.sentencesWithWords;
+      aggregateStats.t0Sentences += statsForNode.t0Sentences;
       aggregateStats.t1Sentences += statsForNode.t1Sentences;
+      aggregateStats.t2Sentences += statsForNode.t2Sentences;
     }
 
     // Store totals for sidebar access
@@ -526,7 +533,9 @@ class PageProcessor {
     this.lastUniqueWordsTotal = aggregateStats.uniqueWords.size;
     this.lastUniqueWordsKnown = aggregateStats.uniqueKnownWords.size;
     this.lastSentencesWithWords = aggregateStats.sentencesWithWords;
+    this.lastT0Sentences = aggregateStats.t0Sentences;
     this.lastT1Sentences = aggregateStats.t1Sentences;
+    this.lastT2Sentences = aggregateStats.t2Sentences;
 
     if (aggregateStats.totalTokens === 0) return 100; // If no words, consider comprehension 100%
     const percentage = Math.round(
@@ -571,184 +580,37 @@ class PageProcessor {
   }
 
   /**
-   * Core stats helper used by both subtitle and page-based comprehension.
-   * Computes token-level, unique-word, and sentence-level T1 stats.
-   * @param {Array} words - Array of word objects from extractWords (must already be filtered to target language)
-   * @param {string} [text] - Full text these words came from (optional for token-only stats)
-   * @param {Object} [adapter] - Language adapter (required when text is provided for sentence splitting)
-   * @param {Object} [options] - Options: { logT1Stats: boolean } - log T1 sentence stats (used for subtitle path only)
-   * @returns {{
-   *   totalTokens: number,
-   *   knownTokens: number,
-   *   uniqueTotal: number,
-   *   uniqueKnown: number,
-   *   uniqueWords: Set<string>,
-   *   uniqueKnownWords: Set<string>,
-   *   sentencesWithWords: number,
-   *   t1Sentences: number
-   * }}
-   */
-  _calculateCoreStatsFromWords(words, text = null, adapter = null, options = {}) {
-    const stats = {
-      totalTokens: 0,
-      knownTokens: 0,
-      uniqueWords: new Set(),
-      uniqueKnownWords: new Set(),
-      sentencesWithWords: 0,
-      t1Sentences: 0
-    };
-
-    if (!Array.isArray(words) || words.length === 0) {
-      return {
-        ...stats,
-        uniqueTotal: 0,
-        uniqueKnown: 0
-      };
-    }
-
-    // Token-level and unique-word stats
-    for (const { word } of words) {
-      if (!word) continue;
-      stats.totalTokens++;
-
-      const normalized = typeof word === 'string' ? word.toLowerCase() : word;
-      stats.uniqueWords.add(normalized);
-
-      const isKnownOrIgnored =
-        this.vocabManager.isWordKnown(word) ||
-        this.vocabManager.isWordIgnored(word);
-
-      if (isKnownOrIgnored) {
-        stats.knownTokens++;
-        stats.uniqueKnownWords.add(normalized);
-      }
-    }
-
-    // Sentence-level T1 stats: use per-cue ranges (subtitle) or regex sentence boundaries (page text)
-    const ranges = options.cueRanges && options.cueRanges.length > 0
-      ? options.cueRanges
-      : (text && adapter && typeof adapter.getSentenceBoundary === 'function'
-          ? this._splitTextIntoSentenceRanges(
-              text,
-              adapter.getSentenceBoundary() || /(?<=[.!?。！？\n])/
-            )
-          : []);
-
-    if (ranges.length > 0) {
-      let wordsInSentencesWithWords = 0;
-      for (const { start, end } of ranges) {
-        // Collect words that fall within this sentence/cue range
-        // NOTE: word offsets are based on the original full text
-        const sentenceWords = words.filter(
-          ({ start: wStart, end: wEnd }) =>
-            typeof wStart === 'number' &&
-            typeof wEnd === 'number' &&
-            wStart >= start &&
-            wEnd <= end
-        );
-
-        if (sentenceWords.length === 0) continue;
-
-        stats.sentencesWithWords++;
-        wordsInSentencesWithWords += sentenceWords.length;
-
-        let unknownCount = 0;
-        for (const { word } of sentenceWords) {
-          const isKnownOrIgnored =
-            this.vocabManager.isWordKnown(word) ||
-            this.vocabManager.isWordIgnored(word);
-          if (!isKnownOrIgnored) unknownCount++;
-        }
-
-        if (unknownCount === 1) stats.t1Sentences++;
-      }
-      if (options.logT1Stats) {
-        console.log(
-          `📊 T1 sentences: ${stats.sentencesWithWords} sentences with words, ${wordsInSentencesWithWords} total words in those sentences, ${stats.t1Sentences} T1`
-        );
-      }
-    }
-
-    return {
-      ...stats,
-      uniqueTotal: stats.uniqueWords.size,
-      uniqueKnown: stats.uniqueKnownWords.size
-    };
-  }
-
-  /**
-   * Split a text into sentence ranges (start/end indices) using a sentence-boundary regex.
-   * Works even when the regex produces zero-width matches (common with lookbehind boundaries).
-   * @param {string} text
-   * @param {RegExp} sentenceBoundary
-   * @returns {Array<{ start: number, end: number }>}
-   */
-  _splitTextIntoSentenceRanges(text, sentenceBoundary) {
-    if (!text) return [];
-
-    const source = sentenceBoundary instanceof RegExp ? sentenceBoundary.source : '(?<=[.!?。！？\\n])';
-    const flagsRaw = sentenceBoundary instanceof RegExp ? sentenceBoundary.flags : '';
-    const flags = flagsRaw.includes('g') ? flagsRaw : `${flagsRaw}g`;
-
-    let re;
-    try {
-      re = new RegExp(source, flags);
-    } catch (_) {
-      re = /(?<=[.!?。！？\n])/g;
-    }
-
-    const ranges = [];
-    let start = 0;
-    let match;
-
-    while ((match = re.exec(text)) !== null) {
-      const end = match.index;
-
-      // Avoid infinite loops on zero-width matches
-      if (re.lastIndex === match.index) {
-        re.lastIndex++;
-      }
-
-      if (end > start) {
-        ranges.push({ start, end });
-      }
-      start = end;
-    }
-
-    if (start < text.length) {
-      ranges.push({ start, end: text.length });
-    }
-
-    return ranges;
-  }
-
-  /**
-   * Get unique word stats for the last processed content.
-   * @returns {{ totalUnique: number, knownUnique: number }}
-   */
-  getUniqueWordStats() {
-    return {
-      totalUnique: this.lastUniqueWordsTotal || 0,
-      knownUnique: this.lastUniqueWordsKnown || 0
-    };
-  }
-
-  /**
-   * Get T1 sentence stats for the last processed content.
+   * Get T2 sentence stats for the last processed content.
    * A sentence counts if it has at least one target-language word.
-   * It is T1 when exactly one of those words is not known/ignored.
-   * @returns {{ totalSentences: number, t1Sentences: number }}
+   * It is T2 when exactly two of those words are not known/ignored (user knows all but 2).
+   * @returns {{ totalSentences: number, t2Sentences: number }}
    */
-  getT1SentenceStats() {
+  getT2SentenceStats() {
     return {
       totalSentences: this.lastSentencesWithWords || 0,
-      t1Sentences: this.lastT1Sentences || 0
+      t2Sentences: this.lastT2Sentences || 0
+    };
+  }
+
+  /**
+   * Get sentence breakdown stats for the last processed content.
+   * Total = sentences with at least one target-language word.
+   * t0 = all words known/ignored, t1 = exactly 1 unknown, t2 = exactly 2 unknown.
+   * Overall "sentence breakdown" % = (t0 + t1 + t2) / total (sentences that are fully known, or all but 1, or all but 2).
+   * @returns {{ totalSentences: number, t0Sentences: number, t1Sentences: number, t2Sentences: number }}
+   */
+  getSentenceBreakdownStats() {
+    return {
+      totalSentences: this.lastSentencesWithWords || 0,
+      t0Sentences: this.lastT0Sentences || 0,
+      t1Sentences: this.lastT1Sentences || 0,
+      t2Sentences: this.lastT2Sentences || 0
     };
   }
 
   /**
    * Core stats helper used by both subtitle and page-based comprehension.
-   * Computes token-level, unique-word, and sentence-level T1 stats.
+   * Computes token-level, unique-word, and sentence-level T1/T2 stats.
    * @param {Array} words - Array of word objects from extractWords (must already be filtered to target language)
    * @param {string} [text] - Full text these words came from (optional for token-only stats)
    * @param {Object} [adapter] - Language adapter (required when text is provided for sentence splitting)
@@ -771,7 +633,9 @@ class PageProcessor {
       uniqueWords: new Set(),
       uniqueKnownWords: new Set(),
       sentencesWithWords: 0,
-      t1Sentences: 0
+      t0Sentences: 0,
+      t1Sentences: 0,
+      t2Sentences: 0
     };
 
     if (!Array.isArray(words) || words.length === 0) {
@@ -836,11 +700,18 @@ class PageProcessor {
           if (!isKnownOrIgnored) unknownCount++;
         }
 
+        if (unknownCount === 0) stats.t0Sentences++;
         if (unknownCount === 1) stats.t1Sentences++;
+        if (unknownCount === 2) stats.t2Sentences++;
       }
       if (options.logT1Stats) {
         console.log(
           `📊 T1 sentences: ${stats.sentencesWithWords} sentences with words, ${wordsInSentencesWithWords} total words in those sentences, ${stats.t1Sentences} T1`
+        );
+      }
+      if (options.logT2Stats) {
+        console.log(
+          `📊 T2 sentences: ${stats.sentencesWithWords} sentences with words, ${wordsInSentencesWithWords} total words in those sentences, ${stats.t2Sentences} T2`
         );
       }
     }
@@ -1719,11 +1590,14 @@ class PageProcessor {
     console.log('Finished reprocessing, unknown words should be underlined');
   }
 
-  // Remove unknown word styling and clear tracked elements
+  // Remove unknown and learning word styling and clear tracked elements
   clearUnknownWordHighlights() {
     try {
       document.querySelectorAll('.lang-unknown-word').forEach((el) => {
         el.classList.remove('lang-unknown-word');
+      });
+      document.querySelectorAll('.lang-learning-word').forEach((el) => {
+        el.classList.remove('lang-learning-word');
       });
       this.unknownWordElements?.clear?.();
     } catch (_) {}
