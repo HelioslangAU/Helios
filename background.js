@@ -879,25 +879,30 @@ class BackgroundService {
       'Ǖ': 'Ü1', 'Ǘ': 'Ü2', 'Ǚ': 'Ü3', 'Ǜ': 'Ü4'
     };
 
+    // Normalize Unicode (NFC) and collapse any whitespace to single space
+    pinyin = (typeof pinyin === 'string' ? pinyin : String(pinyin)).normalize('NFC').replace(/\s+/g, ' ').trim();
+    const hasSpace = pinyin.includes(' ');
+
     // Heuristic to split unspaced pinyin for multi-character words.
-    // Handles cases where dictionary stores pinyin without spaces (e.g. qīngxiàng, yúlùn).
-    if (charCount > 1 && !pinyin.includes(' ')) {
+    if (charCount > 1 && !hasSpace) {
         let splitPinyin = pinyin;
 
-        // Try to match pinyin syllables directly (more robust than simple splitting).
+        // Primary: match pinyin syllables with tone marks
         const syllableRegex = /(?:zh|ch|sh|[bpmfdtnlgkhjqxzcsywr]?)(?:[aeiouvüāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]+(?:ng|n|r)?)/gi;
         const matchedSyllables = splitPinyin.match(syllableRegex);
         if (matchedSyllables && matchedSyllables.length === charCount) {
           pinyin = matchedSyllables.join(' ');
         } else {
-          // Fallback: split after "ng" before a consonant (qingxiang -> qing xiang, pingyong -> ping yong)
+          // Fallback: explicit split rules (order matters)
+          // 1. ng + consonant: qingxiang -> qing xiang, pingyong -> ping yong
           splitPinyin = splitPinyin.replace(/(ng)([b-df-hj-np-tv-z])/gi, '$1 $2');
-          // Then split on vowel+consonant boundaries (dama -> da ma).
-          // Exclude (vowel)(n) when n starts "ng" coda to avoid breaking qing/xiang.
-          splitPinyin = splitPinyin.replace(/([aeiouvüāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ])(n(?!g)|[b-df-hj-lp-tv-z])/gi, '$1 $2');
+          // 2. n (coda) + consonant: ganxiang -> gan xiang (exclude g to avoid breaking "ng" in ning/cheng)
+          splitPinyin = splitPinyin.replace(/(n)([b-dfhj-np-tv-z])/gi, '$1 $2');
+          // 3. vowel + onset consonant (exclude n - it's always coda after vowel): dama -> da ma, huiyuan -> hui yuan, goucheng -> gou cheng
+          splitPinyin = splitPinyin.replace(/([aeiouvüāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ])([b-dfhj-mp-tv-z])/g, '$1 $2');
           const syllables = splitPinyin.split(/\s+/).filter(Boolean);
           if (syllables.length === charCount) {
-              pinyin = syllables.join(' ');
+            pinyin = syllables.join(' ');
           }
         }
     }
