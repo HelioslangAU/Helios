@@ -1,0 +1,127 @@
+<!-- Vocabulary Management Settings Tab Content -->
+<div class="section-card">
+  <h2 class="section-title">
+    <span>📊</span>
+    Learning Statistics
+  </h2>
+  <p class="section-description">
+    Track your Chinese learning progress and vocabulary growth.
+  </p>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-value" id="stat-known-words">-</div>
+      <div class="stat-label">Known Words</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat-learning-words">-</div>
+      <div class="stat-label">Learning Words</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat-ignored-words">-</div>
+      <div class="stat-label">Ignored Words</div>
+    </div>
+  </div>
+</div>
+
+<div class="section-card">
+  <h2 class="section-title">
+    <span>📝</span>
+    Bulk Word Management
+  </h2>
+  <p class="section-description">
+    Import or export your known words list for backup or sharing.
+  </p>
+
+  <div class="form-group">
+    <label class="form-label">Import Known Words</label>
+    <textarea
+      class="bulk-textarea"
+      id="bulk-import-textarea"
+      placeholder="Paste known words here, separated by space, comma, or new line&#10;对 错 好 不好 中国 学习 汉语"
+    ></textarea>
+    <div class="help-text">
+      Paste words separated by spaces, commas, or line breaks. Invalid words
+      will be ignored.
+    </div>
+  </div>
+
+  <div class="form-row">
+    <button class="btn btn-primary" id="import-known-words">
+      <span>📥</span>
+      Import Words
+    </button>
+    <button class="btn btn-secondary" id="export-known-words">
+      <span>📤</span>
+      Export Words
+    </button>
+    <button class="btn btn-danger" id="clear-known-words">
+      <span>🗑️</span>
+      Clear All Known Words
+    </button>
+  </div>
+</div>
+
+<div class="section-card">
+  <h2 class="section-title">
+    <span>🃏</span>
+    Import from Anki
+  </h2>
+  <p class="section-description">
+    Import expressions from your Anki deck as known words in Helios.
+  </p>
+
+  <div class="form-row">
+    <div class="form-group">
+      <button class="btn btn-anki" id="vocab-anki-import-known-words" disabled>
+        <span>📥</span>
+        Import Known Words from Anki
+      </button>
+      <div class="help-text">
+        Extracts all expressions from your configured Anki deck and marks them as known words.
+        Requires Anki deck, note type, and expression field mapping to be configured in Anki settings.
+      </div>
+    </div>
+    <div class="form-group">
+      <button class="btn btn-anki" id="vocab-anki-sync-learning-words" disabled>
+        <span>🔄</span>
+        Sync Learning Words
+      </button>
+      <div class="help-text">
+        Manually sync learning words from Anki and promote to known when interval reaches 21 days.
+        Requires Anki deck, note type, and expression field mapping to be configured in Anki settings.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section-card">
+  <h2 class="section-title">
+    <span>🔄</span>
+    Data Management
+  </h2>
+  <p class="section-description">
+    Backup, restore, or reset your extension data.
+  </p>
+
+  <div class="form-row">
+    <button class="btn btn-secondary" id="backup-data">
+      <span>💾</span>
+      Backup All Data
+    </button>
+    <button class="btn btn-secondary" id="restore-data">
+      <span>📂</span>
+      Restore Data
+    </button>
+    <button class="btn btn-danger" id="reset-all-data">
+      <span>⚠️</span>
+      Reset Everything
+    </button>
+  </div>
+
+  <div class="help-text">
+    <strong>Backup:</strong> Download all your settings and vocabulary data<br />
+    <strong>Restore:</strong> Upload a backup file to restore your data<br />
+    <strong>Reset:</strong> Clear all data and return to default settings
+  </div>
+</div>

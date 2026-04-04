@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to Helios</title>
+  <link rel="stylesheet" href="onboarding.css">
+  <link rel="stylesheet" href="../../content/components/language-selector/language-selector.css">
+  <link rel="stylesheet" href="../../ui/popup/popup.css">
+</head>
+<body>
+  <!-- Floating Characters Background -->
+  <div class="floating-bg" id="floating-bg"></div>
+
+  <!-- Ambient Glow -->
+  <div class="ambient-glow"></div>
+
+  <div class="onboarding-container">
+    <!-- Main Content -->
+    <main class="onboarding-content">
+      <!-- Step 1: Hero Welcome -->
+      <section class="onboarding-step active" id="step-hero">
+        <div class="step-content hero-content">
+          <div class="hero-logo">
+            <img src="../../../icons/icon128.png" alt="Helios Logo" class="logo-large">
+          </div>
+          <h1 class="hero-title">Helios</h1>
+          <div class="gradient-divider"></div>
+          <p class="hero-subtitle">Master languages through immersion</p>
+          <p class="hero-description">
+            Transform your everyday browsing into powerful language learning.
+            Helios seamlessly integrates vocabulary, grammar, and context into
+            the content you already love.
+          </p>
+          <button class="btn btn-primary btn-hero" id="btn-start">
+            Get Started
+            <svg class="btn-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- Step 2: Language Selection -->
+      <section class="onboarding-step" id="step-language">
+        <div class="step-content">
+          <h2 class="step-title">Choose Your Language</h2>
+          <p class="step-description">
+            Select the language you want to learn.
+          </p>
+
+          <div id="language-selector-container" class="language-selector-wrapper">
+            <!-- Language selector will be injected here -->
+          </div>
+
+          <div class="step-nav">
+            <button class="btn btn-secondary" id="btn-lang-back">← Back</button>
+            <button class="btn btn-primary" id="btn-lang-next" disabled>Next →</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 3: Native Language Selection -->
+      <section class="onboarding-step" id="step-native-language">
+        <div class="step-content">
+          <h2 class="step-title">Select Your Native Language</h2>
+          <p class="step-description">
+            Choose your native language to get dictionary definitions in your language.
+          </p>
+
+          <div id="native-language-selector-container" class="language-selector-wrapper">
+            <!-- Native language selector will be injected here -->
+          </div>
+
+          <div class="beta-tooltip">
+            <span class="beta-tooltip-icon">ℹ️</span>
+            <span class="beta-tooltip-text">Languages marked with <span class="beta-tooltip-highlight">BETA</span> are not fully supported and may not work as well as English.</span>
+          </div>
+
+          <div class="step-nav">
+            <button class="btn btn-secondary" id="btn-native-lang-back">← Back</button>
+            <button class="btn btn-primary" id="btn-native-lang-next" disabled>Next →</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 4: Dictionary Loading -->
+      <section class="onboarding-step" id="step-loading">
+        <div class="step-content loading-step-content">
+          <h2 class="step-title">Loading Dictionary</h2>
+          <p class="step-description">
+            Preparing your <span id="loading-language-name"></span> dictionary...
+          </p>
+
+          <!-- Dictionary Loading Progress Bar -->
+          <div class="dictionary-loading-container" id="dictionary-loading-container">
+            <div class="dictionary-loading-label">
+              <span class="loading-text">Loading dictionary...</span>
+            </div>
+            <div class="loading-bar-wrapper">
+              <div class="loading-bar-background">
+                <div class="loading-bar-fill" id="dictionary-loading-bar"></div>
+              </div>
+              <div class="loading-percentage" id="dictionary-loading-percentage">0%</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 5: Feature - Dictionary Popup Tutorial -->
+      <section class="onboarding-step" id="step-popup">
+        <div class="step-content">
+          <div class="feature-showcase">
+            <div class="feature-text">
+              <div class="feature-badge">Tutorial</div>
+              <h2 class="feature-title">Definitions at your fingertips</h2>
+
+              <div class="feature-hint interactive">
+                <span class="hint-icon">👉</span>
+                <span>Hold Shift and hover over the example sentence →</span>
+              </div>
+              <ul class="feature-list">
+                <li>
+                  <button class="pronunciation-btn" type="button" aria-label="Get audio pronunciation">
+                    <span class="icon">🔊</span>
+                  </button>
+                  <span>Get audio pronunciation</span>
+                </li>
+                <li>
+                  <button class="anki-btn anki-available" type="button" aria-label="Save to Anki flashcards">A</button>
+                  <span>Save to Anki flashcards</span>
+                </li>
+                <li>
+                  <button class="mark-known-btn" type="button" aria-label="Mark words as known to track progress">KNOWN</button>
+                  <span>Mark words as known to track progress</span>
+                </li>
+              </ul>
+            </div>
+            <div class="feature-visual">
+              <!-- Real Interactive Sentence -->
+              <div class="onboarding-sentence-container" id="onboarding-sentence-container">
+                <p class="onboarding-sentence" id="onboarding-sentence">
+                  <!-- Sentence will be inserted here by JavaScript -->
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="step-nav">
+            <button class="btn btn-secondary" id="btn-popup-back">← Back</button>
+            <button class="btn btn-primary" id="btn-popup-next">Next →</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 6: Level Selection -->
+      <section class="onboarding-step" id="step-level">
+        <div class="step-content">
+          <h2 class="step-title">What's Your Current Level?</h2>
+          <p class="step-description">
+            Select your proficiency level to import a starter vocabulary list (optional). 
+            This helps Helios understand which words you already know.
+          </p>
+
+          <div id="level-selector-container" class="level-selector-container">
+            <!-- Level selector will be injected here -->
+          </div>
+
+          <div class="bulk-import-section">
+            <h3 class="bulk-import-title">Or Import Your Own Word List (e.g. Anki)</h3>
+            <p class="bulk-import-description">
+              Paste words from your external word lists, separated by spaces, commas, or line breaks. You can also import words later in the settings.
+            </p>
+            <textarea
+              class="bulk-import-textarea"
+              id="bulk-import-textarea"
+              placeholder="Paste known words here, separated by space, comma, or new line&#10;Example: 对 错 好 不好 中国 学习 汉语"
+            ></textarea>
+            <button class="btn btn-secondary btn-bulk-import" id="btn-bulk-import">
+              <span>📥</span>
+              Import Words
+            </button>
+          </div>
+
+          <div class="step-nav">
+            <button class="btn btn-secondary" id="btn-level-back">← Back</button>
+            <div class="step-nav-right">
+              <button class="btn btn-secondary" id="btn-level-skip">Skip</button>
+              <button class="btn btn-primary" id="btn-level-next">Continue →</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 7: Success -->
+      <section class="onboarding-step" id="step-success">
+        <div class="step-content success-content">
+          <div class="success-icon">✨</div>
+          <h2 class="step-title">You're All Set!</h2>
+          <p class="step-description">
+            Helios is ready to help you learn <span id="selected-language-name"></span>.
+            Start browsing and watch your vocabulary grow!
+          </p>
+
+          <div class="recommended-content" id="recommended-content">
+            <!-- Recommended video link will be inserted here by JavaScript -->
+          </div>
+
+          <button class="btn btn-primary btn-large" id="btn-start-learning">
+            Start Learning
+            <svg class="btn-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <!-- Progress Indicator -->
+    <div class="progress-indicator">
+      <div class="progress-dot active" data-step="0"></div>
+      <div class="progress-dot" data-step="1"></div>
+      <div class="progress-dot" data-step="2"></div>
+      <div class="progress-dot" data-step="3"></div>
+      <div class="progress-dot" data-step="4"></div>
+      <div class="progress-dot" data-step="5"></div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="../../content/languages/base-language-adapter.js"></script>
+  <script src="../../content/languages/chinese-adapter.js"></script>
+  <script src="../../../lib/kuromoji/kuromoji.js"></script>
+  <script src="../../content/languages/japanese-adapter.js"></script>
+  <script src="../../content/languages/space-separated-adapter.js"></script>
+  <script src="../../content/languages/language-registry.js"></script>
+  <script src="../../content/vocab-manager.js"></script>
+  <script src="../../content/dictionary-bridge.js"></script>
+  <script src="../../content/dictionary-manager.js"></script>
+  <script src="../../content/frequency-manager.js"></script>
+  <script src="../../content/text-highlighter.js"></script>
+  <script src="../../content/page-processor.js"></script>
+  <script src="../../content/pronunciation-manager.js"></script>
+  <script src="../../content/pronunciation.js"></script>
+  <script src="../../content/anki-manager.js"></script>
+  <script src="../../content/popup/components/popup-positioner.js"></script>
+  <script src="../../content/popup/components/popup-content-builder.js"></script>
+  <script src="../../content/popup/components/popup-event-handler.js"></script>
+  <script src="../../content/popup/components/card-navigator.js"></script>
+  <script src="../../content/popup/components/definition-filter.js"></script>
+  <script src="../../content/popup/components/card-manager.js"></script>
+  <script src="../../content/popup/popup-settings-manager.js"></script>
+  <script src="../../content/popup/popup-manager.js"></script>
+  <script src="../../content/popup/multi-card-popup-manager.js"></script>
+  <script src="../../content/utils/activation-controller.js"></script>
+  <script src="../../content/utils/lookup-controller.js"></script>
+  <script src="../../content/components/language-selector/language-selector.js"></script>
+  <script src="../../content/onboarding/first-run-detector.js"></script>
+  <script src="../../content/onboarding/onboarding-controller.js"></script>
+  <script src="onboarding.js"></script>
+
+  <script>
+    // Create floating characters
+    const characters = [
+      "学", "習", "語", "言", "美", "丽", "技", "術", "知", "道",
+      "한", "국", "서", "울", "á", "é", "í", "ñ", "ç", "è",
+      "ä", "ö", "ü", "ß", "д", "л", "я", "б", "й", "ц"
+    ];
+
+    const floatingBg = document.getElementById('floating-bg');
+
+    characters.forEach((char, i) => {
+      const div = document.createElement('div');
+      div.className = 'floating-char';
+      div.textContent = char;
+      div.style.left = `${Math.random() * 100}%`;
+      div.style.top = `${Math.random() * 100}%`;
+      div.style.fontSize = `${Math.random() * 40 + 30}px`;
+      div.style.animationDelay = `${Math.random() * 3}s`;
+      div.style.animationDuration = `${Math.random() * 6 + 8}s`;
+      div.style.fontWeight = Math.random() > 0.5 ? 900 : 300;
+      floatingBg.appendChild(div);
+    });
+  </script>
+</body>
+</html>

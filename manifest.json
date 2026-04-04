@@ -1,0 +1,163 @@
+{
+  "manifest_version": 3,
+  "name": "Helios",
+  "version": "1.3.5",
+  "description": "A browser extension for language learning with subtitle reading, popup dictionary, vocab tracking, and Anki integration",
+
+
+  "permissions": ["storage", "alarms", "offscreen", "activeTab", "tabCapture", "tabs", "scripting"],
+
+  "host_permissions": [
+    "https://*/*",
+    "http://*/*",
+    "http://127.0.0.1:8765/*",
+    "http://localhost:8765/*"
+  ],
+
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["*://*.netflix.com/*"],
+      "js": ["src/content/video/netflix/netflix-early-inject.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": [
+        "src/config/paths.js",
+        "src/content/config/constants.js",
+        "src/content/video/config/video-constants.js",
+        "src/content/utils/activation-controller.js",
+        "src/content/utils/shortcut-helper.js",
+        "src/content/utils/text-scanner.js",
+        "src/services/screenshot-capturer.js",
+        "src/services/audio-recorder.js",
+        "src/services/media-storage.js",
+        "src/content/utils/lookup-controller.js",
+        "src/content/utils/language-switch-coordinator.js",
+        "src/content/settings/settings-sync.js",
+        "src/content/utils/feature-toggle.js",
+        "src/content/utils/asbplayer-integration.js",
+        "lib/jieba/jieba.js",
+        "lib/kuromoji/kuromoji.js",
+        "src/content/languages/base-language-adapter.js",
+        "src/content/languages/chinese-adapter.js",
+        "src/content/languages/japanese-adapter.js",
+        "src/content/languages/space-separated-adapter.js",
+        "src/content/languages/language-registry.js",
+        "src/content/pronunciation-manager.js",
+        "src/content/frequency-manager.js",
+        "src/content/anki-manager.js",
+        "src/content/pronunciation.js",
+        "src/content/popup/components/popup-positioner.js",
+        "src/content/popup/components/popup-content-builder.js",
+        "src/content/popup/components/popup-event-handler.js",
+        "src/content/popup/components/card-navigator.js",
+        "src/content/popup/components/definition-filter.js",
+        "src/content/popup/components/card-manager.js",
+        "src/content/popup/popup-settings-manager.js",
+        "src/content/popup/popup-manager.js",
+        "src/content/popup/multi-card-popup-manager.js",
+        "src/content/settings/content-settings-applier.js",
+        "src/content/extensiontab.js",
+        "src/content/text-highlighter.js",
+        "src/content/page-processor.js",
+        "src/content/vocab-manager.js",
+        "src/content/dictionary-bridge.js",
+        "src/content/dictionary-manager.js",
+        "src/content/video/models/subtitle-entry.js",
+        "src/content/video/models/subtitle-collection.js",
+        "src/content/video/parsers/srt-parser.js",
+        "src/content/video/parsers/vtt-parser.js",
+        "src/content/video/parsers/subtitle-parser.js",
+        "src/content/video/ui/subtitle-overlay.js",
+        "src/content/video/ui/subtitle-list-panel.js",
+        "src/content/video/ui/subtitle-selector-modal.js",
+        "src/content/video/core/video-binding.js",
+        "src/content/video/core/video-detector.js",
+        "src/content/video/core/platform-detector.js",
+        "src/content/video/loaders/base-subtitle-loader.js",
+        "src/content/video/loaders/subtitle-file-loader.js",
+        "src/content/video/loaders/youtube-subtitle-loader.js",
+        "src/content/video/loaders/netflix-subtitle-loader.js",
+        "src/content/video/controllers/video-ui-controller.js",
+        "src/content/video/video-feature-manager.js",
+        "src/content/video/youtube/theater-mode-controller.js",
+        "src/content/video/youtube/layout-manager.js",
+        "src/content/video/youtube/sidebar-positioner.js",
+        "src/content/video/youtube/helios-toggle-button.js",
+        "src/content/youtube-sidebar.js",
+        "src/content/video/platform-video-sidebar.js",
+        "src/content/content.js",
+        "src/content/banner-manager.js",
+        "src/content/banner.js",
+        "src/content/side-tab.js"
+      ],
+      "css": ["src/ui/popup/popup.css", "src/ui/video/video-styles.css", "src/ui/video/subtitle-selector.css"],
+      "run_at": "document_end"
+    }
+  ],
+
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+
+  "action": {
+    "default_popup": "src/ui/tab/extensiontab.html",
+    "default_title": "Helios Language Learning Extension"
+  },
+
+  "options_page": "src/ui/settings/helios-settings.html",
+
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/config/paths.js",
+        "src/ui/popup/popup.css",
+        "dictionaries/**/*",
+        "freq-dict/*",
+        "OnboardingVocab/**/*",
+        "src/ui/settings/helios-settings.html",
+        "src/content/settings/helios-settings.js",
+        "src/content/settings/settings-storage.js",
+        "src/content/settings/settings-ui.js",
+        "src/content/settings/settings-anki.js",
+        "src/content/settings/settings-vocabulary.js",
+        "src/content/settings/settings-advanced.js",
+        "src/ui/settings/*",
+        "src/ui/settings/helios-settings.css",
+        "src/ui/banner/banner.html",
+        "src/ui/banner/banner.css",
+        "src/content/banner.js",
+        "src/ui/side-tab/side-tab.html",
+        "src/ui/side-tab/side-tab.css",
+        "src/content/side-tab.js",
+        "src/ui/onboarding/onboarding.html",
+        "src/ui/onboarding/onboarding.css",
+        "src/ui/onboarding/onboarding.js",
+        "src/content/onboarding/first-run-detector.js",
+        "src/content/onboarding/onboarding-controller.js",
+        "src/content/components/language-selector/language-selector.js",
+        "src/content/components/language-selector/language-selector.css",
+        "src/ui/video/video-styles.css",
+        "src/ui/video/subtitle-selector.css",
+        "src/content/video/youtube/youtube-page-script.js",
+        "src/content/video/netflix/netflix-page-script.js",
+        "src/ui/youtube-sidebar/youtube-sidebar.html",
+        "src/ui/youtube-sidebar/youtube-sidebar.css",
+        "lib/jieba/dict.txt.big",
+        "lib/jieba/*",
+        "lib/kuromoji/**/*",
+        "freq-dict-ja/*"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

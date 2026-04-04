@@ -1,0 +1,499 @@
+class BannerManager {
+    constructor() {
+        this.sideTab = null;
+        this.sideTabInstance = null;
+        this.lastStats = {
+            knownWords: 0,
+            learningWords: 0,
+            ignoredWords: 0,
+            comprehension: 100,
+            pageWords: 0,
+            uniqueComprehension: 100,
+            sentenceBreakdownPercentage: 100,
+            sentenceBreakdown: { totalSentences: 0, t0Sentences: 0, t1Sentences: 0, t2Sentences: 0 }
+        };
+        this.init();
+    }
+
+    init() {
+        this.injectSideTabCSS();
+        this.createSideTab();
+    }
+
+    injectSideTabCSS() {
+        if (!document.getElementById('language-extension-side-tab-css')) {
+            const link = document.createElement('link');
+            link.id = 'language-extension-side-tab-css';
+            link.rel = 'stylesheet';
+            link.type = 'text/css';
+            // File paths are centralized in src/config/paths.js
+            link.href = window.PATHS ? window.PATHS.getChromeURL('CSS.SIDE_TAB') : chrome.runtime.getURL('src/ui/side-tab/side-tab.css');
+            document.head.appendChild(link);
+        }
+    }
+
+    async createSideTab() {
+        // Fetch the HTML for the side tab
+        // File paths are centralized in src/config/paths.js
+        const sideTabUrl = window.PATHS ? window.PATHS.getChromeURL('HTML.SIDE_TAB') : chrome.runtime.getURL('src/ui/side-tab/side-tab.html');
+        const response = await fetch(sideTabUrl);
+        const html = await response.text();
+        const temp = document.createElement('div');
+        temp.innerHTML = html;
+        this.sideTab = temp.firstElementChild;
+        document.body.appendChild(this.sideTab);
+
+        // Now that the side tab is in the DOM, we can instantiate the side tab logic
+        this.sideTabInstance = new HeliosSideTab();
+
+        // Calculate and update initial stats
+        const comprehension = await window.pageProcessor.calculateComprehensionPercentage();
+        const pageWords = await this.calculatePageWordsCount();
+        const knownWordsCount = window.vocabManager.getKnownWordsCount();
+        const learningWordsCount = window.vocabManager.getLearningWordsCount
+            ? window.vocabManager.getLearningWordsCount()
+            : 0;
+        const ignoredWordsCount = window.vocabManager.getIgnoredWordsCount
+            ? window.vocabManager.getIgnoredWordsCount()
+            : 0;
+
+        const uniqueStats = window.pageProcessor?.getUniqueWordStats
+            ? window.pageProcessor.getUniqueWordStats()
+            : { totalUnique: 0, knownUnique: 0 };
+        const breakdown = window.pageProcessor?.getSentenceBreakdownStats
+            ? window.pageProcessor.getSentenceBreakdownStats()
+            : { totalSentences: 0, t0Sentences: 0, t1Sentences: 0, t2Sentences: 0 };
+
+        const uniqueComprehension =
+            uniqueStats.totalUnique > 0
+                ? Math.round((uniqueStats.knownUnique / uniqueStats.totalUnique) * 100)
+                : 100;
+
+        const sentenceBreakdownPercentage =
+            breakdown.totalSentences > 0
+                ? Math.round(((breakdown.t0Sentences + breakdown.t1Sentences + breakdown.t2Sentences) / breakdown.totalSentences) * 100)
+                : 100;
+
+        this.updateStats({
+            knownWords: knownWordsCount,
+            learningWords: learningWordsCount,
+            ignoredWords: ignoredWordsCount,
+            comprehension: comprehension,
+            pageWords: pageWords,
+            uniqueComprehension,
+            sentenceBreakdownPercentage,
+            sentenceBreakdown: breakdown
+        });
+
+        // Set initial hover tooltips for comprehension and unique stats
+        const totalTokens = window.pageProcessor?.getTotalWordsCount
+            ? window.pageProcessor.getTotalWordsCount()
+            : 0;
+        const knownTokens = window.pageProcessor?.getKnownWordsCount
+            ? window.pageProcessor.getKnownWordsCount()
+            : 0;
+
+        if (this.sideTabInstance?.updateComprehensionTooltip) {
+            this.sideTabInstance.updateComprehensionTooltip(knownTokens, totalTokens);
+        }
+        if (this.sideTabInstance?.updateUniqueTooltip) {
+            this.sideTabInstance.updateUniqueTooltip(uniqueStats.knownUnique || 0, uniqueStats.totalUnique || 0);
+        }
+        if (this.sideTabInstance?.updateSentenceBreakdownTooltip) {
+            this.sideTabInstance.updateSentenceBreakdownTooltip(breakdown);
+        }
+
+        // Update language-specific features
+        this.updateLanguageFeatures();
+
+        // Listen for language changes to update language-specific features
+        if (window.languageRegistry) {
+            window.languageRegistry.on('languageChanged', () => {
+                this.updateLanguageFeatures();
+            });
+        }
+    }
+
+    /**
+     * Update language-specific features in the side tab
+     */
+    updateLanguageFeatures() {
+        if (!this.sideTabInstance) return;
+
+        try {
+            // Get current language code directly from languageRegistry
+            const language = window.languageRegistry?.getCurrentLanguage();
+
+            console.log('Banner Manager: Current language code:', language);
+
+            if (language) {
+                this.sideTabInstance.updateLanguageFeatures(language);
+            } else {
+                console.warn('Banner Manager: No language currently set');
+            }
+        } catch (error) {
+            console.error('Banner Manager: Error getting language:', error);
+        }
+    }
+
+    /**
+     * Calculate total words on the page or in video subtitles
+     * If video subtitles are active, returns subtitle word count
+     * Otherwise, returns page word count
+     * @returns {number}
+     */
+    async calculatePageWordsCount() {
+        try {
+            // First, check if video subtitles are active
+            const subtitleText = this.getVideoSubtitleText();
+            
+            if (subtitleText !== null) {
+                // Video subtitles are active - reuse PageProcessor's cached totals
+                if (window.pageProcessor && typeof window.pageProcessor.getTotalWordsCount === 'function') {
+                    const cachedTotal = window.pageProcessor.getTotalWordsCount();
+                    if (cachedTotal && Number.isFinite(cachedTotal)) {
+                        return cachedTotal;
+                    }
+                }
+
+                // Fallback: if cache is not available yet, derive from adapter once
+                const adapter = window.languageRegistry?.getAdapter();
+                if (adapter) {
+                    const words = await adapter.extractWords(subtitleText, window.dictionaryManager?.dictionary || {});
+                    return words.length;
+                }
+                return 0;
+            }
+
+            // No video subtitles - calculate from page text
+            const textNodes = this.getAllTextNodes(document.body);
+            let totalWords = 0;
+
+            for (const textNode of textNodes) {
+                const adapter = window.languageRegistry?.getAdapter();
+                if (adapter) {
+                    const words = await adapter.extractWords(textNode.textContent, window.dictionaryManager?.dictionary || {});
+                    totalWords += words.length;
+                }
+            }
+
+            return totalWords;
+        } catch (e) {
+            console.warn('Failed to calculate page words count:', e);
+            return 0;
+        }
+    }
+
+    /**
+     * Get video subtitle text (helper method)
+     * @returns {string|null}
+     */
+    getVideoSubtitleText() {
+        // Check if video feature is available and initialized
+        if (!window.heliosVideoFeature || !window.heliosVideoFeature.isInitialized) {
+            return null;
+        }
+
+        // Get the primary video binding
+        const binding = window.heliosVideoFeature.getPrimaryBinding();
+        if (!binding) {
+            return null;
+        }
+
+        // Check if subtitles are loaded
+        const subtitleCollection = binding.getSubtitles();
+        if (!subtitleCollection || subtitleCollection.isEmpty()) {
+            return null;
+        }
+
+        // Get all subtitle entries and combine their text
+        const entries = subtitleCollection.getAll();
+        if (entries.length === 0) {
+            return null;
+        }
+
+        // Combine all subtitle text
+        const allSubtitleText = entries.map(entry => entry.text).join(' ');
+        return allSubtitleText;
+    }
+
+    /**
+     * Get all text nodes in an element (excluding script/style)
+     * @param {Element} element
+     * @returns {Text[]}
+     */
+    getAllTextNodes(element) {
+        const textNodes = [];
+        const walker = document.createTreeWalker(
+            element,
+            NodeFilter.SHOW_TEXT,
+            {
+                acceptNode: (node) => {
+                    // Skip if parent is script, style, or our own UI elements
+                    const parent = node.parentElement;
+                    if (!parent) return NodeFilter.FILTER_REJECT;
+
+                    const tagName = parent.tagName.toLowerCase();
+                    if (tagName === 'script' || tagName === 'style' || tagName === 'noscript') {
+                        return NodeFilter.FILTER_REJECT;
+                    }
+
+                    // Skip our own UI elements
+                    if (parent.closest('.helios-side-tab') ||
+                        parent.closest('.popup-container')) {
+                        return NodeFilter.FILTER_REJECT;
+                    }
+
+                    // Only accept nodes with actual text content
+                    if (node.textContent.trim().length === 0) {
+                        return NodeFilter.FILTER_REJECT;
+                    }
+
+                    return NodeFilter.FILTER_ACCEPT;
+                }
+            }
+        );
+
+        let node;
+        while (node = walker.nextNode()) {
+            textNodes.push(node);
+        }
+
+        return textNodes;
+    }
+
+    /**
+     * Update all stats at once
+     * @param {Object} stats - { knownWords, learningWords, ignoredWords, comprehension, pageWords, uniqueComprehension, sentenceBreakdownPercentage, sentenceBreakdown }
+     */
+    updateStats(stats) {
+        if (!this.sideTabInstance) return;
+
+        const safeStats = {};
+
+        if (stats.knownWords !== undefined) {
+            const val = Number(stats.knownWords);
+            if (Number.isFinite(val)) {
+                this.lastStats.knownWords = val;
+            }
+            safeStats.knownWords = this.lastStats.knownWords;
+        }
+
+        if (stats.learningWords !== undefined) {
+            const val = Number(stats.learningWords);
+            if (Number.isFinite(val)) {
+                this.lastStats.learningWords = val;
+            }
+            safeStats.learningWords = this.lastStats.learningWords;
+        }
+
+        if (stats.ignoredWords !== undefined) {
+            const val = Number(stats.ignoredWords);
+            if (Number.isFinite(val)) {
+                this.lastStats.ignoredWords = val;
+            }
+            safeStats.ignoredWords = this.lastStats.ignoredWords;
+        }
+
+        if (stats.comprehension !== undefined) {
+            const val = Number(stats.comprehension);
+            if (Number.isFinite(val)) {
+                this.lastStats.comprehension = val;
+            }
+            safeStats.comprehension = this.lastStats.comprehension;
+        }
+
+        if (stats.pageWords !== undefined) {
+            const val = Number(stats.pageWords);
+            if (Number.isFinite(val)) {
+                this.lastStats.pageWords = val;
+            }
+      safeStats.pageWords = this.lastStats.pageWords;
+    }
+
+    if (stats.uniqueComprehension !== undefined) {
+      const val = Number(stats.uniqueComprehension);
+      if (Number.isFinite(val)) {
+        this.lastStats.uniqueComprehension = val;
+      }
+      safeStats.uniqueComprehension = this.lastStats.uniqueComprehension;
+    }
+
+    if (stats.sentenceBreakdownPercentage !== undefined) {
+      const val = Number(stats.sentenceBreakdownPercentage);
+      if (Number.isFinite(val)) {
+        this.lastStats.sentenceBreakdownPercentage = val;
+      }
+      safeStats.sentenceBreakdownPercentage = this.lastStats.sentenceBreakdownPercentage;
+    }
+
+    if (stats.sentenceBreakdown !== undefined) {
+      this.lastStats.sentenceBreakdown = stats.sentenceBreakdown;
+      safeStats.sentenceBreakdown = this.lastStats.sentenceBreakdown;
+        }
+
+        this.sideTabInstance.updateStats(safeStats);
+    }
+
+    updateComprehension(comprehension) {
+        if (!this.sideTabInstance) return;
+        this.updateStats({ comprehension });
+    }
+
+    updateKnownWords(knownWords) {
+        if (!this.sideTabInstance) return;
+        this.updateStats({ knownWords });
+    }
+
+    updatePageWords(pageWords) {
+        if (!this.sideTabInstance) return;
+        this.updateStats({ pageWords });
+    }
+
+    /**
+     * Refresh all data - recalculate comprehension, page words, and known words
+     * This method is called when data changes and the sidebar needs to be updated
+     * Uses debouncing to prevent excessive calls
+     */
+    refreshData() {
+        if (!this.sideTabInstance) return;
+
+        // Debounce to prevent excessive updates
+        if (this.refreshTimeout) {
+            clearTimeout(this.refreshTimeout);
+        }
+
+      this.refreshTimeout = setTimeout(async () => {
+        try {
+          // Recalculate comprehension and page words
+          const comprehensionRaw = await window.pageProcessor?.calculateComprehensionPercentage();
+          const pageWordsRaw = await this.calculatePageWordsCount();
+          const knownWordsRaw = window.vocabManager?.getKnownWordsCount();
+          const learningWordsRaw = window.vocabManager?.getLearningWordsCount
+            ? window.vocabManager.getLearningWordsCount()
+            : NaN;
+          const ignoredWordsRaw = window.vocabManager?.getIgnoredWordsCount
+            ? window.vocabManager.getIgnoredWordsCount()
+            : NaN;
+
+          const comprehension = Number.isFinite(comprehensionRaw) ? comprehensionRaw : this.lastStats.comprehension;
+          const pageWords = Number.isFinite(pageWordsRaw) ? pageWordsRaw : this.lastStats.pageWords;
+          const knownWords = Number.isFinite(knownWordsRaw) ? knownWordsRaw : this.lastStats.knownWords;
+          const learningWords = Number.isFinite(learningWordsRaw) ? learningWordsRaw : this.lastStats.learningWords;
+          const ignoredWords = Number.isFinite(ignoredWordsRaw) ? ignoredWordsRaw : this.lastStats.ignoredWords;
+
+          // Read derived stats from PageProcessor after comprehension calculation (which updates caches)
+          const uniqueStats = window.pageProcessor?.getUniqueWordStats
+            ? window.pageProcessor.getUniqueWordStats()
+            : { totalUnique: 0, knownUnique: 0 };
+          const breakdown = window.pageProcessor?.getSentenceBreakdownStats
+            ? window.pageProcessor.getSentenceBreakdownStats()
+            : { totalSentences: 0, t0Sentences: 0, t1Sentences: 0, t2Sentences: 0 };
+
+          const uniqueComprehension =
+            uniqueStats.totalUnique > 0
+              ? Math.round((uniqueStats.knownUnique / uniqueStats.totalUnique) * 100)
+              : 100;
+
+          const sentenceBreakdownPercentage =
+            breakdown.totalSentences > 0
+              ? Math.round(((breakdown.t0Sentences + breakdown.t1Sentences + breakdown.t2Sentences) / breakdown.totalSentences) * 100)
+              : 100;
+
+          // Update all stats
+          this.updateStats({
+            knownWords: knownWords,
+            learningWords: learningWords,
+            ignoredWords: ignoredWords,
+            comprehension: comprehension,
+            pageWords: pageWords,
+            uniqueComprehension,
+            sentenceBreakdownPercentage,
+            sentenceBreakdown: breakdown
+          });
+
+          // Update hover tooltips with raw counts
+          const totalTokens = window.pageProcessor?.getTotalWordsCount
+            ? window.pageProcessor.getTotalWordsCount()
+            : 0;
+          const knownTokens = window.pageProcessor?.getKnownWordsCount
+            ? window.pageProcessor.getKnownWordsCount()
+            : 0;
+
+          if (this.sideTabInstance?.updateComprehensionTooltip) {
+            this.sideTabInstance.updateComprehensionTooltip(knownTokens, totalTokens);
+          }
+          if (this.sideTabInstance?.updateUniqueTooltip) {
+            this.sideTabInstance.updateUniqueTooltip(uniqueStats.knownUnique || 0, uniqueStats.totalUnique || 0);
+          }
+          if (this.sideTabInstance?.updateSentenceBreakdownTooltip) {
+            this.sideTabInstance.updateSentenceBreakdownTooltip(breakdown);
+          }
+
+          console.log(
+            '📊 Sidebar data refreshed - Comprehension:',
+            comprehension + '%',
+            'Known Words:',
+            knownWords,
+            'Learning Words:',
+            learningWords,
+            'Ignored Words:',
+            ignoredWords,
+            'Page Words:',
+            pageWords,
+            'Unique Comprehension:',
+            uniqueComprehension + '%',
+            'Sentence breakdown:',
+            sentenceBreakdownPercentage + '%'
+          );
+        } catch (error) {
+          console.error('Error refreshing sidebar data:', error);
+        }
+        this.refreshTimeout = null;
+      }, 300); // 300ms debounce - prevents updates more frequent than every 300ms
+    }
+
+    /**
+     * Called when vocabulary is updated (word marked as known/unknown)
+     * This is an alias for refreshData() for backwards compatibility
+     */
+    onVocabUpdate() {
+        this.refreshData();
+    }
+
+    /**
+     * Called when pronunciation toggle is changed
+     * Updates the pinyin UI state in the side tab
+     * @param {boolean} enabled - Whether pronunciation is enabled
+     */
+    onPronunciationToggle(enabled) {
+        if (!this.sideTabInstance) return;
+        
+        // Update pinyin UI state in the side tab
+        this.sideTabInstance.updatePinyinUI(enabled);
+    }
+
+    /**
+     * Called when pinyin toggle is changed
+     * Updates the pinyin UI state in the side tab
+     * @param {boolean} enabled - Whether pinyin is enabled
+     */
+    onPinyinToggle(enabled) {
+        if (!this.sideTabInstance) return;
+        
+        // Update pinyin UI state in the side tab
+        this.sideTabInstance.updatePinyinUI(enabled);
+    }
+
+    hideBanner() {
+        if (this.sideTabInstance) {
+            this.sideTabInstance.hide();
+        }
+    }
+
+    showBanner() {
+        if (this.sideTabInstance) {
+            this.sideTabInstance.show();
+        }
+    }
+}

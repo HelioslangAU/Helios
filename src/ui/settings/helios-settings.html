@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Helios Settings</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="helios-settings.css" />
+  </head>
+  <body>
+    <!-- Beautiful gradient header matching extension tab -->
+    <div class="header">
+      <div class="header-content">
+        <div class="brand">
+          <h1>Helios</h1>
+          <div class="subtitle">Extension Settings</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container">
+      <!-- Sidebar Navigation -->
+      <div class="sidebar">
+        <nav class="nav-menu">
+          <div class="nav-item active" data-tab="general">
+            <span class="icon">⚙️</span>
+            <span>General</span>
+          </div>
+          <div class="nav-item" data-tab="popup">
+            <span class="icon">💬</span>
+            <span>Popup & Display</span>
+          </div>
+          <div class="nav-item" data-tab="shortcuts">
+            <span class="icon">⌨️</span>
+            <span>Keyboard Shortcuts</span>
+          </div>
+          <div class="nav-item" data-tab="video-player">
+            <span class="icon">🎬</span>
+            <span>Video Player</span>
+          </div>
+          <div class="nav-item" data-tab="anki">
+            <span class="icon">📚</span>
+            <span>Anki Integration</span>
+          </div>
+          <div class="nav-item" data-tab="vocabulary">
+            <span class="icon">📝</span>
+            <span>Vocabulary</span>
+          </div>
+          <div class="nav-item" data-tab="advanced">
+            <span class="icon">🔧</span>
+            <span>Advanced</span>
+          </div>
+        </nav>
+      </div>
+
+      <!-- Main Content -->
+      <div class="main-content">
+        <!-- General Settings -->
+        <div class="tab-content active" id="general">
+          <div class="loading-indicator">
+            <div class="loading-spinner"></div>
+            Loading General Settings...
+          </div>
+        </div>
+
+        <!-- Popup & Display Settings -->
+        <div class="tab-content" id="popup">
+          <div class="loading-indicator">
+            <div class="loading-spinner"></div>
+            Loading Popup Settings...
+          </div>
+        </div>
+
+        <!-- Keyboard Shortcuts -->
+        <div class="tab-content" id="shortcuts">
+          <div class="loading-indicator">
+            <div class="loading-spinner"></div>
+            Loading Keyboard Shortcuts...
+          </div>
+        </div>
+
+        <!-- Video Player Settings -->
+        <div class="tab-content" id="video-player">
+          <div class="loading-indicator">
+            <div class="loading-spinner"></div>
+            Loading Video Player Settings...
+          </div>
+        </div>
+
+        <!-- Anki Integration -->
+        <div class="tab-content" id="anki">
+          <div class="loading-indicator">
+            <div class="loading-spinner"></div>
+            Loading Anki Settings...
+          </div>
+        </div>
+
+        <!-- Vocabulary Management -->
+        <div class="tab-content" id="vocabulary">
+          <div class="loading-indicator">
+            <div class="loading-spinner"></div>
+            Loading Vocabulary Settings...
+          </div>
+        </div>
+
+        <!-- Advanced Settings -->
+        <div class="tab-content" id="advanced">
+          <div class="loading-indicator">
+            <div class="loading-spinner"></div>
+            Loading Advanced Settings...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Load paths configuration first (correct relative path from src/ui/settings/) -->
+    <script src="../../config/paths.js"></script>
+
+    <!-- Load language adapters (required for vocabulary validation) -->
+    <script src="../../content/languages/base-language-adapter.js"></script>
+    <script src="../../content/languages/chinese-adapter.js"></script>
+    <script src="../../content/languages/space-separated-adapter.js"></script>
+    <script src="../../content/languages/language-registry.js"></script>
+
+    <!-- Load all settings modules as external scripts (MV3 CSP-safe) -->
+    <script src="../../content/settings/settings-storage.js"></script>
+    <script src="../../content/settings/settings-ui.js"></script>
+    <script src="../../content/anki-manager.js"></script>
+    <script src="../../content/settings/settings-anki.js"></script>
+    <script src="../../content/dictionary-manager.js"></script>
+    <script src="../../content/vocab-manager.js"></script>
+    <script src="../../content/settings/settings-vocabulary.js"></script>
+    <script src="../../content/settings/settings-advanced.js"></script>
+
+    <!-- Main settings manager last -->
+    <script src="../../content/settings/helios-settings.js"></script>
+  </body>
+</html>
