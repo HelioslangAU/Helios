@@ -209,6 +209,20 @@ class BaseLanguageAdapter {
   }
 
   /**
+   * Normalize text for dictionary lookup and cache keys.
+   * Space-separated languages generally want lowercase lookup keys; character-
+   * based languages can override this for script-aware normalization.
+   * @param {string} text
+   * @returns {string}
+   */
+  normalizeLookupText(text) {
+    if (text == null) return '';
+    const trimmed = String(text).trim().normalize('NFC');
+    if (!trimmed) return '';
+    return this.getCaseSensitive() ? trimmed : trimmed.toLowerCase();
+  }
+
+  /**
    * Detect if a definition is a variant pattern (e.g., "erhua variant of", "non standard spelling")
    * @param {string} definition - Definition text to check
    * @returns {Object|null} - Object with {pattern, baseWords} or null if not a variant

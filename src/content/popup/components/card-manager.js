@@ -171,12 +171,21 @@ class CardManager {
     if (this.languageRegistry.getCaseSensitive(this.languageRegistry.getCurrentLanguage())) {
       character = character.toLowerCase();
     }
-    // Use adapter's getDictionaryEntries to handle base word resolution and enhancements
+    // Use adapter's getDictionaryEntries to handle base word resolution and enhancements.
+    // Bug #3: pass the async getDefinition loader so adapters (e.g. Japanese) can
+    // await base-form lookups when the sync proxy cache misses.
     let matches = null;
     if (this.languageRegistry) {
       const adapter = this.languageRegistry.getAdapter();
       if (adapter && adapter.getDictionaryEntries) {
-        matches = adapter.getDictionaryEntries(character, this.dictionaryManager.dictionary);
+        const asyncLoader = this.dictionaryManager.getDefinition
+          ? (word) => this.dictionaryManager.getDefinition(word)
+          : null;
+        matches = await adapter.getDictionaryEntries(
+          character,
+          this.dictionaryManager.dictionary,
+          asyncLoader
+        );
       }
     }
     

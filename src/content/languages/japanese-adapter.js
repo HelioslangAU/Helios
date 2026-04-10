@@ -148,9 +148,17 @@ class JapaneseLanguageAdapter extends BaseLanguageAdapter {
               .map(token => {
                 if (!token || !token.surface_form) return null;
                 const basicForm = token.basic_form && token.basic_form !== '*' ? token.basic_form.trim().normalize('NFC') : null;
+                // 
+                const pos = token.pos || '';
+                const isGrammatical = (
+                  pos === '助詞' ||
+                  pos === '助動詞' ||
+                  pos === '記号'
+                );
                 return {
                   surface: token.surface_form,
                   dictionaryForm: basicForm && basicForm.length > 0 ? basicForm : null,
+                  isGrammatical,
                 };
               })
               .filter(Boolean);
@@ -171,7 +179,10 @@ class JapaneseLanguageAdapter extends BaseLanguageAdapter {
               start,
               end: start + segment.surface.length,
               dictionaryForm: segment.dictionaryForm,
-              isTargetLang: true
+              // Grammatical morphemes are still Japanese characters but should not
+              // be treated as vocabulary — flag them as non-target so the renderer
+              // (and stats) skip them. (Bug #4)
+              isTargetLang: !segment.isGrammatical
             });
             chunkPos += segment.surface.length;
           }
@@ -249,20 +260,65 @@ class JapaneseLanguageAdapter extends BaseLanguageAdapter {
     return null;
   }
 
-  getDictionaryEntries(word, dictionary) {
+  /**
+   * Look up dictionary entries for a word.
+   *
+   *
+   * @param {string} word
+   * @param {Object} dictionary - sync proxy or plain dict
+   * @param {Function} [getDefinitionAsync] - optional async loader
+   *        (word) => Promise<Array|null>
+   * @returns {Promise<Array|null>}
+   */
+  async getDictionaryEntries(word, dictionary, getDefinitionAsync = null) {
     if (!word || !dictionary) return null;
 
     const normalizedWord = word.toLowerCase().trim().normalize('NFC');
+
+    // 1. Direct hit on the surface form.
     let entries = dictionary[normalizedWord];
     if (entries && entries.length > 0) {
       return entries;
     }
 
-    const baseWord = this.findDictionaryForm(word, dictionary);
-    if (baseWord && baseWord !== normalizedWord) {
-      entries = dictionary[baseWord];
-      if (entries && entries.length > 0) {
-        return entries;
+    // 2. Resolve via kuromoji's basic_form and try again.
+    if (this.tokenizer && this.tokenizerInitialized) {
+      try {
+        const tokens = this.tokenizer.tokenize(word);
+        if (tokens.length === 1) {
+          const basicForm = tokens[0].basic_form;
+          if (basicForm && basicForm !== '*') {
+            const normalizedBase = basicForm.toLowerCase().trim().normalize('NFC');
+            if (normalizedBase && normalizedBase !== normalizedWord) {
+              // Sync first (might already be in proxy cache from preloadWords).
+              entries = dictionary[normalizedBase];
+              if (entries && entries.length > 0) return entries;
+
+              // Otherwise fall through to the async loader.
+              if (getDefinitionAsync) {
+                try {
+                  entries = await getDefinitionAsync(normalizedBase);
+                  if (entries && entries.length > 0) return entries;
+                } catch (err) {
+                  console.warn('Async base-form lookup failed:', err);
+                }
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Kuromoji base-form resolution failed:', error);
+      }
+    }
+
+    // 3. Last-ditch async lookup of the surface form (in case the proxy just
+    //    hadn't cached it yet).
+    if (getDefinitionAsync) {
+      try {
+        entries = await getDefinitionAsync(normalizedWord);
+        if (entries && entries.length > 0) return entries;
+      } catch (err) {
+        console.warn('Async surface lookup failed:', err);
       }
     }
 
@@ -292,8 +348,7 @@ class JapaneseLanguageAdapter extends BaseLanguageAdapter {
         const definition = this._normalizeDefinition(rawDefs);
 
         if (!word) continue;
-        if (!dictionary[word]) dictionary[word] = [];
-        dictionary[word].push({ word, pronunciation: reading, definition });
+        this._indexEntry(dictionary, word, reading, definition);
       }
     } catch (e) {
       console.error('JapaneseLanguageAdapter: failed to parse dictionary', e);
@@ -320,9 +375,62 @@ class JapaneseLanguageAdapter extends BaseLanguageAdapter {
       const definition = this._normalizeDefinition(entry[5]);
 
       if (!word) continue;
-      if (!dictionary[word]) dictionary[word] = [];
-      dictionary[word].push({ word, pronunciation: reading, definition });
+      this._indexEntry(dictionary, word, reading, definition);
     }
+  }
+
+  /**
+   * Insert an entry into the dictionary under both its headword and (when
+   * appropriate) its kana reading.
+   *
+   *
+   * @private
+   */
+  _indexEntry(dictionary, word, reading, definition) {
+    const record = { word, pronunciation: reading, definition };
+    if (!dictionary[word]) dictionary[word] = [];
+    dictionary[word].push(record);
+
+    if (
+      reading &&
+      reading !== word &&
+      this._containsKanji(word) &&
+      this._isPureKana(reading)
+    ) {
+      if (!dictionary[reading]) dictionary[reading] = [];
+      dictionary[reading].push(record);
+    }
+  }
+
+  /** @private */
+  _containsKanji(text) {
+    if (!text) return false;
+    for (let i = 0; i < text.length; i++) {
+      const code = text.charCodeAt(i);
+      if (
+        (code >= 0x4E00 && code <= 0x9FFF) || // CJK Unified
+        (code >= 0x3400 && code <= 0x4DBF)    // CJK Extension A
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** @private */
+  _isPureKana(text) {
+    if (!text) return false;
+    for (let i = 0; i < text.length; i++) {
+      const code = text.charCodeAt(i);
+      const isHiragana = code >= 0x3040 && code <= 0x309F;
+      const isKatakana = code >= 0x30A0 && code <= 0x30FF;
+      const isHalfKatakana = code >= 0xFF65 && code <= 0xFF9F;
+      const isProlong = code === 0x30FC; // ー
+      if (!isHiragana && !isKatakana && !isHalfKatakana && !isProlong) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /**

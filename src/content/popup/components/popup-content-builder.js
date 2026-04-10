@@ -294,20 +294,18 @@ class PopupContentBuilder {
           }
         } else if (baseForm && dictionary) {
           // Fallback to dictionary lookup if baseFormDefinitions not available
-          const normalizedBaseForm = baseForm.toLowerCase().trim();
-          let baseFormEntries = dictionary[normalizedBaseForm];
+          const trimmedBaseForm = baseForm.trim();
+          const normalizedBaseForm = trimmedBaseForm.toLowerCase();
+          let baseFormEntries = dictionary[trimmedBaseForm];
           
-          // If normalized lookup fails, try the base form as-is (for case-sensitive languages)
-          if (!baseFormEntries && baseForm !== normalizedBaseForm) {
-            baseFormEntries = dictionary[baseForm];
+          // Fallback for lowercase-key languages
+          if (!baseFormEntries && normalizedBaseForm !== trimmedBaseForm) {
+            baseFormEntries = dictionary[normalizedBaseForm];
           }
           
           // Also try with trimmed base form in case there are whitespace issues
-          if (!baseFormEntries) {
-            const trimmedBaseForm = baseForm.trim();
-            if (trimmedBaseForm !== baseForm) {
-              baseFormEntries = dictionary[trimmedBaseForm.toLowerCase()] || dictionary[trimmedBaseForm];
-            }
+          if (!baseFormEntries && trimmedBaseForm !== baseForm) {
+            baseFormEntries = dictionary[trimmedBaseForm] || dictionary[trimmedBaseForm.toLowerCase()];
           }
           
           if (baseFormEntries && Array.isArray(baseFormEntries) && baseFormEntries.length > 0) {

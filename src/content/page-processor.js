@@ -920,6 +920,9 @@ class PageProcessor {
 
     const adapter = this.languageRegistry.getAdapter();
     if (!adapter) return;
+    const normalizeLookupText = typeof adapter.normalizeLookupText === 'function'
+      ? (word) => adapter.normalizeLookupText(word)
+      : (word) => (typeof word === 'string' ? word.toLowerCase() : word);
 
     // Preload potential words before extraction (for async dictionary)
     if (this.dictionaryManager.preloadWords) {
@@ -932,13 +935,43 @@ class PageProcessor {
     const words = await adapter.extractWords(text, this.dictionaryManager.dictionary);
     if (words.length === 0) return;
 
+    // Bug #2: extractPotentialWords above only preloads *surface substrings*. For
+    // languages whose segmenter returns a different lemma (e.g. Japanese kuromoji
+    // surface "食べ" → basic_form "食べる"), the synchronous Dictionary Proxy lookup
+    // below would return undefined on first encounter. Preload all unique base
+    // forms now so dictionary[lookupWord] hits the cache.
+    if (this.dictionaryManager.preloadWords) {
+      const baseForms = [];
+      const seen = new Set();
+      for (const w of words) {
+        const form = w.dictionaryForm;
+        if (form && typeof form === 'string' && !seen.has(form)) {
+          seen.add(form);
+          baseForms.push(form);
+        }
+      }
+      if (baseForms.length > 0) {
+        await this.dictionaryManager.preloadWords(baseForms);
+      }
+    }
+
     const fragment = document.createDocumentFragment();
     let lastIndex = 0;
 
-    words.forEach(({ word, start, end, dictionaryForm }) => {
+    words.forEach(({ word, start, end, dictionaryForm, isTargetLang }) => {
       if (start > lastIndex) {
         fragment.appendChild(document.createTextNode(text.slice(lastIndex, start)));
       }
+
+      // Bug #4: non-target tokens (English/punctuation in Chinese, particles and
+      // auxiliary verbs in Japanese, etc.) are not vocabulary — render them as
+      // plain text so they aren't clickable and don't show empty popups.
+      if (isTargetLang === false) {
+        if (word) fragment.appendChild(document.createTextNode(word));
+        lastIndex = end;
+        return;
+      }
+
       const span = document.createElement('span');
       span.textContent = word;
       span.setAttribute('data-word', word); // Always add data-word
@@ -948,23 +981,24 @@ class PageProcessor {
         span.setAttribute('data-dictionary-form', dictionaryForm);
       }
 
-      // Convert word to lowercase for dictionary lookup while preserving display
-      const lowercaseWord = word.toLowerCase();
+      // Normalize lookup keys without forcing Latin-style casing rules onto
+      // languages like Japanese.
+      const normalizedWord = normalizeLookupText(word);
       // Use dictionaryForm if available, otherwise use the word itself
-      const lookupWord = dictionaryForm ? dictionaryForm.toLowerCase() : lowercaseWord;
+      const lookupWord = dictionaryForm ? normalizeLookupText(dictionaryForm) : normalizedWord;
       
       // Check if word exists in dictionary (using base form if contraction)
       const hasDictionaryEntry = this.dictionaryManager.dictionary[lookupWord];
       
-      if (!this.vocabManager.isWordKnown(lowercaseWord) && 
+      if (!this.vocabManager.isWordKnown(normalizedWord) && 
           hasDictionaryEntry && 
-          !this.vocabManager.isWordIgnored(lowercaseWord) &&
-          !this.vocabManager.isWordLearning(lowercaseWord)) {
+          !this.vocabManager.isWordIgnored(normalizedWord) &&
+          !this.vocabManager.isWordLearning(normalizedWord)) {
         span.className = 'lang-unknown-word';
-        this.unknownWordElements.set(lowercaseWord, span);
-      } else if (hasDictionaryEntry && this.vocabManager.isWordLearning(lowercaseWord)) {
+        this.unknownWordElements.set(normalizedWord, span);
+      } else if (hasDictionaryEntry && this.vocabManager.isWordLearning(normalizedWord)) {
         span.className = 'lang-learning-word';
-        this.unknownWordElements.set(lowercaseWord, span);
+        this.unknownWordElements.set(normalizedWord, span);
       }
 
       fragment.appendChild(span);
@@ -1362,16 +1396,19 @@ class PageProcessor {
       const remainingText = text.substring(startOffset);
       if (remainingText.length === 0) return null;
       
-      // Use jieba to segment the remaining text to find words starting from this position
+      // Use the segmenter to find words starting from this position
       const words = await adapter.extractWords(remainingText, this.dictionaryManager.dictionary);
-      
-      // Return the first word found (jieba segments in order, so first is the word starting at position)
+
+      // Return the first word found (segmenters emit in order, so the first segment starts at position)
       if (words.length > 0) {
         return {
           word: words[0].word,
           textNode,
           start: startOffset,
-          end: startOffset + words[0].word.length
+          end: startOffset + words[0].word.length,
+          // Carry through the segmenter's base/lemma form so the popup looks up
+          // 食べる instead of the inflected surface 食べ. (Bug #1)
+          dictionaryForm: words[0].dictionaryForm || null
         };
       }
       

@@ -10,7 +10,9 @@
 class DictionaryStorage {
   constructor() {
     this.dbName = 'HeliosDictionaryDB';
-    this.dbVersion = 1;
+    // Bump the cache version so older Japanese dictionaries without
+    // normalization/forms support are discarded and rebuilt once.
+    this.dbVersion = 2;
     this.storeName = 'dictionaries';
     this.db = null;
   }
@@ -32,9 +34,10 @@ class DictionaryStorage {
 
       request.onupgradeneeded = (event) => {
         const db = event.target.result;
-        if (!db.objectStoreNames.contains(this.storeName)) {
-          db.createObjectStore(this.storeName, { keyPath: 'languageCode' });
+        if (db.objectStoreNames.contains(this.storeName)) {
+          db.deleteObjectStore(this.storeName);
         }
+        db.createObjectStore(this.storeName, { keyPath: 'languageCode' });
       };
     });
   }
@@ -325,139 +328,20 @@ class OffscreenDictionaryService {
       const downloadUrl = typeof adapter.getDictionaryDownloadUrl === 'function' 
         ? await adapter.getDictionaryDownloadUrl(nativeLanguageCode) 
         : adapter.getDictionaryDownloadUrl();
-      console.log(`📥 Downloading dictionary from: ${downloadUrl}`);
+      const supplementaryUrls = typeof adapter.getSupplementaryDictionaryDownloadUrls === 'function'
+        ? await adapter.getSupplementaryDictionaryDownloadUrls(nativeLanguageCode)
+        : [];
+      const downloadUrls = [downloadUrl, ...(Array.isArray(supplementaryUrls) ? supplementaryUrls : [])]
+        .filter(url => typeof url === 'string' && url.length > 0);
 
-      // Download the zip file
-      const response = await fetch(downloadUrl);
-      if (!response.ok) {
-        throw new Error(`Failed to download dictionary: ${response.status} ${response.statusText}`);
+      if (downloadUrls.length === 0) {
+        throw new Error('No dictionary download URLs available');
       }
 
-      let zipData = await response.arrayBuffer();
-      let zipBytes = new Uint8Array(zipData);
-
-      console.log(`📦 Downloaded zip file (${zipBytes.length} bytes), extracting...`);
-
-      // Check if fflate is available
-      if (typeof fflate === 'undefined' || typeof fflate.unzipSync !== 'function') {
-        throw new Error('fflate library not available. Make sure lib/fflate.js is loaded.');
-      }
-
-      // Unzip using fflate
-      let unzipped = fflate.unzipSync(zipBytes);
-      
-      if (!unzipped || Object.keys(unzipped).length === 0) {
-        throw new Error('Failed to unzip dictionary file');
-      }
-
-      console.log(`📂 Unzipped ${Object.keys(unzipped).length} files from dictionary zip`);
-
-      // Process the unzipped files based on dictionary type
-      // Check if this is a multi-file dictionary (has term_bank files)
-      const unzippedFileNames = Object.keys(unzipped);
-      const hasTermBanks = unzippedFileNames.some(name => name.includes('term_bank'));
-      let dictionary = {};
-
-      if (hasTermBanks) {
-        // Multi-file dictionary (e.g., French with term banks)
-        // Find all term_bank files in the zip (they may be numbered)
-        const termBankFiles = [];
-        for (const [path, data] of Object.entries(unzipped)) {
-          if (path.includes('term_bank') && path.endsWith('.json')) {
-            // Extract the number from filename like "term_bank_1.json" or "term_bank_10.json"
-            const match = path.match(/term_bank[_-]?(\d+)\.json$/i);
-            const number = match ? parseInt(match[1], 10) : 0;
-            termBankFiles.push({ path, data, number });
-          }
-        }
-        
-        // Sort by number to process in order
-        termBankFiles.sort((a, b) => a.number - b.number);
-        
-        console.log(`📚 Found ${termBankFiles.length} term bank files in zip`);
-        
-        // Process each term bank file
-        for (const { path, data } of termBankFiles) {
-          try {
-            // Convert Uint8Array to text and parse JSON
-            const text = new TextDecoder('utf-8').decode(data);
-            const bankContent = JSON.parse(text);
-            
-            // Process term bank using adapter's method
-            if (typeof adapter.processTermBank === 'function') {
-              adapter.processTermBank(bankContent, dictionary);
-              console.log(`📚 Processed term bank: ${path}`);
-            } else {
-              // Fallback: merge directly if adapter doesn't have processTermBank
-              Object.assign(dictionary, bankContent);
-              console.log(`📚 Merged term bank: ${path}`);
-            }
-            
-            // Clear processed data to help GC (data will be GC'd after loop iteration)
-            // bankContent and text will be GC'd after processing
-          } catch (error) {
-            console.warn(`⚠️ Error processing term bank ${path}:`, error);
-          }
-        }
-        
-        // Clear term bank files array after processing to help GC
-        termBankFiles.length = 0;
-      } else {
-        // Single-file dictionary
-        // Try to find the dictionary file (could be .json, .csv, .txt, etc.)
-        // Try common dictionary file patterns
-        const possibleNames = [
-          `${languageCode}-dict.json`,
-          `term_bank_1.json`,
-          `index.json`,
-          `cedict_ts.u8`
-        ];
-
-        let fileData = null;
-        for (const [path, data] of Object.entries(unzipped)) {
-          for (const name of possibleNames) {
-            if (path.endsWith(name) || path.includes(name)) {
-              fileData = data;
-              break;
-            }
-          }
-          if (fileData) break;
-        }
-
-        // If not found, try the first non-metadata file (skip index.json, styles.css, etc.)
-        if (!fileData) {
-          for (const [path, data] of Object.entries(unzipped)) {
-            if (!path.includes('index.json') && 
-                !path.includes('styles.css') && 
-                !path.includes('tag_bank') &&
-                (path.endsWith('.json') || path.endsWith('.csv') || path.endsWith('.txt'))) {
-              fileData = data;
-              console.log(`📄 Using file from zip: ${path}`);
-              break;
-            }
-          }
-        }
-
-        if (!fileData) {
-          // Try any JSON file
-          for (const [path, data] of Object.entries(unzipped)) {
-            if (path.endsWith('.json')) {
-              fileData = data;
-              console.log(`📄 Using JSON file from zip: ${path}`);
-              break;
-            }
-          }
-        }
-
-        if (fileData) {
-          // Convert Uint8Array to text
-          const text = new TextDecoder('utf-8').decode(fileData);
-          
-          // Parse using adapter's parseDictionary method
-          dictionary = adapter.parseDictionary(text);
-        } else {
-          throw new Error('Could not find dictionary file in zip archive');
-        }
+      const dictionary = {};
+      for (const url of downloadUrls) {
+        console.log(`📥 Downloading dictionary from: ${url}`);
+        await this.downloadAndMergeDictionaryArchive(url, adapter, dictionary, languageCode);
       }
 
       // Store in IndexedDB for future use
@@ -469,16 +353,6 @@ class OffscreenDictionaryService {
       // Load into dictionary manager
       this.dictionaryManager.dictionary = dictionary;
 
-      // Explicitly clear large temporary objects to help garbage collection
-      // Free up memory from zip file and extracted files immediately
-      // Note: These are function-scoped variables, so clearing them helps GC
-      zipData = null;
-      zipBytes = null;
-      unzipped = null;
-      
-      // Clear intermediate variables
-      // Note: termBankFiles and fileData are block-scoped, so they'll be GC'd when blocks exit
-
       return dictionary;
     } catch (error) {
       console.error('Error downloading and processing dictionary:', error);
@@ -486,15 +360,144 @@ class OffscreenDictionaryService {
     }
   }
 
+  async downloadAndMergeDictionaryArchive(downloadUrl, adapter, dictionary, languageCode) {
+    // Download the zip file
+    const response = await fetch(downloadUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to download dictionary: ${response.status} ${response.statusText}`);
+    }
+
+    let zipData = await response.arrayBuffer();
+    let zipBytes = new Uint8Array(zipData);
+
+    console.log(`📦 Downloaded zip file (${zipBytes.length} bytes), extracting...`);
+
+    if (typeof fflate === 'undefined' || typeof fflate.unzipSync !== 'function') {
+      throw new Error('fflate library not available. Make sure lib/fflate.js is loaded.');
+    }
+
+    let unzipped = fflate.unzipSync(zipBytes);
+    if (!unzipped || Object.keys(unzipped).length === 0) {
+      throw new Error('Failed to unzip dictionary file');
+    }
+
+    console.log(`📂 Unzipped ${Object.keys(unzipped).length} files from dictionary zip`);
+
+    const unzippedFileNames = Object.keys(unzipped);
+    const hasTermBanks = unzippedFileNames.some(name => name.includes('term_bank'));
+
+    if (hasTermBanks) {
+      const termBankFiles = [];
+      for (const [path, data] of Object.entries(unzipped)) {
+        if (path.includes('term_bank') && path.endsWith('.json')) {
+          const match = path.match(/term_bank[_-]?(\d+)\.json$/i);
+          const number = match ? parseInt(match[1], 10) : 0;
+          termBankFiles.push({ path, data, number });
+        }
+      }
+
+      termBankFiles.sort((a, b) => a.number - b.number);
+      console.log(`📚 Found ${termBankFiles.length} term bank files in zip`);
+
+      for (const { path, data } of termBankFiles) {
+        try {
+          const text = new TextDecoder('utf-8').decode(data);
+          const bankContent = JSON.parse(text);
+
+          if (typeof adapter.processTermBank === 'function') {
+            adapter.processTermBank(bankContent, dictionary);
+            console.log(`📚 Processed term bank: ${path}`);
+          } else {
+            this.mergeDictionaryObjects(dictionary, bankContent);
+            console.log(`📚 Merged term bank: ${path}`);
+          }
+        } catch (error) {
+          console.warn(`⚠️ Error processing term bank ${path}:`, error);
+        }
+      }
+    } else {
+      const possibleNames = [
+        `${languageCode}-dict.json`,
+        `term_bank_1.json`,
+        `index.json`,
+        `cedict_ts.u8`
+      ];
+
+      let fileData = null;
+      for (const [path, data] of Object.entries(unzipped)) {
+        for (const name of possibleNames) {
+          if (path.endsWith(name) || path.includes(name)) {
+            fileData = data;
+            break;
+          }
+        }
+        if (fileData) break;
+      }
+
+      if (!fileData) {
+        for (const [path, data] of Object.entries(unzipped)) {
+          if (!path.includes('index.json') &&
+              !path.includes('styles.css') &&
+              !path.includes('tag_bank') &&
+              (path.endsWith('.json') || path.endsWith('.csv') || path.endsWith('.txt'))) {
+            fileData = data;
+            console.log(`📄 Using file from zip: ${path}`);
+            break;
+          }
+        }
+      }
+
+      if (!fileData) {
+        for (const [path, data] of Object.entries(unzipped)) {
+          if (path.endsWith('.json')) {
+            fileData = data;
+            console.log(`📄 Using JSON file from zip: ${path}`);
+            break;
+          }
+        }
+      }
+
+      if (!fileData) {
+        throw new Error('Could not find dictionary file in zip archive');
+      }
+
+      const text = new TextDecoder('utf-8').decode(fileData);
+      const parsedDictionary = adapter.parseDictionary(text);
+      this.mergeDictionaryObjects(dictionary, parsedDictionary);
+    }
+
+    zipData = null;
+    zipBytes = null;
+    unzipped = null;
+  }
+
+  mergeDictionaryObjects(target, source) {
+    if (!source || typeof source !== 'object') return target;
+    for (const [key, entries] of Object.entries(source)) {
+      if (!Array.isArray(entries)) continue;
+      if (!target[key]) {
+        target[key] = [];
+      }
+      target[key].push(...entries);
+    }
+    return target;
+  }
+
   async handleGetDefinition(word) {
     console.log(`📚 Handling get definition for word: ${word}`);
     try {
-      const lowercaseWord = word.toLowerCase();
-
-      console.log(`📚 Found entries:`, this.dictionaryManager.dictionary[lowercaseWord] ? this.dictionaryManager.dictionary[lowercaseWord].length : 0);
-      
-      const entries = this.dictionaryManager.dictionary[lowercaseWord] || null;
-      //console.log(`📚 Found entries:`, entries ? entries.length : 0);
+      const adapter = this.languageRegistry.getAdapter();
+      const normalizedWord = adapter && typeof adapter.normalizeLookupText === 'function'
+        ? adapter.normalizeLookupText(word)
+        : (typeof word === 'string' ? word.toLowerCase() : word);
+      let entries = null;
+      if (adapter && adapter.getDictionaryEntries) {
+        entries = await adapter.getDictionaryEntries(normalizedWord, this.dictionaryManager.dictionary);
+      }
+      if (!entries) {
+        entries = this.dictionaryManager.dictionary[normalizedWord] || null;
+      }
+      console.log(`📚 Found entries:`, entries ? entries.length : 0);
       return { success: true, entries };
     } catch (error) {
       console.error('📚 Error in handleGetDefinition:', error);
@@ -506,7 +509,10 @@ class OffscreenDictionaryService {
     try {
       const adapter = this.languageRegistry.getAdapter();
       if (adapter && adapter.getDictionaryEntries) {
-        const entries = adapter.getDictionaryEntries(word, this.dictionaryManager.dictionary);
+        // Bug #3: Japanese adapter's getDictionaryEntries is now async; await
+        // it. Sync adapters (Chinese, space-separated) return plain values,
+        // which await passes through unchanged.
+        const entries = await adapter.getDictionaryEntries(word, this.dictionaryManager.dictionary);
         return { success: true, hasWord: !!entries };
       }
     } catch (error) {
@@ -519,13 +525,16 @@ class OffscreenDictionaryService {
       const adapter = this.languageRegistry.getAdapter();
       const entries = {};
       for (const word of words) {
+        const normalizedWord = adapter && typeof adapter.normalizeLookupText === 'function'
+          ? adapter.normalizeLookupText(word)
+          : (typeof word === 'string' ? word.toLowerCase() : word);
         if (adapter && adapter.getDictionaryEntries) {
-          const wordEntries = adapter.getDictionaryEntries(word, this.dictionaryManager.dictionary);
+          // Bug #3: Japanese adapter's getDictionaryEntries is now async; await it.
+          const wordEntries = await adapter.getDictionaryEntries(normalizedWord, this.dictionaryManager.dictionary);
           if (wordEntries) {
-            const lowercaseWord = word.toLowerCase();
-            entries[lowercaseWord] = wordEntries;
+            entries[normalizedWord] = wordEntries;
           }
-        } 
+        }
       }
       return { success: true, entries };
     } catch (error) {
@@ -545,4 +554,3 @@ class OffscreenDictionaryService {
 
 // Initialize service when offscreen document loads
 const offscreenService = new OffscreenDictionaryService();
-

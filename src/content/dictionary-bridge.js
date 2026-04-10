@@ -4,11 +4,27 @@
  * Allows content scripts to access dictionary without loading it locally
  */
 class DictionaryBridge {
-  constructor() {
+  constructor(languageRegistry = null) {
     this.cache = new Map(); // Cache for dictionary entries
     this.cacheSize = 10000; // Max cache size
     this.offscreenReady = false;
+    this.languageRegistry = languageRegistry;
     this.ensureOffscreenDocument();
+  }
+
+  getCurrentAdapter() {
+    return this.languageRegistry?.getAdapter?.() || null;
+  }
+
+  normalizeLookupKey(word) {
+    const adapter = this.getCurrentAdapter();
+    if (adapter && typeof adapter.normalizeLookupText === 'function') {
+      return adapter.normalizeLookupText(word);
+    }
+
+    if (word == null) return '';
+    const normalized = String(word).trim().normalize('NFC');
+    return normalized ? normalized.toLowerCase() : '';
   }
 
   /**
@@ -102,18 +118,18 @@ class DictionaryBridge {
    * Get definition for a word
    */
   async getDefinition(word) {
-    const lowercaseWord = word.toLowerCase();
+    const normalizedWord = this.normalizeLookupKey(word);
     
     // Check cache first
-    if (this.cache.has(lowercaseWord)) {
-      console.log(this.cache.get(lowercaseWord));
-      return this.cache.get(lowercaseWord);
+    if (this.cache.has(normalizedWord)) {
+      console.log(this.cache.get(normalizedWord));
+      return this.cache.get(normalizedWord);
     }
 
     try {
       const response = await this.sendToOffscreen({
         action: 'DICT_GET_DEFINITION',
-        word: lowercaseWord
+        word: normalizedWord
       });
       
       
@@ -121,7 +137,7 @@ class DictionaryBridge {
       const entries = response.entries;
       
       // Cache the result
-      this.cacheEntry(lowercaseWord, entries);
+      this.cacheEntry(normalizedWord, entries);
       
       return entries;
     } catch (error) {
@@ -134,17 +150,17 @@ class DictionaryBridge {
    * Check if word exists in dictionary
    */
   async hasWord(word) {
-    const lowercaseWord = word.toLowerCase();
+    const normalizedWord = this.normalizeLookupKey(word);
     
     // Check cache first
-    if (this.cache.has(lowercaseWord)) {
-      return this.cache.get(lowercaseWord) !== null;
+    if (this.cache.has(normalizedWord)) {
+      return this.cache.get(normalizedWord) !== null;
     }
 
     try {
       const response = await this.sendToOffscreen({
         action: 'DICT_HAS_WORD',
-        word: lowercaseWord
+        word: normalizedWord
       });
       
       return response.hasWord;
@@ -158,12 +174,14 @@ class DictionaryBridge {
    * Get multiple entries at once (batch lookup)
    */
   async getEntries(words) {
-    const lowercaseWords = words.map(w => w.toLowerCase());
+    const normalizedWords = words
+      .map(w => this.normalizeLookupKey(w))
+      .filter(Boolean);
     const uncachedWords = [];
     const results = {};
 
     // Check cache first
-    for (const word of lowercaseWords) {
+    for (const word of normalizedWords) {
       if (this.cache.has(word)) {
         results[word] = this.cache.get(word);
       } else {
@@ -260,26 +278,26 @@ class DictionaryProxy {
    * Get dictionary entry (async property access)
    */
   async get(word) {
-    const lowercaseWord = word.toLowerCase();
+    const normalizedWord = this.bridge.normalizeLookupKey(word);
     
     // Check cache
-    if (this.cache.has(lowercaseWord)) {
-      return this.cache.get(lowercaseWord);
+    if (this.cache.has(normalizedWord)) {
+      return this.cache.get(normalizedWord);
     }
 
     // Check if lookup is already pending
-    if (this.pendingLookups.has(lowercaseWord)) {
-      return await this.pendingLookups.get(lowercaseWord);
+    if (this.pendingLookups.has(normalizedWord)) {
+      return await this.pendingLookups.get(normalizedWord);
     }
 
     // Start new lookup
     const promise = this.bridge.getDefinition(word).then(entries => {
-      this.cache.set(lowercaseWord, entries);
-      this.pendingLookups.delete(lowercaseWord);
+      this.cache.set(normalizedWord, entries);
+      this.pendingLookups.delete(normalizedWord);
       return entries;
     });
 
-    this.pendingLookups.set(lowercaseWord, promise);
+    this.pendingLookups.set(normalizedWord, promise);
     return await promise;
   }
 
@@ -288,15 +306,15 @@ class DictionaryProxy {
    * For use with adapters that need sync access
    */
   getSync(word) {
-    const lowercaseWord = word.toLowerCase();
-    return this.cache.get(lowercaseWord) || null;
+    const normalizedWord = this.bridge.normalizeLookupKey(word);
+    return this.cache.has(normalizedWord) ? this.cache.get(normalizedWord) : undefined;
   }
 
   /**
    * Preload words into cache (for extractWords)
    */
   async preloadWords(words) {
-    const uncachedWords = words.filter(w => !this.cache.has(w.toLowerCase()));
+    const uncachedWords = words.filter(w => !this.cache.has(this.bridge.normalizeLookupKey(w)));
     if (uncachedWords.length > 0) {
       const entries = await this.bridge.getEntries(uncachedWords);
       for (const [word, entry] of Object.entries(entries)) {
@@ -315,19 +333,20 @@ class DictionaryProxy {
     return new Proxy({}, {
       get(target, prop) {
         if (typeof prop === 'string') {
+          const normalizedProp = self.bridge.normalizeLookupKey(prop);
           const cached = self.getSync(prop);
           
           // If not cached, trigger background lookup
-          if (cached === undefined && !self.pendingLookups.has(prop)) {
+          if (cached === undefined && !self.pendingLookups.has(normalizedProp)) {
             // Start async lookup in background
             self.bridge.getDefinition(prop).then(entries => {
-              self.cache.set(prop, entries);
-              self.pendingLookups.delete(prop);
+              self.cache.set(normalizedProp, entries);
+              self.pendingLookups.delete(normalizedProp);
             }).catch(() => {
-              self.cache.set(prop, null);
-              self.pendingLookups.delete(prop);
+              self.cache.set(normalizedProp, null);
+              self.pendingLookups.delete(normalizedProp);
             });
-            self.pendingLookups.set(prop, Promise.resolve());
+            self.pendingLookups.set(normalizedProp, Promise.resolve());
           }
           
           return cached;
@@ -336,18 +355,19 @@ class DictionaryProxy {
       },
       has(target, prop) {
         if (typeof prop === 'string') {
+          const normalizedProp = self.bridge.normalizeLookupKey(prop);
           const cached = self.getSync(prop);
           
           // Trigger background lookup if not cached
-          if (cached === undefined && !self.pendingLookups.has(prop)) {
+          if (cached === undefined && !self.pendingLookups.has(normalizedProp)) {
             self.bridge.getDefinition(prop).then(entries => {
-              self.cache.set(prop, entries);
-              self.pendingLookups.delete(prop);
+              self.cache.set(normalizedProp, entries);
+              self.pendingLookups.delete(normalizedProp);
             }).catch(() => {
-              self.cache.set(prop, null);
-              self.pendingLookups.delete(prop);
+              self.cache.set(normalizedProp, null);
+              self.pendingLookups.delete(normalizedProp);
             });
-            self.pendingLookups.set(prop, Promise.resolve());
+            self.pendingLookups.set(normalizedProp, Promise.resolve());
           }
           
           return cached !== null && cached !== undefined;
@@ -360,18 +380,19 @@ class DictionaryProxy {
       },
       getOwnPropertyDescriptor(target, prop) {
         if (typeof prop === 'string') {
+          const normalizedProp = self.bridge.normalizeLookupKey(prop);
           const cached = self.getSync(prop);
           
           // Trigger background lookup if not cached
-          if (cached === undefined && !self.pendingLookups.has(prop)) {
+          if (cached === undefined && !self.pendingLookups.has(normalizedProp)) {
             self.bridge.getDefinition(prop).then(entries => {
-              self.cache.set(prop, entries);
-              self.pendingLookups.delete(prop);
+              self.cache.set(normalizedProp, entries);
+              self.pendingLookups.delete(normalizedProp);
             }).catch(() => {
-              self.cache.set(prop, null);
-              self.pendingLookups.delete(prop);
+              self.cache.set(normalizedProp, null);
+              self.pendingLookups.delete(normalizedProp);
             });
-            self.pendingLookups.set(prop, Promise.resolve());
+            self.pendingLookups.set(normalizedProp, Promise.resolve());
           }
           
           if (cached !== null && cached !== undefined) {
@@ -396,7 +417,7 @@ class DictionaryProxy {
 class DictionaryManagerProxy {
   constructor(languageRegistry) {
     this.languageRegistry = languageRegistry;
-    this.bridge = new DictionaryBridge();
+    this.bridge = new DictionaryBridge(languageRegistry);
     this.proxy = new DictionaryProxy(this.bridge);
     this._dictionary = this.proxy.createSyncDictionary();
     this.isLoading = false;
@@ -443,7 +464,7 @@ class DictionaryManagerProxy {
     if (words.length === 0) return;
     
     // Get unique words
-    const uniqueWords = [...new Set(words.map(w => w.toLowerCase()))];
+    const uniqueWords = [...new Set(words.map(w => this.bridge.normalizeLookupKey(w)).filter(Boolean))];
     
     // Batch load words and update cache
     const entries = await this.bridge.getEntries(uniqueWords);
@@ -466,14 +487,14 @@ class DictionaryManagerProxy {
    * Also updates the sync dictionary cache so it's available immediately
    */
   async getDefinition(word) {
-    const lowercaseWord = word.toLowerCase();
+    const normalizedWord = this.bridge.normalizeLookupKey(word);
     const entries = await this.bridge.getDefinition(word);
     
     // Update the proxy cache so sync dictionary access works
     if (entries !== null && entries !== undefined) {
-      this.proxy.cache.set(lowercaseWord, entries);
+      this.proxy.cache.set(normalizedWord, entries);
     } else {
-      this.proxy.cache.set(lowercaseWord, null);
+      this.proxy.cache.set(normalizedWord, null);
     }
     
     return entries;
@@ -493,4 +514,3 @@ if (typeof window !== 'undefined') {
   window.DictionaryProxy = DictionaryProxy;
   window.DictionaryManagerProxy = DictionaryManagerProxy;
 }
-
