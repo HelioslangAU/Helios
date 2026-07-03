@@ -43,8 +43,8 @@ Helios uses a modular architecture with clear separation of concerns:
 - Popup Interface - Quick access to key features
 - Settings Page - Comprehensive customization options
 - Video Subtitle System Architecture
-- The video feature uses a component-based design:
 
+The video feature uses a component-based design:
 - VideoDetector - Automatically finds all video elements on the page
 - VideoBinding - Manages subtitles for individual videos
 - SubtitleParsers - Support for multiple subtitle formats (SRT, VTT)
