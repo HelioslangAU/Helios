@@ -4,9 +4,9 @@
 
 Helios is a comprehensive browser extension designed to help language learners efficiently acquire and retain vocabulary through immersive browsing. It combines intelligent word detection, pop-up definitions, anki integrations, and video subtitles into a seamless learning experience.
 
-![Built with JavaScript](https://img.shields.io/badge/JavaScript-82%25-f7df1e?logo=javascript)
-![CSS](https://img.shields.io/badge/CSS-11.7%25-1572b6?logo=css3)
-![HTML](https://img.shields.io/badge/HTML-6.3%25-e34c26?logo=html5)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript)
+![WXT](https://img.shields.io/badge/built%20with-WXT-67d55e)
+![Manifest V3](https://img.shields.io/badge/Manifest-V3-4285f4?logo=googlechrome)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 ## Features
@@ -26,30 +26,80 @@ Helios is a comprehensive browser extension designed to help language learners e
 
 ## Getting Started
 
-Install Dependencies:
+Helios is built with [WXT](https://wxt.dev) and TypeScript.
+
+```bash
+npm install     # also runs `wxt prepare` to generate types
+npm run dev     # launches Chrome with the extension loaded, and hot-reloads
+```
+
+`npm run dev` opens a browser with the extension already installed — you don't need to load
+it manually. To produce a build and load it yourself instead:
+
+```bash
+npm run build   # outputs .output/chrome-mv3/
+```
+
+Then go to `chrome://extensions` → enable **Developer mode** → **Load unpacked** →
+select `.output/chrome-mv3`.
+
+### Other commands
+
+| Command | Purpose |
+|---|---|
+| `npm run compile` | Type-check the whole project (`tsc --noEmit`) |
+| `npm run build:firefox` | Build the Firefox variant |
+| `npm run dev:firefox` | Dev server targeting Firefox |
+| `npm run zip` | Package for store submission |
+
+## Project structure
 
 ```
-npm install
+wxt.config.ts          Manifest + build config (the manifest is generated, not hand-written)
+src/
+  entrypoints/         One entry per extension surface — WXT derives the manifest from these
+    background.ts        Service worker
+    content/             Main content script (<all_urls>)
+    netflix-early.content.ts   document_start script for Netflix
+    youtube-page.ts, netflix-page.ts   MAIN-world page scripts
+    offscreen/           Offscreen document hosting the dictionary
+    popup/, options/, onboarding/      Extension pages
+  content/             Feature implementation (popup, video, settings, languages, …)
+  services/            Screenshot, audio recording, media storage
+  config/              paths.ts (asset URLs), storage.ts (typed chrome.storage schema)
+  types/globals.d.ts   Declarations for shared `window.*` runtime globals
+  lib/                 Vendored jieba segmenter
+  public/              Copied to the output root as-is (icons, dictionaries, UI fragments)
 ```
 
-Load in your browser:
-Chrome/Edge: Go to chrome://extensions → Enable "Developer mode" → Click "Load unpacked" → Select the dist folder
+Adding an entrypoint is enough to register it — there is no manifest to update by hand.
 
 ## Architecture
+
 Helios uses a modular architecture with clear separation of concerns:
 
-- Content Scripts - Interact with web pages and inject UI elements
-- Background Service Workers - Handle persistent data, API calls, and cross-tab communication
-- Popup Interface - Quick access to key features
-- Settings Page - Comprehensive customization options
-- Video Subtitle System Architecture
+- **Content scripts** — interact with web pages and inject UI elements
+- **Background service worker** — persistent data, Anki API calls, cross-tab messaging
+- **Offscreen document** — hosts the dictionary (a service worker can't hold it in memory)
+- **Popup interface** — quick access to key features
+- **Settings page** — comprehensive customization options
+
+Modules share state through a small set of `window.*` instances assigned during content-script
+init, all declared in `src/types/globals.d.ts`. Load order is significant and is expressed by
+the ordered side-effect imports in `src/entrypoints/content/index.ts`.
+
+All persisted state goes through `src/config/storage.ts`, which declares every
+`chrome.storage.local` key the extension uses and returns typed, partial results.
+
+### Video subtitle system
 
 The video feature uses a component-based design:
-- VideoDetector - Automatically finds all video elements on the page
-- VideoBinding - Manages subtitles for individual videos
-- SubtitleParsers - Support for multiple subtitle formats (SRT, VTT)
-- SubtitleOverlay - Renders subtitles on top of video
-- SubtitleListPanel - Provides navigation through subtitle list
+
+- **VideoDetector** — finds all video elements on the page
+- **VideoBinding** — manages subtitles for an individual video
+- **SubtitleParsers** — SRT and VTT support
+- **SubtitleOverlay** — renders subtitles over the video
+- **SubtitleListPanel** — navigation through the subtitle list
 
 
 ## How to Contribute
