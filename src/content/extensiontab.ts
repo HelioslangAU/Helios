@@ -194,13 +194,29 @@ export function loadVocabularyList(): void {
             definition = item.definition;
           }
 
-          vocabItem.innerHTML = `
-            <div class="vocab-content">
-              <div class="vocab-word">${item.word}</div>
-              <div class="vocab-definition">${definition}</div>
-            </div>
-            <button class="delete-btn" data-word="${item.word}">×</button>
-          `;
+          // Built with textContent, not innerHTML: words and definitions come from
+          // arbitrary page text and must never be parsed as markup.
+          const vocabContent = document.createElement("div");
+          vocabContent.className = "vocab-content";
+
+          const wordEl = document.createElement("div");
+          wordEl.className = "vocab-word";
+          wordEl.textContent = String(item.word ?? "");
+
+          const definitionEl = document.createElement("div");
+          definitionEl.className = "vocab-definition";
+          definitionEl.textContent = String(definition);
+
+          vocabContent.appendChild(wordEl);
+          vocabContent.appendChild(definitionEl);
+
+          const deleteBtn = document.createElement("button");
+          deleteBtn.className = "delete-btn";
+          deleteBtn.setAttribute("data-word", String(item.word ?? ""));
+          deleteBtn.textContent = "×";
+
+          vocabItem.appendChild(vocabContent);
+          vocabItem.appendChild(deleteBtn);
           vocabList.appendChild(vocabItem);
         });
 

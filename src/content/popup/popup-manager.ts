@@ -402,7 +402,7 @@ export class PopupManager {
 
   removeAllPopupsFromPage(): void {
     const allPopups = document.querySelectorAll('.chinese-lang-extension-popup');
-    allPopups.forEach(popup => (popup.parentNode as Element | null)?.remove());
+    allPopups.forEach(popup => popup.remove());
 
     this._stopGlobalMouseTracking();
 
