@@ -48,12 +48,27 @@ select `.output/chrome-mv3`.
 | Command | Purpose |
 |---|---|
 | `npm run compile` | Type-check the whole project (`tsc --noEmit`) |
+| `npm test` | Run the test suite |
+| `npm run test:watch` | Run tests in watch mode |
 | `npm run zip` | Package for store submission |
 
 > **Chrome/Edge only.** WXT can target Firefox, but the dictionary is hosted in an
 > offscreen document and `chrome.offscreen` is Chromium-only. Supporting Firefox means
 > porting that to a background page or a worker first, so the Firefox scripts are
 > deliberately not wired up — a build would succeed and then fail at runtime.
+
+## Tests
+
+`npm test` runs the suite (vitest + happy-dom, with WXT's fake `chrome.*`). Tests live next
+to the code they cover as `*.test.ts`.
+
+Coverage is deliberately concentrated on pure logic — subtitle parsing and timing, word
+extraction, jieba segmentation, shortcut matching, and the storage contract — where a
+regression is silent and a test is cheap. DOM rendering and positioning are not covered;
+they need a real browser, not a mock.
+
+Where a test documents behavior that looks wrong but is intentionally preserved, it carries
+a `// BUG:` comment explaining the discrepancy.
 
 ## Project structure
 
