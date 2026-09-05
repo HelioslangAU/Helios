@@ -1,4 +1,6 @@
-import { storage } from '@/config/storage';
+import { browser, type Browser } from 'wxt/browser';
+import { items, storage } from '@/config/storage';
+import type { SubtitlePreferences } from '@/config/storage';
 import { TheaterModeController } from '@/content/video/youtube/theater-mode-controller';
 import { YouTubeLayoutManager } from '@/content/video/youtube/layout-manager';
 import { SidebarPositioner } from '@/content/video/youtube/sidebar-positioner';
@@ -76,7 +78,7 @@ export class YouTubeSidebar {
   lastSubtitleIndex: number;
   pausedAtEnd: boolean;
 
-  _storageChangeListener: ((changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => void) | null;
+  _storageChangeListener: ((changes: { [key: string]: Browser.storage.StorageChange }, areaName: string) => void) | null;
 
   // Elements resolved from sidebar HTML after load
   subtitleSection: HTMLElement | null = null;
@@ -186,7 +188,7 @@ export class YouTubeSidebar {
         });
       }
     };
-    chrome.storage.onChanged.addListener(this._storageChangeListener);
+    browser.storage.onChanged.addListener(this._storageChangeListener);
 
     if (this.isYouTubePage()) {
       this._init();
@@ -252,7 +254,7 @@ export class YouTubeSidebar {
    */
   async _loadSidebar(): Promise<void> {
     try {
-      const response = await fetch(chrome.runtime.getURL('ui/youtube-sidebar/youtube-sidebar.html'));
+      const response = await fetch(browser.runtime.getURL('/ui/youtube-sidebar/youtube-sidebar.html'));
       const html = await response.text();
 
       const parser = new DOMParser();
@@ -262,7 +264,7 @@ export class YouTubeSidebar {
       // Inject CSS
       const link = document.createElement('link');
       link.rel = 'stylesheet';
-      link.href = chrome.runtime.getURL('ui/youtube-sidebar/youtube-sidebar.css');
+      link.href = browser.runtime.getURL('/ui/youtube-sidebar/youtube-sidebar.css');
       document.head.appendChild(link);
 
       // Wait for ytd-watch-flexy and inject sidebar into it
@@ -1401,8 +1403,13 @@ export class YouTubeSidebar {
    */
   async _saveTrackPreference(track: any): Promise<void> {
     try {
-      const result = await storage.get(['subtitlePreferences']);
-      const prefs: Record<string, any> = result.subtitlePreferences || { global: {}, perVideo: {} };
+      // Copy rather than mutate: on a miss the item hands back its shared
+      // fallback instance, which must not be written through.
+      const stored = await items.subtitlePreferences.getValue();
+      const prefs: SubtitlePreferences = {
+        global: { ...stored.global },
+        perVideo: { ...stored.perVideo },
+      };
 
       // Save global preference (language variant - e.g., zh-Hans over zh-Hant)
       const baseLanguage = track.language.split('-')[0]; // e.g., 'zh' from 'zh-Hans'
@@ -1419,7 +1426,7 @@ export class YouTubeSidebar {
         };
       }
 
-      await storage.set({ subtitlePreferences: prefs });
+      await items.subtitlePreferences.setValue(prefs);
     } catch (error) {
       console.error('[Helios YouTube Sidebar] Failed to save track preference:', error);
     }
@@ -2218,14 +2225,17 @@ export class YouTubeSidebar {
   async _loadSettings(): Promise<void> {
     try {
       // Load from new unified videoPlayer settings (preferred)
-      const result = await storage.get(['videoPlayer', 'ytSidebarSettings']);
+      const [{ value: videoPlayer }, { value: ytSidebarSettings }] = await storage.getItems([
+        items.videoPlayer,
+        items.ytSidebarSettings,
+      ]);
 
-      if (result.videoPlayer) {
+      if (videoPlayer) {
         // Use new unified settings
-        this.settings = { ...this.settings, ...result.videoPlayer } as YTSidebarSettings;
-      } else if (result.ytSidebarSettings) {
+        this.settings = { ...this.settings, ...videoPlayer } as YTSidebarSettings;
+      } else if (ytSidebarSettings) {
         // Fallback to old settings (for backward compatibility)
-        this.settings = { ...this.settings, ...result.ytSidebarSettings };
+        this.settings = { ...this.settings, ...ytSidebarSettings };
       }
     } catch (error) {
       console.error('[Helios YouTube Sidebar] Failed to load settings:', error);
@@ -2238,10 +2248,10 @@ export class YouTubeSidebar {
   async _saveSettings(): Promise<void> {
     try {
       // Save to both new and old locations for backward compatibility
-      await storage.setRaw({
-        videoPlayer: this.settings,
-        ytSidebarSettings: this.settings
-      });
+      await storage.setItems([
+        { item: items.videoPlayer, value: this.settings },
+        { item: items.ytSidebarSettings, value: this.settings },
+      ]);
     } catch (error) {
       console.error('[Helios YouTube Sidebar] Failed to save settings:', error);
     }
@@ -2379,7 +2389,7 @@ export class YouTubeSidebar {
 
     // Remove storage change listener
     if (this._storageChangeListener) {
-      chrome.storage.onChanged.removeListener(this._storageChangeListener);
+      browser.storage.onChanged.removeListener(this._storageChangeListener);
       this._storageChangeListener = null;
     }
 

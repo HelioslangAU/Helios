@@ -1,74 +1,106 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
-import { storage, type VocabEntry } from '@/config/storage';
+import {
+  items,
+  recentVocabItem,
+  storage,
+  defaultVideoPlayerSettings,
+  type VocabEntry,
+} from '@/config/storage';
 
 /**
  * These tests document the storage contract the rest of the extension relies
- * on: reads are *partial* (absent keys come back `undefined`, not defaulted),
- * writes merge rather than replace, and `setRaw` is the escape hatch for the
- * options page's runtime-keyed settings bag.
+ * on: items with a `fallback` default their reads, items without one answer
+ * `null` (migration code branches on that difference), and every `local:<name>`
+ * item addresses the same raw `chrome.storage.local` key the extension has
+ * always written.
  */
-describe('storage', () => {
+describe('storage items', () => {
   beforeEach(() => {
     fakeBrowser.reset();
   });
 
-  describe('get', () => {
-    it('returns an empty object when none of the requested keys exist', async () => {
-      expect(await storage.get(['extensionEnabled', 'targetLanguage'])).toEqual({});
+  describe('fallbacks', () => {
+    it('returns the declared fallback when the key is unset', async () => {
+      expect(await items.extensionEnabled.getValue()).toBe(true);
+      expect(await items.nativeLanguage.getValue()).toBe('en');
+      expect(await items.activationKey.getValue()).toBe('Shift');
+      expect(await items.popupTheme.getValue()).toBe('dark');
+      expect(await items.sessionCount.getValue()).toBe(0);
+      expect(await items.vocabList.getValue()).toEqual([]);
+      expect(await items.knownWordsByLanguage.getValue()).toEqual({});
+      expect(await items.hasCompletedOnboarding.getValue()).toBe(false);
     });
 
-    it('leaves absent keys `undefined` rather than defaulting them', async () => {
-      // The Partial<> contract: call sites must supply their own `?? default`.
-      const result = await storage.get(['extensionEnabled', 'autoHighlight']);
-      expect(result.extensionEnabled).toBeUndefined();
-      expect(result.autoHighlight).toBeUndefined();
+    it('returns the stored value once set, not the fallback', async () => {
+      await items.extensionEnabled.setValue(false);
+      await items.nativeLanguage.setValue('vi');
+      expect(await items.extensionEnabled.getValue()).toBe(false);
+      expect(await items.nativeLanguage.getValue()).toBe('vi');
     });
 
-    it('accepts a single key as a bare string', async () => {
-      await storage.set({ targetLanguage: 'zh' });
-      expect(await storage.get('targetLanguage')).toEqual({ targetLanguage: 'zh' });
+    it('does not confuse a stored falsy value with an unset key', async () => {
+      await items.sessionCount.setValue(0);
+      await items.popupTheme.setValue('');
+      expect(await items.sessionCount.getValue()).toBe(0);
+      expect(await items.popupTheme.getValue()).toBe('');
     });
 
-    it('returns only the requested keys, not the whole store', async () => {
-      await storage.set({
-        extensionEnabled: true,
-        targetLanguage: 'zh',
-        nativeLanguage: 'en',
-        autoHighlight: false,
-      });
-      expect(await storage.get(['targetLanguage', 'nativeLanguage'])).toEqual({
-        targetLanguage: 'zh',
-        nativeLanguage: 'en',
-      });
-    });
-
-    it('returns the present subset when only some requested keys exist', async () => {
-      await storage.set({ targetLanguage: 'ja' });
-      const result = await storage.get(['targetLanguage', 'nativeLanguage']);
-      expect(result).toEqual({ targetLanguage: 'ja' });
-      expect(result.nativeLanguage).toBeUndefined();
-    });
-
-    it('preserves falsy values instead of treating them as absent', async () => {
-      await storage.set({ extensionEnabled: false, sessionCount: 0, popupTheme: '' });
-      expect(await storage.get(['extensionEnabled', 'sessionCount', 'popupTheme'])).toEqual({
-        extensionEnabled: false,
-        sessionCount: 0,
-        popupTheme: '',
-      });
-    });
-
-    it('returns an empty object for an empty key list', async () => {
-      await storage.set({ targetLanguage: 'zh' });
-      expect(await storage.get([])).toEqual({});
+    it('exposes the fallback on the item itself', () => {
+      expect(items.extensionEnabled.fallback).toBe(true);
+      expect(items.activationKey.fallback).toBe('Shift');
     });
   });
 
-  describe('set', () => {
-    it('round-trips a primitive value', async () => {
-      await storage.set({ extensionEnabled: true });
-      expect(await storage.get(['extensionEnabled'])).toEqual({ extensionEnabled: true });
+  describe('items declared without a fallback', () => {
+    // Migration code distinguishes "never chosen" from "chosen"; these items
+    // must answer null rather than inventing a default.
+    it('returns null when unset', async () => {
+      expect(await items.targetLanguage.getValue()).toBeNull();
+      expect(await items.lastResetDate.getValue()).toBeNull();
+      expect(await items.lastAnkiResetDate.getValue()).toBeNull();
+      expect(await items.ankiSettings.getValue()).toBeNull();
+      expect(await items.videoPlayer.getValue()).toBeNull();
+      expect(await items.installDate.getValue()).toBeNull();
+      expect(await items.onboardingCompletedDate.getValue()).toBeNull();
+    });
+
+    it('returns null for the legacy subtitle keys until something writes them', async () => {
+      expect(await items.subtitlePosition.getValue()).toBeNull();
+      expect(await items.subtitleSize.getValue()).toBeNull();
+      expect(await items.subtitleVisibility.getValue()).toBeNull();
+      expect(await items.ytSidebarSettings.getValue()).toBeNull();
+    });
+
+    it('returns the stored value once written', async () => {
+      await items.targetLanguage.setValue('zh');
+      await items.lastResetDate.setValue('2026-01-04');
+      await items.subtitleVisibility.setValue(false);
+      expect(await items.targetLanguage.getValue()).toBe('zh');
+      expect(await items.lastResetDate.getValue()).toBe('2026-01-04');
+      expect(await items.subtitleVisibility.getValue()).toBe(false);
+    });
+
+    it('reports `null` fallback, so `?? default` at a call site still works', () => {
+      expect(items.targetLanguage.fallback).toBeNull();
+      expect(items.lastResetDate.fallback).toBeNull();
+    });
+  });
+
+  describe('setValue / getValue round-trips', () => {
+    it('round-trips a boolean', async () => {
+      await items.videoFeatureEnabled.setValue(false);
+      expect(await items.videoFeatureEnabled.getValue()).toBe(false);
+    });
+
+    it('round-trips a number', async () => {
+      await items.totalLookups.setValue(120);
+      expect(await items.totalLookups.getValue()).toBe(120);
+    });
+
+    it('round-trips a string', async () => {
+      await items.extensionVersion.setValue('1.3.5');
+      expect(await items.extensionVersion.getValue()).toBe('1.3.5');
     });
 
     it('round-trips an array of objects without mangling it', async () => {
@@ -76,145 +108,229 @@ describe('storage', () => {
         { word: '中国', definition: 'China', pinyin: 'zhōng guó', dateAdded: '2026-01-04', reviewCount: 3 },
         { word: '人民', definition: 'the people', pinyin: 'rén mín', dateAdded: '2026-01-05', reviewCount: 0 },
       ];
-      await storage.set({ vocabList });
-      const result = await storage.get(['vocabList']);
-      expect(result.vocabList).toEqual(vocabList);
+      await items.vocabList.setValue(vocabList);
+      expect(await items.vocabList.getValue()).toEqual(vocabList);
     });
 
-    it('round-trips a nested record keyed by language code', async () => {
+    it('round-trips a record keyed by language code', async () => {
       const knownWordsByLanguage = { zh: ['中国', '人民'], ja: ['日本語'] };
-      await storage.set({ knownWordsByLanguage });
-      expect((await storage.get(['knownWordsByLanguage'])).knownWordsByLanguage).toEqual(
-        knownWordsByLanguage
-      );
+      await items.knownWordsByLanguage.setValue(knownWordsByLanguage);
+      expect(await items.knownWordsByLanguage.getValue()).toEqual(knownWordsByLanguage);
     });
 
-    it('round-trips the templated recentVocab_<lang> key', async () => {
-      const recent: VocabEntry[] = [{ word: '謝謝', pinyin: 'xiè xie' }];
-      await storage.set({ recentVocab_zh: recent });
-      expect((await storage.get(['recentVocab_zh'])).recentVocab_zh).toEqual(recent);
+    it('round-trips a nested object with its own nested records', async () => {
+      const settings = defaultVideoPlayerSettings();
+      settings.dualSubtitlesEnabled = true;
+      settings.secondarySubtitleLanguage = 'en';
+      settings.hotkeys.next = { key: 'l', shift: true, ctrl: false, alt: false };
+      await items.videoPlayer.setValue(settings);
+
+      const stored = await items.videoPlayer.getValue();
+      expect(stored).toEqual(settings);
+      expect(stored!.hotkeys.next).toEqual({ key: 'l', shift: true, ctrl: false, alt: false });
+      expect(stored!.hotkeys.previous.key).toBe('a');
     });
 
-    it('overwrites an existing value', async () => {
-      await storage.set({ targetLanguage: 'zh' });
-      await storage.set({ targetLanguage: 'ja' });
-      expect(await storage.get(['targetLanguage'])).toEqual({ targetLanguage: 'ja' });
+    it('overwrites a previously stored value', async () => {
+      await items.targetLanguage.setValue('zh');
+      await items.targetLanguage.setValue('ja');
+      expect(await items.targetLanguage.getValue()).toBe('ja');
     });
 
-    it('merges into the store rather than replacing it', async () => {
-      await storage.set({ targetLanguage: 'zh', nativeLanguage: 'en' });
-      await storage.set({ targetLanguage: 'ja' });
-      expect(await storage.get(['targetLanguage', 'nativeLanguage'])).toEqual({
-        targetLanguage: 'ja',
-        nativeLanguage: 'en',
-      });
-    });
-
-    it('writes several keys in one call', async () => {
-      await storage.set({ sessionCount: 4, totalLookups: 120, lastResetDate: '2026-01-04' });
-      expect(await storage.get(['sessionCount', 'totalLookups', 'lastResetDate'])).toEqual({
-        sessionCount: 4,
-        totalLookups: 120,
-        lastResetDate: '2026-01-04',
-      });
-    });
-
-    it('accepts an empty write without disturbing the store', async () => {
-      await storage.set({ targetLanguage: 'zh' });
-      await storage.set({});
-      expect(await storage.get(['targetLanguage'])).toEqual({ targetLanguage: 'zh' });
+    it('keeps items independent of one another', async () => {
+      await items.targetLanguage.setValue('zh');
+      await items.nativeLanguage.setValue('vi');
+      expect(await items.targetLanguage.getValue()).toBe('zh');
+      expect(await items.nativeLanguage.getValue()).toBe('vi');
     });
   });
 
-  describe('getAll', () => {
-    it('returns an empty object for an empty store', async () => {
-      expect(await storage.getAll()).toEqual({});
+  describe('removeValue', () => {
+    it('returns an item with a fallback to that fallback', async () => {
+      await items.extensionEnabled.setValue(false);
+      await items.extensionEnabled.removeValue();
+      expect(await items.extensionEnabled.getValue()).toBe(true);
     });
 
-    it('returns every key that has been written', async () => {
-      await storage.set({ extensionEnabled: true, targetLanguage: 'zh' });
-      await storage.setRaw({ scanDelay: 300, debugMode: false });
-      expect(await storage.getAll()).toEqual({
-        extensionEnabled: true,
+    it('returns an item without a fallback to null', async () => {
+      await items.targetLanguage.setValue('zh');
+      await items.targetLanguage.removeValue();
+      expect(await items.targetLanguage.getValue()).toBeNull();
+    });
+
+    it('leaves other items untouched', async () => {
+      await items.targetLanguage.setValue('zh');
+      await items.nativeLanguage.setValue('vi');
+      await items.targetLanguage.removeValue();
+      expect(await items.nativeLanguage.getValue()).toBe('vi');
+    });
+
+    it('is a no-op for an item that was never written', async () => {
+      await items.vocabList.removeValue();
+      expect(await items.vocabList.getValue()).toEqual([]);
+    });
+
+    it('makes a removed item readable again after re-writing it', async () => {
+      await items.sessionCount.setValue(7);
+      await items.sessionCount.removeValue();
+      await items.sessionCount.setValue(1);
+      expect(await items.sessionCount.getValue()).toBe(1);
+    });
+  });
+
+  describe('batch getItems / setItems', () => {
+    it('writes several items in one call', async () => {
+      await storage.setItems([
+        { item: items.sessionCount, value: 0 },
+        { item: items.lastResetDate, value: '2026-01-04' },
+        { item: items.targetLanguage, value: 'zh' },
+      ]);
+      expect(await items.sessionCount.getValue()).toBe(0);
+      expect(await items.lastResetDate.getValue()).toBe('2026-01-04');
+      expect(await items.targetLanguage.getValue()).toBe('zh');
+    });
+
+    it('reads several items in the requested order', async () => {
+      await items.extensionEnabled.setValue(false);
+      await items.activationKey.setValue('Alt');
+
+      const [enabled, key] = await storage.getItems([items.extensionEnabled, items.activationKey]);
+      expect(enabled.key).toBe('local:extensionEnabled');
+      expect(enabled.value).toBe(false);
+      expect(key.key).toBe('local:activationKey');
+      expect(key.value).toBe('Alt');
+    });
+
+    it('applies each item’s fallback for keys that are unset', async () => {
+      const [enabled, lang] = await storage.getItems([items.extensionEnabled, items.targetLanguage]);
+      expect(enabled.value).toBe(true);
+      expect(lang.value).toBeNull();
+    });
+  });
+
+  describe('recentVocabItem', () => {
+    it('builds a distinct key per language code', () => {
+      expect(recentVocabItem('zh').key).toBe('local:recentVocab_zh');
+      expect(recentVocabItem('ja').key).toBe('local:recentVocab_ja');
+    });
+
+    it('falls back to an empty list', async () => {
+      expect(await recentVocabItem('zh').getValue()).toEqual([]);
+    });
+
+    it('does not let two language codes collide', async () => {
+      const zh: VocabEntry[] = [{ word: '謝謝', pinyin: 'xiè xie' }];
+      const ja: VocabEntry[] = [{ word: 'ありがとう' }];
+      await recentVocabItem('zh').setValue(zh);
+      await recentVocabItem('ja').setValue(ja);
+
+      expect(await recentVocabItem('zh').getValue()).toEqual(zh);
+      expect(await recentVocabItem('ja').getValue()).toEqual(ja);
+    });
+
+    it('addresses the same storage for two items built from the same code', async () => {
+      await recentVocabItem('zh').setValue([{ word: '謝謝' }]);
+      expect(await recentVocabItem('zh').getValue()).toEqual([{ word: '謝謝' }]);
+    });
+  });
+
+  describe('watch', () => {
+    it('fires with the new and old value on change', async () => {
+      const cb = vi.fn();
+      const unwatch = items.targetLanguage.watch(cb);
+
+      await items.targetLanguage.setValue('zh');
+      expect(cb).toHaveBeenCalledWith('zh', null);
+
+      await items.targetLanguage.setValue('ja');
+      expect(cb).toHaveBeenLastCalledWith('ja', 'zh');
+
+      unwatch();
+    });
+
+    it('reports the fallback rather than null when a value is removed', async () => {
+      const cb = vi.fn();
+      await items.extensionEnabled.setValue(false);
+      const unwatch = items.extensionEnabled.watch(cb);
+
+      await items.extensionEnabled.removeValue();
+      expect(cb).toHaveBeenCalledWith(true, false);
+
+      unwatch();
+    });
+
+    it('stops firing once the returned unwatch is called', async () => {
+      const cb = vi.fn();
+      const unwatch = items.sessionCount.watch(cb);
+
+      await items.sessionCount.setValue(1);
+      expect(cb).toHaveBeenCalledTimes(1);
+
+      unwatch();
+      await items.sessionCount.setValue(2);
+      expect(cb).toHaveBeenCalledTimes(1);
+      expect(await items.sessionCount.getValue()).toBe(2);
+    });
+
+    it('does not fire for changes to a different item', async () => {
+      const cb = vi.fn();
+      const unwatch = items.targetLanguage.watch(cb);
+
+      await items.nativeLanguage.setValue('vi');
+      expect(cb).not.toHaveBeenCalled();
+
+      unwatch();
+    });
+  });
+
+  /**
+   * The whole point of declaring keys as `local:<name>`: an existing install's
+   * data lives at bare `chrome.storage.local` keys written by the pre-WXT code,
+   * and the items must read and write exactly those keys — no prefix, no
+   * wrapper object. If these break, every existing user loses their vocab.
+   */
+  describe('storage-key compatibility with existing installs', () => {
+    it('reads a raw `vocabList` key written directly to browser.storage.local', async () => {
+      const vocabList: VocabEntry[] = [
+        { word: '中国', definition: 'China', pinyin: 'zhōng guó', dateAdded: '2026-01-04' },
+      ];
+      await fakeBrowser.storage.local.set({ vocabList });
+
+      expect(await items.vocabList.getValue()).toEqual(vocabList);
+    });
+
+    it('writes back to the same raw key, with no `local:` prefix in storage', async () => {
+      await items.vocabList.setValue([{ word: '人民' }]);
+
+      const raw = await fakeBrowser.storage.local.get(null);
+      expect(raw.vocabList).toEqual([{ word: '人民' }]);
+      expect(raw).not.toHaveProperty('local:vocabList');
+    });
+
+    it('reads the other pre-existing keys an upgraded install already holds', async () => {
+      await fakeBrowser.storage.local.set({
+        extensionEnabled: false,
         targetLanguage: 'zh',
-        scanDelay: 300,
-        debugMode: false,
+        knownWords: ['中国'],
+        hasCompletedOnboarding: true,
+        installDate: '2025-11-02T00:00:00.000Z',
+        recentVocab_zh: [{ word: '謝謝' }],
       });
+
+      expect(await items.extensionEnabled.getValue()).toBe(false);
+      expect(await items.targetLanguage.getValue()).toBe('zh');
+      expect(await items.knownWords.getValue()).toEqual(['中国']);
+      expect(await items.hasCompletedOnboarding.getValue()).toBe(true);
+      expect(await items.installDate.getValue()).toBe('2025-11-02T00:00:00.000Z');
+      expect(await recentVocabItem('zh').getValue()).toEqual([{ word: '謝謝' }]);
     });
 
-    it('includes keys written outside the typed surface', async () => {
-      await storage.setRaw({ someLegacyOptionsPageKey: 'still here' });
-      expect(await storage.getAll()).toHaveProperty('someLegacyOptionsPageKey', 'still here');
-    });
-  });
+    it('removes the raw key, leaving nothing behind for the old code to find', async () => {
+      await fakeBrowser.storage.local.set({ targetLanguage: 'zh' });
+      await items.targetLanguage.removeValue();
 
-  describe('setRaw', () => {
-    it('writes keys that are not declared in HeliosStorage', async () => {
-      await storage.setRaw({ hotkeyMarkLearning: '4', experimentalFlag: true });
-      const all = await storage.getAll();
-      expect(all.hotkeyMarkLearning).toBe('4');
-      expect(all.experimentalFlag).toBe(true);
-    });
-
-    it('writes a whole options-page settings bag at once', async () => {
-      await storage.setRaw({
-        scanDelay: 250,
-        maxWordLength: 6,
-        preferTraditional: true,
-        highlightColor: '#4a90d9',
-        disabledSites: ['mail.google.com', 'docs.google.com'],
-      });
-      expect(await storage.getAll()).toEqual({
-        scanDelay: 250,
-        maxWordLength: 6,
-        preferTraditional: true,
-        highlightColor: '#4a90d9',
-        disabledSites: ['mail.google.com', 'docs.google.com'],
-      });
-    });
-
-    it('shares one namespace with set — a raw write is readable through get', async () => {
-      await storage.setRaw({ targetLanguage: 'zh' });
-      expect(await storage.get(['targetLanguage'])).toEqual({ targetLanguage: 'zh' });
-    });
-
-    it('overwrites a value previously written through set', async () => {
-      await storage.set({ scanDelay: 100 });
-      await storage.setRaw({ scanDelay: 500 });
-      expect(await storage.get(['scanDelay'])).toEqual({ scanDelay: 500 });
-    });
-  });
-
-  describe('remove', () => {
-    it('deletes a single key', async () => {
-      await storage.set({ extensionEnabled: true });
-      await storage.remove('extensionEnabled');
-      expect(await storage.get(['extensionEnabled'])).toEqual({});
-    });
-
-    it('deletes several keys at once', async () => {
-      await storage.set({ extensionEnabled: true, targetLanguage: 'zh', nativeLanguage: 'en' });
-      await storage.remove(['extensionEnabled', 'targetLanguage']);
-      expect(await storage.getAll()).toEqual({ nativeLanguage: 'en' });
-    });
-
-    it('leaves untouched keys in place', async () => {
-      await storage.set({ targetLanguage: 'zh', nativeLanguage: 'en' });
-      await storage.remove('targetLanguage');
-      expect(await storage.get(['nativeLanguage'])).toEqual({ nativeLanguage: 'en' });
-    });
-
-    it('is a no-op for a key that was never written', async () => {
-      await storage.set({ targetLanguage: 'zh' });
-      await storage.remove('vocabList');
-      expect(await storage.getAll()).toEqual({ targetLanguage: 'zh' });
-    });
-
-    it('makes a removed key readable again after re-writing it', async () => {
-      await storage.set({ sessionCount: 7 });
-      await storage.remove('sessionCount');
-      await storage.set({ sessionCount: 1 });
-      expect(await storage.get(['sessionCount'])).toEqual({ sessionCount: 1 });
+      const raw = await fakeBrowser.storage.local.get(null);
+      expect(raw).not.toHaveProperty('targetLanguage');
     });
   });
 });

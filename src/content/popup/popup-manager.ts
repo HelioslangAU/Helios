@@ -1,4 +1,5 @@
-import { storage } from '@/config/storage';
+import { items, storage } from '@/config/storage';
+import { browser } from 'wxt/browser';
 import { AnkiManager } from '@/content/anki-manager';
 import type { FrequencyManager } from '@/content/frequency-manager';
 import type { LanguageRegistry } from '@/content/languages/language-registry';
@@ -422,21 +423,21 @@ export class PopupManager {
     this.hideTimeout = null;
   }
   incrementSessionCounter(): void {
-    if (window.chrome && chrome.storage && chrome.storage.local) {
-      storage.get(["todayLookupCount", "lastResetDate"]).then((result) => {
+    if (browser.runtime?.id) {
+      storage.getItems([items.todayLookupCount, items.lastResetDate]).then(([count, reset]) => {
         const today = new Date().toDateString();
-        const lastReset = result.lastResetDate || "";
-        let lookupCount = result.todayLookupCount || 0;
+        const lastReset = reset.value || "";
+        let lookupCount = count.value as number;
 
         if (lastReset !== today) {
           lookupCount = 0;
         }
 
         lookupCount++;
-        storage.set({
-          todayLookupCount: lookupCount,
-          lastResetDate: today,
-        });
+        storage.setItems([
+          { item: items.todayLookupCount, value: lookupCount },
+          { item: items.lastResetDate, value: today },
+        ]);
       });
     }
   }

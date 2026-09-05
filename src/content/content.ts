@@ -17,7 +17,8 @@ import { TextScanner } from '@/content/utils/text-scanner';
 import { VocabManager } from '@/content/vocab-manager';
 import { YouTubeSidebar } from '@/content/youtube-sidebar';
 import type { VideoFeatureManager } from '@/content/video/video-feature-manager';
-import { storage } from '@/config/storage';
+import { items, storage } from '@/config/storage';
+import { browser } from 'wxt/browser';
 
 export class ChineseLanguageLearningExtension {
   activation: ActivationController;
@@ -64,14 +65,13 @@ export class ChineseLanguageLearningExtension {
 
   async init(): Promise<void> {
     // CHECK IF EXTENSION IS DISABLED FIRST - don't initialize anything if off
-    const enabledCheck = await storage.get(['extensionEnabled']);
-    const isExtensionEnabled = enabledCheck.extensionEnabled !== false; // default to true
+    const isExtensionEnabled = await items.extensionEnabled.getValue();
 
     if (!isExtensionEnabled) {
       console.log("⏸️ Extension is disabled - skipping initialization");
 
       // Set up listener to initialize when extension gets enabled
-      chrome.storage.onChanged.addListener((changes, areaName) => {
+      browser.storage.onChanged.addListener((changes, areaName) => {
         if (areaName === 'local' && changes.extensionEnabled && changes.extensionEnabled.newValue === true) {
           console.log("▶️ Extension enabled - initializing now...");
           // Re-run initialization
@@ -91,8 +91,7 @@ export class ChineseLanguageLearningExtension {
     this.languageRegistry = new LanguageRegistry();
 
     // Get target language first, then initialize only that adapter
-    const settingsCheck = await storage.get(['targetLanguage']);
-    const targetLanguage = settingsCheck.targetLanguage || 'zh'; // default to Chinese
+    const targetLanguage = await items.targetLanguage.getValue() || 'zh'; // default to Chinese
 
     // Initialize only the target language adapter for better performance
     this.languageRegistry.initializeLanguageAdapter(targetLanguage);
@@ -206,7 +205,6 @@ export class ChineseLanguageLearningExtension {
     });
 
     // Initialize proprietary video player feature (but don't start if disabled)
-    // (currentSettings already loaded above)
     if (window.heliosVideoFeature) {
       try {
         this.videoFeature = window.heliosVideoFeature;
@@ -231,7 +229,10 @@ export class ChineseLanguageLearningExtension {
     }
 
     // Load current settings for feature toggle
-    const currentSettings = await storage.get(['activationKey', 'autoHighlight']);
+    const [activationKey, autoHighlight] = await storage.getItems([
+      items.activationKey,
+      items.autoHighlight,
+    ]);
 
     // Initialize FeatureToggle with video features
     this.featureToggle = new FeatureToggle({
@@ -247,7 +248,11 @@ export class ChineseLanguageLearningExtension {
     });
 
     // Apply initial settings (extension is enabled if we got here)
-    this.featureToggle.applyInitial({ ...currentSettings, extensionEnabled: true });
+    this.featureToggle.applyInitial({
+      activationKey: activationKey.value as string,
+      autoHighlight: autoHighlight.value as boolean,
+      extensionEnabled: true,
+    });
 
     // Register scanner
     {

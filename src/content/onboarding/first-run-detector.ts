@@ -3,24 +3,15 @@
  * Detects if this is the user's first time using the extension
  */
 
-import { storage } from '@/config/storage';
+import { items, storage } from '@/config/storage';
 
 export class FirstRunDetector {
-  ONBOARDING_KEY: 'hasCompletedOnboarding';
-  INSTALL_DATE_KEY: 'installDate';
-
-  constructor() {
-    this.ONBOARDING_KEY = 'hasCompletedOnboarding';
-    this.INSTALL_DATE_KEY = 'installDate';
-  }
-
   /**
    * Check if onboarding has been completed
    */
   async hasCompletedOnboarding(): Promise<boolean> {
     try {
-      const result = await storage.get(this.ONBOARDING_KEY);
-      return result[this.ONBOARDING_KEY] === true;
+      return (await items.hasCompletedOnboarding.getValue()) === true;
     } catch (error) {
       console.error('Error checking onboarding status:', error);
       return false;
@@ -32,10 +23,10 @@ export class FirstRunDetector {
    */
   async markOnboardingComplete(): Promise<void> {
     try {
-      await storage.setRaw({
-        [this.ONBOARDING_KEY]: true,
-        onboardingCompletedDate: new Date().toISOString()
-      });
+      await storage.setItems([
+        { item: items.hasCompletedOnboarding, value: true },
+        { item: items.onboardingCompletedDate, value: new Date().toISOString() }
+      ]);
       console.log('Onboarding marked as complete');
     } catch (error) {
       console.error('Error marking onboarding complete:', error);
@@ -47,9 +38,9 @@ export class FirstRunDetector {
    */
   async resetOnboarding(): Promise<void> {
     try {
-      await chrome.storage.local.remove([
-        this.ONBOARDING_KEY,
-        'onboardingCompletedDate'
+      await storage.removeItems([
+        items.hasCompletedOnboarding,
+        items.onboardingCompletedDate
       ]);
       console.log('Onboarding status reset');
     } catch (error) {
@@ -62,8 +53,7 @@ export class FirstRunDetector {
    */
   async getInstallDate(): Promise<string | null> {
     try {
-      const result = await storage.get(this.INSTALL_DATE_KEY);
-      return result[this.INSTALL_DATE_KEY] || null;
+      return (await items.installDate.getValue()) || null;
     } catch (error) {
       console.error('Error getting install date:', error);
       return null;
@@ -77,9 +67,7 @@ export class FirstRunDetector {
     try {
       const existing = await this.getInstallDate();
       if (!existing) {
-        await storage.set({
-          [this.INSTALL_DATE_KEY]: new Date().toISOString()
-        });
+        await items.installDate.setValue(new Date().toISOString());
         console.log('Install date recorded');
       }
     } catch (error) {

@@ -1,5 +1,6 @@
 import type { LanguageRegistry } from '@/content/languages/language-registry';
-import { storage } from '@/config/storage';
+import { items } from '@/config/storage';
+import { browser } from 'wxt/browser';
 
 /**
  * Dictionary Bridge
@@ -25,7 +26,7 @@ export class DictionaryBridge {
     try {
       // Request background script to create offscreen document
       // Content scripts can't directly check for offscreen documents
-      await chrome.runtime.sendMessage({
+      await browser.runtime.sendMessage({
         action: 'CREATE_OFFSCREEN'
       });
 
@@ -48,10 +49,10 @@ export class DictionaryBridge {
 
 
     return new Promise((resolve, reject) => {
-      chrome.runtime.sendMessage(message, (response: any) => {
-        if (chrome.runtime.lastError) {
-          console.error('🌉 Bridge error:', chrome.runtime.lastError.message);
-          reject(new Error(chrome.runtime.lastError.message));
+      browser.runtime.sendMessage(message, (response: any) => {
+        if (browser.runtime.lastError) {
+          console.error('🌉 Bridge error:', browser.runtime.lastError.message);
+          reject(new Error(browser.runtime.lastError.message));
         } else if (response) {
           // Response from background is the data object directly
           if (response.success !== false) {
@@ -77,8 +78,7 @@ export class DictionaryBridge {
       // Get native language from storage if not provided
       if (!nativeLanguageCode) {
         try {
-          const result = await storage.get(['nativeLanguage']);
-          nativeLanguageCode = result.nativeLanguage || null;
+          nativeLanguageCode = await items.nativeLanguage.getValue();
         } catch (error) {
           console.warn('Could not get native language from storage:', error);
         }

@@ -6,7 +6,9 @@
 import { unzipSync } from 'fflate';
 import { LanguageRegistry } from '@/content/languages/language-registry';
 import { DictionaryManager } from '@/content/dictionary-manager';
-import { storage } from '@/config/storage';
+import { browser } from 'wxt/browser';
+import type { Browser } from 'wxt/browser';
+import { items } from '@/config/storage';
 
 type SendResponse = (response?: any) => void;
 
@@ -139,15 +141,14 @@ class OffscreenDictionaryService {
   async loadInitialDictionary(): Promise<void> {
     try {
       // Get current language from storage
-      const result = await storage.get(['targetLanguage']);
+      const targetLanguage = await items.targetLanguage.getValue();
 
       // Don't load dictionary if no language is selected yet (e.g., during onboarding)
-      if (!result.targetLanguage) {
+      if (!targetLanguage) {
         console.log('📚 No target language set yet, skipping initial dictionary load');
         return;
       }
 
-      const targetLanguage = result.targetLanguage;
       // Initialize only the target language adapter
       this.languageRegistry.initializeLanguageAdapter(targetLanguage);
       console.log(`📚 Loading initial dictionary for language: ${targetLanguage}`);
@@ -158,7 +159,7 @@ class OffscreenDictionaryService {
   }
 
   setupMessageListener(): void {
-    chrome.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
+    browser.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
 
       // Only handle dictionary messages (ignore responses)
       if (message.action && message.action.startsWith('DICT_') && !message.action.startsWith('RESPONSE_')) {
@@ -171,7 +172,7 @@ class OffscreenDictionaryService {
     console.log('📚 Offscreen message listener set up');
   }
 
-  async handleMessage(message: any, sender: chrome.runtime.MessageSender, sendResponse: SendResponse): Promise<void> {
+  async handleMessage(message: any, sender: Browser.runtime.MessageSender, sendResponse: SendResponse): Promise<void> {
     try {
       let response;
 
@@ -202,7 +203,7 @@ class OffscreenDictionaryService {
 
       // Send response back via message (since sendResponse may not work across contexts)
       if (message.requestId) {
-        chrome.runtime.sendMessage({
+        browser.runtime.sendMessage({
           action: `RESPONSE_${message.action}`,
           requestId: message.requestId,
           data: response
@@ -218,7 +219,7 @@ class OffscreenDictionaryService {
       const errorResponse = { success: false, error: error.message };
 
       if (message.requestId) {
-        chrome.runtime.sendMessage({
+        browser.runtime.sendMessage({
           action: `RESPONSE_${message.action}`,
           requestId: message.requestId,
           data: errorResponse
@@ -331,8 +332,7 @@ class OffscreenDictionaryService {
       // Get native language code from parameter or storage
       if (!nativeLanguageCode) {
         try {
-          const result = await storage.get(['nativeLanguage']);
-          nativeLanguageCode = result.nativeLanguage || 'en';
+          nativeLanguageCode = await items.nativeLanguage.getValue();
         } catch (error) {
           console.warn('Could not get native language from storage, defaulting to English:', error);
           nativeLanguageCode = 'en';

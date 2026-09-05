@@ -1,4 +1,4 @@
-import { storage } from '@/config/storage';
+import { items, storage } from '@/config/storage';
 import type { SubtitleEntry } from '@/content/video/models/subtitle-entry';
 
 /**
@@ -735,34 +735,38 @@ export class SubtitleOverlay {
   async _loadSettings(): Promise<void> {
     try {
       const platform = this._detectPlatform();
-      // Not `storage.get`: the legacy migration keys (subtitlePosition /
-      // subtitleSize / subtitleVisibility) are not declared in HeliosStorage,
-      // and reading the whole bag instead would be a much larger read.
-      const result = await chrome.storage.local.get<{
-        ytSidebarSettings?: any;
-        subtitleSettings?: any;
-        subtitlePosition?: any;
-        subtitleSize?: any;
-        subtitleVisibility?: any;
-      }>([
-        'ytSidebarSettings',
-        'subtitleSettings',
+      const [
+        { value: ytSidebarSettings },
+        { value: subtitleSettings },
+        { value: storedPosition },
+        { value: storedSize },
+        { value: storedVisibility },
+      ] = await storage.getItems([
+        items.ytSidebarSettings,
+        items.subtitleSettings,
         // Legacy keys for migration
-        'subtitlePosition',
-        'subtitleSize',
-        'subtitleVisibility'
+        items.subtitlePosition,
+        items.subtitleSize,
+        items.subtitleVisibility,
       ]);
 
+      // The legacy items have no fallback, so an unset key reads back as
+      // `null`. The checks below distinguish "never stored" from a stored
+      // value, so map `null` to `undefined` before they run.
+      const legacyPosition = storedPosition ?? undefined;
+      const legacySize = storedSize ?? undefined;
+      const legacyVisibility = storedVisibility ?? undefined;
+
       // Load pause on hover setting
-      if (result.ytSidebarSettings && result.ytSidebarSettings.pauseOnHover !== undefined) {
-        this.pauseOnHover = result.ytSidebarSettings.pauseOnHover;
+      if (ytSidebarSettings && ytSidebarSettings.pauseOnHover !== undefined) {
+        this.pauseOnHover = ytSidebarSettings.pauseOnHover;
       }
 
       // Check if we have new platform-specific settings
-      const platformSettings = result.subtitleSettings?.[platform];
+      const platformSettings = subtitleSettings?.[platform];
 
       // Load saved subtitle position (platform-specific or legacy)
-      const positionData = platformSettings?.position || result.subtitlePosition;
+      const positionData = platformSettings?.position || legacyPosition;
       if (positionData) {
         this.customOffsetX = positionData.offsetX || 0;
         this.customOffsetY = positionData.offsetY || 0;
@@ -771,7 +775,7 @@ export class SubtitleOverlay {
       }
 
       // Load saved subtitle size (platform-specific or legacy)
-      const subtitleSize = platformSettings?.size !== undefined ? platformSettings.size : result.subtitleSize;
+      const subtitleSize = platformSettings?.size !== undefined ? platformSettings.size : legacySize;
       if (subtitleSize !== undefined) {
         this.subtitleSize = subtitleSize;
       }
@@ -783,7 +787,7 @@ export class SubtitleOverlay {
       }
 
       // Load saved visibility state (platform-specific or legacy)
-      const visibility = platformSettings?.visibility !== undefined ? platformSettings.visibility : result.subtitleVisibility;
+      const visibility = platformSettings?.visibility !== undefined ? platformSettings.visibility : legacyVisibility;
       if (visibility !== undefined) {
         this.isVisible = visibility;
 
@@ -817,9 +821,9 @@ export class SubtitleOverlay {
         hasCustomPosition: this.hasCustomPosition
       };
 
-      // Get existing settings
-      const result = await storage.get(['subtitleSettings']);
-      const subtitleSettings: Record<string, any> = result.subtitleSettings || {};
+      // Get existing settings. Copied because an unset key returns the item's
+      // shared fallback object, which must not be mutated.
+      const subtitleSettings = { ...(await items.subtitleSettings.getValue()) };
 
       // Update platform-specific position
       if (!subtitleSettings[platform]) {
@@ -828,11 +832,11 @@ export class SubtitleOverlay {
       subtitleSettings[platform].position = positionData;
 
       // Save back
-      await storage.setRaw({
-        subtitleSettings,
+      await storage.setItems([
+        { item: items.subtitleSettings, value: subtitleSettings },
         // Also save to legacy key for backward compatibility
-        subtitlePosition: positionData
-      });
+        { item: items.subtitlePosition, value: positionData },
+      ]);
 
       console.log(`[Helios Subtitle Overlay] Saved position for ${platform}:`, positionData);
     } catch (error) {
@@ -849,8 +853,7 @@ export class SubtitleOverlay {
       const platform = this._detectPlatform();
 
       // Get existing settings
-      const result = await storage.get(['subtitleSettings']);
-      const subtitleSettings: Record<string, any> = result.subtitleSettings || {};
+      const subtitleSettings = { ...(await items.subtitleSettings.getValue()) };
 
       // Update platform-specific size
       if (!subtitleSettings[platform]) {
@@ -859,11 +862,11 @@ export class SubtitleOverlay {
       subtitleSettings[platform].size = this.subtitleSize;
 
       // Save back
-      await storage.setRaw({
-        subtitleSettings,
+      await storage.setItems([
+        { item: items.subtitleSettings, value: subtitleSettings },
         // Also save to legacy key for backward compatibility
-        subtitleSize: this.subtitleSize
-      });
+        { item: items.subtitleSize, value: this.subtitleSize },
+      ]);
 
       console.log(`[Helios Subtitle Overlay] Saved size for ${platform}:`, this.subtitleSize);
     } catch (error) {
@@ -878,15 +881,14 @@ export class SubtitleOverlay {
     try {
       const platform = this._detectPlatform();
 
-      const result = await storage.get(['subtitleSettings']);
-      const subtitleSettings: Record<string, any> = result.subtitleSettings || {};
+      const subtitleSettings = { ...(await items.subtitleSettings.getValue()) };
 
       if (!subtitleSettings[platform]) {
         subtitleSettings[platform] = {};
       }
       subtitleSettings[platform].backgroundOpacity = this.subtitleBackgroundOpacity;
 
-      await storage.set({ subtitleSettings });
+      await items.subtitleSettings.setValue(subtitleSettings);
     } catch (error) {
       console.error('[Helios Subtitle Overlay] Failed to save background opacity:', error);
     }
@@ -901,8 +903,7 @@ export class SubtitleOverlay {
       const platform = this._detectPlatform();
 
       // Get existing settings
-      const result = await storage.get(['subtitleSettings']);
-      const subtitleSettings: Record<string, any> = result.subtitleSettings || {};
+      const subtitleSettings = { ...(await items.subtitleSettings.getValue()) };
 
       // Update platform-specific visibility
       if (!subtitleSettings[platform]) {
@@ -911,11 +912,11 @@ export class SubtitleOverlay {
       subtitleSettings[platform].visibility = this.isVisible;
 
       // Save back
-      await storage.setRaw({
-        subtitleSettings,
+      await storage.setItems([
+        { item: items.subtitleSettings, value: subtitleSettings },
         // Also save to legacy key for backward compatibility
-        subtitleVisibility: this.isVisible
-      });
+        { item: items.subtitleVisibility, value: this.isVisible },
+      ]);
 
       console.log(`[Helios Subtitle Overlay] Saved visibility for ${platform}:`, this.isVisible);
     } catch (error) {

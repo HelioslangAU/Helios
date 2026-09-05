@@ -3,7 +3,7 @@
  * Provides functions to check if keyboard events match configured shortcuts
  */
 
-import { storage } from '@/config/storage';
+import { items, storage } from '@/config/storage';
 
 export interface ShortcutConfig {
   key: string;
@@ -11,14 +11,6 @@ export interface ShortcutConfig {
   shift?: boolean;
   alt?: boolean;
   meta?: boolean;
-}
-
-/** Pre-unification popup hotkey keys, still read as a fallback. */
-interface LegacyPopupHotkeys {
-  hotkeyMarkUnknown?: string;
-  hotkeyMarkIgnored?: string;
-  hotkeyMarkKnown?: string;
-  hotkeyAnkiAdd?: string;
 }
 
 export interface PopupShortcuts {
@@ -33,7 +25,7 @@ export interface PopupShortcuts {
  * binding object (written by the settings page). Normalize to the object form.
  */
 function toShortcutConfig(
-  stored: string | ShortcutConfig | undefined,
+  stored: string | ShortcutConfig | null | undefined,
   fallbackKey: string,
 ): ShortcutConfig {
   if (stored && typeof stored === 'object') return stored;
@@ -112,8 +104,7 @@ export class ShortcutHelper {
     const defaults = videoShortcutDefaults();
 
     try {
-      const result = await storage.get(['shortcuts']);
-      const shortcuts = result.shortcuts || {};
+      const shortcuts = await items.shortcuts.getValue();
 
       const stored: Record<string, ShortcutConfig | undefined> = shortcuts.video || {};
 
@@ -136,8 +127,7 @@ export class ShortcutHelper {
    */
   static async getVideoNavigationShortcuts(): Promise<Record<string, ShortcutConfig>> {
     try {
-      const result = await storage.get(['shortcuts']);
-      const shortcuts = result.shortcuts || {};
+      const shortcuts = await items.shortcuts.getValue();
 
       // Return video navigation shortcuts with defaults
       // Handle both object format and display string format
@@ -204,18 +194,16 @@ export class ShortcutHelper {
    */
   static async getPopupShortcuts(): Promise<PopupShortcuts> {
     try {
-      const result = await storage.get(['shortcuts']);
-      const shortcuts = result.shortcuts || {};
+      const shortcuts = await items.shortcuts.getValue();
 
       // Return popup shortcuts with defaults, also check legacy format
       const popupShortcuts = shortcuts.popup || {};
-      // Legacy `hotkey*` keys are not declared in HeliosStorage, so this read stays raw.
-      const legacyResult = await chrome.storage.local.get<LegacyPopupHotkeys>([
-        'hotkeyMarkUnknown',
-        'hotkeyMarkIgnored',
-        'hotkeyMarkKnown',
-        'hotkeyAnkiAdd'
-      ]);
+      const [markUnknown, markIgnored, markKnown, ankiAdd] = await storage.getItems([
+        items.hotkeyMarkUnknown,
+        items.hotkeyMarkIgnored,
+        items.hotkeyMarkKnown,
+        items.hotkeyAnkiAdd
+      ]) as Array<{ value: string | null }>;
 
       // `||` (not `??`) is deliberate: "" is not an "unbound" state here.
       // SettingsStorage.collectShortcutsData rebuilds `shortcuts.popup` from
@@ -224,10 +212,10 @@ export class ShortcutHelper {
       // `hotkey*` keys, by contrast, can be written as "" (`parsed.key || ""`),
       // and that empty string must fall through to the default rather than win.
       return {
-        markUnknown: toShortcutConfig(popupShortcuts.markUnknown || legacyResult.hotkeyMarkUnknown, "1"),
-        markIgnored: toShortcutConfig(popupShortcuts.markIgnored || legacyResult.hotkeyMarkIgnored, "2"),
-        markKnown: toShortcutConfig(popupShortcuts.markKnown || legacyResult.hotkeyMarkKnown, "3"),
-        ankiAdd: toShortcutConfig(popupShortcuts.ankiAdd || legacyResult.hotkeyAnkiAdd, "q")
+        markUnknown: toShortcutConfig(popupShortcuts.markUnknown || markUnknown.value, "1"),
+        markIgnored: toShortcutConfig(popupShortcuts.markIgnored || markIgnored.value, "2"),
+        markKnown: toShortcutConfig(popupShortcuts.markKnown || markKnown.value, "3"),
+        ankiAdd: toShortcutConfig(popupShortcuts.ankiAdd || ankiAdd.value, "q")
       };
     } catch (error) {
       console.error('[ShortcutHelper] Error loading popup shortcuts:', error);

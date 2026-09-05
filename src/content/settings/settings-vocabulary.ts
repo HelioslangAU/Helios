@@ -1,7 +1,9 @@
 // Helios Settings Vocabulary Manager
 // Handles vocabulary import/export and statistics
 
-import { storage } from '@/config/storage';
+import { browser } from 'wxt/browser';
+
+import { items } from '@/config/storage';
 import { AnkiManager } from '@/content/anki-manager';
 import { DictionaryManager } from '@/content/dictionary-manager';
 import { LanguageRegistry } from '@/content/languages/language-registry';
@@ -42,9 +44,9 @@ export class HeliosSettingsVocabulary {
     // Set the current language from settings if available
     let targetLanguage = 'zh'; // default
     try {
-      const settings = await storage.get(['targetLanguage']);
-      if (settings.targetLanguage) {
-        targetLanguage = settings.targetLanguage;
+      const storedLanguage = await items.targetLanguage.getValue();
+      if (storedLanguage) {
+        targetLanguage = storedLanguage;
         this.vocabManager.setCurrentLanguage(targetLanguage);
         console.log(`🔍 Vocab manager language set to: ${targetLanguage}`);
       }
@@ -79,39 +81,34 @@ export class HeliosSettingsVocabulary {
     try {
       console.log("🔍 Loading vocabulary statistics...");
 
-      if (chrome.storage && chrome.storage.local) {
-        // Reload vocab manager to ensure we have latest data
-        await this.vocabManager!.loadKnownWords();
+      // Reload vocab manager to ensure we have latest data
+      await this.vocabManager!.loadKnownWords();
 
-        // Get known words count for current language using vocab manager
-        const knownWordsCount = this.vocabManager!.getKnownWordsCount();
+      // Get known words count for current language using vocab manager
+      const knownWordsCount = this.vocabManager!.getKnownWordsCount();
 
-        // Get learning words count for current language
-        const learningWordsCount = this.vocabManager!.getCurrentLanguageLearningWords().size;
+      // Get learning words count for current language
+      const learningWordsCount = this.vocabManager!.getCurrentLanguageLearningWords().size;
 
-        // Get ignored words count for current language
-        const ignoredWordsCount = this.vocabManager!.getCurrentLanguageIgnoredWords().size;
+      // Get ignored words count for current language
+      const ignoredWordsCount = this.vocabManager!.getCurrentLanguageIgnoredWords().size;
 
-        // Update UI elements
-        const elements: Record<string, number> = {
-          "stat-known-words": knownWordsCount,
-          "stat-learning-words": learningWordsCount,
-          "stat-ignored-words": ignoredWordsCount,
-        };
+      // Update UI elements
+      const elements: Record<string, number> = {
+        "stat-known-words": knownWordsCount,
+        "stat-learning-words": learningWordsCount,
+        "stat-ignored-words": ignoredWordsCount,
+      };
 
-        Object.entries(elements).forEach(([id, value]) => {
-          const element = document.getElementById(id);
-          if (element) {
-            element.textContent = value.toString();
-            console.log(`🔍 Updated ${id}: ${value}`);
-          }
-        });
+      Object.entries(elements).forEach(([id, value]) => {
+        const element = document.getElementById(id);
+        if (element) {
+          element.textContent = value.toString();
+          console.log(`🔍 Updated ${id}: ${value}`);
+        }
+      });
 
-        console.log("🔍 Statistics loaded successfully");
-      } else {
-        console.log("🔍 Chrome storage not available, using defaults");
-        this.setDefaultStats();
-      }
+      console.log("🔍 Statistics loaded successfully");
     } catch (error) {
       console.error("🔍 Error loading statistics:", error);
       this.setDefaultStats();
@@ -222,11 +219,10 @@ export class HeliosSettingsVocabulary {
     try {
       console.log("🔍 Creating backup...");
 
-      let allData: Record<string, any> = {};
-
-      if (chrome.storage && chrome.storage.local) {
-        allData = await storage.getAll();
-      }
+      // A backup is every key the extension has ever written, including ones
+      // no item declares, so it reads the whole area directly — the item API
+      // has no "read everything" call.
+      const allData: Record<string, any> = await browser.storage.local.get(null);
 
       // Calculate total word count across all languages
       await this.vocabManager!.loadKnownWords();
@@ -310,13 +306,14 @@ export class HeliosSettingsVocabulary {
         // Remove backup info before restoring
         delete backupData.backupInfo;
 
-        if (chrome.storage && chrome.storage.local) {
-          await chrome.storage.local.clear();
-          await storage.setRaw(backupData);
+        // The backup file holds arbitrary keys from whatever version wrote it,
+        // so it is written back to the area directly — there is no fixed set
+        // of items to route it through.
+        await browser.storage.local.clear();
+        await browser.storage.local.set(backupData);
 
-          // Reload vocab manager to pick up restored data
-          await this.vocabManager!.loadKnownWords();
-        }
+        // Reload vocab manager to pick up restored data
+        await this.vocabManager!.loadKnownWords();
 
         alert("Backup restored successfully! The page will now reload.");
         console.log("🔍 Backup restored successfully");
@@ -365,11 +362,6 @@ export class HeliosSettingsVocabulary {
   // Send message to background script
   async sendMessage(action: string, data: Record<string, any> = {}): Promise<any> {
     return new Promise((resolve, reject) => {
-      if (!chrome.runtime?.sendMessage) {
-        reject(new Error("Chrome extension context not available"));
-        return;
-      }
-
       const message = { action, ...data };
       // Use longer timeout for deck notes requests (large decks can take time)
       const timeoutDuration = action === "ANKI_GET_DECK_NOTES" ? 60000 : 10000; // 60s for deck notes, 10s for others
@@ -377,11 +369,13 @@ export class HeliosSettingsVocabulary {
         reject(new Error("Message timeout"));
       }, timeoutDuration);
 
-      chrome.runtime.sendMessage(message, (response) => {
+      // Callback form, not the promise form: `lastError` has to be read inside
+      // the callback to distinguish "no receiver" from a failed response.
+      browser.runtime.sendMessage(message, (response) => {
         clearTimeout(timeout);
 
-        if (chrome.runtime.lastError) {
-          reject(new Error(chrome.runtime.lastError.message));
+        if (browser.runtime.lastError) {
+          reject(new Error(browser.runtime.lastError.message));
         } else if (response?.success) {
           resolve(response);
         } else {

@@ -1,7 +1,8 @@
 import type { DictionaryManager } from '@/content/dictionary-manager';
 import type { DictionaryManagerProxy } from '@/content/dictionary-bridge';
 import type { FrequencyManager } from '@/content/frequency-manager';
-import { storage } from '@/config/storage';
+import { items, storage } from '@/config/storage';
+import { browser } from 'wxt/browser';
 
 interface AnkiStatus {
   connected: boolean;
@@ -59,7 +60,7 @@ export class AnkiManager {
   // Send message to background script
   async sendMessage(action: string, data: Record<string, any> = {}): Promise<any> {
     return new Promise((resolve, reject) => {
-      if (!chrome.runtime?.sendMessage) {
+      if (!browser.runtime?.sendMessage) {
         reject(new Error("Chrome extension context not available"));
         return;
       }
@@ -71,11 +72,11 @@ export class AnkiManager {
         reject(new Error("Message timeout"));
       }, timeoutDuration);
 
-      chrome.runtime.sendMessage(message, (response) => {
+      browser.runtime.sendMessage(message, (response) => {
         clearTimeout(timeout);
 
-        if (chrome.runtime.lastError) {
-          reject(new Error(chrome.runtime.lastError.message));
+        if (browser.runtime.lastError) {
+          reject(new Error(browser.runtime.lastError.message));
         } else if (response?.success) {
           resolve(response);
         } else {
@@ -745,24 +746,24 @@ export class AnkiManager {
   // Note: ankiCardsCreated is updated by the background script to avoid double counting
   updateAnkiStatistics(success: boolean): void {
     try {
-      if (chrome.storage?.local) {
+      if (browser.runtime?.id) {
         storage
-          .get([
-            "ankiCardsCreated", // Read current value but don't increment (background script handles this)
-            "ankiCardsToday",
-            "ankiSuccessCount",
-            "ankiTotalAttempts",
-            "lastAnkiResetDate",
+          .getItems([
+            items.ankiCardsCreated, // Read current value but don't increment (background script handles this)
+            items.ankiCardsToday,
+            items.ankiSuccessCount,
+            items.ankiTotalAttempts,
+            items.lastAnkiResetDate,
           ])
-          .then((result) => {
+          .then(([storedCreated, storedToday, storedSuccess, storedAttempts, storedReset]) => {
             const today = new Date().toDateString();
-            const lastReset = result.lastAnkiResetDate || "";
+            const lastReset = storedReset.value || "";
 
             // Don't modify ankiCardsCreated - background script handles this
-            let cardsCreated = result.ankiCardsCreated || 0;
-            let cardsToday = result.ankiCardsToday || 0;
-            let successCount = result.ankiSuccessCount || 0;
-            let totalAttempts = result.ankiTotalAttempts || 0;
+            let cardsCreated = storedCreated.value as number;
+            let cardsToday = storedToday.value as number;
+            let successCount = storedSuccess.value as number;
+            let totalAttempts = storedAttempts.value as number;
 
             // Reset daily counters if new day
             if (lastReset !== today) {
@@ -782,14 +783,14 @@ export class AnkiManager {
                 ? Math.round((successCount / totalAttempts) * 100)
                 : 100;
 
-            storage.set({
+            storage.setItems([
               // Don't set ankiCardsCreated - background script handles this
-              ankiCardsToday: cardsToday,
-              ankiSuccessCount: successCount,
-              ankiTotalAttempts: totalAttempts,
-              ankiSuccessRate: successRate,
-              lastAnkiResetDate: today,
-            });
+              { item: items.ankiCardsToday, value: cardsToday },
+              { item: items.ankiSuccessCount, value: successCount },
+              { item: items.ankiTotalAttempts, value: totalAttempts },
+              { item: items.ankiSuccessRate, value: successRate },
+              { item: items.lastAnkiResetDate, value: today },
+            ]);
 
             console.log(
               `📊 Anki stats: ${cardsCreated} total, ${cardsToday} today, ${successRate}% success`

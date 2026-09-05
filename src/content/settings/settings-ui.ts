@@ -1,7 +1,9 @@
 // Helios Settings UI Manager
 // Handles all UI updates and form interactions
 
-import { storage } from '@/config/storage';
+import { browser } from 'wxt/browser';
+
+import { items, storage } from '@/config/storage';
 import type { HeliosSettingsManager } from '@/content/settings/helios-settings';
 import { ShortcutHelper } from '@/content/utils/shortcut-helper';
 
@@ -84,12 +86,10 @@ export class HeliosSettingsUI {
       extensionEnabled.addEventListener("change", (e) => {
         console.log("Extension enabled changed:", (e.target as HTMLInputElement).checked);
         // Send message to background script to enable/disable extension
-        if (chrome.runtime && chrome.runtime.sendMessage) {
-          chrome.runtime.sendMessage({
-            action: "toggleExtension",
-            enabled: (e.target as HTMLInputElement).checked,
-          });
-        }
+        browser.runtime.sendMessage({
+          action: "toggleExtension",
+          enabled: (e.target as HTMLInputElement).checked,
+        });
       });
     }
 
@@ -99,22 +99,18 @@ export class HeliosSettingsUI {
       activationKey.addEventListener("change", (e) => {
         console.log("Activation key changed:", (e.target as HTMLSelectElement).value);
         // Send message to content scripts to update activation key
-        if (chrome.tabs && chrome.tabs.query) {
-          chrome.tabs.query({}, (tabs) => {
-            tabs.forEach((tab) => {
-              if (chrome.tabs.sendMessage) {
-                chrome.tabs
-                  .sendMessage(tab.id!, {
-                    action: "updateActivationKey",
-                    key: (e.target as HTMLSelectElement).value,
-                  })
-                  .catch(() => {
-                    // Tab might not have content script loaded, ignore
-                  });
-              }
-            });
+        browser.tabs.query({}, (tabs) => {
+          tabs.forEach((tab) => {
+            browser.tabs
+              .sendMessage(tab.id!, {
+                action: "updateActivationKey",
+                key: (e.target as HTMLSelectElement).value,
+              })
+              .catch(() => {
+                // Tab might not have content script loaded, ignore
+              });
           });
-        }
+        });
       });
     }
 
@@ -124,22 +120,18 @@ export class HeliosSettingsUI {
       targetLanguage.addEventListener("change", (e) => {
         console.log("Target language changed:", (e.target as HTMLSelectElement).value);
         // Send message to content scripts to update language
-        if (chrome.tabs && chrome.tabs.query) {
-          chrome.tabs.query({}, (tabs) => {
-            tabs.forEach((tab) => {
-              if (chrome.tabs.sendMessage) {
-                chrome.tabs
-                  .sendMessage(tab.id!, {
-                    action: "updateLanguage",
-                    language: (e.target as HTMLSelectElement).value,
-                  })
-                  .catch(() => {
-                    // Tab might not have content script loaded, ignore
-                  });
-              }
-            });
+        browser.tabs.query({}, (tabs) => {
+          tabs.forEach((tab) => {
+            browser.tabs
+              .sendMessage(tab.id!, {
+                action: "updateLanguage",
+                language: (e.target as HTMLSelectElement).value,
+              })
+              .catch(() => {
+                // Tab might not have content script loaded, ignore
+              });
           });
-        }
+        });
       });
     }
 
@@ -149,22 +141,18 @@ export class HeliosSettingsUI {
       autoHighlight.addEventListener("change", (e) => {
         console.log("Auto-highlight changed:", (e.target as HTMLInputElement).checked);
         // Send message to content scripts to update highlighting
-        if (chrome.tabs && chrome.tabs.query) {
-          chrome.tabs.query({}, (tabs) => {
-            tabs.forEach((tab) => {
-              if (chrome.tabs.sendMessage) {
-                chrome.tabs
-                  .sendMessage(tab.id!, {
-                    action: "updateAutoHighlight",
-                    enabled: (e.target as HTMLInputElement).checked,
-                  })
-                  .catch(() => {
-                    // Tab might not have content script loaded, ignore
-                  });
-              }
-            });
+        browser.tabs.query({}, (tabs) => {
+          tabs.forEach((tab) => {
+            browser.tabs
+              .sendMessage(tab.id!, {
+                action: "updateAutoHighlight",
+                enabled: (e.target as HTMLInputElement).checked,
+              })
+              .catch(() => {
+                // Tab might not have content script loaded, ignore
+              });
           });
-        }
+        });
       });
     }
   }
@@ -178,22 +166,18 @@ export class HeliosSettingsUI {
       popupTheme.addEventListener("change", (e) => {
         console.log("Popup theme changed:", (e.target as HTMLSelectElement).value);
         // Send message to content scripts to update popup theme
-        if (chrome.tabs && chrome.tabs.query) {
-          chrome.tabs.query({}, (tabs) => {
-            tabs.forEach((tab) => {
-              if (chrome.tabs.sendMessage) {
-                chrome.tabs
-                  .sendMessage(tab.id!, {
-                    action: "updatePopupTheme",
-                    theme: (e.target as HTMLSelectElement).value,
-                  })
-                  .catch(() => {
-                    // Tab might not have content script loaded, ignore
-                  });
-              }
-            });
+        browser.tabs.query({}, (tabs) => {
+          tabs.forEach((tab) => {
+            browser.tabs
+              .sendMessage(tab.id!, {
+                action: "updatePopupTheme",
+                theme: (e.target as HTMLSelectElement).value,
+              })
+              .catch(() => {
+                // Tab might not have content script loaded, ignore
+              });
           });
-        }
+        });
       });
     }
 
@@ -203,22 +187,18 @@ export class HeliosSettingsUI {
       popupFontSize.addEventListener("change", (e) => {
         console.log("Popup font size changed:", (e.target as HTMLSelectElement).value);
         // Send message to content scripts to update font size
-        if (chrome.tabs && chrome.tabs.query) {
-          chrome.tabs.query({}, (tabs) => {
-            tabs.forEach((tab) => {
-              if (chrome.tabs.sendMessage) {
-                chrome.tabs
-                  .sendMessage(tab.id!, {
-                    action: "updatePopupFontSize",
-                    fontSize: (e.target as HTMLSelectElement).value,
-                  })
-                  .catch(() => {
-                    // Tab might not have content script loaded, ignore
-                  });
-              }
-            });
+        browser.tabs.query({}, (tabs) => {
+          tabs.forEach((tab) => {
+            browser.tabs
+              .sendMessage(tab.id!, {
+                action: "updatePopupFontSize",
+                fontSize: (e.target as HTMLSelectElement).value,
+              })
+              .catch(() => {
+                // Tab might not have content script loaded, ignore
+              });
           });
-        }
+        });
       });
     }
 
@@ -228,22 +208,18 @@ export class HeliosSettingsUI {
       showFrequency.addEventListener("change", (e) => {
         console.log("Show frequency changed:", (e.target as HTMLInputElement).checked);
         // Send message to content scripts to update frequency display
-        if (chrome.tabs && chrome.tabs.query) {
-          chrome.tabs.query({}, (tabs) => {
-            tabs.forEach((tab) => {
-              if (chrome.tabs.sendMessage) {
-                chrome.tabs
-                  .sendMessage(tab.id!, {
-                    action: "updateShowFrequency",
-                    enabled: (e.target as HTMLInputElement).checked,
-                  })
-                  .catch(() => {
-                    // Tab might not have content script loaded, ignore
-                  });
-              }
-            });
+        browser.tabs.query({}, (tabs) => {
+          tabs.forEach((tab) => {
+            browser.tabs
+              .sendMessage(tab.id!, {
+                action: "updateShowFrequency",
+                enabled: (e.target as HTMLInputElement).checked,
+              })
+              .catch(() => {
+                // Tab might not have content script loaded, ignore
+              });
           });
-        }
+        });
       });
     }
 
@@ -254,22 +230,18 @@ export class HeliosSettingsUI {
       persistentPopup.addEventListener("change", (e) => {
         console.log("Persistent popup changed:", (e.target as HTMLInputElement).checked);
         // Send message to content scripts to update popup persistence
-        if (chrome.tabs && chrome.tabs.query) {
-          chrome.tabs.query({}, (tabs) => {
-            tabs.forEach((tab) => {
-              if (chrome.tabs.sendMessage) {
-                chrome.tabs
-                  .sendMessage(tab.id!, {
-                    action: "updatePersistentPopup",
-                    enabled: (e.target as HTMLInputElement).checked,
-                  })
-                  .catch(() => {
-                    // Tab might not have content script loaded, ignore
-                  });
-              }
-            });
+        browser.tabs.query({}, (tabs) => {
+          tabs.forEach((tab) => {
+            browser.tabs
+              .sendMessage(tab.id!, {
+                action: "updatePersistentPopup",
+                enabled: (e.target as HTMLInputElement).checked,
+              })
+              .catch(() => {
+                // Tab might not have content script loaded, ignore
+              });
           });
-        }
+        });
       });
     }
 
@@ -279,22 +251,18 @@ export class HeliosSettingsUI {
       autoCloseDelay.addEventListener("change", (e) => {
         console.log("Auto-close delay changed:", (e.target as HTMLInputElement).value);
         // Send message to content scripts to update auto-close delay
-        if (chrome.tabs && chrome.tabs.query) {
-          chrome.tabs.query({}, (tabs) => {
-            tabs.forEach((tab) => {
-              if (chrome.tabs.sendMessage) {
-                chrome.tabs
-                  .sendMessage(tab.id!, {
-                    action: "updateAutoCloseDelay",
-                    delay: parseInt((e.target as HTMLInputElement).value) || 0,
-                  })
-                  .catch(() => {
-                    // Tab might not have content script loaded, ignore
-                  });
-              }
-            });
+        browser.tabs.query({}, (tabs) => {
+          tabs.forEach((tab) => {
+            browser.tabs
+              .sendMessage(tab.id!, {
+                action: "updateAutoCloseDelay",
+                delay: parseInt((e.target as HTMLInputElement).value) || 0,
+              })
+              .catch(() => {
+                // Tab might not have content script loaded, ignore
+              });
           });
-        }
+        });
       });
     }
   }
@@ -1139,8 +1107,8 @@ export class HeliosSettingsUI {
 
     // Get and display extension version
     const extensionVersion = tabElement.querySelector<HTMLElement>("#extension-version");
-    if (extensionVersion && chrome.runtime && chrome.runtime.getManifest) {
-      const currentVersion = chrome.runtime.getManifest().version;
+    if (extensionVersion) {
+      const currentVersion = browser.runtime.getManifest().version;
       extensionVersion.textContent = currentVersion;
 
       // Track version changes to get actual last update date
@@ -1160,18 +1128,15 @@ export class HeliosSettingsUI {
    */
   async updateExtensionUpdateDate(currentVersion: string): Promise<void> {
     try {
-      if (!chrome.storage || !chrome.storage.local) return;
-
-      const result = await storage.get(['extensionVersion', 'extensionLastUpdateDate']);
-      const storedVersion = result.extensionVersion;
+      const storedVersion = await items.extensionVersion.getValue();
 
       // If version changed or not stored, update the stored version and date
       if (storedVersion !== currentVersion) {
         const updateDate = new Date().toISOString();
-        await storage.set({
-          extensionVersion: currentVersion,
-          extensionLastUpdateDate: updateDate
-        });
+        await storage.setItems([
+          { item: items.extensionVersion, value: currentVersion },
+          { item: items.extensionLastUpdateDate, value: updateDate },
+        ]);
       }
     } catch (error) {
       console.error('Error updating extension update date:', error);
@@ -1184,23 +1149,16 @@ export class HeliosSettingsUI {
    */
   async displayLastUpdateDate(element: HTMLElement): Promise<void> {
     try {
-      if (!chrome.storage || !chrome.storage.local) {
-        element.textContent = '-';
-        return;
-      }
-
-      const result = await storage.get('extensionLastUpdateDate');
-      if (result.extensionLastUpdateDate) {
-        const updateDate = new Date(result.extensionLastUpdateDate);
+      const lastUpdateDate = await items.extensionLastUpdateDate.getValue();
+      if (lastUpdateDate) {
+        const updateDate = new Date(lastUpdateDate);
         element.textContent = this.formatDateDDMMYYYY(updateDate);
       } else {
         // Fallback: if no stored date, use current date (first time)
         const currentDate = new Date();
         element.textContent = this.formatDateDDMMYYYY(currentDate);
         // Store it for future reference
-        await storage.set({
-          extensionLastUpdateDate: new Date().toISOString()
-        });
+        await items.extensionLastUpdateDate.setValue(new Date().toISOString());
       }
     } catch (error) {
       console.error('Error displaying last update date:', error);

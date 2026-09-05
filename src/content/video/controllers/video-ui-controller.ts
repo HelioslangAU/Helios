@@ -1,4 +1,5 @@
-import { storage } from '@/config/storage';
+import { browser } from 'wxt/browser';
+import { items } from '@/config/storage';
 import { ShortcutHelper } from '@/content/utils/shortcut-helper';
 import { SubtitleSelectorModal } from '@/content/video/ui/subtitle-selector-modal';
 import type { VideoDetector } from '@/content/video/core/video-detector';
@@ -227,10 +228,13 @@ export class VideoUIController {
       // Get target language from language registry (already loaded and synced)
       let targetLanguage = window.languageRegistry?.getCurrentLanguage() || 'zh';
 
-      // Fallback: if language registry not available, read from storage
+      // Fallback: if language registry not available, read from storage.
+      // NOTE: `targetLanguage` is a `local` key everywhere else in the
+      // extension; this reads `sync`, so it always misses and falls through to
+      // 'zh'. Preserved as-is — fixing it would change behavior.
       if (!window.languageRegistry) {
-        const settings = await chrome.storage.sync.get<{ targetLanguage?: string }>(['targetLanguage']);
-        targetLanguage = settings.targetLanguage?.toLowerCase() || 'zh';
+        const settings = await browser.storage.sync.get('targetLanguage');
+        targetLanguage = (settings.targetLanguage as string | undefined)?.toLowerCase() || 'zh';
       }
 
       // Get available tracks
@@ -309,10 +313,12 @@ export class VideoUIController {
       // Get target language from language registry (same as YouTube)
       let targetLanguage = window.languageRegistry?.getCurrentLanguage() || 'zh';
 
-      // Fallback: if language registry not available, read from storage
+      // Fallback: if language registry not available, read from storage.
+      // NOTE: reads `sync` while `targetLanguage` lives in `local` — see the
+      // matching note in autoLoadSubtitles().
       if (!window.languageRegistry) {
-        const settings = await chrome.storage.sync.get<{ targetLanguage?: string }>(['targetLanguage']);
-        targetLanguage = settings.targetLanguage?.toLowerCase() || 'zh';
+        const settings = await browser.storage.sync.get('targetLanguage');
+        targetLanguage = (settings.targetLanguage as string | undefined)?.toLowerCase() || 'zh';
       }
 
       // Get available tracks (with retry for Netflix navigation)
@@ -372,8 +378,7 @@ export class VideoUIController {
     const videoId = this._getCurrentVideoId();
     if (videoId) {
       try {
-        const result = await storage.get(['subtitlePreferences']);
-        const preferences = result.subtitlePreferences as any;
+        const preferences = await items.subtitlePreferences.getValue();
         const perVideoPref = preferences?.perVideo?.[videoId];
 
         if (perVideoPref) {
@@ -392,8 +397,7 @@ export class VideoUIController {
 
     // PRIORITY 2: Check for global language variant preference
     try {
-      const result = await storage.get(['subtitlePreferences']);
-      const preferences = result.subtitlePreferences as any;
+      const preferences = await items.subtitlePreferences.getValue();
       const globalPref = preferences?.global?.[targetLanguage];
 
       if (globalPref) {

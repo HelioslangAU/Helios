@@ -1,4 +1,5 @@
-import { storage } from '@/config/storage';
+import { items, storage } from '@/config/storage';
+import { browser } from 'wxt/browser';
 import type { AnkiManager } from '@/content/anki-manager';
 import type { FrequencyManager } from '@/content/frequency-manager';
 import type { CardNavigator } from '@/content/popup/components/card-navigator';
@@ -29,19 +30,6 @@ interface HotkeySettings {
   hotkeyMarkKnown: HotkeyShortcut;
   hotkeyMarkLearning: HotkeyShortcut;
   hotkeyAnkiAdd: HotkeyShortcut;
-}
-
-/**
- * Pre-unification hotkey storage keys (plain single-character strings).
- * `hotkeyMarkLearning` is read below but never included in the storage request,
- * so it is always undefined — kept to match the existing runtime behaviour.
- */
-interface LegacyHotkeySettings {
-  hotkeyMarkUnknown?: string;
-  hotkeyMarkIgnored?: string;
-  hotkeyMarkKnown?: string;
-  hotkeyMarkLearning?: string;
-  hotkeyAnkiAdd?: string;
 }
 
 type MarkState = 'known' | 'learning' | 'ignored' | 'unknown';
@@ -201,12 +189,12 @@ export class PopupEventHandler {
     };
 
     try {
-      if (chrome.storage && chrome.storage.local) {
+      if (browser.runtime?.id) {
         // Try to load from unified shortcuts structure first
-        const shortcutsResult = await storage.get(['shortcuts']);
-        if (shortcutsResult.shortcuts && shortcutsResult.shortcuts.popup) {
+        const shortcuts = await items.shortcuts.getValue();
+        if (shortcuts.popup) {
           // Stored popup shortcuts are either legacy strings or {key, modifiers} objects.
-          const popupShortcuts: Record<string, HotkeyShortcut | undefined> = shortcutsResult.shortcuts.popup;
+          const popupShortcuts: Record<string, HotkeyShortcut | undefined> = shortcuts.popup;
           hotkeySettings = {
             hotkeyMarkUnknown: typeof popupShortcuts.markUnknown === 'object'
               ? popupShortcuts.markUnknown
@@ -225,20 +213,21 @@ export class PopupEventHandler {
               : { key: popupShortcuts.ankiAdd || "q", ctrl: false, shift: false, alt: false, meta: false }
           };
         } else {
-          // Fallback to legacy format (single character strings)
-          // Legacy `hotkey*` keys are not declared in HeliosStorage, so this read stays raw.
-          const result = await chrome.storage.local.get<LegacyHotkeySettings>([
-            "hotkeyMarkUnknown",
-            "hotkeyMarkIgnored",
-            "hotkeyMarkKnown",
-            "hotkeyAnkiAdd"
-          ]);
+          // Fallback to legacy format (single character strings).
+          // There is no legacy `hotkeyMarkLearning` key — it was never read here
+          // either, so learning stays on its built-in default.
+          const [markUnknown, markIgnored, markKnown, ankiAdd] = await storage.getItems([
+            items.hotkeyMarkUnknown,
+            items.hotkeyMarkIgnored,
+            items.hotkeyMarkKnown,
+            items.hotkeyAnkiAdd
+          ]) as Array<{ value: string | null }>;
           hotkeySettings = {
-            hotkeyMarkUnknown: { key: result.hotkeyMarkUnknown || "1", ctrl: false, shift: false, alt: false, meta: false },
-            hotkeyMarkIgnored: { key: result.hotkeyMarkIgnored || "2", ctrl: false, shift: false, alt: false, meta: false },
-            hotkeyMarkKnown: { key: result.hotkeyMarkKnown || "3", ctrl: false, shift: false, alt: false, meta: false },
-            hotkeyMarkLearning: { key: result.hotkeyMarkLearning || "4", ctrl: false, shift: false, alt: false, meta: false },
-            hotkeyAnkiAdd: { key: result.hotkeyAnkiAdd || "q", ctrl: false, shift: false, alt: false, meta: false }
+            hotkeyMarkUnknown: { key: markUnknown.value || "1", ctrl: false, shift: false, alt: false, meta: false },
+            hotkeyMarkIgnored: { key: markIgnored.value || "2", ctrl: false, shift: false, alt: false, meta: false },
+            hotkeyMarkKnown: { key: markKnown.value || "3", ctrl: false, shift: false, alt: false, meta: false },
+            hotkeyMarkLearning: { key: "4", ctrl: false, shift: false, alt: false, meta: false },
+            hotkeyAnkiAdd: { key: ankiAdd.value || "q", ctrl: false, shift: false, alt: false, meta: false }
           };
         }
       }

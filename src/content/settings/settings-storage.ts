@@ -1,7 +1,9 @@
 // Helios Settings Storage Manager
 // Handles all storage operations and settings persistence
 
-import { storage } from '@/config/storage';
+import { browser } from 'wxt/browser';
+
+import { items, storage, type VideoPlayerSettings } from '@/config/storage';
 import type { HeliosSettingsManager } from '@/content/settings/helios-settings';
 import { ShortcutHelper } from '@/content/utils/shortcut-helper';
 
@@ -24,43 +26,42 @@ export class HeliosSettingsStorage {
     try {
       console.log("🔍 Loading settings from storage...");
 
-      if (chrome.storage && chrome.storage.local) {
-        const result = await storage.getAll();
+      // The settings page merges every persisted key into one bag, including
+      // keys the settings form invents at runtime and that no item declares,
+      // so this call site reads the whole area rather than named items.
+      const result = await browser.storage.local.get(null);
 
-        // Migrate old ytSidebarSettings to new unified videoPlayer settings
-        if (result.ytSidebarSettings && !result.videoPlayer) {
-          console.log("🔍 Migrating ytSidebarSettings to videoPlayer...");
-          const oldSettings = result.ytSidebarSettings as Record<string, any>;
+      // Migrate old ytSidebarSettings to new unified videoPlayer settings
+      if (result.ytSidebarSettings && !result.videoPlayer) {
+        console.log("🔍 Migrating ytSidebarSettings to videoPlayer...");
+        const oldSettings = result.ytSidebarSettings as Record<string, any>;
 
-          result.videoPlayer = {
-            hotkeysEnabled: oldSettings.hotkeysEnabled !== undefined ? oldSettings.hotkeysEnabled : true,
-            dualSubtitlesEnabled: oldSettings.dualSubtitlesEnabled !== undefined ? oldSettings.dualSubtitlesEnabled : false,
-            secondarySubtitleLanguage: oldSettings.secondarySubtitleLanguage || null,
-            pauseOnHover: oldSettings.pauseOnHover !== undefined ? oldSettings.pauseOnHover : true,
-            pauseAtEnd: oldSettings.pauseAtEnd !== undefined ? oldSettings.pauseAtEnd : false,
-            autoPlayAfterNav: oldSettings.autoPlayAfterNav !== undefined ? oldSettings.autoPlayAfterNav : false,
-            hotkeys: oldSettings.hotkeys || {
-              previous: { key: "a", shift: false, ctrl: false, alt: false },
-              next: { key: "d", shift: false, ctrl: false, alt: false },
-              restart: { key: "s", shift: false, ctrl: false, alt: false },
-              toggle: { key: "w", shift: false, ctrl: false, alt: false }
-            }
-          };
+        const migrated: VideoPlayerSettings = {
+          hotkeysEnabled: oldSettings.hotkeysEnabled !== undefined ? oldSettings.hotkeysEnabled : true,
+          dualSubtitlesEnabled: oldSettings.dualSubtitlesEnabled !== undefined ? oldSettings.dualSubtitlesEnabled : false,
+          secondarySubtitleLanguage: oldSettings.secondarySubtitleLanguage || null,
+          pauseOnHover: oldSettings.pauseOnHover !== undefined ? oldSettings.pauseOnHover : true,
+          pauseAtEnd: oldSettings.pauseAtEnd !== undefined ? oldSettings.pauseAtEnd : false,
+          autoPlayAfterNav: oldSettings.autoPlayAfterNav !== undefined ? oldSettings.autoPlayAfterNav : false,
+          hotkeys: oldSettings.hotkeys || {
+            previous: { key: "a", shift: false, ctrl: false, alt: false },
+            next: { key: "d", shift: false, ctrl: false, alt: false },
+            restart: { key: "s", shift: false, ctrl: false, alt: false },
+            toggle: { key: "w", shift: false, ctrl: false, alt: false }
+          }
+        };
+        result.videoPlayer = migrated;
 
-          // Save migrated settings
-          await storage.set({ videoPlayer: result.videoPlayer });
-          console.log("🔍 Migration complete:", result.videoPlayer);
-        }
-
-        this.manager.settings = { ...this.manager.defaultSettings, ...result };
-        console.log(
-          "🔍 Settings loaded from Chrome storage:",
-          this.manager.settings
-        );
-      } else {
-        console.log("🔍 Chrome storage not available, using defaults");
-        this.manager.settings = { ...this.manager.defaultSettings };
+        // Save migrated settings
+        await items.videoPlayer.setValue(migrated);
+        console.log("🔍 Migration complete:", result.videoPlayer);
       }
+
+      this.manager.settings = { ...this.manager.defaultSettings, ...result };
+      console.log(
+        "🔍 Settings loaded from Chrome storage:",
+        this.manager.settings
+      );
     } catch (error) {
       console.error("🔍 Error loading settings:", error);
       this.manager.settings = { ...this.manager.defaultSettings };
@@ -79,15 +80,13 @@ export class HeliosSettingsStorage {
       this.manager.settings = { ...this.manager.settings, ...formData };
       console.log("🔍 Final settings to save:", this.manager.settings);
 
-      if (chrome.storage && chrome.storage.local) {
-        await storage.setRaw(this.manager.settings);
-        console.log("🔍 Settings saved successfully to Chrome storage");
+      // The bag is keyed by whatever the loaded tabs collected, so there is no
+      // fixed set of items to route it through — it goes to the area directly.
+      await browser.storage.local.set(this.manager.settings);
+      console.log("🔍 Settings saved successfully to Chrome storage");
 
-        // Notify other parts of the extension about settings changes
-        this.broadcastSettingsChange(formData);
-      } else {
-        console.log("🔍 Chrome storage not available, settings not persisted");
-      }
+      // Notify other parts of the extension about settings changes
+      this.broadcastSettingsChange(formData);
     } catch (error) {
       console.error("🔍 Error saving settings:", error);
     }
@@ -95,16 +94,14 @@ export class HeliosSettingsStorage {
 
   broadcastSettingsChange(changedSettings: Record<string, any>): void {
     // Send message to background script
-    if (chrome.runtime && chrome.runtime.sendMessage) {
-      chrome.runtime
-        .sendMessage({
-          action: "settingsChanged",
-          settings: changedSettings,
-        })
-        .catch(() => {
-          // Background script might not be ready, ignore
-        });
-    }
+    browser.runtime
+      .sendMessage({
+        action: "settingsChanged",
+        settings: changedSettings,
+      })
+      .catch(() => {
+        // Background script might not be ready, ignore
+      });
   }
 
   collectFormData(): Record<string, any> {
@@ -358,38 +355,40 @@ export class HeliosSettingsStorage {
 
   async getStatistics(): Promise<{ knownWords: number; totalLookups: number; todayLookups: number; ankiCards: number }> {
     try {
-      if (chrome.storage && chrome.storage.local) {
-        const result = await storage.get([
-          "knownWords",
-          "chineseExtensionVocabList",
-          "totalLookups",
-          "todayLookupCount",
-          "ankiCardsCreated",
-          "lastResetDate",
+      const [
+        { value: knownWords },
+        { value: chineseExtensionVocabList },
+        { value: totalLookups },
+        { value: todayLookupCount },
+        { value: ankiCardsCreated },
+        { value: lastResetDate },
+      ] = await storage.getItems([
+        items.knownWords,
+        items.chineseExtensionVocabList,
+        items.totalLookups,
+        items.todayLookupCount,
+        items.ankiCardsCreated,
+        items.lastResetDate,
+      ]);
+
+      const today = new Date().toDateString();
+      const lastReset = lastResetDate || "";
+      let todayLookups: number = todayLookupCount;
+
+      if (lastReset !== today) {
+        todayLookups = 0;
+        storage.setItems([
+          { item: items.todayLookupCount, value: 0 },
+          { item: items.lastResetDate, value: today },
         ]);
-
-        const today = new Date().toDateString();
-        const lastReset = result.lastResetDate || "";
-        let todayLookups = result.todayLookupCount || 0;
-
-        if (lastReset !== today) {
-          todayLookups = 0;
-          storage.set({
-            todayLookupCount: 0,
-            lastResetDate: today,
-          });
-        }
-
-        return {
-          knownWords:
-            result.knownWords?.length ||
-            result.chineseExtensionVocabList?.length ||
-            0,
-          totalLookups: result.totalLookups || 0,
-          todayLookups: todayLookups,
-          ankiCards: result.ankiCardsCreated || 0,
-        };
       }
+
+      return {
+        knownWords: knownWords.length || chineseExtensionVocabList.length || 0,
+        totalLookups: totalLookups,
+        todayLookups: todayLookups,
+        ankiCards: ankiCardsCreated,
+      };
     } catch (error) {
       console.error("Error getting statistics:", error);
     }
@@ -404,9 +403,7 @@ export class HeliosSettingsStorage {
 
   async updateKnownWords(knownWords: string[]): Promise<void> {
     try {
-      if (chrome.storage && chrome.storage.local) {
-        await storage.set({ knownWords });
-      }
+      await items.knownWords.setValue(knownWords);
     } catch (error) {
       console.error("Error updating known words:", error);
       throw error;
@@ -415,11 +412,7 @@ export class HeliosSettingsStorage {
 
   async updateVocabularyList(vocabularyList: any[]): Promise<void> {
     try {
-      if (chrome.storage && chrome.storage.local) {
-        await storage.set({
-          chineseExtensionVocabList: vocabularyList,
-        });
-      }
+      await items.chineseExtensionVocabList.setValue(vocabularyList);
     } catch (error) {
       console.error("Error updating vocabulary list:", error);
       throw error;
@@ -428,9 +421,7 @@ export class HeliosSettingsStorage {
 
   async clearAllData(): Promise<void> {
     try {
-      if (chrome.storage && chrome.storage.local) {
-        await chrome.storage.local.clear();
-      }
+      await browser.storage.local.clear();
     } catch (error) {
       console.error("Error clearing all data:", error);
       throw error;
@@ -439,30 +430,38 @@ export class HeliosSettingsStorage {
 
   async clearCache(): Promise<void> {
     try {
-      if (chrome.storage && chrome.storage.local) {
-        const result = await storage.getAll();
-        const keysToKeep = [
-          "knownWords",
-          "chineseExtensionVocabList",
-          "extensionEnabled",
-          "activationKey",
-          "popupTheme",
-          "autoHighlight",
-          "ankiDeck",
-          "ankiNoteType",
-          "ankiFieldMappings",
-        ];
+      // Everything not listed below is cache and is dropped, so the surviving
+      // values have to be read out of the whole area before it is cleared —
+      // there is no item API for "read everything".
+      const result = await browser.storage.local.get(null);
 
-        const dataToKeep: Record<string, any> = {};
-        keysToKeep.forEach((key) => {
-          if (result[key] !== undefined) {
-            dataToKeep[key] = result[key];
-          }
-        });
+      const itemsToKeep = {
+        knownWords: items.knownWords,
+        chineseExtensionVocabList: items.chineseExtensionVocabList,
+        extensionEnabled: items.extensionEnabled,
+        activationKey: items.activationKey,
+        popupTheme: items.popupTheme,
+        autoHighlight: items.autoHighlight,
+      };
+      // Written by the settings form under raw names; no item declares them.
+      const rawKeysToKeep = ["ankiDeck", "ankiNoteType", "ankiFieldMappings"];
 
-        await chrome.storage.local.clear();
-        await storage.setRaw(dataToKeep);
-      }
+      // Only keys that were actually set are restored: writing an unset key
+      // back would persist an item's fallback where nothing was stored before.
+      const itemsToRestore = Object.entries(itemsToKeep)
+        .filter(([key]) => result[key] !== undefined)
+        .map(([key, item]) => ({ item, value: result[key] }));
+
+      const rawToRestore: Record<string, any> = {};
+      rawKeysToKeep.forEach((key) => {
+        if (result[key] !== undefined) {
+          rawToRestore[key] = result[key];
+        }
+      });
+
+      await browser.storage.local.clear();
+      await storage.setItems(itemsToRestore);
+      await browser.storage.local.set(rawToRestore);
     } catch (error) {
       console.error("Error clearing cache:", error);
       throw error;

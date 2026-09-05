@@ -1,4 +1,5 @@
-import { storage } from '@/config/storage';
+import { browser } from 'wxt/browser';
+import { items, storage } from '@/config/storage';
 import { VideoConstants } from '@/content/video/config/video-constants';
 import { PlatformDetector } from '@/content/video/core/platform-detector';
 import { SubtitleSelectorModal } from '@/content/video/ui/subtitle-selector-modal';
@@ -249,7 +250,7 @@ export class PlatformVideoSidebar {
    */
   async _loadSidebar(): Promise<void> {
     try {
-      const response = await fetch(chrome.runtime.getURL('ui/youtube-sidebar/youtube-sidebar.html'));
+      const response = await fetch(browser.runtime.getURL('/ui/youtube-sidebar/youtube-sidebar.html'));
       const html = await response.text();
 
       const parser = new DOMParser();
@@ -270,7 +271,7 @@ export class PlatformVideoSidebar {
       // Inject CSS
       const link = document.createElement('link');
       link.rel = 'stylesheet';
-      link.href = chrome.runtime.getURL('ui/youtube-sidebar/youtube-sidebar.css');
+      link.href = browser.runtime.getURL('/ui/youtube-sidebar/youtube-sidebar.css');
       document.head.appendChild(link);
 
       // Append to body with fixed positioning
@@ -2412,13 +2413,18 @@ export class PlatformVideoSidebar {
    */
   async _loadSettings(): Promise<void> {
     try {
-      const result = await storage.get(['platformSidebarSettings', 'videoFeatureEnabled', 'extensionEnabled']);
-
-      // Check global extension toggle FIRST
-      const extensionEnabled = result.extensionEnabled !== false; // Default to true
+      const [
+        { value: platformSidebarSettings },
+        { value: videoFeatureEnabled },
+        { value: extensionEnabled },
+      ] = await storage.getItems([
+        items.platformSidebarSettings,
+        items.videoFeatureEnabled,
+        items.extensionEnabled,
+      ]);
 
       // Check global video feature toggle
-      this.videoFeatureEnabled = result.videoFeatureEnabled !== false; // Default to true
+      this.videoFeatureEnabled = videoFeatureEnabled;
 
       // If extension is disabled globally, don't enable video features
       if (!extensionEnabled) {
@@ -2427,8 +2433,8 @@ export class PlatformVideoSidebar {
         return; // Exit early, don't initialize
       }
 
-      if (result.platformSidebarSettings) {
-        const loaded: Record<string, any> = result.platformSidebarSettings;
+      if (platformSidebarSettings) {
+        const loaded: Record<string, any> = platformSidebarSettings;
 
         // Migrate old hotkey format
         if (loaded.hotkeys) {
@@ -2458,7 +2464,7 @@ export class PlatformVideoSidebar {
    */
   async _saveSettings(): Promise<void> {
     try {
-      await storage.setRaw({ platformSidebarSettings: this.settings });
+      await items.platformSidebarSettings.setValue(this.settings);
       console.log('[Helios Platform Sidebar] Settings saved');
     } catch (error) {
       console.error('[Helios Platform Sidebar] Failed to save settings:', error);
@@ -2555,7 +2561,7 @@ export class PlatformVideoSidebar {
 window.platformVideoSidebar = new PlatformVideoSidebar();
 
 // Listen for video feature toggle changes AND global extension toggle
-chrome.storage.onChanged.addListener((changes, namespace) => {
+browser.storage.onChanged.addListener((changes, namespace) => {
   if (namespace === 'local') {
     // Handle global extension toggle (extensionEnabled)
     if (changes.extensionEnabled) {

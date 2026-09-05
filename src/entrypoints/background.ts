@@ -1,6 +1,8 @@
 // Background Script for Helios Language Learning Extension with Clean Anki Integration
 import { defineBackground } from '#imports';
-import { storage } from '@/config/storage';
+import { browser } from 'wxt/browser';
+import type { Browser } from 'wxt/browser';
+import { items, storage } from '@/config/storage';
 import type { AnkiSettings } from '@/config/storage';
 
 type SendResponse = (response?: any) => void;
@@ -15,7 +17,7 @@ interface ExtensionSettings {
 
 interface PendingDictionaryRequest {
   sendResponse: SendResponse;
-  sender: chrome.runtime.MessageSender;
+  sender: Browser.runtime.MessageSender;
 }
 
 class BackgroundService {
@@ -29,7 +31,7 @@ class BackgroundService {
 
   init(): void {
     // Listen for extension installation
-    chrome.runtime.onInstalled.addListener((details) => {
+    browser.runtime.onInstalled.addListener((details) => {
       this.setupInitialData();
 
       // Open onboarding page on first install
@@ -42,7 +44,7 @@ class BackgroundService {
     this.pendingDictionaryRequests = new Map();
 
     // Listen for messages from content script and settings
-    chrome.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
+    browser.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
       // Handle responses from offscreen document - forward back to original requester
       if (message.action && message.action.startsWith('RESPONSE_DICT_')) {
         const requestId = message.requestId;
@@ -96,8 +98,8 @@ class BackgroundService {
   async createOffscreenDocument(): Promise<void> {
     try {
       // Check if offscreen document already exists
-      const clients = await chrome.runtime.getContexts({
-        contextTypes: ['OFFSCREEN_DOCUMENT' as chrome.runtime.ContextType]
+      const clients = await browser.runtime.getContexts({
+        contextTypes: ['OFFSCREEN_DOCUMENT' as Browser.runtime.ContextType]
       });
 
       if (clients.length > 0) {
@@ -106,9 +108,9 @@ class BackgroundService {
       }
 
       // Create offscreen document
-      await chrome.offscreen.createDocument({
+      await browser.offscreen.createDocument({
         url: 'offscreen.html',
-        reasons: ['DOM_SCRAPING' as chrome.offscreen.Reason],
+        reasons: ['DOM_SCRAPING' as Browser.offscreen.Reason],
         justification: 'Persistent dictionary manager for language learning extension'
       });
 
@@ -122,11 +124,11 @@ class BackgroundService {
   /**
    * Route dictionary messages to offscreen document
    */
-  async routeToOffscreen(message: any, sender: chrome.runtime.MessageSender, sendResponse: SendResponse): Promise<void> {
+  async routeToOffscreen(message: any, sender: Browser.runtime.MessageSender, sendResponse: SendResponse): Promise<void> {
     try {
       // Ensure offscreen document exists
-      const clients = await chrome.runtime.getContexts({
-        contextTypes: ['OFFSCREEN_DOCUMENT' as chrome.runtime.ContextType]
+      const clients = await browser.runtime.getContexts({
+        contextTypes: ['OFFSCREEN_DOCUMENT' as Browser.runtime.ContextType]
       });
 
       if (clients.length === 0) {
@@ -145,7 +147,7 @@ class BackgroundService {
 
       // Send message to offscreen - it will receive it via its onMessage listener
       // The offscreen document will send back a RESPONSE_* message which we'll catch above
-      chrome.runtime.sendMessage(message).catch((error: any) => {
+      browser.runtime.sendMessage(message).catch((error: any) => {
         // Clean up on error
         this.pendingDictionaryRequests.delete(message.requestId);
         sendResponse({ success: false, error: error.message });
@@ -162,24 +164,22 @@ class BackgroundService {
 
   async loadExtensionSettings(): Promise<void> {
     try {
-      const result = await storage.get([
-        "extensionEnabled",
-        "activationKey",
-        "autoHighlight",
-        "popupTheme",
-        "targetLanguage",
-      ]);
+      const [extensionEnabled, activationKey, autoHighlight, popupTheme, targetLanguage] =
+        await storage.getItems([
+          items.extensionEnabled,
+          items.activationKey,
+          items.autoHighlight,
+          items.popupTheme,
+          items.targetLanguage,
+        ]);
 
       this.extensionSettings = {
-        extensionEnabled:
-          result.extensionEnabled !== undefined
-            ? result.extensionEnabled
-            : true,
-        activationKey: result.activationKey || "Shift",
-        autoHighlight:
-          result.autoHighlight !== undefined ? result.autoHighlight : true,
-        popupTheme: result.popupTheme || "dark",
-        targetLanguage: result.targetLanguage,
+        extensionEnabled: extensionEnabled.value,
+        activationKey: activationKey.value,
+        autoHighlight: autoHighlight.value,
+        popupTheme: popupTheme.value,
+        // Broadcast as `undefined`, not `null`: consumers treat "no language" as absent.
+        targetLanguage: targetLanguage.value ?? undefined,
       };
 
       console.log("🔍 Loaded extension settings:", this.extensionSettings);
@@ -197,40 +197,22 @@ class BackgroundService {
 
   async setupInitialData(): Promise<void> {
     try {
-      const result = await storage.get([
-        "vocabList",
-        "sessionCount",
-        "lastResetDate",
-        "ankiSettings",
-        "extensionEnabled",
-        "activationKey",
-        "autoHighlight",
-        "popupTheme",
-        "targetLanguage",
-        "hasCompletedOnboarding",
-        "installDate",
+      // Only keys without a declared default are seeded here; the rest fall back
+      // to their item defaults on read, so writing them would be a no-op.
+      const [lastResetDate, ankiSettings, installDate] = await storage.getItems([
+        items.lastResetDate,
+        items.ankiSettings,
+        items.installDate,
       ]);
 
-      // Initialize empty vocabulary list if it doesn't exist
-      if (!result.vocabList) {
-        await storage.set({ vocabList: [] });
-      }
-
-      // Initialize session count
-      if (!result.sessionCount) {
-        await storage.set({ sessionCount: 0 });
-      }
-
       // Set initial reset date
-      if (!result.lastResetDate) {
-        await storage.set({
-          lastResetDate: new Date().toDateString(),
-        });
+      if (!lastResetDate.value) {
+        await items.lastResetDate.setValue(new Date().toDateString());
       }
 
       // Initialize Anki settings with clean structure
-      if (!result.ankiSettings) {
-        const defaultAnkiSettings = {
+      if (!ankiSettings.value) {
+        await items.ankiSettings.setValue({
           deck: "Chinese::Helios",
           noteType: "Basic",
           fieldMappings: {},
@@ -238,22 +220,7 @@ class BackgroundService {
           allowDuplicates: false,
           includeSentence: true,
           tags: ["helios"],
-        };
-        await storage.set({ ankiSettings: defaultAnkiSettings });
-      }
-
-      // Initialize extension settings if they don't exist
-      if (result.extensionEnabled === undefined) {
-        await storage.set({ extensionEnabled: true });
-      }
-      if (!result.activationKey) {
-        await storage.set({ activationKey: "Shift" });
-      }
-      if (result.autoHighlight === undefined) {
-        await storage.set({ autoHighlight: true });
-      }
-      if (!result.popupTheme) {
-        await storage.set({ popupTheme: "dark" });
+        });
       }
 
       // Don't set a default target language - it should remain blank/null
@@ -261,10 +228,8 @@ class BackgroundService {
       // The language will be set in onboarding-controller.js when onboarding completes
 
       // Set install date for first-time users
-      if (!result.installDate) {
-        await storage.set({
-          installDate: new Date().toISOString()
-        });
+      if (!installDate.value) {
+        await items.installDate.setValue(new Date().toISOString());
       }
 
       await this.loadExtensionSettings();
@@ -274,7 +239,7 @@ class BackgroundService {
     }
   }
 
-  async handleMessage(message: any, sender: chrome.runtime.MessageSender, sendResponse: SendResponse): Promise<void> {
+  async handleMessage(message: any, sender: Browser.runtime.MessageSender, sendResponse: SendResponse): Promise<void> {
     console.log(
       "🔧 Background received message:",
       message.action || message.type
@@ -411,8 +376,7 @@ class BackgroundService {
       console.log("🃏 Creating Anki card with data:", wordData);
 
       // Load settings
-      const result = await storage.get(["ankiSettings"]);
-      const settings: AnkiSettings = result.ankiSettings || {};
+      const settings: AnkiSettings = (await items.ankiSettings.getValue()) || {};
       const finalSettings = { ...settings, ...options };
 
       // Validate settings
@@ -476,7 +440,7 @@ class BackgroundService {
 
   async handleAnkiLoadSettings(sendResponse: SendResponse): Promise<void> {
     try {
-      const result = await storage.get(["ankiSettings"]);
+      const ankiSettings = await items.ankiSettings.getValue();
       const defaultSettings = {
         deck: "Chinese::Helios",
         noteType: "Basic",
@@ -491,7 +455,7 @@ class BackgroundService {
 
       sendResponse({
         success: true,
-        settings: result.ankiSettings || defaultSettings,
+        settings: ankiSettings || defaultSettings,
       });
     } catch (error: any) {
       sendResponse({
@@ -503,7 +467,7 @@ class BackgroundService {
 
   async handleAnkiSaveSettings(settings: any, sendResponse: SendResponse): Promise<void> {
     try {
-      await storage.set({ ankiSettings: settings });
+      await items.ankiSettings.setValue(settings);
       sendResponse({
         success: true,
         message: "Anki settings saved",
@@ -569,8 +533,7 @@ class BackgroundService {
   async handleAnkiCheckMediaNeeded(sendResponse: SendResponse): Promise<void> {
     try {
       // Load current Anki settings
-      const settings = await storage.get("ankiSettings");
-      const ankiSettings: AnkiSettings = settings.ankiSettings || {};
+      const ankiSettings: AnkiSettings = (await items.ankiSettings.getValue()) || {};
       const fieldMappings = ankiSettings.fieldMappings || {};
 
       // Check if any field is mapped to screenshot or sentenceAudio
@@ -593,7 +556,7 @@ class BackgroundService {
     }
   }
 
-  async handleCaptureScreenshot(sender: chrome.runtime.MessageSender, sendResponse: SendResponse): Promise<void> {
+  async handleCaptureScreenshot(sender: Browser.runtime.MessageSender, sendResponse: SendResponse): Promise<void> {
     try {
       console.log('[Helios Background] Screenshot capture request received from tab:', sender.tab?.id);
 
@@ -602,11 +565,11 @@ class BackgroundService {
       }
 
       // Get the tab information
-      const tab = await chrome.tabs.get(sender.tab.id);
+      const tab = await browser.tabs.get(sender.tab.id);
       console.log('[Helios Background] Capturing screenshot for tab:', tab.id, 'in window:', tab.windowId);
 
       // Capture the visible tab (using the tab's window ID, just like asbplayer)
-      const dataUrl = await chrome.tabs.captureVisibleTab(
+      const dataUrl = await browser.tabs.captureVisibleTab(
         tab.windowId,
         { format: 'jpeg', quality: 95 }
       );
@@ -628,7 +591,7 @@ class BackgroundService {
     }
   }
 
-  async handleCaptureTabAudio(duration: number, sender: chrome.runtime.MessageSender, sendResponse: SendResponse): Promise<void> {
+  async handleCaptureTabAudio(duration: number, sender: Browser.runtime.MessageSender, sendResponse: SendResponse): Promise<void> {
     try {
       // Tab audio capture is complex and requires offscreen document
       // For now, return an error indicating this feature needs implementation
@@ -1142,9 +1105,8 @@ class BackgroundService {
 
   async updateAnkiStats(success: boolean): Promise<void> {
     try {
-      const result = await storage.get(["ankiCardsCreated"]);
-      const newCount = (result.ankiCardsCreated || 0) + (success ? 1 : 0);
-      await storage.set({ ankiCardsCreated: newCount });
+      const cardsCreated = await items.ankiCardsCreated.getValue();
+      await items.ankiCardsCreated.setValue(cardsCreated + (success ? 1 : 0));
     } catch (error) {
       console.warn("Could not update Anki stats:", error);
     }
@@ -1154,12 +1116,12 @@ class BackgroundService {
 
   async handleToggleExtension(enabled: boolean, sendResponse: SendResponse): Promise<void> {
     try {
-      await storage.set({ extensionEnabled: enabled });
+      await items.extensionEnabled.setValue(enabled);
       this.extensionSettings.extensionEnabled = enabled;
 
-      const tabs = await chrome.tabs.query({});
+      const tabs = await browser.tabs.query({});
       const updatePromises = tabs.map((tab) => {
-        return chrome.tabs
+        return browser.tabs
           .sendMessage(tab.id!, {
             action: "extensionToggled",
             enabled: enabled,
@@ -1185,9 +1147,9 @@ class BackgroundService {
     try {
       this.extensionSettings = { ...this.extensionSettings, ...settings };
 
-      const tabs = await chrome.tabs.query({});
+      const tabs = await browser.tabs.query({});
       const updatePromises = tabs.map((tab) => {
-        return chrome.tabs
+        return browser.tabs
           .sendMessage(tab.id!, {
             action: "settingsUpdated",
             settings: settings,
@@ -1227,8 +1189,8 @@ class BackgroundService {
 
   async handleOpenSettings(sendResponse: SendResponse): Promise<void> {
     try {
-      if (chrome.runtime && chrome.runtime.openOptionsPage) {
-        chrome.runtime.openOptionsPage();
+      if (browser.runtime && browser.runtime.openOptionsPage) {
+        browser.runtime.openOptionsPage();
         sendResponse({ success: true });
       } else {
         sendResponse({ success: false, error: 'openOptionsPage not available' });
@@ -1243,10 +1205,10 @@ class BackgroundService {
 
   async handleAddToVocab(wordData: any, sendResponse: SendResponse): Promise<void> {
     try {
-      const result = await storage.get(["vocabList"]);
-      const vocabList = result.vocabList || [];
+      // Copy before mutating: an unset item hands back the shared fallback array.
+      const vocabList = [...(await items.vocabList.getValue())];
 
-      const exists = vocabList.some((item: any) => item.word === wordData.word);
+      const exists = vocabList.some((item) => item.word === wordData.word);
 
       if (!exists) {
         vocabList.push({
@@ -1255,7 +1217,7 @@ class BackgroundService {
           reviewCount: 0,
         });
 
-        await storage.set({ vocabList: vocabList });
+        await items.vocabList.setValue(vocabList);
 
         sendResponse({
           success: true,
@@ -1277,10 +1239,9 @@ class BackgroundService {
 
   async handleGetVocabList(sendResponse: SendResponse): Promise<void> {
     try {
-      const result = await storage.get(["vocabList"]);
       sendResponse({
         success: true,
-        vocabList: result.vocabList || [],
+        vocabList: await items.vocabList.getValue(),
       });
     } catch (error: any) {
       sendResponse({
@@ -1292,10 +1253,9 @@ class BackgroundService {
 
   async incrementSessionCount(sendResponse?: SendResponse): Promise<void> {
     try {
-      const result = await storage.get(["sessionCount"]);
-      const newCount = (result.sessionCount || 0) + 1;
+      const newCount = (await items.sessionCount.getValue()) + 1;
 
-      await storage.set({ sessionCount: newCount });
+      await items.sessionCount.setValue(newCount);
 
       if (sendResponse) {
         sendResponse({
@@ -1317,8 +1277,8 @@ class BackgroundService {
    * Open onboarding page for first-time users
    */
   openOnboardingPage(): void {
-    const onboardingUrl = chrome.runtime.getURL('onboarding.html');
-    chrome.tabs.create({ url: onboardingUrl });
+    const onboardingUrl = browser.runtime.getURL('/onboarding.html');
+    browser.tabs.create({ url: onboardingUrl });
     console.log('🔧 Opened onboarding page for first-time user');
   }
 
@@ -1337,17 +1297,17 @@ class BackgroundService {
       await this.loadExtensionSettings();
 
       // Double-check: if storage somehow doesn't have the language, set it explicitly
-      const storageCheck = await storage.get(['targetLanguage']);
-      if (!storageCheck.targetLanguage || storageCheck.targetLanguage !== languageCode) {
-        console.warn(`⚠️ Language mismatch in storage, fixing: expected ${languageCode}, got ${storageCheck.targetLanguage}`);
-        await storage.set({ targetLanguage: languageCode });
+      const storedLanguage = await items.targetLanguage.getValue();
+      if (!storedLanguage || storedLanguage !== languageCode) {
+        console.warn(`⚠️ Language mismatch in storage, fixing: expected ${languageCode}, got ${storedLanguage}`);
+        await items.targetLanguage.setValue(languageCode);
         this.extensionSettings.targetLanguage = languageCode;
       }
 
       // Broadcast to all tabs to reload with new language
-      const tabs = await chrome.tabs.query({});
+      const tabs = await browser.tabs.query({});
       const broadcastPromises = tabs.map(tab => {
-        return chrome.tabs.sendMessage(tab.id!, {
+        return browser.tabs.sendMessage(tab.id!, {
           action: "settingsUpdated",
           settings: { targetLanguage: languageCode }
         }).catch(() => {
@@ -1374,17 +1334,14 @@ class BackgroundService {
   async setupDailyReset(): Promise<void> {
     const checkAndReset = async () => {
       try {
-        const result = await storage.get([
-          "lastResetDate",
-          "sessionCount",
-        ]);
+        const lastResetDate = await items.lastResetDate.getValue();
         const today = new Date().toDateString();
 
-        if (result.lastResetDate !== today) {
-          await storage.set({
-            sessionCount: 0,
-            lastResetDate: today,
-          });
+        if (lastResetDate !== today) {
+          await storage.setItems([
+            { item: items.sessionCount, value: 0 },
+            { item: items.lastResetDate, value: today },
+          ]);
           console.log("🔧 Daily session count reset");
         }
       } catch (error) {
@@ -1397,12 +1354,12 @@ class BackgroundService {
 
     // Set up alarm to check daily
     try {
-      await chrome.alarms.create("dailyReset", {
+      await browser.alarms.create("dailyReset", {
         delayInMinutes: 1,
         periodInMinutes: 60 * 24,
       });
 
-      chrome.alarms.onAlarm.addListener((alarm) => {
+      browser.alarms.onAlarm.addListener((alarm) => {
         if (alarm.name === "dailyReset") {
           checkAndReset();
         }

@@ -3,8 +3,9 @@
  * Orchestrates the onboarding flow and language selection
  */
 
+import { browser } from 'wxt/browser';
 import { FirstRunDetector } from '@/content/onboarding/first-run-detector';
-import { storage } from '@/config/storage';
+import { items, storage } from '@/config/storage';
 
 export class OnboardingController {
   firstRunDetector: FirstRunDetector;
@@ -35,29 +36,24 @@ export class OnboardingController {
     try {
       // Save language preferences and mark onboarding complete atomically
       // This prevents race conditions where setupInitialData might run between saves
-      const settingsToSave: {
-        targetLanguage: string;
-        hasCompletedOnboarding: boolean;
-        onboardingCompletedDate: string;
-        nativeLanguage?: string;
-      } = {
-        targetLanguage: languageCode,
-        hasCompletedOnboarding: true,
-        onboardingCompletedDate: new Date().toISOString()
-      };
+      const settingsToSave: Parameters<typeof storage.setItems>[0] = [
+        { item: items.targetLanguage, value: languageCode },
+        { item: items.hasCompletedOnboarding, value: true },
+        { item: items.onboardingCompletedDate, value: new Date().toISOString() }
+      ];
 
       // Only save native language if provided (not Chinese, which doesn't need it)
       if (nativeLanguageCode) {
-        settingsToSave.nativeLanguage = nativeLanguageCode;
+        settingsToSave.push({ item: items.nativeLanguage, value: nativeLanguageCode });
       }
 
       // Save everything in a single atomic operation
-      await storage.setRaw(settingsToSave);
+      await storage.setItems(settingsToSave);
 
       // Notify background script about language selection
       // This will reload settings on all open tabs
-      if (chrome.runtime && chrome.runtime.sendMessage) {
-        await chrome.runtime.sendMessage({
+      if (browser.runtime?.id) {
+        await browser.runtime.sendMessage({
           action: 'onboardingCompleted',
           language: languageCode
         });
@@ -77,8 +73,7 @@ export class OnboardingController {
    */
   async getCurrentLanguage(): Promise<string | null> {
     try {
-      const result = await storage.get('targetLanguage');
-      return result.targetLanguage || null;
+      return (await items.targetLanguage.getValue()) || null;
     } catch (error) {
       console.error('Error getting current language:', error);
       return null;
@@ -89,8 +84,8 @@ export class OnboardingController {
    * Open onboarding page
    */
   openOnboardingPage(): void {
-    const onboardingUrl = chrome.runtime.getURL('onboarding.html');
-    chrome.tabs.create({ url: onboardingUrl });
+    const onboardingUrl = browser.runtime.getURL('/onboarding.html');
+    browser.tabs.create({ url: onboardingUrl });
   }
 
   /**
@@ -98,12 +93,12 @@ export class OnboardingController {
    */
   redirectToExtension(): void {
     // Close onboarding tab and open settings or popup
-    const settingsUrl = chrome.runtime.getURL('options.html');
-    chrome.tabs.create({ url: settingsUrl }, () => {
+    const settingsUrl = browser.runtime.getURL('/options.html');
+    browser.tabs.create({ url: settingsUrl }, () => {
       // Close current onboarding tab
-      chrome.tabs.getCurrent((tab) => {
+      browser.tabs.getCurrent((tab) => {
         if (tab) {
-          chrome.tabs.remove(tab.id!);
+          browser.tabs.remove(tab.id!);
         }
       });
     });

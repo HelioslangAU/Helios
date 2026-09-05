@@ -1,4 +1,4 @@
-import { storage } from '@/config/storage';
+import { items, recentVocabItem, storage } from '@/config/storage';
 
 export class VocabManager {
   // Support per-language known words - dynamically created as needed
@@ -66,17 +66,17 @@ export class VocabManager {
       console.log(`VocabManager: Loading known words for language: ${this.currentLanguage}`);
 
       // Load new per-language format
-      const newResult = await storage.get([
-        'knownWordsByLanguage',
-        'ignoredWordsByLanguage',
-        'learningWordsByLanguage'
-      ]);
+      const [storedKnown, storedIgnored, storedLearning] = await storage.getItems([
+        items.knownWordsByLanguage,
+        items.ignoredWordsByLanguage,
+        items.learningWordsByLanguage
+      ]) as Array<{ value: Record<string, string[]> }>;
 
       // Load new format if available - MERGE instead of replace to preserve in-memory changes
-      if (newResult.knownWordsByLanguage) {
-        Object.keys(newResult.knownWordsByLanguage).forEach(lang => {
+      if (storedKnown.value) {
+        Object.keys(storedKnown.value).forEach(lang => {
           // Normalize words when loading to ensure consistency
-          const normalizedWords: string[] = newResult.knownWordsByLanguage![lang]
+          const normalizedWords: string[] = storedKnown.value[lang]
             .map((word: string) => this.normalizeWord(word))
             .filter((word: string) => word); // Filter out invalid words
 
@@ -93,10 +93,10 @@ export class VocabManager {
         console.log('Known words loaded (per-language format):', this.knownWordsByLanguage);
       }
 
-      if (newResult.ignoredWordsByLanguage) {
-        Object.keys(newResult.ignoredWordsByLanguage).forEach(lang => {
+      if (storedIgnored.value) {
+        Object.keys(storedIgnored.value).forEach(lang => {
           // Normalize words when loading to ensure consistency
-          const normalizedWords: string[] = newResult.ignoredWordsByLanguage![lang]
+          const normalizedWords: string[] = storedIgnored.value[lang]
             .map((word: string) => this.normalizeWord(word))
             .filter((word: string) => word); // Filter out invalid words
 
@@ -113,10 +113,10 @@ export class VocabManager {
         console.log('Ignored words loaded (per-language format):', this.ignoredWordsByLanguage);
       }
 
-      if (newResult.learningWordsByLanguage) {
-        Object.keys(newResult.learningWordsByLanguage).forEach(lang => {
+      if (storedLearning.value) {
+        Object.keys(storedLearning.value).forEach(lang => {
           // Normalize words when loading to ensure consistency
-          const normalizedWords: string[] = newResult.learningWordsByLanguage![lang]
+          const normalizedWords: string[] = storedLearning.value[lang]
             .map((word: string) => this.normalizeWord(word))
             .filter((word: string) => word); // Filter out invalid words
 
@@ -167,12 +167,11 @@ export class VocabManager {
       const currentKnownWords = this.knownWordsByLanguage[this.currentLanguage] || this.knownWordsByLanguage['zh'] || new Set();
       const currentIgnoredWords = this.ignoredWordsByLanguage[this.currentLanguage] || this.ignoredWordsByLanguage['zh'] || new Set();
 
-      await storage.set({
-        knownWordsByLanguage: knownWordsObj,
-        ignoredWordsByLanguage: ignoredWordsObj,
-        learningWordsByLanguage: learningWordsObj,
-
-      });
+      await storage.setItems([
+        { item: items.knownWordsByLanguage, value: knownWordsObj },
+        { item: items.ignoredWordsByLanguage, value: ignoredWordsObj },
+        { item: items.learningWordsByLanguage, value: learningWordsObj },
+      ]);
       console.log(`Known words saved to extension storage (per-language). Current language: ${this.currentLanguage}`);
     } catch (error) {
       console.warn('Could not save known words:', error);
@@ -185,7 +184,10 @@ export class VocabManager {
     this.getCurrentLanguageIgnoredWords().clear();
     this.getCurrentLanguageLearningWords().clear();
     try {
-      await storage.set({ chineseExtensionKnownWords: [], chineseExtensionIgnoredWords: [] });
+      await storage.setItems([
+        { item: items.chineseExtensionKnownWords, value: [] },
+        { item: items.chineseExtensionIgnoredWords, value: [] },
+      ]);
       await this.saveKnownWords(); // Save the cleared state
       console.log('Known words cleared in extension storage');
     } catch (error) {
@@ -703,10 +705,10 @@ export class VocabManager {
     if (!normalizedWord) return;
 
     // Non-blocking: don't await, just fire and forget
-    const storageKey: `recentVocab_${string}` = `recentVocab_${this.currentLanguage}`;
+    const recentItem = recentVocabItem(this.currentLanguage);
 
-    storage.get([storageKey]).then((result) => {
-      let recentWords: any[] = result[storageKey] || [];
+    recentItem.getValue().then((stored) => {
+      let recentWords: any[] = stored;
 
       // Remove if already exists (to move to front) - compare normalized
       recentWords = recentWords.filter(item => this.normalizeWord(item.word) !== normalizedWord);
@@ -753,7 +755,7 @@ export class VocabManager {
       // Keep only last 20 words
       recentWords = recentWords.slice(0, 20);
 
-      storage.set({ [storageKey]: recentWords });
+      recentItem.setValue(recentWords);
       //console.log(`✅ Tracked word lookup: ${normalizedWord} (${this.currentLanguage}) - Def: "${definitionText}" - Total: ${recentWords.length}`);
     });
   }

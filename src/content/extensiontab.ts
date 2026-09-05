@@ -1,8 +1,10 @@
 // Helios Extension Tab TypeScript - with Sunset/Sunrise Effect
 
-import { storage, type VocabEntry } from '@/config/storage';
+import { browser } from 'wxt/browser';
 
-/** A saved vocabulary entry as stored in chrome.storage.local. */
+import { items, recentVocabItem, storage, type VocabEntry } from '@/config/storage';
+
+/** A saved vocabulary entry as stored in local storage. */
 interface VocabItem extends VocabEntry {
   word: string;
   character?: string;
@@ -11,9 +13,6 @@ interface VocabItem extends VocabEntry {
   dateAdded?: string;
   reviewCount?: number;
 }
-
-/** Per-language recent lookups live under a runtime key: `recentVocab_<lang>`. */
-type RecentVocabStorage = Record<string, VocabItem[] | undefined>;
 
 // Apply extension state styling
 export function applyExtensionState(isEnabled: boolean): void {
@@ -52,37 +51,25 @@ export function initializeExtensionToggle(): void {
         applyExtensionState(newState);
 
         // Send message to background script
-        if (window.chrome && chrome.runtime) {
-          const response = await chrome.runtime.sendMessage({
-            action: "toggleExtension",
-            enabled: newState,
-          });
+        const response = await browser.runtime.sendMessage({
+          action: "toggleExtension",
+          enabled: newState,
+        });
 
-          if (response && response.success) {
-            console.log("Extension", newState ? "enabled" : "disabled");
-            // Also update storage directly for consistency
-            await storage.set({ extensionEnabled: newState });
-          } else {
-            // Revert UI if background script failed
-            if (newState) {
-              extensionToggle.classList.remove("active");
-            } else {
-              extensionToggle.classList.add("active");
-            }
-            // Revert visual state
-            applyExtensionState(!newState);
-            console.error("Failed to toggle extension:", response?.error);
-          }
+        if (response && response.success) {
+          console.log("Extension", newState ? "enabled" : "disabled");
+          // Also update storage directly for consistency
+          await items.extensionEnabled.setValue(newState);
         } else {
-          // Fallback for testing - just update storage
-          if (chrome.storage) {
-            await storage.set({ extensionEnabled: newState });
+          // Revert UI if background script failed
+          if (newState) {
+            extensionToggle.classList.remove("active");
+          } else {
+            extensionToggle.classList.add("active");
           }
-          console.log(
-            "Extension",
-            newState ? "enabled" : "disabled",
-            "(fallback mode)"
-          );
+          // Revert visual state
+          applyExtensionState(!newState);
+          console.error("Failed to toggle extension:", response?.error);
         }
       } catch (error) {
         // Revert UI on error
@@ -98,24 +85,18 @@ export function initializeExtensionToggle(): void {
     });
 
     // Load extension state on startup and apply visual state
-    if (window.chrome && chrome.storage) {
-      storage.get(["extensionEnabled"]).then((result) => {
-        const isEnabled = result.extensionEnabled !== false; // Default to true
-        if (isEnabled) {
-          extensionToggle.classList.add("active");
-        } else {
-          extensionToggle.classList.remove("active");
-        }
+    items.extensionEnabled.getValue().then((isEnabled) => {
+      if (isEnabled) {
+        extensionToggle.classList.add("active");
+      } else {
+        extensionToggle.classList.remove("active");
+      }
 
-        // Apply the appropriate visual state
-        applyExtensionState(isEnabled);
+      // Apply the appropriate visual state
+      applyExtensionState(isEnabled);
 
-        console.log("Loaded extension state:", isEnabled);
-      });
-    } else {
-      // Default to enabled state if no storage available
-      applyExtensionState(true);
-    }
+      console.log("Loaded extension state:", isEnabled);
+    });
   }
 
   if (settingsBtn) {
@@ -129,18 +110,14 @@ export function updateKnownWordsCounter(): void {
   const counter = document.getElementById("vocab-count");
   if (!counter) return;
 
-  if (window.chrome && chrome.storage && chrome.storage.local) {
-    storage.get(["knownWordsByLanguage", "targetLanguage"]).then((result) => {
-      const currentLanguage = result.targetLanguage || 'en';
-      const knownWordsByLanguage = result.knownWordsByLanguage || {};
+  storage
+    .getItems([items.knownWordsByLanguage, items.targetLanguage])
+    .then(([{ value: knownWordsByLanguage }, { value: targetLanguage }]) => {
+      const currentLanguage = targetLanguage || 'en';
       const knownWords = knownWordsByLanguage[currentLanguage] || [];
       counter.textContent = String(Array.isArray(knownWords) ? knownWords.length : 0);
       console.log(`Known words count for ${currentLanguage}:`, knownWords.length);
     });
-  } else {
-    // Fallback for testing
-    counter.textContent = counter.textContent || "4";
-  }
 }
 
 export function loadVocabularyList(): void {
@@ -151,123 +128,85 @@ export function loadVocabularyList(): void {
 
   if (!vocabList) return;
 
-  if (window.chrome && chrome.storage && chrome.storage.local) {
-    storage.get(["targetLanguage"]).then((result) => {
-      const currentLanguage = result.targetLanguage || 'en';
-      const recentVocabKey = `recentVocab_${currentLanguage}`;
+  items.targetLanguage.getValue().then(async (targetLanguage) => {
+    const currentLanguage = targetLanguage || 'en';
 
-      // Load recent vocabulary for current language
-      chrome.storage.local.get<RecentVocabStorage>([recentVocabKey], (vocabResult) => {
-        let vocabItems: VocabItem[] = vocabResult[recentVocabKey] || [];
+    // Load recent vocabulary for current language
+    const vocabItems = (await recentVocabItem(currentLanguage).getValue()) as VocabItem[];
 
-        // Update count
-        if (vocabCount) {
-          vocabCount.textContent = `${vocabItems.length} total`;
-        }
+    // Update count
+    if (vocabCount) {
+      vocabCount.textContent = `${vocabItems.length} total`;
+    }
 
-        // Clear existing items
-        vocabList.innerHTML = "";
+    // Clear existing items
+    vocabList.innerHTML = "";
 
-        if (vocabItems.length === 0) {
-          vocabList.innerHTML = `
-            <div class="empty-state">
-              <div class="empty-icon">📚</div>
-              Start looking up words to build your vocabulary!
-            </div>
-          `;
-          return;
-        }
-
-        // Show recent items (limit to 10 for compact design)
-        const maxItems = document.body.offsetWidth < 400 ? 5 : 10;
-        const recentItems = vocabItems.slice(0, maxItems);
-
-        recentItems.forEach((item) => {
-          const vocabItem = document.createElement("div");
-          vocabItem.className = "vocab-item";
-
-          // Format definition
-          let definition = "No definition available";
-          if (item.definition && item.definition.english) {
-            definition = item.definition.english;
-          } else if (item.definition && typeof item.definition === 'string') {
-            definition = item.definition;
-          }
-
-          // Built with textContent, not innerHTML: words and definitions come from
-          // arbitrary page text and must never be parsed as markup.
-          const vocabContent = document.createElement("div");
-          vocabContent.className = "vocab-content";
-
-          const wordEl = document.createElement("div");
-          wordEl.className = "vocab-word";
-          wordEl.textContent = String(item.word ?? "");
-
-          const definitionEl = document.createElement("div");
-          definitionEl.className = "vocab-definition";
-          definitionEl.textContent = String(definition);
-
-          vocabContent.appendChild(wordEl);
-          vocabContent.appendChild(definitionEl);
-
-          const deleteBtn = document.createElement("button");
-          deleteBtn.className = "delete-btn";
-          deleteBtn.setAttribute("data-word", String(item.word ?? ""));
-          deleteBtn.textContent = "×";
-
-          vocabItem.appendChild(vocabContent);
-          vocabItem.appendChild(deleteBtn);
-          vocabList.appendChild(vocabItem);
-        });
-
-        // Add delete functionality
-        vocabList.querySelectorAll(".delete-btn").forEach((btn) => {
-          btn.addEventListener("click", (e) => {
-            const word = (e.target as HTMLElement).getAttribute("data-word");
-            removeRecentVocabItem(word, currentLanguage);
-          });
-        });
-      });
-    });
-  } else {
-    // Fallback for testing without chrome extension API
-    if (vocabList.children.length === 0) {
+    if (vocabItems.length === 0) {
       vocabList.innerHTML = `
-        <div class="vocab-item">
-          <div class="vocab-content">
-            <div class="vocab-word">模式</div>
-            <div class="vocab-definition">mode; pattern; model</div>
-          </div>
-          <button class="delete-btn" data-word="模式">×</button>
-        </div>
-        <div class="vocab-item">
-          <div class="vocab-content">
-            <div class="vocab-word">有</div>
-            <div class="vocab-definition">to have; there is; (bound form) having; with; -ful; -ed; -al (as in 有意 [you3yi4] intentional)</div>
-          </div>
-          <button class="delete-btn" data-word="有">×</button>
+        <div class="empty-state">
+          <div class="empty-icon">📚</div>
+          Start looking up words to build your vocabulary!
         </div>
       `;
+      return;
     }
 
-    if (vocabCount) {
-      vocabCount.textContent = "2 total";
-    }
+    // Show recent items (limit to 10 for compact design)
+    const maxItems = document.body.offsetWidth < 400 ? 5 : 10;
+    const recentItems = vocabItems.slice(0, maxItems);
 
-    // Add delete functionality for fallback
+    recentItems.forEach((item) => {
+      const vocabItem = document.createElement("div");
+      vocabItem.className = "vocab-item";
+
+      // Format definition
+      let definition = "No definition available";
+      if (item.definition && item.definition.english) {
+        definition = item.definition.english;
+      } else if (item.definition && typeof item.definition === 'string') {
+        definition = item.definition;
+      }
+
+      // Built with textContent, not innerHTML: words and definitions come from
+      // arbitrary page text and must never be parsed as markup.
+      const vocabContent = document.createElement("div");
+      vocabContent.className = "vocab-content";
+
+      const wordEl = document.createElement("div");
+      wordEl.className = "vocab-word";
+      wordEl.textContent = String(item.word ?? "");
+
+      const definitionEl = document.createElement("div");
+      definitionEl.className = "vocab-definition";
+      definitionEl.textContent = String(definition);
+
+      vocabContent.appendChild(wordEl);
+      vocabContent.appendChild(definitionEl);
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "delete-btn";
+      deleteBtn.setAttribute("data-word", String(item.word ?? ""));
+      deleteBtn.textContent = "×";
+
+      vocabItem.appendChild(vocabContent);
+      vocabItem.appendChild(deleteBtn);
+      vocabList.appendChild(vocabItem);
+    });
+
+    // Add delete functionality
     vocabList.querySelectorAll(".delete-btn").forEach((btn) => {
       btn.addEventListener("click", (e) => {
-        (e.target as HTMLElement).closest(".vocab-item")!.remove();
+        const word = (e.target as HTMLElement).getAttribute("data-word");
+        removeRecentVocabItem(word, currentLanguage);
       });
     });
-  }
+  });
 }
 
 export function addToVocabList(character: string, definition: any = null, pinyin: string | null = null): void {
-  if (!window.chrome || !chrome.storage || !chrome.storage.local) return;
-
-  storage.get(["chineseExtensionVocabList"]).then((result) => {
-    const vocabItems = (result.chineseExtensionVocabList || []) as VocabItem[];
+  items.chineseExtensionVocabList.getValue().then((stored) => {
+    const vocabItems = stored as VocabItem[];
 
     // Check if word already exists
     const exists = vocabItems.some(
@@ -286,7 +225,7 @@ export function addToVocabList(character: string, definition: any = null, pinyin
 
       vocabItems.push(newItem);
 
-      storage.set({ chineseExtensionVocabList: vocabItems }).then(() => {
+      items.chineseExtensionVocabList.setValue(vocabItems).then(() => {
         console.log(`Added ${character} to vocabulary list`);
         // Update the UI if we're on the extension tab
         if (document.getElementById("vocab-list")) {
@@ -298,15 +237,12 @@ export function addToVocabList(character: string, definition: any = null, pinyin
 }
 
 export function removeVocabItem(word: string): void {
-  if (!window.chrome || !chrome.storage || !chrome.storage.local) return;
-
-  storage.get(["chineseExtensionVocabList"]).then((result) => {
-    const vocabItems = (result.chineseExtensionVocabList || []) as VocabItem[];
-    const filteredItems = vocabItems.filter(
+  items.chineseExtensionVocabList.getValue().then((stored) => {
+    const filteredItems = (stored as VocabItem[]).filter(
       (item) => (item.character || item.word) !== word
     );
 
-    storage.set({ chineseExtensionVocabList: filteredItems }).then(() => {
+    items.chineseExtensionVocabList.setValue(filteredItems).then(() => {
       loadVocabularyList();
       console.log(`Removed ${word} from vocabulary list`);
     });
@@ -314,14 +250,12 @@ export function removeVocabItem(word: string): void {
 }
 
 export function removeRecentVocabItem(word: string | null, language: string): void {
-  if (!window.chrome || !chrome.storage || !chrome.storage.local) return;
+  const recentVocab = recentVocabItem(language);
 
-  const recentVocabKey = `recentVocab_${language}`;
-  chrome.storage.local.get<RecentVocabStorage>([recentVocabKey], (result) => {
-    const vocabItems: VocabItem[] = result[recentVocabKey] || [];
-    const filteredItems = vocabItems.filter((item) => item.word !== word);
+  recentVocab.getValue().then((stored) => {
+    const filteredItems = (stored as VocabItem[]).filter((item) => item.word !== word);
 
-    storage.setRaw({ [recentVocabKey]: filteredItems }).then(() => {
+    recentVocab.setValue(filteredItems).then(() => {
       loadVocabularyList();
       console.log(`Removed ${word} from recent vocabulary`);
     });
@@ -332,7 +266,7 @@ export function removeRecentVocabItem(word: string | null, language: string): vo
 export function openHeliosSettings(): void {
   try {
     // Settings now live on the WXT options page
-    chrome.runtime.openOptionsPage();
+    browser.runtime.openOptionsPage();
     console.log("Opening Helios Settings page ⚙️");
   } catch (error) {
     console.error("Error opening Helios settings:", error);
@@ -361,26 +295,26 @@ export function openReview(): void {
 
 // Function to increment session counter when words are looked up
 export function incrementSessionCounter(): void {
-  if (!window.chrome || !chrome.storage || !chrome.storage.local) return;
+  storage
+    .getItems([items.todayLookupCount, items.lastResetDate])
+    .then(([{ value: todayLookupCount }, { value: lastResetDate }]) => {
+      const today = new Date().toDateString();
+      const lastReset = lastResetDate || "";
+      let lookupCount: number = todayLookupCount;
 
-  storage.get(["todayLookupCount", "lastResetDate"]).then((result) => {
-    const today = new Date().toDateString();
-    const lastReset = result.lastResetDate || "";
-    let lookupCount = result.todayLookupCount || 0;
+      if (lastReset !== today) {
+        lookupCount = 0;
+      }
 
-    if (lastReset !== today) {
-      lookupCount = 0;
-    }
+      lookupCount++;
 
-    lookupCount++;
-
-    storage.set({
-      todayLookupCount: lookupCount,
-      lastResetDate: today,
-    }).then(() => {
-      console.log(`Today's lookup count: ${lookupCount}`);
+      storage.setItems([
+        { item: items.todayLookupCount, value: lookupCount },
+        { item: items.lastResetDate, value: today },
+      ]).then(() => {
+        console.log(`Today's lookup count: ${lookupCount}`);
+      });
     });
-  });
 }
 
 // Initialize everything when DOM is loaded
@@ -418,13 +352,13 @@ window.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      storage.get(["chineseExtensionKnownWords"]).then((result) => {
-        const current = new Set<string>(result.chineseExtensionKnownWords || []);
+      items.chineseExtensionKnownWords.getValue().then((stored) => {
+        const current = new Set<string>(stored);
         const newWords = words.filter((w) => !current.has(w));
 
         words.forEach((w) => current.add(w));
 
-        storage.set({ chineseExtensionKnownWords: Array.from(current) }).then(() => {
+        items.chineseExtensionKnownWords.setValue(Array.from(current)).then(() => {
           alert(
             `✅ Added ${newWords.length} new words! Total: ${current.size} words known.`
           );
@@ -456,55 +390,64 @@ window.addEventListener("DOMContentLoaded", () => {
     updateKnownWordsCounter();
   }, 30000);
 
-  // Listen for storage changes to update UI in real-time
-  if (window.chrome && chrome.storage && chrome.storage.onChanged) {
-    chrome.storage.onChanged.addListener((changes, areaName) => {
-      if (areaName === "local") {
-        // Update for both old and new storage formats
-        if (changes.chineseExtensionKnownWords || changes.knownWordsByLanguage) {
-          updateKnownWordsCounter();
-        }
-        // Update vocab list for old format or any recent vocab change
-        if (changes.chineseExtensionVocabList ||
-            Object.keys(changes).some(key => key.startsWith('recentVocab_'))) {
-          loadVocabularyList();
-        }
-        if (changes.extensionEnabled) {
-          // Update toggle state and visual appearance if changed from elsewhere
-          const toggle = document.getElementById("extension-toggle");
-          if (toggle) {
-            const newState = changes.extensionEnabled.newValue as boolean;
-            if (newState) {
-              toggle.classList.add("active");
-            } else {
-              toggle.classList.remove("active");
-            }
-            // Apply sunset/sunrise effect
-            applyExtensionState(newState);
+  // Listen for storage changes to update UI in real-time.
+  // Raw `onChanged` rather than per-item watches: the recent-vocab keys are
+  // per-language, so this has to scan the changed key names by prefix.
+  browser.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === "local") {
+      // Update for both old and new storage formats
+      if (changes.chineseExtensionKnownWords || changes.knownWordsByLanguage) {
+        updateKnownWordsCounter();
+      }
+      // Update vocab list for old format or any recent vocab change
+      if (changes.chineseExtensionVocabList ||
+          Object.keys(changes).some(key => key.startsWith('recentVocab_'))) {
+        loadVocabularyList();
+      }
+      if (changes.extensionEnabled) {
+        // Update toggle state and visual appearance if changed from elsewhere
+        const toggle = document.getElementById("extension-toggle");
+        if (toggle) {
+          const newState = changes.extensionEnabled.newValue as boolean;
+          if (newState) {
+            toggle.classList.add("active");
+          } else {
+            toggle.classList.remove("active");
           }
+          // Apply sunset/sunrise effect
+          applyExtensionState(newState);
         }
       }
-    });
-  }
+    }
+  });
 });
 
 // Debug function to check storage state
 export function debugStorageState(): void {
-  if (window.chrome && chrome.storage && chrome.storage.local) {
-    storage.get(['chineseExtensionKnownWords', 'chineseExtensionIgnoredWords', 'knownWordsByLanguage', 'ignoredWordsByLanguage', 'targetLanguage']).then((result) => {
-      console.log('🔍 Storage Debug:');
-      console.log('Current Language:', result.targetLanguage);
-      console.log('---OLD FORMAT---');
-      console.log('Known words (old):', result.chineseExtensionKnownWords || []);
-      console.log('Ignored words (old):', result.chineseExtensionIgnoredWords || []);
-      console.log('---NEW FORMAT---');
-      console.log('Known words by language:', result.knownWordsByLanguage || {});
-      console.log('Ignored words by language:', result.ignoredWordsByLanguage || {});
-      const currentLang = result.targetLanguage || 'en';
-      const knownByLang = result.knownWordsByLanguage || {};
-      console.log(`Current language (${currentLang}) known words:`, knownByLang[currentLang] || []);
-    });
-  }
+  storage.getItems([
+    items.chineseExtensionKnownWords,
+    items.chineseExtensionIgnoredWords,
+    items.knownWordsByLanguage,
+    items.ignoredWordsByLanguage,
+    items.targetLanguage,
+  ]).then(([
+    { value: chineseExtensionKnownWords },
+    { value: chineseExtensionIgnoredWords },
+    { value: knownWordsByLanguage },
+    { value: ignoredWordsByLanguage },
+    { value: targetLanguage },
+  ]) => {
+    console.log('🔍 Storage Debug:');
+    console.log('Current Language:', targetLanguage);
+    console.log('---OLD FORMAT---');
+    console.log('Known words (old):', chineseExtensionKnownWords);
+    console.log('Ignored words (old):', chineseExtensionIgnoredWords);
+    console.log('---NEW FORMAT---');
+    console.log('Known words by language:', knownWordsByLanguage);
+    console.log('Ignored words by language:', ignoredWordsByLanguage);
+    const currentLang = targetLanguage || 'en';
+    console.log(`Current language (${currentLang}) known words:`, knownWordsByLanguage[currentLang] || []);
+  });
 }
 
 // Make functions globally available for debugging and external use
