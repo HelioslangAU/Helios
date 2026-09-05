@@ -102,12 +102,28 @@ Helios uses a modular architecture with clear separation of concerns:
 - **Popup interface** — quick access to key features
 - **Settings page** — comprehensive customization options
 
-Modules share state through a small set of `window.*` instances assigned during content-script
-init, all declared in `src/types/globals.d.ts`. Load order is significant and is expressed by
-the ordered side-effect imports in `src/entrypoints/content/index.ts`.
+Long-lived instances that several features need — the language registry, dictionary,
+vocabulary store and UI managers — are published to a typed registry
+(`src/content/services.ts`) during init and read via `services.*`. Load order still matters
+and is expressed by the ordered side-effect imports in `src/entrypoints/content/index.ts`.
 
-All persisted state goes through `src/config/storage.ts`, which declares every
-`chrome.storage.local` key the extension uses and returns typed, partial results.
+The registry also carries WXT's `ContentScriptContext` as `services.ctx`. Register timers and
+document-level listeners through it (`ctx.setInterval`, `ctx.addEventListener`) so they are
+torn down when the script is invalidated on extension reload or SPA navigation. Components
+that are also destroyed and re-created *within* a single context — anything behind a feature
+toggle — still need their own teardown in `destroy()`, because the context has not been
+invalidated in that case.
+
+All persisted state goes through `src/config/storage.ts`, which declares every storage key as
+a typed item with its default. Reads return that default, so call sites don't restate it.
+Note an item's fallback applies only when a key is **unset**: an empty stored string still
+wins, which is why some call sites keep an explicit `||`. Never mutate a value returned by
+`getValue()` in place when the item has an object or array fallback — WXT hands back the same
+instance each time, so mutating it corrupts the default for every later reader.
+
+Asset paths live in `src/config/paths.ts`, typed against WXT's generated `PublicPath` union.
+A path that doesn't correspond to a real file in the build is a compile error rather than a
+404 at runtime.
 
 ### Video subtitle system
 
