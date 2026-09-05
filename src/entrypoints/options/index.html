@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Helios Settings</title>
+    <meta name="manifest.open_in_tab" content="true" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <!-- Beautiful gradient header matching extension tab -->
+    <div class="header">
+      <div class="header-content">
+        <div class="brand">
+          <h1>Helios</h1>
+          <div class="subtitle">Extension Settings</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container">
+      <!-- Sidebar Navigation -->
+      <div class="sidebar">
+        <nav class="nav-menu">
+          <div class="nav-item active" data-tab="general">
+            <span class="icon">⚙️</span>
+            <span>General</span>
+          </div>
+          <div class="nav-item" data-tab="popup">
+            <span class="icon">💬</span>
+            <span>Popup & Display</span>
+          </div>
+          <div class="nav-item" data-tab="shortcuts">
+            <span class="icon">⌨️</span>
+            <span>Keyboard Shortcuts</span>
+          </div>
+          <div class="nav-item" data-tab="video-player">
+            <span class="icon">🎬</span>
+            <span>Video Player</span>
+          </div>
+          <div class="nav-item" data-tab="anki">
+            <span class="icon">📚</span>
+            <span>Anki Integration</span>
+          </div>
+          <div class="nav-item" data-tab="vocabulary">
+            <span class="icon">📝</span>
+            <span>Vocabulary</span>
+          </div>
+          <div class="nav-item" data-tab="advanced">
+            <span class="icon">🔧</span>
+            <span>Advanced</span>
+          </div>
+        </nav>
+      </div>
+
+      <!-- Main Content -->
+      <div class="main-content">
+        <!-- General Settings -->
+        <div class="tab-content active" id="general">
+          <div class="loading-indicator">
+            <div class="loading-spinner"></div>
+            Loading General Settings...
+          </div>
+        </div>
+
+        <!-- Popup & Display Settings -->
+        <div class="tab-content" id="popup">
+          <div class="loading-indicator">
+            <div class="loading-spinner"></div>
+            Loading Popup Settings...
+          </div>
+        </div>
+
+        <!-- Keyboard Shortcuts -->
+        <div class="tab-content" id="shortcuts">
+          <div class="loading-indicator">
+            <div class="loading-spinner"></div>
+            Loading Keyboard Shortcuts...
+          </div>
+        </div>
+
+        <!-- Video Player Settings -->
+        <div class="tab-content" id="video-player">
+          <div class="loading-indicator">
+            <div class="loading-spinner"></div>
+            Loading Video Player Settings...
+          </div>
+        </div>
+
+        <!-- Anki Integration -->
+        <div class="tab-content" id="anki">
+          <div class="loading-indicator">
+            <div class="loading-spinner"></div>
+            Loading Anki Settings...
+          </div>
+        </div>
+
+        <!-- Vocabulary Management -->
+        <div class="tab-content" id="vocabulary">
+          <div class="loading-indicator">
+            <div class="loading-spinner"></div>
+            Loading Vocabulary Settings...
+          </div>
+        </div>
+
+        <!-- Advanced Settings -->
+        <div class="tab-content" id="advanced">
+          <div class="loading-indicator">
+            <div class="loading-spinner"></div>
+            Loading Advanced Settings...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

@@ -71,11 +71,11 @@ declare global {
     heliosSettings: HeliosSettingsManager;
 
     // Maybe-present instances, depending on page/feature state.
-    heliosVideoFeature?: VideoFeatureManager;
-    heliosVideo?: VideoFeatureManager;
-    platformVideoSidebar?: PlatformVideoSidebar;
-    youtubeSidebar?: YouTubeSidebar;
-    subtitleSelectorModal?: SubtitleSelectorModal;
+    heliosVideoFeature?: VideoFeatureManager | null;
+    heliosVideo?: VideoFeatureManager | null;
+    platformVideoSidebar?: PlatformVideoSidebar | null;
+    youtubeSidebar?: YouTubeSidebar | null;
+    subtitleSelectorModal?: SubtitleSelectorModal | null;
     heliosPageProcessor?: PageProcessor;
     /** Action-popup page namespace (extensiontab). */
     heliosExtension?: Record<string, (...args: never[]) => unknown>;
@@ -110,9 +110,9 @@ declare global {
     HeliosSettingsAnki: typeof HeliosSettingsAnki;
     HeliosSettingsVocabulary: typeof HeliosSettingsVocabulary;
     HeliosSettingsAdvanced: typeof HeliosSettingsAdvanced;
-    HeliosAudioRecorder: typeof HeliosAudioRecorder;
+    HeliosAudioRecorder: HeliosAudioRecorder;
     HeliosMediaStorage: typeof MediaStorage;
-    HeliosScreenshotCapturer: typeof ScreenshotCapturer;
+    HeliosScreenshotCapturer: ScreenshotCapturer;
     Jieba: typeof Jieba;
     /** Legacy: wikimedia audio provider was removed; reads must handle absence. */
     WikimediaAudioProvider?: undefined;
