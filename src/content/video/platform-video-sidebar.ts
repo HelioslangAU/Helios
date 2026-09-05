@@ -2053,8 +2053,7 @@ export class PlatformVideoSidebar {
       console.log('[Helios Platform Sidebar] Available tracks:', tracks.length);
 
       if (!services.subtitleSelectorModal) {
-        window.subtitleSelectorModal = new SubtitleSelectorModal();
-        provideServices({ subtitleSelectorModal: window.subtitleSelectorModal });
+        provideServices({ subtitleSelectorModal: new SubtitleSelectorModal() });
       }
 
       services.subtitleSelectorModal!.show(tracks, async (selectedTrack: any) => {
@@ -2560,8 +2559,7 @@ export class PlatformVideoSidebar {
 }
 
 // Initialize platform sidebar
-window.platformVideoSidebar = new PlatformVideoSidebar();
-provideServices({ platformVideoSidebar: window.platformVideoSidebar });
+provideServices({ platformVideoSidebar: new PlatformVideoSidebar() });
 
 // Listen for video feature toggle changes AND global extension toggle
 browser.storage.onChanged.addListener((changes, namespace) => {
@@ -2575,12 +2573,10 @@ browser.storage.onChanged.addListener((changes, namespace) => {
         services.platformVideoSidebar.hide();
         // Optionally destroy to clean up completely
         services.platformVideoSidebar.destroy();
-        window.platformVideoSidebar = null;
         revokeService('platformVideoSidebar');
       } else if (isEnabled && !services.platformVideoSidebar) {
         console.log('[Helios Platform Sidebar] Extension enabled - reinitializing sidebar');
-        window.platformVideoSidebar = new PlatformVideoSidebar();
-        provideServices({ platformVideoSidebar: window.platformVideoSidebar });
+        provideServices({ platformVideoSidebar: new PlatformVideoSidebar() });
       }
     }
 
@@ -2591,12 +2587,10 @@ browser.storage.onChanged.addListener((changes, namespace) => {
       if (!isEnabled && services.platformVideoSidebar) {
         console.log('[Helios Platform Sidebar] Video features disabled - destroying sidebar');
         services.platformVideoSidebar.destroy();
-        window.platformVideoSidebar = null;
         revokeService('platformVideoSidebar');
       } else if (isEnabled && !services.platformVideoSidebar) {
         console.log('[Helios Platform Sidebar] Video features enabled - reinitializing sidebar');
-        window.platformVideoSidebar = new PlatformVideoSidebar();
-        provideServices({ platformVideoSidebar: window.platformVideoSidebar });
+        provideServices({ platformVideoSidebar: new PlatformVideoSidebar() });
       }
     }
   }

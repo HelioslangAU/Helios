@@ -95,7 +95,6 @@ export class FeatureToggle {
     // Create banner if it doesn't exist (was disabled on load)
     if (!this.bannerManager && typeof BannerManager !== 'undefined') {
       this.bannerManager = new BannerManager();
-      window.bannerManager = this.bannerManager;
       provideServices({ bannerManager: this.bannerManager });
       if (this.parentExtension) {
         this.parentExtension.bannerManager = this.bannerManager;

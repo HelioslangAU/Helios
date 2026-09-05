@@ -3,6 +3,7 @@
 import { browser } from 'wxt/browser';
 
 import { AnkiManager } from '@/content/anki-manager';
+import { services } from '@/content/services';
 import type { HeliosSettingsManager } from '@/content/settings/helios-settings';
 
 interface DataTypeOption {
@@ -1166,7 +1167,7 @@ export class HeliosSettingsAnki {
       // Ensure vocab manager has the correct language
       const targetLanguage =
         this.manager.settings.targetLanguage ||
-        window.languageRegistry?.getCurrentLanguage() ||
+        services.languageRegistry?.getCurrentLanguage() ||
         "zh";
       vocabManager.setCurrentLanguage(targetLanguage);
 

@@ -1,4 +1,6 @@
 // Pronunciation Manager for Chinese Language Learning Extension
+import { services } from '@/content/services';
+
 export class AudioManager {
   audioCache: Map<string, string | null>;
   isPlaying: boolean;
@@ -419,7 +421,7 @@ export class PopupPronunciationManager {
 
   async playPronunciation(word: string): Promise<boolean> {
     // Get current language from global languageRegistry if available
-    const language = window.languageRegistry?.getCurrentLanguage() || 'zh';
+    const language = services.languageRegistry?.getCurrentLanguage() || 'zh';
     console.log(`🔊 Playing pronunciation for "${word}" in language: ${language}`);
     return this.audioManager.playPronunciation(word, language);
   }

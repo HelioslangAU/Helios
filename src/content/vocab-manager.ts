@@ -282,7 +282,7 @@ export class VocabManager {
     if (!normalizedWord) return;
 
     // Check if this is a non-lemma word (grammar field will say "non-lemma")
-    const dictionary: Record<string, any> = window.dictionaryManager?.dictionary || {};
+    const dictionary: Record<string, any> = services.dictionaryManager?.dictionary || {};
     const wordEntries = dictionary[normalizedWord];
 
     if (wordEntries && Array.isArray(wordEntries) && wordEntries.length > 0) {
@@ -460,9 +460,9 @@ export class VocabManager {
     // Get language adapter and dictionary for validation
     // Note: In settings page context, languageRegistry may not be available
     // Get adapter for the vocab manager's current language (not the registry's current language)
-    const languageRegistry = window.languageRegistry;
+    const languageRegistry = services.languageRegistry;
     const adapter = languageRegistry?.adapters?.get(this.currentLanguage) || languageRegistry?.getAdapter();
-    const dictionary: Record<string, any> = window.dictionaryManager?.dictionary || {};
+    const dictionary: Record<string, any> = services.dictionaryManager?.dictionary || {};
 
     // Only validate if both adapter and dictionary are available
     // In settings page context, validation will be skipped gracefully
@@ -553,9 +553,9 @@ export class VocabManager {
     }
 
     // Get language adapter and dictionary for validation
-    const languageRegistry = window.languageRegistry;
+    const languageRegistry = services.languageRegistry;
     const adapter = languageRegistry?.adapters?.get(this.currentLanguage) || languageRegistry?.getAdapter();
-    const dictionary: Record<string, any> = window.dictionaryManager?.dictionary || {};
+    const dictionary: Record<string, any> = services.dictionaryManager?.dictionary || {};
 
     // Only validate if both adapter and dictionary are available
     const canValidate = adapter && typeof adapter.isValidWord === 'function' && dictionary && Object.keys(dictionary).length > 0;

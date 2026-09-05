@@ -2023,8 +2023,7 @@ export class YouTubeSidebar {
 
       // Create or get subtitle selector modal
       if (!services.subtitleSelectorModal) {
-        window.subtitleSelectorModal = new SubtitleSelectorModal();
-        provideServices({ subtitleSelectorModal: window.subtitleSelectorModal });
+        provideServices({ subtitleSelectorModal: new SubtitleSelectorModal() });
       }
 
       // Show modal with tracks, callback, and current track

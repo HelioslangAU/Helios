@@ -5,6 +5,8 @@
 
 import { browser } from 'wxt/browser';
 
+import { services } from '@/content/services';
+
 export interface SentenceBreakdown {
   totalSentences: number;
   t0Sentences: number;
@@ -718,13 +720,13 @@ export class HeliosSideTab {
         if (this.pinyinToggling) {
             console.log('Pinyin toggle in progress, ignoring...');
             // Revert checkbox to current state
-            if (this.pinyinCheckbox && window.pronunciationManager) {
-                this.pinyinCheckbox.checked = window.pronunciationManager.isEnabled();
+            if (this.pinyinCheckbox && services.pronunciationManager) {
+                this.pinyinCheckbox.checked = services.pronunciationManager.isEnabled();
             }
             return;
         }
 
-        if (!window.pronunciationManager) {
+        if (!services.pronunciationManager) {
             console.warn('PronunciationManager not available');
             return;
         }
@@ -733,12 +735,12 @@ export class HeliosSideTab {
         this.pinyinToggling = true;
 
         // Get current state
-        const currentState = window.pronunciationManager.isEnabled();
+        const currentState = services.pronunciationManager.isEnabled();
 
         // Only toggle if the state is different
         if (shouldEnable !== currentState) {
             console.log('Toggling pronunciation:', shouldEnable);
-            window.pronunciationManager.togglePronunciation();
+            services.pronunciationManager.togglePronunciation();
         }
 
         // Update UI immediately with the desired state
@@ -746,7 +748,7 @@ export class HeliosSideTab {
 
         // Verify and update UI again after toggle completes
         setTimeout(() => {
-            const actualState = window.pronunciationManager.isEnabled();
+            const actualState = services.pronunciationManager!.isEnabled();
             this.updatePinyinUI(actualState);
             this.pinyinToggling = false;
         }, 500);
@@ -791,8 +793,8 @@ export class HeliosSideTab {
                 this.pinyinContainer.style.display = 'flex';
 
                 // Initialize checkbox state based on pronunciation manager
-                if (window.pronunciationManager) {
-                    const isEnabled = window.pronunciationManager.isEnabled();
+                if (services.pronunciationManager) {
+                    const isEnabled = services.pronunciationManager.isEnabled();
                     this.updatePinyinUI(isEnabled);
                 }
             } else {

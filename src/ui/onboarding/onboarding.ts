@@ -13,6 +13,7 @@ import { HighlightManager } from '@/content/text-highlighter';
 import { FrequencyManager } from '@/content/frequency-manager';
 import { LanguageRegistry } from '@/content/languages/language-registry';
 import { PageProcessor } from '@/content/page-processor';
+import { services } from '@/content/services';
 import { MultiCardPopupManager } from '@/content/popup/multi-card-popup-manager';
 import { ActivationController } from '@/content/utils/activation-controller';
 import { LookupController } from '@/content/utils/lookup-controller';
@@ -656,8 +657,8 @@ export class OnboardingPage {
     // Try to get adapter from language registry if available
     // getAdapter() only returns the active language's adapter, so look the
     // requested code up in the registry instead.
-    if (window.languageRegistry?.hasLanguage(languageCode)) {
-      return window.languageRegistry.getAllAdapters().get(languageCode) || null;
+    if (services.languageRegistry?.hasLanguage(languageCode)) {
+      return services.languageRegistry.getAllAdapters().get(languageCode) || null;
     }
 
     // Fallback: create adapter directly based on language code
@@ -1273,8 +1274,8 @@ export class OnboardingPage {
 
           highlightSpan.addEventListener('mouseleave', () => {
             this.highlightManager!.isMouseOverHighlight = false;
-            if (window.popupManager) {
-              window.popupManager.scheduleHidePopup();
+            if (services.popupManager) {
+              services.popupManager.scheduleHidePopup();
             }
           });
         } else {

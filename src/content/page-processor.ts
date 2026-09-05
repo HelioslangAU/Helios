@@ -113,8 +113,8 @@ export class PageProcessor {
    * @returns null if no video subtitles
    */
   _getVideoSubtitleSignature(): { count: number; length: number } | null {
-    if (!window.heliosVideoFeature?.isInitialized) return null;
-    const binding = window.heliosVideoFeature.getPrimaryBinding();
+    if (!services.videoFeature?.isInitialized) return null;
+    const binding = services.videoFeature.getPrimaryBinding();
     if (!binding) return null;
     const collection = binding.getSubtitles();
     if (!collection || collection.isEmpty()) return null;
@@ -444,12 +444,12 @@ export class PageProcessor {
    */
   getVideoSubtitleText(): string | null {
     // Check if video feature is available and initialized
-    if (!window.heliosVideoFeature || !window.heliosVideoFeature.isInitialized) {
+    if (!services.videoFeature || !services.videoFeature.isInitialized) {
       return null;
     }
 
     // Get the primary video binding
-    const binding = window.heliosVideoFeature.getPrimaryBinding();
+    const binding = services.videoFeature.getPrimaryBinding();
     if (!binding) {
       return null;
     }
@@ -476,8 +476,8 @@ export class PageProcessor {
    * Get video subtitle text and per-cue ranges (each cue = one "sentence" for T1).
    */
   getVideoSubtitleTextAndCueRanges(): { text: string; cueRanges: SentenceRange[] } | null {
-    if (!window.heliosVideoFeature?.isInitialized) return null;
-    const binding = window.heliosVideoFeature.getPrimaryBinding();
+    if (!services.videoFeature?.isInitialized) return null;
+    const binding = services.videoFeature.getPrimaryBinding();
     if (!binding) return null;
     const collection = binding.getSubtitles();
     if (!collection || collection.isEmpty()) return null;

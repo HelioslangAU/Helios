@@ -260,15 +260,9 @@ export class AnkiManager {
 
   // Check if we're on a video page
   isOnVideoPage(): boolean {
-    // Check if platform detector exists and identifies a video platform
-    if (window.PlatformDetector) {
-      const platform = window.PlatformDetector.detectPlatform();
-      return platform !== 'unknown';
-    }
-
-    // Fallback: check for video elements
-    const videos = document.querySelectorAll('video');
-    return videos.length > 0;
+    // Any page carrying a video counts, not just the platforms PlatformDetector
+    // knows about — audio capture works off the element, not the site.
+    return document.querySelectorAll('video').length > 0;
   }
 
   // Capture audio for sentence with subtitle timing (like asbplayer)
@@ -422,12 +416,12 @@ export class AnkiManager {
   _getPrimaryVideoBinding(): any {
     try {
       // Check if video feature is initialized
-      if (!window.heliosVideoFeature || !window.heliosVideoFeature.videoDetector) {
+      if (!services.videoFeature || !services.videoFeature.videoDetector) {
         return null;
       }
 
       // Get primary binding from video detector
-      const binding = window.heliosVideoFeature.videoDetector.getPrimaryBinding();
+      const binding = services.videoFeature.videoDetector.getPrimaryBinding();
       return binding;
 
     } catch (error) {
@@ -990,12 +984,12 @@ export class AnkiManager {
       }
 
       // Get current learning words
-      if (!window.vocabManager) {
+      if (!services.vocabManager) {
         console.log("🃏 VocabManager not available, skipping sync");
         return { synced: 0, promoted: 0 };
       }
 
-      const learningWords = window.vocabManager.getCurrentLanguageLearningWords();
+      const learningWords = services.vocabManager.getCurrentLanguageLearningWords();
       const learningWordsArray = Array.from(learningWords);
 
       if (learningWordsArray.length === 0) {
@@ -1026,7 +1020,7 @@ export class AnkiManager {
 
       // Promote words to known
       if (wordsToPromote.length > 0) {
-        await window.vocabManager.markMultipleWordsAsKnown(wordsToPromote);
+        await services.vocabManager.markMultipleWordsAsKnown(wordsToPromote);
         // Words are automatically removed from learning set in markMultipleWordsAsKnown
         console.log(`🃏 Promoted ${wordsToPromote.length} learning words to known (interval >= 21 days)`);
       }

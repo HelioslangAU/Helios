@@ -118,7 +118,8 @@ Displays full subtitle list in draggable side panel:
 **Initialize:**
 ```javascript
 // Video feature auto-initializes on page load
-const videoFeature = window.heliosVideoFeature;
+import { services } from '@/content/services';
+const videoFeature = services.videoFeature;
 ```
 
 **Manually Load Subtitles:**

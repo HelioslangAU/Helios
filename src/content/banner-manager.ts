@@ -208,12 +208,12 @@ export class BannerManager {
      */
     getVideoSubtitleText(): string | null {
         // Check if video feature is available and initialized
-        if (!window.heliosVideoFeature || !window.heliosVideoFeature.isInitialized) {
+        if (!services.videoFeature || !services.videoFeature.isInitialized) {
             return null;
         }
 
         // Get the primary video binding
-        const binding = window.heliosVideoFeature.getPrimaryBinding();
+        const binding = services.videoFeature.getPrimaryBinding();
         if (!binding) {
             return null;
         }

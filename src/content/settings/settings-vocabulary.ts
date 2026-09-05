@@ -7,6 +7,7 @@ import { items } from '@/config/storage';
 import { AnkiManager } from '@/content/anki-manager';
 import { DictionaryManager } from '@/content/dictionary-manager';
 import { LanguageRegistry } from '@/content/languages/language-registry';
+import { provideServices, services } from '@/content/services';
 import { VocabManager } from '@/content/vocab-manager';
 import type { HeliosSettingsManager } from '@/content/settings/helios-settings';
 
@@ -29,17 +30,21 @@ export class HeliosSettingsVocabulary {
     // Initialize language registry and adapters for validation
     this.languageRegistry = new LanguageRegistry();
     this.languageRegistry.initializeDefaultAdapters();
-    window.languageRegistry = this.languageRegistry;
     console.log('🔍 Language registry initialized in settings page');
 
     // Initialize dictionary manager
     this.dictionaryManager = new DictionaryManager(this.languageRegistry);
-    window.dictionaryManager = this.dictionaryManager;
     console.log('🔍 Dictionary manager initialized in settings page');
 
     this.vocabManager = new VocabManager();
-    // Make vocabManager available globally for AnkiManager
-    window.vocabManager = this.vocabManager;
+
+    // The options page runs VocabManager/AnkiManager outside the content script,
+    // so it has to register the services those classes read.
+    provideServices({
+      languageRegistry: this.languageRegistry,
+      dictionaryManager: this.dictionaryManager,
+      vocabManager: this.vocabManager,
+    });
 
     // Set the current language from settings if available
     let targetLanguage = 'zh'; // default
@@ -574,7 +579,7 @@ export class HeliosSettingsVocabulary {
       // Ensure vocab manager has the correct language
       const targetLanguage =
         this.manager.settings.targetLanguage ||
-        window.languageRegistry?.getCurrentLanguage() ||
+        services.languageRegistry?.getCurrentLanguage() ||
         "zh";
       this.vocabManager!.setCurrentLanguage(targetLanguage);
 

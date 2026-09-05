@@ -315,9 +315,8 @@ export class VideoFeatureManager {
 }
 
 // Global instance
-if (!window.heliosVideoFeature) {
-  window.heliosVideoFeature = new VideoFeatureManager();
-  provideServices({ videoFeature: window.heliosVideoFeature });
+if (!services.videoFeature) {
+  provideServices({ videoFeature: new VideoFeatureManager() });
 
   // Listen for setting changes to enable/disable video features in real-time
   browser.storage.onChanged.addListener((changes, namespace) => {

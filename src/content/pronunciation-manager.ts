@@ -3,6 +3,7 @@ import type { DictionaryManager } from '@/content/dictionary-manager';
 import type { DictionaryManagerProxy } from '@/content/dictionary-bridge';
 import type { PageProcessor } from '@/content/page-processor';
 import type { LanguageRegistry } from '@/content/languages/language-registry';
+import { services } from '@/content/services';
 
 /**
  * Pronunciation Manager
@@ -82,8 +83,8 @@ export class PronunciationManager {
     }, 300);
 
     // Notify sidebar of change
-    if (window.sidebarManager) {
-      window.sidebarManager.onPronunciationToggle(this.pronunciationEnabled);
+    if (services.bannerManager) {
+      services.bannerManager.onPronunciationToggle(this.pronunciationEnabled);
     }
   }
 
