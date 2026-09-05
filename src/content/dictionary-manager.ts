@@ -18,7 +18,7 @@ export class DictionaryManager {
       }
 
       // Get dictionary path from adapter
-      const dictionaryPath = adapter.getDictionaryPath();
+      const dictionaryPath = adapter.getDictionaryPath()!;
 
       if (dictionaryPath.endsWith('/')) {
         // Handle French dictionary with multiple term bank files
@@ -26,13 +26,13 @@ export class DictionaryManager {
         const dictionary: Record<string, any> = {};
 
         // Load and process each term bank file
-        for (let i = 1; i <= adapter.getConfig().numOfDicts; i++) {
+        for (let i = 1; i <= adapter.getConfig().numOfDicts!; i++) {
           const fileName = `term_bank_${i}.json`;
           const response = await fetch(`${baseUrl}${fileName}`);
           const bankContent = await response.json();
 
           // Merge entries from this bank into main dictionary
-          Object.assign(dictionary, adapter.processTermBank(bankContent, dictionary));
+          Object.assign(dictionary, (adapter as any).processTermBank(bankContent, dictionary));
           console.log(`Loaded term bank ${i} of ${adapter.getConfig().numOfDicts}`);
         }
 

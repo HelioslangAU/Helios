@@ -3,16 +3,7 @@ import type { DictionaryManager } from '@/content/dictionary-manager';
 import type { DictionaryManagerProxy } from '@/content/dictionary-bridge';
 import type { VocabManager } from '@/content/vocab-manager';
 import type { LanguageRegistry } from '@/content/languages/language-registry';
-import type { BaseLanguageAdapter } from '@/content/languages/base-language-adapter';
-
-/** Word token produced by adapter.extractWords (dictionary payloads stay `any`). */
-interface ExtractedWord {
-  word: string;
-  start: number;
-  end: number;
-  dictionaryForm?: string;
-  isTargetLang?: boolean;
-}
+import type { BaseLanguageAdapter, ExtractedWord } from '@/content/languages/base-language-adapter';
 
 interface SentenceRange {
   start: number;
@@ -1220,7 +1211,7 @@ export class PageProcessor {
     }
   }
 
-  _stampOcrBoxWord(boxEl: HTMLElement, word: string, dictionaryForm?: string): void {
+  _stampOcrBoxWord(boxEl: HTMLElement, word: string, dictionaryForm?: string | null): void {
     let span = boxEl.querySelector<HTMLElement>('span[data-word]');
     if (!span) {
       span = document.createElement('span');
@@ -1232,7 +1223,7 @@ export class PageProcessor {
     this._applyWordSpanState(span, word, dictionaryForm);
   }
 
-  _applyWordSpanState(span: HTMLElement, word: string, dictionaryForm?: string): void {
+  _applyWordSpanState(span: HTMLElement, word: string, dictionaryForm?: string | null): void {
     span.setAttribute('data-word', word);
     if (dictionaryForm) {
       span.setAttribute('data-dictionary-form', dictionaryForm);
@@ -1951,7 +1942,10 @@ export class PageProcessor {
   const container = document.querySelector<HTMLElement>('.asbplayer-offscreen');
   if (container) {
     console.log(container.innerText);
-    window.bannerManager.updateComprehension(this.analyzeASBPlayerSubtitlesComprehension(container.innerText));
+    // Pre-existing: the async result is passed unawaited; kept as-is to preserve runtime behavior.
+    window.bannerManager.updateComprehension(
+      this.analyzeASBPlayerSubtitlesComprehension(container.innerText) as unknown as number
+    );
   } else {
     console.warn("ASBPlayer subtitle container not found!");
   }

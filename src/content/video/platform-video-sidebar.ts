@@ -1,3 +1,4 @@
+import { storage } from '@/config/storage';
 import { VideoConstants } from '@/content/video/config/video-constants';
 import { PlatformDetector } from '@/content/video/core/platform-detector';
 import { SubtitleSelectorModal } from '@/content/video/ui/subtitle-selector-modal';
@@ -1548,8 +1549,10 @@ export class PlatformVideoSidebar {
         // Re-check words that were marked as non-target - they might be in dictionary now
         // This fixes cases where words weren't found during initial extraction due to timing
         extractedWords.forEach(extractedWord => {
-          if (extractedWord.isTargetLang === false && adapter && adapter.findDictionaryForm) {
-            const dictionaryForm = adapter.findDictionaryForm(extractedWord.word, dictionaryAfterPreload);
+          // findDictionaryForm only exists on space-separated adapters
+          const formAdapter = adapter as any;
+          if (extractedWord.isTargetLang === false && formAdapter && formAdapter.findDictionaryForm) {
+            const dictionaryForm = formAdapter.findDictionaryForm(extractedWord.word, dictionaryAfterPreload);
             if (dictionaryForm) {
               // Word is in dictionary - mark as target language
               extractedWord.isTargetLang = true;
@@ -2377,7 +2380,7 @@ export class PlatformVideoSidebar {
    */
   async _loadSettings(): Promise<void> {
     try {
-      const result = await chrome.storage.local.get(['platformSidebarSettings', 'videoFeatureEnabled', 'extensionEnabled']);
+      const result = await storage.get(['platformSidebarSettings', 'videoFeatureEnabled', 'extensionEnabled']);
 
       // Check global extension toggle FIRST
       const extensionEnabled = result.extensionEnabled !== false; // Default to true
@@ -2393,7 +2396,7 @@ export class PlatformVideoSidebar {
       }
 
       if (result.platformSidebarSettings) {
-        const loaded = result.platformSidebarSettings;
+        const loaded: Record<string, any> = result.platformSidebarSettings;
 
         // Migrate old hotkey format
         if (loaded.hotkeys) {
@@ -2423,7 +2426,7 @@ export class PlatformVideoSidebar {
    */
   async _saveSettings(): Promise<void> {
     try {
-      await chrome.storage.local.set({ platformSidebarSettings: this.settings });
+      await storage.setRaw({ platformSidebarSettings: this.settings });
       console.log('[Helios Platform Sidebar] Settings saved');
     } catch (error) {
       console.error('[Helios Platform Sidebar] Failed to save settings:', error);
@@ -2494,7 +2497,7 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
         window.platformVideoSidebar.hide();
         // Optionally destroy to clean up completely
         window.platformVideoSidebar.destroy();
-        (window as any).platformVideoSidebar = null;
+        window.platformVideoSidebar = null;
       } else if (isEnabled && !window.platformVideoSidebar) {
         console.log('[Helios Platform Sidebar] Extension enabled - reinitializing sidebar');
         window.platformVideoSidebar = new PlatformVideoSidebar();
@@ -2508,7 +2511,7 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
       if (!isEnabled && window.platformVideoSidebar) {
         console.log('[Helios Platform Sidebar] Video features disabled - destroying sidebar');
         window.platformVideoSidebar.destroy();
-        (window as any).platformVideoSidebar = null;
+        window.platformVideoSidebar = null;
       } else if (isEnabled && !window.platformVideoSidebar) {
         console.log('[Helios Platform Sidebar] Video features enabled - reinitializing sidebar');
         window.platformVideoSidebar = new PlatformVideoSidebar();

@@ -1,4 +1,5 @@
 import type { LanguageRegistry } from '@/content/languages/language-registry';
+import { storage } from '@/config/storage';
 
 /**
  * Dictionary Bridge
@@ -76,7 +77,7 @@ export class DictionaryBridge {
       // Get native language from storage if not provided
       if (!nativeLanguageCode) {
         try {
-          const result = await chrome.storage.local.get(['nativeLanguage']);
+          const result = await storage.get(['nativeLanguage']);
           nativeLanguageCode = result.nativeLanguage || null;
         } catch (error) {
           console.warn('Could not get native language from storage:', error);

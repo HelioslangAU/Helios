@@ -70,6 +70,7 @@ export interface HeliosStorage {
   knownWords: string[];
   knownWordsByLanguage: Record<string, string[]>;
   ignoredWordsByLanguage: Record<string, string[]>;
+  learningWordsByLanguage: Record<string, string[]>;
   chineseExtensionKnownWords: string[];
   chineseExtensionIgnoredWords: string[];
   chineseExtensionVocabList: VocabEntry[];
@@ -77,11 +78,18 @@ export interface HeliosStorage {
   // Session counters
   sessionCount: number;
   todayLookupCount: number;
+  totalLookups: number;
+  todayLookups: number;
   lastResetDate: string;
   ankiCardsCreated: number;
 
   // Anki
   ankiSettings: AnkiSettings;
+  ankiCardsToday: number;
+  ankiSuccessCount: number;
+  ankiTotalAttempts: number;
+  ankiSuccessRate: number;
+  lastAnkiResetDate: string;
 
   // Video / subtitles
   videoFeatureEnabled: boolean;
@@ -100,6 +108,44 @@ export interface HeliosStorage {
   installDate: string;
   extensionVersion: string;
   extensionLastUpdateDate: string;
+
+  // Options-page settings. These are written as one bag by the settings form
+  // (see HeliosSettingsStorage.saveSettings) and read back into defaults.
+  scanDelay: number;
+  maxWordLength: number;
+  preferTraditional: boolean;
+  popupFontSize: string;
+  showFrequency: boolean;
+  persistentPopup: boolean;
+  autoCloseDelay: number;
+  highlightStyle: string;
+  highlightColor: string;
+  highlightIntensity: string;
+  hideKnownSites: boolean;
+  videoNavigationBehavior: { autoPlayAfterNav: boolean };
+  hotkeyMarkUnknown: string;
+  hotkeyMarkIgnored: string;
+  hotkeyMarkKnown: string;
+  hotkeyAnkiAdd: string;
+  ankiDeck: string;
+  ankiNoteType: string;
+  ankiCheckDuplicates: boolean;
+  ankiIncludeSentence: boolean;
+  ankiFieldMappings: Record<string, string>;
+  ankiImportYoungAsLearning: boolean;
+  ankiAutoSyncLearningWords: boolean;
+  processingMode: string;
+  cacheDictionary: boolean;
+  maxElements: number;
+  backgroundProcessing: boolean;
+  autoDetectChinese: boolean;
+  workIncognito: boolean;
+  disabledSites: string[];
+  debugMode: boolean;
+  showMetrics: boolean;
+
+  /** Per-language recent lookups, keyed at runtime by language code. */
+  [recentVocabKey: `recentVocab_${string}`]: VocabEntry[];
 }
 
 export type HeliosStorageKey = keyof HeliosStorage;

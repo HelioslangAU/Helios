@@ -1,3 +1,4 @@
+import { storage } from '@/config/storage';
 import type { SubtitleEntry } from '@/content/video/models/subtitle-entry';
 
 /**
@@ -747,14 +748,9 @@ export class SubtitleOverlay {
   async _loadSettings(): Promise<void> {
     try {
       const platform = this._detectPlatform();
-      const result = await chrome.storage.local.get([
-        'ytSidebarSettings',
-        'subtitleSettings',
-        // Legacy keys for migration
-        'subtitlePosition',
-        'subtitleSize',
-        'subtitleVisibility'
-      ]);
+      // getAll: the legacy migration keys (subtitlePosition/subtitleSize/
+      // subtitleVisibility) are not declared in HeliosStorage.
+      const result: Record<string, any> = await storage.getAll();
 
       // Load pause on hover setting
       if (result.ytSidebarSettings && result.ytSidebarSettings.pauseOnHover !== undefined) {
@@ -821,8 +817,8 @@ export class SubtitleOverlay {
       };
 
       // Get existing settings
-      const result = await chrome.storage.local.get(['subtitleSettings']);
-      const subtitleSettings = result.subtitleSettings || {};
+      const result = await storage.get(['subtitleSettings']);
+      const subtitleSettings: Record<string, any> = result.subtitleSettings || {};
 
       // Update platform-specific position
       if (!subtitleSettings[platform]) {
@@ -831,7 +827,7 @@ export class SubtitleOverlay {
       subtitleSettings[platform].position = positionData;
 
       // Save back
-      await chrome.storage.local.set({
+      await storage.setRaw({
         subtitleSettings,
         // Also save to legacy key for backward compatibility
         subtitlePosition: positionData
@@ -852,8 +848,8 @@ export class SubtitleOverlay {
       const platform = this._detectPlatform();
 
       // Get existing settings
-      const result = await chrome.storage.local.get(['subtitleSettings']);
-      const subtitleSettings = result.subtitleSettings || {};
+      const result = await storage.get(['subtitleSettings']);
+      const subtitleSettings: Record<string, any> = result.subtitleSettings || {};
 
       // Update platform-specific size
       if (!subtitleSettings[platform]) {
@@ -862,7 +858,7 @@ export class SubtitleOverlay {
       subtitleSettings[platform].size = this.subtitleSize;
 
       // Save back
-      await chrome.storage.local.set({
+      await storage.setRaw({
         subtitleSettings,
         // Also save to legacy key for backward compatibility
         subtitleSize: this.subtitleSize
@@ -881,15 +877,15 @@ export class SubtitleOverlay {
     try {
       const platform = this._detectPlatform();
 
-      const result = await chrome.storage.local.get(['subtitleSettings']);
-      const subtitleSettings = result.subtitleSettings || {};
+      const result = await storage.get(['subtitleSettings']);
+      const subtitleSettings: Record<string, any> = result.subtitleSettings || {};
 
       if (!subtitleSettings[platform]) {
         subtitleSettings[platform] = {};
       }
       subtitleSettings[platform].backgroundOpacity = this.subtitleBackgroundOpacity;
 
-      await chrome.storage.local.set({ subtitleSettings });
+      await storage.set({ subtitleSettings });
     } catch (error) {
       console.error('[Helios Subtitle Overlay] Failed to save background opacity:', error);
     }
@@ -904,8 +900,8 @@ export class SubtitleOverlay {
       const platform = this._detectPlatform();
 
       // Get existing settings
-      const result = await chrome.storage.local.get(['subtitleSettings']);
-      const subtitleSettings = result.subtitleSettings || {};
+      const result = await storage.get(['subtitleSettings']);
+      const subtitleSettings: Record<string, any> = result.subtitleSettings || {};
 
       // Update platform-specific visibility
       if (!subtitleSettings[platform]) {
@@ -914,7 +910,7 @@ export class SubtitleOverlay {
       subtitleSettings[platform].visibility = this.isVisible;
 
       // Save back
-      await chrome.storage.local.set({
+      await storage.setRaw({
         subtitleSettings,
         // Also save to legacy key for backward compatibility
         subtitleVisibility: this.isVisible
@@ -1332,8 +1328,10 @@ export class SubtitleOverlay {
         // Re-check words that were marked as non-target - they might be in dictionary now
         // This fixes cases where words weren't found during initial extraction due to timing
         extractedWords.forEach(extractedWord => {
-          if (extractedWord.isTargetLang === false && adapter && adapter.findDictionaryForm) {
-            const dictionaryForm = adapter.findDictionaryForm(extractedWord.word, dictionaryAfterPreload);
+          // findDictionaryForm only exists on space-separated adapters
+          const formAdapter = adapter as any;
+          if (extractedWord.isTargetLang === false && formAdapter && formAdapter.findDictionaryForm) {
+            const dictionaryForm = formAdapter.findDictionaryForm(extractedWord.word, dictionaryAfterPreload);
             if (dictionaryForm) {
               // Word is in dictionary - mark as target language
               extractedWord.isTargetLang = true;

@@ -6,6 +6,7 @@
 import { unzipSync } from 'fflate';
 import { LanguageRegistry } from '@/content/languages/language-registry';
 import { DictionaryManager } from '@/content/dictionary-manager';
+import { storage } from '@/config/storage';
 
 type SendResponse = (response?: any) => void;
 
@@ -138,7 +139,7 @@ class OffscreenDictionaryService {
   async loadInitialDictionary(): Promise<void> {
     try {
       // Get current language from storage
-      const result = await chrome.storage.local.get(['targetLanguage']);
+      const result = await storage.get(['targetLanguage']);
 
       // Don't load dictionary if no language is selected yet (e.g., during onboarding)
       if (!result.targetLanguage) {
@@ -330,7 +331,7 @@ class OffscreenDictionaryService {
       // Get native language code from parameter or storage
       if (!nativeLanguageCode) {
         try {
-          const result = await chrome.storage.local.get(['nativeLanguage']);
+          const result = await storage.get(['nativeLanguage']);
           nativeLanguageCode = result.nativeLanguage || 'en';
         } catch (error) {
           console.warn('Could not get native language from storage, defaulting to English:', error);

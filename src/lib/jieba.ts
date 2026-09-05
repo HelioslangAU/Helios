@@ -207,7 +207,7 @@ export class Jieba {
           if (x.match(re_skip)) {
             yieldValues.push(x);
           } else if (!cut_all) {
-            for (let xi in x) {
+            for (let xi in x as any) {
               yieldValues.push((x as any)[xi]);
             }
           } else {

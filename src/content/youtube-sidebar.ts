@@ -1,3 +1,4 @@
+import { storage } from '@/config/storage';
 import { TheaterModeController } from '@/content/video/youtube/theater-mode-controller';
 import { YouTubeLayoutManager } from '@/content/video/youtube/layout-manager';
 import { SidebarPositioner } from '@/content/video/youtube/sidebar-positioner';
@@ -1385,8 +1386,8 @@ export class YouTubeSidebar {
    */
   async _saveTrackPreference(track: any): Promise<void> {
     try {
-      const result = await chrome.storage.local.get(['subtitlePreferences']);
-      const prefs = result.subtitlePreferences || { global: {}, perVideo: {} };
+      const result = await storage.get(['subtitlePreferences']);
+      const prefs: Record<string, any> = result.subtitlePreferences || { global: {}, perVideo: {} };
 
       // Save global preference (language variant - e.g., zh-Hans over zh-Hant)
       const baseLanguage = track.language.split('-')[0]; // e.g., 'zh' from 'zh-Hans'
@@ -1403,7 +1404,7 @@ export class YouTubeSidebar {
         };
       }
 
-      await chrome.storage.local.set({ subtitlePreferences: prefs });
+      await storage.set({ subtitlePreferences: prefs });
     } catch (error) {
       console.error('[Helios YouTube Sidebar] Failed to save track preference:', error);
     }
@@ -2200,11 +2201,11 @@ export class YouTubeSidebar {
   async _loadSettings(): Promise<void> {
     try {
       // Load from new unified videoPlayer settings (preferred)
-      const result = await chrome.storage.local.get(['videoPlayer', 'ytSidebarSettings']);
+      const result = await storage.get(['videoPlayer', 'ytSidebarSettings']);
 
       if (result.videoPlayer) {
         // Use new unified settings
-        this.settings = { ...this.settings, ...result.videoPlayer };
+        this.settings = { ...this.settings, ...result.videoPlayer } as YTSidebarSettings;
       } else if (result.ytSidebarSettings) {
         // Fallback to old settings (for backward compatibility)
         this.settings = { ...this.settings, ...result.ytSidebarSettings };
@@ -2220,7 +2221,7 @@ export class YouTubeSidebar {
   async _saveSettings(): Promise<void> {
     try {
       // Save to both new and old locations for backward compatibility
-      await chrome.storage.local.set({
+      await storage.setRaw({
         videoPlayer: this.settings,
         ytSidebarSettings: this.settings
       });

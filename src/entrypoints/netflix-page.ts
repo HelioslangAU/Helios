@@ -114,7 +114,7 @@ export default defineUnlistedScript(() => {
    * Intercept JSON.stringify to inject webvtt profile
    */
   const originalStringify = JSON.stringify;
-  JSON.stringify = function (value: any) {
+  JSON.stringify = function (this: any, value: any) {
     if (typeof value?.url === 'string' && manifestPattern.test(value.url)) {
       for (let objectValue of Object.values(value) as any[]) {
         objectValue?.profiles?.unshift(WEBVTT_PROFILE);
@@ -127,7 +127,7 @@ export default defineUnlistedScript(() => {
    * Intercept JSON.parse to capture subtitle tracks
    */
   const originalParse = JSON.parse;
-  JSON.parse = function () {
+  JSON.parse = function (this: any) {
     const value = originalParse.apply(this, arguments as any);
 
     if (value?.result?.movieId) {

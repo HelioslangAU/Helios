@@ -1,6 +1,7 @@
 // Helios Settings Vocabulary Manager
 // Handles vocabulary import/export and statistics
 
+import { storage } from '@/config/storage';
 import { AnkiManager } from '@/content/anki-manager';
 import { DictionaryManager } from '@/content/dictionary-manager';
 import { LanguageRegistry } from '@/content/languages/language-registry';
@@ -49,7 +50,7 @@ export class HeliosSettingsVocabulary {
     // Set the current language from settings if available
     let targetLanguage = 'zh'; // default
     try {
-      const settings = await chrome.storage.local.get(['targetLanguage']);
+      const settings = await storage.get(['targetLanguage']);
       if (settings.targetLanguage) {
         targetLanguage = settings.targetLanguage;
         this.vocabManager.setCurrentLanguage(targetLanguage);
@@ -232,7 +233,7 @@ export class HeliosSettingsVocabulary {
       let allData: Record<string, any> = {};
 
       if (chrome.storage && chrome.storage.local) {
-        allData = await chrome.storage.local.get(null);
+        allData = await storage.getAll();
       }
 
       // Calculate total word count across all languages
@@ -319,7 +320,7 @@ export class HeliosSettingsVocabulary {
 
         if (chrome.storage && chrome.storage.local) {
           await chrome.storage.local.clear();
-          await chrome.storage.local.set(backupData);
+          await storage.setRaw(backupData);
 
           // Reload vocab manager to pick up restored data
           await this.vocabManager!.loadKnownWords();

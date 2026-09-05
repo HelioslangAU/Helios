@@ -17,6 +17,7 @@ import { TextScanner } from '@/content/utils/text-scanner';
 import { VocabManager } from '@/content/vocab-manager';
 import { YouTubeSidebar } from '@/content/youtube-sidebar';
 import type { VideoFeatureManager } from '@/content/video/video-feature-manager';
+import { storage } from '@/config/storage';
 
 export class ChineseLanguageLearningExtension {
   activation: ActivationController;
@@ -63,7 +64,7 @@ export class ChineseLanguageLearningExtension {
 
   async init(): Promise<void> {
     // CHECK IF EXTENSION IS DISABLED FIRST - don't initialize anything if off
-    const enabledCheck = await chrome.storage.local.get(['extensionEnabled']);
+    const enabledCheck = await storage.get(['extensionEnabled']);
     const isExtensionEnabled = enabledCheck.extensionEnabled !== false; // default to true
 
     if (!isExtensionEnabled) {
@@ -90,7 +91,7 @@ export class ChineseLanguageLearningExtension {
     this.languageRegistry = new LanguageRegistry();
 
     // Get target language first, then initialize only that adapter
-    const settingsCheck = await chrome.storage.local.get(['targetLanguage']);
+    const settingsCheck = await storage.get(['targetLanguage']);
     const targetLanguage = settingsCheck.targetLanguage || 'zh'; // default to Chinese
 
     // Initialize only the target language adapter for better performance

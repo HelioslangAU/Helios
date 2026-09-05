@@ -2,6 +2,15 @@ import type { DictionaryManager } from '@/content/dictionary-manager';
 import type { DictionaryManagerProxy } from '@/content/dictionary-bridge';
 import type { FrequencyManager } from '@/content/frequency-manager';
 
+/** Anki stat counters; only `ankiCardsCreated` is declared in HeliosStorage. */
+interface AnkiStatsStorage {
+  ankiCardsCreated?: number;
+  ankiCardsToday?: number;
+  ankiSuccessCount?: number;
+  ankiTotalAttempts?: number;
+  lastAnkiResetDate?: string;
+}
+
 interface AnkiStatus {
   connected: boolean;
   ready: boolean;
@@ -186,8 +195,8 @@ export class AnkiManager {
           definition = await adapter.enhanceVariantDefinition(
             definition,
             this.dictionaryManager.dictionary,
-            this.dictionaryManager.getDefinition ?
-              (word: string) => this.dictionaryManager!.getDefinition(word) :
+            (this.dictionaryManager as DictionaryManagerProxy).getDefinition ?
+              (word: string) => (this.dictionaryManager as DictionaryManagerProxy).getDefinition(word) :
               null,
             matches
           );
@@ -534,8 +543,8 @@ export class AnkiManager {
           wordData.definition = await adapter.enhanceVariantDefinition(
             wordData.definition,
             this.dictionaryManager.dictionary,
-            this.dictionaryManager.getDefinition ?
-              (word: string) => this.dictionaryManager!.getDefinition(word) :
+            (this.dictionaryManager as DictionaryManagerProxy).getDefinition ?
+              (word: string) => (this.dictionaryManager as DictionaryManagerProxy).getDefinition(word) :
               null,
             allEntries && Array.isArray(allEntries) ? allEntries : null
           );
@@ -753,7 +762,7 @@ export class AnkiManager {
             "ankiTotalAttempts",
             "lastAnkiResetDate",
           ],
-          (result) => {
+          (result: AnkiStatsStorage) => {
             const today = new Date().toDateString();
             const lastReset = result.lastAnkiResetDate || "";
 

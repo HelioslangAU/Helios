@@ -27,7 +27,9 @@ export class PopupSettingsManager {
   async loadSettings(): Promise<void> {
     try {
       if (chrome.storage && chrome.storage.local) {
-        const result = await chrome.storage.local.get([
+        // Only `popupTheme` is declared in HeliosStorage; the rest are popup-only
+        // keys, so this read stays raw rather than pulling the whole bag via getAll().
+        const result = await chrome.storage.local.get<PopupSettings>([
           'popupTheme',
           'popupFontSize',
           'showFrequency',

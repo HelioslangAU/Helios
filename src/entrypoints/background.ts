@@ -1,5 +1,7 @@
 // Background Script for Helios Language Learning Extension with Clean Anki Integration
 import { defineBackground } from '#imports';
+import { storage } from '@/config/storage';
+import type { AnkiSettings } from '@/config/storage';
 
 type SendResponse = (response?: any) => void;
 
@@ -160,7 +162,7 @@ class BackgroundService {
 
   async loadExtensionSettings(): Promise<void> {
     try {
-      const result = await chrome.storage.local.get([
+      const result = await storage.get([
         "extensionEnabled",
         "activationKey",
         "autoHighlight",
@@ -195,7 +197,7 @@ class BackgroundService {
 
   async setupInitialData(): Promise<void> {
     try {
-      const result = await chrome.storage.local.get([
+      const result = await storage.get([
         "vocabList",
         "sessionCount",
         "lastResetDate",
@@ -211,17 +213,17 @@ class BackgroundService {
 
       // Initialize empty vocabulary list if it doesn't exist
       if (!result.vocabList) {
-        await chrome.storage.local.set({ vocabList: [] });
+        await storage.set({ vocabList: [] });
       }
 
       // Initialize session count
       if (!result.sessionCount) {
-        await chrome.storage.local.set({ sessionCount: 0 });
+        await storage.set({ sessionCount: 0 });
       }
 
       // Set initial reset date
       if (!result.lastResetDate) {
-        await chrome.storage.local.set({
+        await storage.set({
           lastResetDate: new Date().toDateString(),
         });
       }
@@ -237,21 +239,21 @@ class BackgroundService {
           includeSentence: true,
           tags: ["helios"],
         };
-        await chrome.storage.local.set({ ankiSettings: defaultAnkiSettings });
+        await storage.set({ ankiSettings: defaultAnkiSettings });
       }
 
       // Initialize extension settings if they don't exist
       if (result.extensionEnabled === undefined) {
-        await chrome.storage.local.set({ extensionEnabled: true });
+        await storage.set({ extensionEnabled: true });
       }
       if (!result.activationKey) {
-        await chrome.storage.local.set({ activationKey: "Shift" });
+        await storage.set({ activationKey: "Shift" });
       }
       if (result.autoHighlight === undefined) {
-        await chrome.storage.local.set({ autoHighlight: true });
+        await storage.set({ autoHighlight: true });
       }
       if (!result.popupTheme) {
-        await chrome.storage.local.set({ popupTheme: "dark" });
+        await storage.set({ popupTheme: "dark" });
       }
 
       // Don't set a default target language - it should remain blank/null
@@ -260,7 +262,7 @@ class BackgroundService {
 
       // Set install date for first-time users
       if (!result.installDate) {
-        await chrome.storage.local.set({
+        await storage.set({
           installDate: new Date().toISOString()
         });
       }
@@ -412,8 +414,8 @@ class BackgroundService {
       console.log("🃏 Creating Anki card with data:", wordData);
 
       // Load settings
-      const result = await chrome.storage.local.get(["ankiSettings"]);
-      const settings = result.ankiSettings || {};
+      const result = await storage.get(["ankiSettings"]);
+      const settings: AnkiSettings = result.ankiSettings || {};
       const finalSettings = { ...settings, ...options };
 
       // Validate settings
@@ -477,7 +479,7 @@ class BackgroundService {
 
   async handleAnkiLoadSettings(sendResponse: SendResponse): Promise<void> {
     try {
-      const result = await chrome.storage.local.get(["ankiSettings"]);
+      const result = await storage.get(["ankiSettings"]);
       const defaultSettings = {
         deck: "Chinese::Helios",
         noteType: "Basic",
@@ -504,7 +506,7 @@ class BackgroundService {
 
   async handleAnkiSaveSettings(settings: any, sendResponse: SendResponse): Promise<void> {
     try {
-      await chrome.storage.local.set({ ankiSettings: settings });
+      await storage.set({ ankiSettings: settings });
       sendResponse({
         success: true,
         message: "Anki settings saved",
@@ -570,8 +572,8 @@ class BackgroundService {
   async handleAnkiCheckMediaNeeded(sendResponse: SendResponse): Promise<void> {
     try {
       // Load current Anki settings
-      const settings = await chrome.storage.local.get("ankiSettings");
-      const ankiSettings = settings.ankiSettings || {};
+      const settings = await storage.get("ankiSettings");
+      const ankiSettings: AnkiSettings = settings.ankiSettings || {};
       const fieldMappings = ankiSettings.fieldMappings || {};
 
       // Check if any field is mapped to screenshot or sentenceAudio
@@ -1143,9 +1145,9 @@ class BackgroundService {
 
   async updateAnkiStats(success: boolean): Promise<void> {
     try {
-      const result = await chrome.storage.local.get(["ankiCardsCreated"]);
+      const result = await storage.get(["ankiCardsCreated"]);
       const newCount = (result.ankiCardsCreated || 0) + (success ? 1 : 0);
-      await chrome.storage.local.set({ ankiCardsCreated: newCount });
+      await storage.set({ ankiCardsCreated: newCount });
     } catch (error) {
       console.warn("Could not update Anki stats:", error);
     }
@@ -1155,7 +1157,7 @@ class BackgroundService {
 
   async handleToggleExtension(enabled: boolean, sendResponse: SendResponse): Promise<void> {
     try {
-      await chrome.storage.local.set({ extensionEnabled: enabled });
+      await storage.set({ extensionEnabled: enabled });
       this.extensionSettings.extensionEnabled = enabled;
 
       const tabs = await chrome.tabs.query({});
@@ -1278,7 +1280,7 @@ class BackgroundService {
 
   async handleAddToVocab(wordData: any, sendResponse: SendResponse): Promise<void> {
     try {
-      const result = await chrome.storage.local.get(["vocabList"]);
+      const result = await storage.get(["vocabList"]);
       const vocabList = result.vocabList || [];
 
       const exists = vocabList.some((item: any) => item.word === wordData.word);
@@ -1290,7 +1292,7 @@ class BackgroundService {
           reviewCount: 0,
         });
 
-        await chrome.storage.local.set({ vocabList: vocabList });
+        await storage.set({ vocabList: vocabList });
 
         sendResponse({
           success: true,
@@ -1312,7 +1314,7 @@ class BackgroundService {
 
   async handleGetVocabList(sendResponse: SendResponse): Promise<void> {
     try {
-      const result = await chrome.storage.local.get(["vocabList"]);
+      const result = await storage.get(["vocabList"]);
       sendResponse({
         success: true,
         vocabList: result.vocabList || [],
@@ -1327,10 +1329,10 @@ class BackgroundService {
 
   async incrementSessionCount(sendResponse?: SendResponse): Promise<void> {
     try {
-      const result = await chrome.storage.local.get(["sessionCount"]);
+      const result = await storage.get(["sessionCount"]);
       const newCount = (result.sessionCount || 0) + 1;
 
-      await chrome.storage.local.set({ sessionCount: newCount });
+      await storage.set({ sessionCount: newCount });
 
       if (sendResponse) {
         sendResponse({
@@ -1372,10 +1374,10 @@ class BackgroundService {
       await this.loadExtensionSettings();
 
       // Double-check: if storage somehow doesn't have the language, set it explicitly
-      const storageCheck = await chrome.storage.local.get(['targetLanguage']);
+      const storageCheck = await storage.get(['targetLanguage']);
       if (!storageCheck.targetLanguage || storageCheck.targetLanguage !== languageCode) {
         console.warn(`⚠️ Language mismatch in storage, fixing: expected ${languageCode}, got ${storageCheck.targetLanguage}`);
-        await chrome.storage.local.set({ targetLanguage: languageCode });
+        await storage.set({ targetLanguage: languageCode });
         this.extensionSettings.targetLanguage = languageCode;
       }
 
@@ -1409,14 +1411,14 @@ class BackgroundService {
   async setupDailyReset(): Promise<void> {
     const checkAndReset = async () => {
       try {
-        const result = await chrome.storage.local.get([
+        const result = await storage.get([
           "lastResetDate",
           "sessionCount",
         ]);
         const today = new Date().toDateString();
 
         if (result.lastResetDate !== today) {
-          await chrome.storage.local.set({
+          await storage.set({
             sessionCount: 0,
             lastResetDate: today,
           });

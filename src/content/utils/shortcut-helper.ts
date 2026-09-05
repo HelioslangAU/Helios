@@ -3,12 +3,22 @@
  * Provides functions to check if keyboard events match configured shortcuts
  */
 
+import { storage } from '@/config/storage';
+
 export interface ShortcutConfig {
   key: string;
   ctrl?: boolean;
   shift?: boolean;
   alt?: boolean;
   meta?: boolean;
+}
+
+/** Pre-unification popup hotkey keys, still read as a fallback. */
+interface LegacyPopupHotkeys {
+  hotkeyMarkUnknown?: string;
+  hotkeyMarkIgnored?: string;
+  hotkeyMarkKnown?: string;
+  hotkeyAnkiAdd?: string;
 }
 
 export interface PopupShortcuts {
@@ -72,7 +82,7 @@ export class ShortcutHelper {
    */
   static async getVideoShortcuts(): Promise<Record<string, ShortcutConfig>> {
     try {
-      const result = await chrome.storage.local.get(['shortcuts']);
+      const result = await storage.get(['shortcuts']);
       const shortcuts = result.shortcuts || {};
 
       // Return video shortcuts with defaults
@@ -98,12 +108,13 @@ export class ShortcutHelper {
    */
   static async getVideoNavigationShortcuts(): Promise<Record<string, ShortcutConfig>> {
     try {
-      const result = await chrome.storage.local.get(['shortcuts']);
+      const result = await storage.get(['shortcuts']);
       const shortcuts = result.shortcuts || {};
 
       // Return video navigation shortcuts with defaults
       // Handle both object format and display string format
-      const navShortcuts = shortcuts.videoNavigation || {};
+      const navShortcuts: Record<string, ShortcutConfig | string | undefined> =
+        shortcuts.videoNavigation || {};
       const defaults: Record<string, ShortcutConfig> = {
         previous: { key: "A", ctrl: false, shift: false, alt: false, meta: false },
         next: { key: "D", ctrl: false, shift: false, alt: false, meta: false },
@@ -116,11 +127,12 @@ export class ShortcutHelper {
       // If shortcuts are stored as display strings, parse them
       const parsed: Record<string, ShortcutConfig> = {};
       Object.keys(defaults).forEach(key => {
-        if (navShortcuts[key]) {
-          if (typeof navShortcuts[key] === 'string') {
-            parsed[key] = this.parseHotkeyDisplay(navShortcuts[key]) || defaults[key];
+        const stored = navShortcuts[key];
+        if (stored) {
+          if (typeof stored === 'string') {
+            parsed[key] = this.parseHotkeyDisplay(stored) || defaults[key];
           } else {
-            parsed[key] = navShortcuts[key];
+            parsed[key] = stored;
           }
         } else {
           parsed[key] = defaults[key];
@@ -167,12 +179,13 @@ export class ShortcutHelper {
    */
   static async getPopupShortcuts(): Promise<PopupShortcuts> {
     try {
-      const result = await chrome.storage.local.get(['shortcuts']);
+      const result = await storage.get(['shortcuts']);
       const shortcuts = result.shortcuts || {};
 
       // Return popup shortcuts with defaults, also check legacy format
       const popupShortcuts = shortcuts.popup || {};
-      const legacyResult = await chrome.storage.local.get([
+      // Legacy `hotkey*` keys are not declared in HeliosStorage, so this read stays raw.
+      const legacyResult = await chrome.storage.local.get<LegacyPopupHotkeys>([
         'hotkeyMarkUnknown',
         'hotkeyMarkIgnored',
         'hotkeyMarkKnown',

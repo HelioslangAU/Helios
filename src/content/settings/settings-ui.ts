@@ -1,6 +1,7 @@
 // Helios Settings UI Manager
 // Handles all UI updates and form interactions
 
+import { storage } from '@/config/storage';
 import type { HeliosSettingsManager } from '@/content/settings/helios-settings';
 
 interface HotkeyConfig {
@@ -1146,13 +1147,13 @@ export class HeliosSettingsUI {
     try {
       if (!chrome.storage || !chrome.storage.local) return;
 
-      const result = await chrome.storage.local.get(['extensionVersion', 'extensionLastUpdateDate']);
+      const result = await storage.get(['extensionVersion', 'extensionLastUpdateDate']);
       const storedVersion = result.extensionVersion;
 
       // If version changed or not stored, update the stored version and date
       if (storedVersion !== currentVersion) {
         const updateDate = new Date().toISOString();
-        await chrome.storage.local.set({
+        await storage.set({
           extensionVersion: currentVersion,
           extensionLastUpdateDate: updateDate
         });
@@ -1173,7 +1174,7 @@ export class HeliosSettingsUI {
         return;
       }
 
-      const result = await chrome.storage.local.get('extensionLastUpdateDate');
+      const result = await storage.get('extensionLastUpdateDate');
       if (result.extensionLastUpdateDate) {
         const updateDate = new Date(result.extensionLastUpdateDate);
         element.textContent = this.formatDateDDMMYYYY(updateDate);
@@ -1182,7 +1183,7 @@ export class HeliosSettingsUI {
         const currentDate = new Date();
         element.textContent = this.formatDateDDMMYYYY(currentDate);
         // Store it for future reference
-        await chrome.storage.local.set({
+        await storage.set({
           extensionLastUpdateDate: new Date().toISOString()
         });
       }

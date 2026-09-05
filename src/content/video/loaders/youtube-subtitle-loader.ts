@@ -167,7 +167,7 @@ export class YouTubeSubtitleLoader {
       }
 
       // Try srv3 format first (<p> tags with t/d attributes)
-      let subtitleNodes = doc.querySelectorAll('p');
+      let subtitleNodes: NodeListOf<Element> = doc.querySelectorAll('p');
       let isSrv3Format = subtitleNodes.length > 0;
 
       // Fallback to standard format (<text> tags with start/dur attributes)

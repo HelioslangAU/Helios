@@ -1,6 +1,7 @@
 // Helios Settings Storage Manager
 // Handles all storage operations and settings persistence
 
+import { storage } from '@/config/storage';
 import type { HeliosSettingsManager } from '@/content/settings/helios-settings';
 
 interface HotkeyConfig {
@@ -23,12 +24,12 @@ export class HeliosSettingsStorage {
       console.log("🔍 Loading settings from storage...");
 
       if (chrome.storage && chrome.storage.local) {
-        const result = await chrome.storage.local.get(null);
+        const result = await storage.getAll();
 
         // Migrate old ytSidebarSettings to new unified videoPlayer settings
         if (result.ytSidebarSettings && !result.videoPlayer) {
           console.log("🔍 Migrating ytSidebarSettings to videoPlayer...");
-          const oldSettings = result.ytSidebarSettings;
+          const oldSettings = result.ytSidebarSettings as Record<string, any>;
 
           result.videoPlayer = {
             hotkeysEnabled: oldSettings.hotkeysEnabled !== undefined ? oldSettings.hotkeysEnabled : true,
@@ -46,7 +47,7 @@ export class HeliosSettingsStorage {
           };
 
           // Save migrated settings
-          await chrome.storage.local.set({ videoPlayer: result.videoPlayer });
+          await storage.set({ videoPlayer: result.videoPlayer });
           console.log("🔍 Migration complete:", result.videoPlayer);
         }
 
@@ -78,7 +79,7 @@ export class HeliosSettingsStorage {
       console.log("🔍 Final settings to save:", this.manager.settings);
 
       if (chrome.storage && chrome.storage.local) {
-        await chrome.storage.local.set(this.manager.settings);
+        await storage.setRaw(this.manager.settings);
         console.log("🔍 Settings saved successfully to Chrome storage");
 
         // Notify other parts of the extension about settings changes
@@ -349,7 +350,7 @@ export class HeliosSettingsStorage {
   async getStatistics(): Promise<{ knownWords: number; totalLookups: number; todayLookups: number; ankiCards: number }> {
     try {
       if (chrome.storage && chrome.storage.local) {
-        const result = await chrome.storage.local.get([
+        const result = await storage.get([
           "knownWords",
           "chineseExtensionVocabList",
           "totalLookups",
@@ -364,7 +365,7 @@ export class HeliosSettingsStorage {
 
         if (lastReset !== today) {
           todayLookups = 0;
-          chrome.storage.local.set({
+          storage.set({
             todayLookupCount: 0,
             lastResetDate: today,
           });
@@ -395,7 +396,7 @@ export class HeliosSettingsStorage {
   async updateKnownWords(knownWords: string[]): Promise<void> {
     try {
       if (chrome.storage && chrome.storage.local) {
-        await chrome.storage.local.set({ knownWords });
+        await storage.set({ knownWords });
       }
     } catch (error) {
       console.error("Error updating known words:", error);
@@ -406,7 +407,7 @@ export class HeliosSettingsStorage {
   async updateVocabularyList(vocabularyList: any[]): Promise<void> {
     try {
       if (chrome.storage && chrome.storage.local) {
-        await chrome.storage.local.set({
+        await storage.set({
           chineseExtensionVocabList: vocabularyList,
         });
       }
@@ -430,7 +431,7 @@ export class HeliosSettingsStorage {
   async clearCache(): Promise<void> {
     try {
       if (chrome.storage && chrome.storage.local) {
-        const result = await chrome.storage.local.get(null);
+        const result = await storage.getAll();
         const keysToKeep = [
           "knownWords",
           "chineseExtensionVocabList",
@@ -451,7 +452,7 @@ export class HeliosSettingsStorage {
         });
 
         await chrome.storage.local.clear();
-        await chrome.storage.local.set(dataToKeep);
+        await storage.setRaw(dataToKeep);
       }
     } catch (error) {
       console.error("Error clearing cache:", error);

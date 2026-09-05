@@ -189,9 +189,10 @@ export class PopupEventHandler {
     try {
       if (chrome.storage && chrome.storage.local) {
         // Try to load from unified shortcuts structure first
-        const shortcutsResult = await chrome.storage.local.get(['shortcuts']);
+        const shortcutsResult = await storage.get(['shortcuts']);
         if (shortcutsResult.shortcuts && shortcutsResult.shortcuts.popup) {
-          const popupShortcuts = shortcutsResult.shortcuts.popup;
+          // Stored popup shortcuts are either legacy strings or {key, modifiers} objects.
+          const popupShortcuts: Record<string, HotkeyShortcut | undefined> = shortcutsResult.shortcuts.popup;
           hotkeySettings = {
             hotkeyMarkUnknown: typeof popupShortcuts.markUnknown === 'object'
               ? popupShortcuts.markUnknown
@@ -211,7 +212,8 @@ export class PopupEventHandler {
           };
         } else {
           // Fallback to legacy format (single character strings)
-          const result = await chrome.storage.local.get([
+          // Legacy `hotkey*` keys are not declared in HeliosStorage, so this read stays raw.
+          const result = await chrome.storage.local.get<LegacyHotkeySettings>([
             "hotkeyMarkUnknown",
             "hotkeyMarkIgnored",
             "hotkeyMarkKnown",

@@ -1,3 +1,4 @@
+import { storage } from '@/config/storage';
 import { AnkiManager } from '@/content/anki-manager';
 import type { FrequencyManager } from '@/content/frequency-manager';
 import type { LanguageRegistry } from '@/content/languages/language-registry';
@@ -422,7 +423,7 @@ export class PopupManager {
   }
   incrementSessionCounter(): void {
     if (window.chrome && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.get(["todayLookupCount", "lastResetDate"], (result) => {
+      storage.get(["todayLookupCount", "lastResetDate"]).then((result) => {
         const today = new Date().toDateString();
         const lastReset = result.lastResetDate || "";
         let lookupCount = result.todayLookupCount || 0;
@@ -432,7 +433,7 @@ export class PopupManager {
         }
 
         lookupCount++;
-        chrome.storage.local.set({
+        storage.set({
           todayLookupCount: lookupCount,
           lastResetDate: today,
         });

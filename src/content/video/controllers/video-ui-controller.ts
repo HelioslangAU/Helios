@@ -1,3 +1,4 @@
+import { storage } from '@/config/storage';
 import { ShortcutHelper } from '@/content/utils/shortcut-helper';
 import { SubtitleSelectorModal } from '@/content/video/ui/subtitle-selector-modal';
 import type { VideoDetector } from '@/content/video/core/video-detector';
@@ -231,7 +232,7 @@ export class VideoUIController {
 
       // Fallback: if language registry not available, read from storage
       if (!window.languageRegistry) {
-        const settings = await chrome.storage.sync.get(['targetLanguage']);
+        const settings = await chrome.storage.sync.get<{ targetLanguage?: string }>(['targetLanguage']);
         targetLanguage = settings.targetLanguage?.toLowerCase() || 'zh';
       }
 
@@ -313,7 +314,7 @@ export class VideoUIController {
 
       // Fallback: if language registry not available, read from storage
       if (!window.languageRegistry) {
-        const settings = await chrome.storage.sync.get(['targetLanguage']);
+        const settings = await chrome.storage.sync.get<{ targetLanguage?: string }>(['targetLanguage']);
         targetLanguage = settings.targetLanguage?.toLowerCase() || 'zh';
       }
 
@@ -374,8 +375,9 @@ export class VideoUIController {
     const videoId = this._getCurrentVideoId();
     if (videoId) {
       try {
-        const result = await chrome.storage.local.get(['subtitlePreferences']);
-        const perVideoPref = result.subtitlePreferences?.perVideo?.[videoId];
+        const result = await storage.get(['subtitlePreferences']);
+        const preferences = result.subtitlePreferences as any;
+        const perVideoPref = preferences?.perVideo?.[videoId];
 
         if (perVideoPref) {
           const preferredTrack = tracks.find(t =>
@@ -393,8 +395,9 @@ export class VideoUIController {
 
     // PRIORITY 2: Check for global language variant preference
     try {
-      const result = await chrome.storage.local.get(['subtitlePreferences']);
-      const globalPref = result.subtitlePreferences?.global?.[targetLanguage];
+      const result = await storage.get(['subtitlePreferences']);
+      const preferences = result.subtitlePreferences as any;
+      const globalPref = preferences?.global?.[targetLanguage];
 
       if (globalPref) {
         const preferredTrack = tracks.find(t =>

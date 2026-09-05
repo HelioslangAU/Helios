@@ -1,3 +1,11 @@
+import { storage } from '@/config/storage';
+
+interface WordsByLanguageStorage {
+  knownWordsByLanguage?: Record<string, string[]>;
+  ignoredWordsByLanguage?: Record<string, string[]>;
+  learningWordsByLanguage?: Record<string, string[]>;
+}
+
 export class VocabManager {
   // Support per-language known words - dynamically created as needed
   // Format: { 'zh': Set(), 'en': Set(), 'fr': Set(), ... }
@@ -64,7 +72,9 @@ export class VocabManager {
       console.log(`VocabManager: Loading known words for language: ${this.currentLanguage}`);
 
       // Load new per-language format
-      const newResult = await chrome.storage.local.get([
+      // `learningWordsByLanguage` is not declared in HeliosStorage, so this read
+      // cannot go through the typed `storage` wrapper.
+      const newResult = await chrome.storage.local.get<WordsByLanguageStorage>([
         'knownWordsByLanguage',
         'ignoredWordsByLanguage',
         'learningWordsByLanguage'
@@ -74,7 +84,7 @@ export class VocabManager {
       if (newResult.knownWordsByLanguage) {
         Object.keys(newResult.knownWordsByLanguage).forEach(lang => {
           // Normalize words when loading to ensure consistency
-          const normalizedWords: string[] = newResult.knownWordsByLanguage[lang]
+          const normalizedWords: string[] = newResult.knownWordsByLanguage![lang]
             .map((word: string) => this.normalizeWord(word))
             .filter((word: string) => word); // Filter out invalid words
 
@@ -94,7 +104,7 @@ export class VocabManager {
       if (newResult.ignoredWordsByLanguage) {
         Object.keys(newResult.ignoredWordsByLanguage).forEach(lang => {
           // Normalize words when loading to ensure consistency
-          const normalizedWords: string[] = newResult.ignoredWordsByLanguage[lang]
+          const normalizedWords: string[] = newResult.ignoredWordsByLanguage![lang]
             .map((word: string) => this.normalizeWord(word))
             .filter((word: string) => word); // Filter out invalid words
 
@@ -114,7 +124,7 @@ export class VocabManager {
       if (newResult.learningWordsByLanguage) {
         Object.keys(newResult.learningWordsByLanguage).forEach(lang => {
           // Normalize words when loading to ensure consistency
-          const normalizedWords: string[] = newResult.learningWordsByLanguage[lang]
+          const normalizedWords: string[] = newResult.learningWordsByLanguage![lang]
             .map((word: string) => this.normalizeWord(word))
             .filter((word: string) => word); // Filter out invalid words
 
@@ -165,7 +175,7 @@ export class VocabManager {
       const currentKnownWords = this.knownWordsByLanguage[this.currentLanguage] || this.knownWordsByLanguage['zh'] || new Set();
       const currentIgnoredWords = this.ignoredWordsByLanguage[this.currentLanguage] || this.ignoredWordsByLanguage['zh'] || new Set();
 
-      await chrome.storage.local.set({
+      await storage.setRaw({
         knownWordsByLanguage: knownWordsObj,
         ignoredWordsByLanguage: ignoredWordsObj,
         learningWordsByLanguage: learningWordsObj,
@@ -183,7 +193,7 @@ export class VocabManager {
     this.getCurrentLanguageIgnoredWords().clear();
     this.getCurrentLanguageLearningWords().clear();
     try {
-      await chrome.storage.local.set({ chineseExtensionKnownWords: [], chineseExtensionIgnoredWords: [] });
+      await storage.set({ chineseExtensionKnownWords: [], chineseExtensionIgnoredWords: [] });
       await this.saveKnownWords(); // Save the cleared state
       console.log('Known words cleared in extension storage');
     } catch (error) {
@@ -703,7 +713,7 @@ export class VocabManager {
     // Non-blocking: don't await, just fire and forget
     const storageKey = `recentVocab_${this.currentLanguage}`;
 
-    chrome.storage.local.get([storageKey], (result) => {
+    chrome.storage.local.get([storageKey], (result: Record<string, any>) => {
       let recentWords: any[] = result[storageKey] || [];
 
       // Remove if already exists (to move to front) - compare normalized
