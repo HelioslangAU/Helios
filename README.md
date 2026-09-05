@@ -48,9 +48,12 @@ select `.output/chrome-mv3`.
 | Command | Purpose |
 |---|---|
 | `npm run compile` | Type-check the whole project (`tsc --noEmit`) |
-| `npm run build:firefox` | Build the Firefox variant |
-| `npm run dev:firefox` | Dev server targeting Firefox |
 | `npm run zip` | Package for store submission |
+
+> **Chrome/Edge only.** WXT can target Firefox, but the dictionary is hosted in an
+> offscreen document and `chrome.offscreen` is Chromium-only. Supporting Firefox means
+> porting that to a background page or a worker first, so the Firefox scripts are
+> deliberately not wired up — a build would succeed and then fail at runtime.
 
 ## Project structure
 
