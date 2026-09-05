@@ -48,6 +48,7 @@ export class SubtitleOverlay {
   _keyboardShortcutHandler: ((e: KeyboardEvent) => void) | null = null;
   _fullscreenHandler: (() => void) | null = null;
   _vocabUpdateHandler: EventListener | null = null;
+  _pinyinToggledHandler: EventListener | null = null;
   _pauseOnHoverHandler: EventListener | null = null;
 
   constructor(videoElement: HTMLVideoElement) {
@@ -952,7 +953,7 @@ export class SubtitleOverlay {
     document.addEventListener('helios-vocab-updated', this._vocabUpdateHandler);
 
     // Listen for pinyin toggle to re-render subtitles with/without pinyin
-    document.addEventListener('helios-pinyin-toggled', () => {
+    this._pinyinToggledHandler = () => {
       // Re-render current subtitles to apply/remove pinyin
       if (this.currentSubtitles.length > 0) {
         requestAnimationFrame(() => {
@@ -961,7 +962,9 @@ export class SubtitleOverlay {
           });
         });
       }
-    });
+    };
+
+    document.addEventListener('helios-pinyin-toggled', this._pinyinToggledHandler);
   }
 
   /**

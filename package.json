@@ -9,6 +9,8 @@
     "build": "wxt build",
     "zip": "wxt zip",
     "compile": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "postinstall": "wxt prepare"
   },
   "dependencies": {
@@ -16,7 +18,9 @@
   },
   "devDependencies": {
     "@types/chrome": "^0.1.32",
+    "happy-dom": "^20.14.0",
     "typescript": "^5.9.3",
+    "vitest": "^4.1.11",
     "wxt": "^0.21.4"
   }
 }
