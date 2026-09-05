@@ -5,14 +5,15 @@ export class AudioManager {
   currentAudio: HTMLAudioElement | null;
   sources: Record<string, { name: string; baseUrl: string; priority: number; requiresKey?: boolean }>;
   fallbacks: string[];
-  // Never assigned anywhere — see getCacheStats().
-  declare cacheHits?: number;
-  declare cacheMisses?: number;
+  cacheHits: number;
+  cacheMisses: number;
 
   constructor() {
     this.audioCache = new Map();
     this.isPlaying = false;
     this.currentAudio = null;
+    this.cacheHits = 0;
+    this.cacheMisses = 0;
 
     // Audio source configuration
     this.sources = {
@@ -53,9 +54,12 @@ export class AudioManager {
 
     // Check cache first
     if (this.audioCache.has(cacheKey)) {
+      this.cacheHits++;
       console.log(`🔊 Audio URL found in cache for: ${word}`);
       return this.audioCache.get(cacheKey) as string | null;
     }
+
+    this.cacheMisses++;
 
     let audioUrl: string | null = null;
 
@@ -383,7 +387,7 @@ export class AudioManager {
     return {
       size: this.audioCache.size,
       maxSize: 1000,
-      hitRate: this.cacheHits! / (this.cacheHits! + this.cacheMisses!) || 0,
+      hitRate: this.cacheHits / (this.cacheHits + this.cacheMisses) || 0,
     };
   }
 

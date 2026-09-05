@@ -655,8 +655,10 @@ export class OnboardingPage {
 
   async getLanguageAdapter(languageCode: string): Promise<BaseLanguageAdapter | null> {
     // Try to get adapter from language registry if available
-    if (window.languageRegistry) {
-      return (window.languageRegistry as any).getAdapter(languageCode);
+    // getAdapter() only returns the active language's adapter, so look the
+    // requested code up in the registry instead.
+    if (window.languageRegistry?.hasLanguage(languageCode)) {
+      return window.languageRegistry.getAllAdapters().get(languageCode) || null;
     }
 
     // Fallback: create adapter directly based on language code
@@ -1092,7 +1094,7 @@ export class OnboardingPage {
       }
 
       const originalInit = PageProcessor.prototype.initializeProcessing;
-      (PageProcessor.prototype as any).ensureGlobalCSS = function() {
+      PageProcessor.prototype.initializeProcessing = function() {
         // Do nothing - prevent auto-processing
       };
 
@@ -1104,7 +1106,7 @@ export class OnboardingPage {
         this.languageRegistry
       );
 
-      (PageProcessor.prototype as any).ensureGlobalCSS = originalInit;
+      PageProcessor.prototype.initializeProcessing = originalInit;
 
       // Override ALL processing methods to prevent any automatic underlining
       this.pageProcessor.processPageForUnknownWords = () => {
@@ -1132,7 +1134,7 @@ export class OnboardingPage {
 
       // Override getCharacterAtPosition to ignore spaces and only work in sentence container
       const originalGetCharacterAtPosition = this.pageProcessor.getCharacterAtPosition.bind(this.pageProcessor);
-      this.pageProcessor.getCharacterAtPosition = (event: MouseEvent) => {
+      this.pageProcessor.getCharacterAtPosition = async (event: MouseEvent) => {
         // Only allow lookups in the sentence container
         const sentenceContainer = document.getElementById('onboarding-sentence-container');
         const elementAtPoint = document.elementFromPoint(event.clientX, event.clientY);
@@ -1154,7 +1156,7 @@ export class OnboardingPage {
         }
 
         // Get character info
-        const result: any = originalGetCharacterAtPosition(event);
+        const result = await originalGetCharacterAtPosition(event);
 
         // If result is a space or whitespace, ignore it
         if (result && result.word && /^\s+$/.test(result.word.trim())) {

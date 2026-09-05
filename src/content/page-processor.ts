@@ -1896,7 +1896,7 @@ export class PageProcessor {
     this.asbplayerObservers.add(observer);
   }
 
-  forceReprocessElement(element: Element): void {
+  async forceReprocessElement(element: Element): Promise<void> {
 
     // --- Preserve highlight if present ---
     let highlightedWord: string | null = null;
@@ -1942,9 +1942,8 @@ export class PageProcessor {
   const container = document.querySelector<HTMLElement>('.asbplayer-offscreen');
   if (container) {
     console.log(container.innerText);
-    // Pre-existing: the async result is passed unawaited; kept as-is to preserve runtime behavior.
     window.bannerManager.updateComprehension(
-      this.analyzeASBPlayerSubtitlesComprehension(container.innerText) as unknown as number
+      await this.analyzeASBPlayerSubtitlesComprehension(container.innerText)
     );
   } else {
     console.warn("ASBPlayer subtitle container not found!");
