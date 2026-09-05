@@ -75,6 +75,26 @@ export class VideoFeatureManager {
   }
 
   /**
+   * Register a document/window listener through the content-script context when
+   * one exists, so it is removed automatically if the script is invalidated
+   * (extension reload, SPA navigation away). Falls back to the global for the
+   * non-content-script pages that load this module. The listener can still be
+   * removed early with the normal removeEventListener.
+   */
+  _addEventListener<E extends Event>(
+    target: EventTarget,
+    type: string,
+    handler: (event: E) => void,
+    options?: AddEventListenerOptions
+  ): void {
+    if (services.ctx) {
+      services.ctx.addEventListener(target, type, handler as EventListener, options);
+    } else {
+      target.addEventListener(type, handler as EventListener, options);
+    }
+  }
+
+  /**
    * Load settings from storage
    */
   async _loadSettings(): Promise<void> {
@@ -104,7 +124,7 @@ export class VideoFeatureManager {
     // Toggle subtitle panel.
     // The active sidebars (YouTubeSidebar / PlatformVideoSidebar) listen for this event
     // themselves, so this only fires when a standalone panel controller is in use.
-    document.addEventListener('helios-toggle-subtitle-panel', () => {
+    this._addEventListener(document, 'helios-toggle-subtitle-panel', () => {
       this.panelController?.toggle();
     });
 
@@ -121,7 +141,7 @@ export class VideoFeatureManager {
     // });
 
     // Integrate subtitle text selection with main lookup system
-    document.addEventListener('helios-subtitle-selection', (e) => {
+    this._addEventListener(document, 'helios-subtitle-selection', (e) => {
       const { text, position } = (e as CustomEvent).detail;
 
       // Trigger existing Helios word lookup
@@ -153,7 +173,7 @@ export class VideoFeatureManager {
     });
 
     // Handle track requests from YouTube sidebar for dual subtitles
-    document.addEventListener('helios-youtube-request-tracks', async (e) => {
+    this._addEventListener(document, 'helios-youtube-request-tracks', async (e) => {
       if (this.youtubeLoader && this.youtubeLoader.isYouTubePage()) {
         try {
           const tracks = await this.youtubeLoader.getAvailableTracks();

@@ -8,6 +8,8 @@
  */
 import { defineContentScript } from '#imports';
 
+import { clearServices, provideServices } from '@/content/services';
+
 import '@/config/paths';
 import '@/content/config/constants';
 import '@/content/video/config/video-constants';
@@ -78,8 +80,14 @@ import '@/content/side-tab';
 export default defineContentScript({
   matches: ['<all_urls>'],
   runAt: 'document_end',
-  main() {
-    // All initialization happens as module side effects (matching the original
-    // classic-script behavior); nothing extra to do here.
+  main(ctx) {
+    // Publish the script's lifetime so features can register timers and
+    // listeners that are torn down automatically when the context is
+    // invalidated (extension reload, or SPA navigation off the page).
+    provideServices({ ctx });
+    ctx.onInvalidated(clearServices);
+
+    // Feature initialization happens as module side effects, matching the
+    // original classic-script load order above.
   },
 });

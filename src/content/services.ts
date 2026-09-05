@@ -16,6 +16,8 @@
  * call signatures across several 2,000-line UI classes at once; the registry
  * removes the untyped coupling without that risk.
  */
+import type { ContentScriptContext } from 'wxt/utils/content-script-context';
+
 import type { AnkiManager } from '@/content/anki-manager';
 import type { BannerManager } from '@/content/banner-manager';
 import type { DictionaryManagerProxy } from '@/content/dictionary-bridge';
@@ -32,6 +34,13 @@ import type { VideoFeatureManager } from '@/content/video/video-feature-manager'
 import type { YouTubeSidebar } from '@/content/youtube-sidebar';
 
 export interface HeliosServices {
+  /**
+   * The content script's lifetime. Timers and listeners registered through
+   * `ctx` are torn down automatically when the script is invalidated — which
+   * happens on extension reload and on SPA navigation away from the page.
+   * Prefer `ctx.setInterval` / `ctx.addEventListener` over the bare globals.
+   */
+  ctx: ContentScriptContext;
   languageRegistry: LanguageRegistry;
   /**
    * Content scripts get the proxy (lookups hop to the offscreen document);

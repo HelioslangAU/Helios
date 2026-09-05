@@ -197,6 +197,37 @@ export class YouTubeSidebar {
   }
 
   /**
+   * Register an interval through the content-script context when one exists, so
+   * it is cleared automatically if the script is invalidated (extension reload,
+   * SPA navigation away). Falls back to the global for the non-content-script
+   * pages that load this module. The returned id still works with clearInterval.
+   */
+  _setInterval(handler: () => void, ms: number): ReturnType<typeof setInterval> {
+    // ctx.setInterval hands back the DOM's numeric timer id; the ambient global
+    // here is typed as Node's Timeout, so normalize to the global's own id type
+    // to keep the existing clearInterval call sites working.
+    return (services.ctx?.setInterval(handler, ms) ?? setInterval(handler, ms)) as ReturnType<typeof setInterval>;
+  }
+
+  /**
+   * Register a document/window listener through the content-script context when
+   * one exists, so it is removed automatically on invalidation. The listener can
+   * still be removed early with the normal removeEventListener.
+   */
+  _addEventListener<E extends Event>(
+    target: EventTarget,
+    type: string,
+    handler: (event: E) => void,
+    options?: AddEventListenerOptions
+  ): void {
+    if (services.ctx) {
+      services.ctx.addEventListener(target, type, handler as EventListener, options);
+    } else {
+      target.addEventListener(type, handler as EventListener, options);
+    }
+  }
+
+  /**
    * Check if current page is YouTube
    */
   isYouTubePage(): boolean {
@@ -337,7 +368,7 @@ export class YouTubeSidebar {
       const { track, entries } = (e as CustomEvent).detail;
       this.updateSubtitles(entries, track);
     };
-    document.addEventListener('helios-subtitles-loaded', this._subtitlesLoadedListener);
+    this._addEventListener(document, 'helios-subtitles-loaded', this._subtitlesLoadedListener);
 
     // Listen for time updates to highlight current subtitle
     this._videoTimeUpdateListener = (e) => {
@@ -355,13 +386,13 @@ export class YouTubeSidebar {
 
       this._updateActiveSubtitle(currentTime);
     };
-    document.addEventListener('helios-video-timeupdate', this._videoTimeUpdateListener);
+    this._addEventListener(document, 'helios-video-timeupdate', this._videoTimeUpdateListener);
 
     // Toggle sidebar visibility
     this._toggleSubtitlePanelListener = () => {
       this.toggle();
     };
-    document.addEventListener('helios-toggle-subtitle-panel', this._toggleSubtitlePanelListener);
+    this._addEventListener(document, 'helios-toggle-subtitle-panel', this._toggleSubtitlePanelListener);
 
     // Listen for vocabulary updates to refresh underlining
     this._vocabUpdatedListener = (e) => {
@@ -376,7 +407,7 @@ export class YouTubeSidebar {
         console.error('[Helios YouTube Sidebar] Error updating underlining:', err);
       });
     };
-    document.addEventListener('helios-vocab-updated', this._vocabUpdatedListener);
+    this._addEventListener(document, 'helios-vocab-updated', this._vocabUpdatedListener);
 
     // Setup global mouse listener for pause-on-hover resume logic
     this._setupPauseOnHoverListener();
@@ -386,13 +417,13 @@ export class YouTubeSidebar {
       const { message, type } = (e as CustomEvent).detail;
       this._showNotification(message, type);
     };
-    document.addEventListener('helios-video-notification', this._videoNotificationListener);
+    this._addEventListener(document, 'helios-video-notification', this._videoNotificationListener);
 
     // Listen for subtitle load failures to remove loading overlay
     this._subtitleLoadFailedListener = () => {
 
     };
-    document.addEventListener('helios-subtitle-load-failed', this._subtitleLoadFailedListener);
+    this._addEventListener(document, 'helios-subtitle-load-failed', this._subtitleLoadFailedListener);
 
     // Setup hotkeys
     this._setupHotkeys().catch(err => {
@@ -433,7 +464,8 @@ export class YouTubeSidebar {
         e.stopImmediatePropagation();
       }
     };
-    document.addEventListener('keydown', this._theaterModeBlockListener, true); // Use capture phase to intercept before YouTube's handlers
+    // Capture phase intercepts the key before YouTube's own handlers.
+    this._addEventListener(document, 'keydown', this._theaterModeBlockListener, { capture: true });
   }
 
   /**
@@ -444,7 +476,7 @@ export class YouTubeSidebar {
 
     // Check URL changes periodically (YouTube is a SPA)
     // Store interval so we can clear it on destroy
-    this.navigationInterval = setInterval(() => {
+    this.navigationInterval = this._setInterval(() => {
       if (window.location.href !== lastUrl) {
         const wasWatchPage = lastUrl.includes('/watch');
         const isWatchPage = this.isWatchPage();
@@ -489,7 +521,7 @@ export class YouTubeSidebar {
     };
 
     this._pageScrollListener = handlePageScroll;
-    window.addEventListener('scroll', handlePageScroll, { passive: true });
+    this._addEventListener(window, 'scroll', handlePageScroll, { passive: true });
 
     // Listen for sidebar container scroll events (user manually scrolling subtitles)
     const handleSidebarScroll = (e: Event) => {
@@ -550,7 +582,7 @@ export class YouTubeSidebar {
       this.listContainer.addEventListener('wheel', preventScrollOutsideZone, { passive: false });
     } else {
       // Wait for listContainer to be ready
-      const checkListContainer = setInterval(() => {
+      const checkListContainer = this._setInterval(() => {
         if (this.listContainer) {
           clearInterval(checkListContainer);
           this.listContainer.addEventListener('scroll', handleSidebarScroll, { passive: true });
@@ -619,7 +651,7 @@ export class YouTubeSidebar {
       }
     };
 
-    document.addEventListener('keydown', this._hotkeyListener);
+    this._addEventListener(document, 'keydown', this._hotkeyListener);
   }
 
   /**
@@ -709,7 +741,7 @@ export class YouTubeSidebar {
           document.removeEventListener('helios-youtube-tracks-response', handler);
           resolve((event as CustomEvent).detail.tracks || []);
         };
-        document.addEventListener('helios-youtube-tracks-response', handler);
+        this._addEventListener(document, 'helios-youtube-tracks-response', handler);
 
         document.dispatchEvent(new CustomEvent('helios-youtube-request-tracks', {
           detail: { videoId: this._getCurrentVideoId() }
@@ -1295,7 +1327,7 @@ export class YouTubeSidebar {
           document.removeEventListener('helios-youtube-tracks-response', handler);
           resolve((event as CustomEvent).detail.tracks || []);
         };
-        document.addEventListener('helios-youtube-tracks-response', handler);
+        this._addEventListener(document, 'helios-youtube-tracks-response', handler);
 
         // Request tracks
         document.dispatchEvent(new CustomEvent('helios-youtube-request-tracks', {
@@ -1718,7 +1750,7 @@ export class YouTubeSidebar {
       }
     };
 
-    document.addEventListener('mousemove', this._globalMouseMoveListener);
+    this._addEventListener(document, 'mousemove', this._globalMouseMoveListener);
   }
 
   /**

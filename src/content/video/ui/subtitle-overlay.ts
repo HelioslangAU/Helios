@@ -99,6 +99,37 @@ export class SubtitleOverlay {
   }
 
   /**
+   * Register an interval through the content-script context when one exists, so
+   * it is cleared automatically if the script is invalidated (extension reload,
+   * SPA navigation away). Falls back to the global for the non-content-script
+   * pages that load this module. The returned id still works with clearInterval.
+   */
+  _setInterval(handler: () => void, ms: number): ReturnType<typeof setInterval> {
+    // ctx.setInterval hands back the DOM's numeric timer id; the ambient global
+    // here is typed as Node's Timeout, so normalize to the global's own id type
+    // to keep the existing clearInterval call sites working.
+    return (services.ctx?.setInterval(handler, ms) ?? setInterval(handler, ms)) as ReturnType<typeof setInterval>;
+  }
+
+  /**
+   * Register a document/window listener through the content-script context when
+   * one exists, so it is removed automatically on invalidation. The listener can
+   * still be removed early with the normal removeEventListener.
+   */
+  _addEventListener<E extends Event>(
+    target: EventTarget,
+    type: string,
+    handler: (event: E) => void,
+    options?: AddEventListenerOptions
+  ): void {
+    if (services.ctx) {
+      services.ctx.addEventListener(target, type, handler as EventListener, options);
+    } else {
+      target.addEventListener(type, handler as EventListener, options);
+    }
+  }
+
+  /**
    * Initialize overlay container
    */
   _init(): void {
@@ -197,7 +228,7 @@ export class SubtitleOverlay {
   _setupEventDrivenUpdates(): void {
     // ASB Player uses ONLY a 1-second interval - no scroll/resize/intersection observers!
     // This prevents competing updates and glitching during scroll
-    this.positionMaintenanceInterval = setInterval(() => {
+    this.positionMaintenanceInterval = this._setInterval(() => {
       if (!this.isFullscreen) {
         this._applyContainerStyles();
       }
@@ -349,7 +380,7 @@ export class SubtitleOverlay {
         this.container!.style.top = (clampedHeight - this.contentPositionOffset + this.customOffsetY) + 'px';
       }
     };
-    document.addEventListener('mousemove', this._dragMoveHandler);
+    this._addEventListener(document, 'mousemove', this._dragMoveHandler);
 
     // Mouse up - stop dragging and save position
     this._dragUpHandler = () => {
@@ -364,7 +395,7 @@ export class SubtitleOverlay {
       // Save position to storage for persistence across videos
       this._savePosition();
     };
-    document.addEventListener('mouseup', this._dragUpHandler);
+    this._addEventListener(document, 'mouseup', this._dragUpHandler);
 
     // Double-click to reset position
     this.container!.addEventListener('dblclick', (e) => {
@@ -419,7 +450,7 @@ export class SubtitleOverlay {
         }
       }
     };
-    document.addEventListener('mousemove', this._resizeMoveHandler);
+    this._addEventListener(document, 'mousemove', this._resizeMoveHandler);
 
     // Mouse up - stop resizing (store handler for cleanup)
     this._resizeUpHandler = () => {
@@ -431,7 +462,7 @@ export class SubtitleOverlay {
         this._showSizeNotification();
       }
     };
-    document.addEventListener('mouseup', this._resizeUpHandler);
+    this._addEventListener(document, 'mouseup', this._resizeUpHandler);
   }
 
   /**
@@ -485,7 +516,8 @@ export class SubtitleOverlay {
         this._decreaseSubtitleSize();
       }
     };
-    document.addEventListener('keydown', this._keyboardShortcutHandler, true); // Use capture phase to intercept before YouTube
+    // Capture phase intercepts the key before YouTube's own handlers.
+    this._addEventListener(document, 'keydown', this._keyboardShortcutHandler, { capture: true });
   }
 
   /**
@@ -595,9 +627,9 @@ export class SubtitleOverlay {
       });
     };
 
-    document.addEventListener('fullscreenchange', this._fullscreenHandler);
-    document.addEventListener('webkitfullscreenchange', this._fullscreenHandler);
-    document.addEventListener('mozfullscreenchange', this._fullscreenHandler);
+    this._addEventListener(document, 'fullscreenchange', this._fullscreenHandler);
+    this._addEventListener(document, 'webkitfullscreenchange', this._fullscreenHandler);
+    this._addEventListener(document, 'mozfullscreenchange', this._fullscreenHandler);
   }
 
   /**
@@ -952,7 +984,7 @@ export class SubtitleOverlay {
       }
     };
 
-    document.addEventListener('helios-vocab-updated', this._vocabUpdateHandler);
+    this._addEventListener(document, 'helios-vocab-updated', this._vocabUpdateHandler);
 
     // Listen for pinyin toggle to re-render subtitles with/without pinyin
     this._pinyinToggledHandler = () => {
@@ -966,7 +998,7 @@ export class SubtitleOverlay {
       }
     };
 
-    document.addEventListener('helios-pinyin-toggled', this._pinyinToggledHandler);
+    this._addEventListener(document, 'helios-pinyin-toggled', this._pinyinToggledHandler);
   }
 
   /**
@@ -1112,7 +1144,7 @@ export class SubtitleOverlay {
       }
     };
 
-    document.addEventListener('mousemove', this._pauseOnHoverHandler);
+    this._addEventListener(document, 'mousemove', this._pauseOnHoverHandler);
   }
 
   /**
@@ -1120,7 +1152,7 @@ export class SubtitleOverlay {
    * Critical for YouTube SPA navigation - prevents captions persisting on non-watch pages
    */
   _setupUrlMonitoring(): void {
-    this.urlCheckInterval = setInterval(() => {
+    this.urlCheckInterval = this._setInterval(() => {
       const currentUrl = window.location.href;
 
       if (currentUrl !== this.lastUrl) {

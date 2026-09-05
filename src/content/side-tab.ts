@@ -153,6 +153,26 @@ export class HeliosSideTab {
     }
 
     /**
+     * Register a document/window listener through the content-script context
+     * when one exists, so it is removed automatically if the script is
+     * invalidated (extension reload, SPA navigation away). Falls back to the
+     * global for the non-content-script pages that load this module. The
+     * listener can still be removed early with the normal removeEventListener.
+     */
+    _addEventListener<E extends Event>(
+        target: EventTarget,
+        type: string,
+        handler: (event: E) => void,
+        options?: AddEventListenerOptions
+    ): void {
+        if (services.ctx) {
+            services.ctx.addEventListener(target, type, handler as EventListener, options);
+        } else {
+            target.addEventListener(type, handler as EventListener, options);
+        }
+    }
+
+    /**
      * Initialize event listeners
      */
     initEventListeners(): void {
@@ -193,7 +213,7 @@ export class HeliosSideTab {
             }
         };
 
-        document.addEventListener('click', this.handleDocumentClick);
+        this._addEventListener(document, 'click', this.handleDocumentClick);
 
         // Settings button
         this.settingsBtn?.addEventListener('click', () => {
@@ -241,7 +261,7 @@ export class HeliosSideTab {
             }
         };
 
-        document.addEventListener('keydown', this.handleKeydown);
+        this._addEventListener(document, 'keydown', this.handleKeydown);
     }
 
     /**

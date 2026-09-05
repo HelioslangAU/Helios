@@ -161,6 +161,37 @@ export class PlatformVideoSidebar {
   }
 
   /**
+   * Register an interval through the content-script context when one exists, so
+   * it is cleared automatically if the script is invalidated (extension reload,
+   * SPA navigation away). Falls back to the global for the non-content-script
+   * pages that load this module. The returned id still works with clearInterval.
+   */
+  _setInterval(handler: () => void, ms: number): ReturnType<typeof setInterval> {
+    // ctx.setInterval hands back the DOM's numeric timer id; the ambient global
+    // here is typed as Node's Timeout, so normalize to the global's own id type
+    // to keep the existing clearInterval call sites working.
+    return (services.ctx?.setInterval(handler, ms) ?? setInterval(handler, ms)) as ReturnType<typeof setInterval>;
+  }
+
+  /**
+   * Register a document/window listener through the content-script context when
+   * one exists, so it is removed automatically on invalidation. The listener can
+   * still be removed early with the normal removeEventListener.
+   */
+  _addEventListener<E extends Event>(
+    target: EventTarget,
+    type: string,
+    handler: (event: E) => void,
+    options?: AddEventListenerOptions
+  ): void {
+    if (services.ctx) {
+      services.ctx.addEventListener(target, type, handler as EventListener, options);
+    } else {
+      target.addEventListener(type, handler as EventListener, options);
+    }
+  }
+
+  /**
    * Check if current page is a supported streaming platform (not YouTube)
    */
   _isSupportedPlatform(): boolean {
@@ -207,7 +238,7 @@ export class PlatformVideoSidebar {
     let lastUrl = window.location.href;
 
     // Check URL changes periodically (for SPAs)
-    setInterval(() => {
+    this._setInterval(() => {
       if (window.location.href !== lastUrl) {
         lastUrl = window.location.href;
 
@@ -652,7 +683,7 @@ export class PlatformVideoSidebar {
     if (this.resizeHandler) {
       window.removeEventListener('resize', this.resizeHandler);
     }
-    window.addEventListener('resize', resizeHandler);
+    this._addEventListener(window, 'resize', resizeHandler);
     this.resizeHandler = resizeHandler;
 
     // Setup fullscreen listener
@@ -711,7 +742,7 @@ export class PlatformVideoSidebar {
           this.sidebar.style.setProperty('z-index', VideoConstants.Z_INDEX.SIDEBAR_FULLSCREEN.toString(), 'important');
 
           // Continuously enforce layout adjustments in fullscreen (Netflix fights back)
-          layoutEnforcer = setInterval(() => {
+          layoutEnforcer = this._setInterval(() => {
             this._adjustVideoLayout();
           }, VideoConstants.TIMING.FULLSCREEN_ENFORCE);
 
@@ -755,9 +786,9 @@ export class PlatformVideoSidebar {
     }
     this._fullscreenHandler = fullscreenHandler;
 
-    document.addEventListener('fullscreenchange', fullscreenHandler);
-    document.addEventListener('webkitfullscreenchange', fullscreenHandler);
-    document.addEventListener('mozfullscreenchange', fullscreenHandler);
+    this._addEventListener(document, 'fullscreenchange', fullscreenHandler);
+    this._addEventListener(document, 'webkitfullscreenchange', fullscreenHandler);
+    this._addEventListener(document, 'mozfullscreenchange', fullscreenHandler);
   }
 
   /**
@@ -770,7 +801,7 @@ export class PlatformVideoSidebar {
       this.videoBinding = binding;
       this.updateSubtitles(entries, track);
     };
-    document.addEventListener('helios-subtitles-loaded', this._subtitlesLoadedListener);
+    this._addEventListener(document, 'helios-subtitles-loaded', this._subtitlesLoadedListener);
 
     // Listen for time updates to highlight current subtitle
     this._videoTimeUpdateListener = (e) => {
@@ -788,13 +819,13 @@ export class PlatformVideoSidebar {
 
       this._updateActiveSubtitle(currentTime);
     };
-    document.addEventListener('helios-video-timeupdate', this._videoTimeUpdateListener);
+    this._addEventListener(document, 'helios-video-timeupdate', this._videoTimeUpdateListener);
 
     // Toggle sidebar visibility
     this._toggleSubtitlePanelListener = () => {
       this.toggle();
     };
-    document.addEventListener('helios-toggle-subtitle-panel', this._toggleSubtitlePanelListener);
+    this._addEventListener(document, 'helios-toggle-subtitle-panel', this._toggleSubtitlePanelListener);
 
     // Listen for vocabulary updates
     this._vocabUpdatedListener = (e) => {
@@ -805,7 +836,7 @@ export class PlatformVideoSidebar {
         console.error('[Helios Platform Sidebar] Error updating underlining:', err);
       });
     };
-    document.addEventListener('helios-vocab-updated', this._vocabUpdatedListener);
+    this._addEventListener(document, 'helios-vocab-updated', this._vocabUpdatedListener);
 
     // Setup global mouse listener for pause-on-hover
     this._setupPauseOnHoverListener();
@@ -815,7 +846,7 @@ export class PlatformVideoSidebar {
       const { message, type } = (e as CustomEvent).detail;
       this._showNotification(message, type);
     };
-    document.addEventListener('helios-video-notification', this._videoNotificationListener);
+    this._addEventListener(document, 'helios-video-notification', this._videoNotificationListener);
 
     // Setup hotkeys
     this._setupHotkeys();
@@ -915,7 +946,7 @@ export class PlatformVideoSidebar {
         this._toggleSubtitleOverlay();
       }
     };
-    document.addEventListener('keydown', this._hotkeyListener);
+    this._addEventListener(document, 'keydown', this._hotkeyListener);
   }
 
   /**
@@ -1737,7 +1768,7 @@ export class PlatformVideoSidebar {
       }
     };
 
-    document.addEventListener('mousemove', this._globalMouseMoveListener);
+    this._addEventListener(document, 'mousemove', this._globalMouseMoveListener);
   }
 
   /**
