@@ -8,14 +8,12 @@ export class SubtitleFileLoader {
   videoDetector: VideoDetector;
   dropZone: HTMLDivElement | null;
   fileInput: HTMLInputElement | null;
-  isActive: boolean;
   _keyboardListener: ((e: KeyboardEvent) => void) | null = null;
 
   constructor(videoDetector: VideoDetector) {
     this.videoDetector = videoDetector;
     this.dropZone = null;
     this.fileInput = null;
-    this.isActive = false;
   }
 
   /**

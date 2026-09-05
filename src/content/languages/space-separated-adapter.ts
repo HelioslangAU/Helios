@@ -722,8 +722,6 @@ export class SpanishLanguageAdapter extends SpaceSeparatedLanguageAdapter {
  * French Language Adapter
  */
 export class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
-  femininePatterns: Array<{ masc: RegExp; fem: string }>;
-
   constructor() {
     super();
     const baseConfig: LanguageConfig = {
@@ -747,20 +745,6 @@ export class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
       numOfDicts: 27,
     };
     this.setConfig(baseConfig);
-
-    // Common French feminine form patterns
-    this.femininePatterns = [
-      { masc: /(.+)eux$/, fem: '$1euse' },   // heureux -> heureuse
-      { masc: /(.+)er$/, fem: '$1ère' },     // premier -> première
-      { masc: /(.+)f$/, fem: '$1ve' },       // actif -> active
-      { masc: /(.+)eur$/, fem: '$1euse' },   // danseur -> danseuse
-      { masc: /(.+)teur$/, fem: '$1trice' }, // acteur -> actrice
-      { masc: /(.+)en$/, fem: '$1enne' },    // ancien -> ancienne
-      { masc: /(.+)on$/, fem: '$1onne' },    // bon -> bonne
-      { masc: /(.+)et$/, fem: '$1ète' },     // complet -> complète
-      { masc: /(.+)e$/, fem: '$1e' },        // simple -> simple (same)
-      { masc: /(.+)$/, fem: '$1e' }          // petit -> petite (default)
-    ];
   }
 
   override getDictionaryPath(): string | undefined {

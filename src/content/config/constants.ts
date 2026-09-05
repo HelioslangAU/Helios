@@ -1,7 +1,5 @@
 export const DEFAULT_ACTIVATION_KEY = "Shift";
 export const HOVER_DELAY_MS = 10;
-export const ASBPLAYER_POLL_MS = 2000;
-export const ASBPLAYER_TOTAL_MS = 60000;
 
 // Searchable-scan / PDF.js overlays. Their CSS often uses
 // `.text-layer span { position: absolute }`. Helios stitches per-glyph

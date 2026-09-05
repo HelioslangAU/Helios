@@ -113,9 +113,6 @@ export class OnboardingPage {
     // Set up event listeners
     this.setupEventListeners();
 
-    // Set up interactive demo
-    this.setupInteractiveDemo();
-
     // Set up floating characters background
     this.setupFloatingCharacters();
 
@@ -1367,27 +1364,6 @@ export class OnboardingPage {
     // The popup will work via LookupController which uses PageProcessor.getCharacterAtPosition
     // which doesn't require pre-processing. Users can hold Shift and hover to see popups.
     console.log('✅ Sentence ready for popup interaction (no underlines)');
-  }
-
-  getAllTextNodes(element: Element): Text[] {
-    const textNodes: Text[] = [];
-    const walker = document.createTreeWalker(
-      element,
-      NodeFilter.SHOW_TEXT,
-      null
-    );
-    let node;
-    while (node = walker.nextNode()) {
-      if (node.textContent!.trim()) {
-        textNodes.push(node as Text);
-      }
-    }
-    return textNodes;
-  }
-
-  setupInteractiveDemo(): void {
-    // This is now handled by the real popup system in initializePopupSystem
-    // Keeping this method for compatibility but it's no longer needed
   }
 
   setupFloatingCharacters(): void {

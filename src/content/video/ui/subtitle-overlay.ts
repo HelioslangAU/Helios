@@ -14,7 +14,6 @@ export class SubtitleOverlay {
   secondarySubtitles: SubtitleEntry[];
   lastRenderedIndexes: number[];
   isFullscreen: boolean;
-  offsetMs: number;
   contentPositionOffset: number;
   subtitleSize: number;
   subtitleBackgroundOpacity: number;
@@ -25,8 +24,6 @@ export class SubtitleOverlay {
 
   // Dragging state
   isDragging: boolean;
-  dragStartX: number;
-  dragStartY: number;
   customOffsetX: number;
   customOffsetY: number;
   hasCustomPosition: boolean;
@@ -35,7 +32,6 @@ export class SubtitleOverlay {
 
   // Resizing state
   isResizing: boolean;
-  resizeStartSize: number;
 
   // Position maintenance interval (ASB Player approach - simple 1-second updates only)
   positionMaintenanceInterval: ReturnType<typeof setInterval> | null;
@@ -43,9 +39,6 @@ export class SubtitleOverlay {
   // URL monitoring for navigation cleanup
   lastUrl: string;
   urlCheckInterval: ReturnType<typeof setInterval> | null;
-
-  // Loaded shortcut config
-  shortcuts: any;
 
   // Stored event handlers (removed on destroy)
   _dragMoveHandler: ((e: MouseEvent) => void) | null = null;
@@ -64,7 +57,6 @@ export class SubtitleOverlay {
     this.secondarySubtitles = []; // Secondary subtitle track for dual display
     this.lastRenderedIndexes = [];
     this.isFullscreen = false;
-    this.offsetMs = 0;
     this.contentPositionOffset = 75; // Distance from bottom like ASB Player
     this.subtitleSize = 36; // Font size in pixels (ASBplayer default: 36px)
     this.subtitleBackgroundOpacity = 0.4; // 0–1, black background behind subtitle text (matches video-styles.css)
@@ -75,15 +67,12 @@ export class SubtitleOverlay {
 
     // Dragging state
     this.isDragging = false;
-    this.dragStartX = 0;
-    this.dragStartY = 0;
     this.customOffsetX = 0;
     this.customOffsetY = 0;
     this.hasCustomPosition = false;
 
     // Resizing state
     this.isResizing = false;
-    this.resizeStartSize = 0;
 
     // Position maintenance interval (ASB Player approach - simple 1-second updates only)
     this.positionMaintenanceInterval = null;
@@ -461,9 +450,6 @@ export class SubtitleOverlay {
         decreaseSize: { key: "Minus", ctrl: false, shift: true, alt: false, meta: false }
       };
     }
-
-    // Store shortcuts for later use
-    this.shortcuts = shortcuts;
 
     // Store handler for cleanup
     this._keyboardShortcutHandler = (e: KeyboardEvent) => {
@@ -1585,14 +1571,6 @@ export class SubtitleOverlay {
         window.highlightManager.removeLookupHighlight();
       }
     }
-  }
-
-  /**
-   * Apply time offset to subtitle display
-   * @param offsetMs - Offset in milliseconds
-   */
-  setOffset(offsetMs: number): void {
-    this.offsetMs = offsetMs;
   }
 
   /**

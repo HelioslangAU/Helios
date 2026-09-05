@@ -92,7 +92,6 @@ export class PlatformVideoSidebar {
 
   notificationTimeout: ReturnType<typeof setTimeout> | null = null;
   resizeHandler: (() => void) | null = null;
-  updateInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     this.sidebar = null;
@@ -2438,12 +2437,6 @@ export class PlatformVideoSidebar {
    */
   destroy(): void {
     console.log('[Helios Platform Sidebar] Destroying sidebar...');
-
-    // Clear any existing intervals or timeouts
-    if (this.updateInterval) {
-      clearInterval(this.updateInterval);
-      this.updateInterval = null;
-    }
 
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();

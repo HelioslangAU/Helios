@@ -15,8 +15,6 @@ export class LookupController {
   popup: any;
   activation: ActivationController;
 
-  hoverTimeout: ReturnType<typeof setTimeout> | null;
-  hideTimeout: ReturnType<typeof setTimeout> | null;
   currentWord: string | null;
   lastPointerEvent: PointerEvent | null;
   isCurrentWordSubtitle: boolean;
@@ -27,8 +25,6 @@ export class LookupController {
     this.popup = popup;
     this.activation = activation;
 
-    this.hoverTimeout = null;
-    this.hideTimeout = null;
     this.currentWord = null;
     this.lastPointerEvent = null;
     this.isCurrentWordSubtitle = false; // Track if current word is from subtitle
@@ -74,10 +70,6 @@ export class LookupController {
           this.highlightManager.getHighlightText?.() === characterInfo.word) {
         return;
       }
-
-      // Cancel any pending operations immediately
-      clearTimeout(this.hoverTimeout!);
-      clearTimeout(this.hideTimeout!);
 
       // Remove old highlight
       this.highlightManager.removeLookupHighlight();
@@ -136,7 +128,6 @@ export class LookupController {
   };
 
   onDeactivate = (): void => {
-    clearTimeout(this.hoverTimeout!);
     if (this.popup && this.popup.settingsManager && !this.popup.settingsManager.shouldPreventKeyUpHide()) {
       this.popup.hidePopup?.();
       this.highlightManager.removeLookupHighlight();

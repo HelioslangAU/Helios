@@ -361,10 +361,6 @@ class BackgroundService {
           break;
 
         // === VOCABULARY HANDLERS ===
-        case "LOOKUP_WORD":
-          await this.handleWordLookup(message.word, sendResponse);
-          break;
-
         case "ADD_TO_VOCAB":
           await this.handleAddToVocab(message.wordData, sendResponse);
           break;
@@ -1244,40 +1240,6 @@ class BackgroundService {
   }
 
   // ============ VOCABULARY HANDLERS ============
-
-  async handleWordLookup(word: string, sendResponse: SendResponse): Promise<void> {
-    try {
-      if (!this.extensionSettings.extensionEnabled) {
-        sendResponse({
-          success: false,
-          error: "Extension is disabled",
-        });
-        return;
-      }
-
-      const definition = await this.lookupWord(word);
-      await this.incrementSessionCount();
-
-      sendResponse({
-        success: true,
-        definition: definition,
-      });
-    } catch (error: any) {
-      sendResponse({
-        success: false,
-        error: error.message,
-      });
-    }
-  }
-
-  async lookupWord(word: string): Promise<any> {
-    // Placeholder - replace with real API
-    const dictionary: Record<string, { definition: string; pronunciation: string }> = {
-      hello: { definition: "A greeting", pronunciation: "həˈloʊ" },
-      world: { definition: "The earth", pronunciation: "wɜrld" },
-    };
-    return dictionary[word.toLowerCase()] || null;
-  }
 
   async handleAddToVocab(wordData: any, sendResponse: SendResponse): Promise<void> {
     try {

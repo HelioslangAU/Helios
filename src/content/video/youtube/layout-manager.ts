@@ -13,9 +13,7 @@
  */
 export class YouTubeLayoutManager {
   isActive: boolean;
-  sidebarWidth: number;
   observers: MutationObserver[];
-  modifiedElements: Set<Element>;
 
   // Race condition protection
   operationInProgress: boolean;
@@ -27,9 +25,7 @@ export class YouTubeLayoutManager {
 
   constructor() {
     this.isActive = false;
-    this.sidebarWidth = 420; // px
     this.observers = [];
-    this.modifiedElements = new Set();
 
     // Race condition protection
     this.operationInProgress = false;
@@ -282,6 +278,5 @@ export class YouTubeLayoutManager {
    */
   cleanup(): void {
     this.deactivate();
-    this.modifiedElements.clear();
   }
 }

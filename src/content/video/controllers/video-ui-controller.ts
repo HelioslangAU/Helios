@@ -491,27 +491,6 @@ export class VideoUIController {
   }
 
   /**
-   * Create floating load button
-   */
-  _createLoadButton(): void {
-    this.loadButton = document.createElement('button');
-    this.loadButton.className = 'helios-load-button';
-    this.loadButton.title = 'Load Subtitles';
-    this.loadButton.innerHTML = '📄';
-
-    this.loadButton.addEventListener('click', () => {
-      this._showSubtitleOptions();
-    });
-
-    // Only show button when videos are detected
-    document.addEventListener('helios-video-detected', () => {
-      if (!this.loadButton!.parentElement) {
-        document.body.appendChild(this.loadButton!);
-      }
-    });
-  }
-
-  /**
    * Show subtitle loading options (works for YouTube, Netflix, or generic videos)
    */
   async _showSubtitleOptions(): Promise<void> {
@@ -640,24 +619,6 @@ export class VideoUIController {
   _toggleSubtitlePanel(): void {
     const event = new CustomEvent('helios-toggle-subtitle-panel');
     document.dispatchEvent(event);
-  }
-
-  /**
-   * Hide load button
-   */
-  hideLoadButton(): void {
-    if (this.loadButton && this.loadButton.parentElement) {
-      this.loadButton.style.display = 'none';
-    }
-  }
-
-  /**
-   * Show load button
-   */
-  showLoadButton(): void {
-    if (this.loadButton) {
-      this.loadButton.style.display = 'flex';
-    }
   }
 
   /**
