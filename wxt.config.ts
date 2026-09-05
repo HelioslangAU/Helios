@@ -2,6 +2,8 @@ import { defineConfig } from 'wxt';
 
 export default defineConfig({
   srcDir: 'src',
+  // publicDir defaults to <root>/public, not <srcDir>/public.
+  publicDir: 'src/public',
   manifest: {
     name: 'Helios',
     description:

@@ -925,11 +925,6 @@ input:checked + .toggle-slider:before {
     text-align: left;
   }
 }
-  background: rgba(255, 107, 71, 0.05);
-  border-radius: 12px;
-  border-left: 4px solid var(--helios-accent-primary);
-  font-weight: 500;
-}
 
 /* Bulk Import */
 .bulk-textarea {

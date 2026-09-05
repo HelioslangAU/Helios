@@ -457,7 +457,7 @@ window.addEventListener("DOMContentLoaded", () => {
           // Update toggle state and visual appearance if changed from elsewhere
           const toggle = document.getElementById("extension-toggle");
           if (toggle) {
-            const newState = changes.extensionEnabled.newValue;
+            const newState = changes.extensionEnabled.newValue as boolean;
             if (newState) {
               toggle.classList.add("active");
             } else {

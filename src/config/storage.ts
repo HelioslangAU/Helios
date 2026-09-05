@@ -109,6 +109,7 @@ export interface HeliosStorage {
 
   // Onboarding / install metadata
   hasCompletedOnboarding: boolean;
+  onboardingCompletedDate: string;
   installDate: string;
   extensionVersion: string;
   extensionLastUpdateDate: string;
