@@ -14,7 +14,6 @@ export class VideoUIController {
   fileLoader: SubtitleFileLoader;
   youtubeLoader: YouTubeSubtitleLoader;
   netflixLoader: NetflixSubtitleLoader;
-  loadButton: HTMLButtonElement | null;
   subtitleSelector: SubtitleSelectorModal | null;
   isInitialized: boolean;
   hasAutoLoaded: boolean;
@@ -27,7 +26,6 @@ export class VideoUIController {
     this.fileLoader = fileLoader;
     this.youtubeLoader = youtubeLoader;
     this.netflixLoader = netflixLoader;
-    this.loadButton = null;
     this.subtitleSelector = null;
     this.isInitialized = false;
     this.hasAutoLoaded = false;
@@ -82,7 +80,6 @@ export class VideoUIController {
     if (this.isInitialized) return;
 
     this.subtitleSelector = new SubtitleSelectorModal();
-    // this._createLoadButton(); // Removed - using YouTube sidebar instead
     try {
       await this._setupKeyboardShortcuts();
     } catch (err) {
@@ -491,46 +488,6 @@ export class VideoUIController {
   }
 
   /**
-   * Show subtitle loading options (works for YouTube, Netflix, or generic videos)
-   */
-  async _showSubtitleOptions(): Promise<void> {
-    // Check platform
-    const isYouTube = this.youtubeLoader && this.youtubeLoader.isYouTubePage();
-    const isNetflix = this.netflixLoader && this.netflixLoader.isNetflixPage();
-
-    if (isYouTube) {
-      // Get available YouTube tracks
-      const tracks = await this.youtubeLoader.getAvailableTracks();
-
-      if (tracks.length > 0) {
-        // Show track selector
-        this.subtitleSelector!.show(tracks, async (track: any) => {
-          await this._loadYouTubeTrack(track);
-        });
-      } else {
-        // No tracks found, offer file upload
-        this.fileLoader.openFilePicker();
-      }
-    } else if (isNetflix) {
-      // Get available Netflix tracks
-      const tracks = await this.netflixLoader.getAvailableTracks();
-
-      if (tracks.length > 0) {
-        // Show track selector
-        this.subtitleSelector!.show(tracks, async (track: any) => {
-          await this._loadNetflixTrack(track);
-        });
-      } else {
-        // No tracks found
-        this._showNotification('No subtitles available', 'error');
-      }
-    } else {
-      // Not YouTube or Netflix, just open file picker
-      this.fileLoader.openFilePicker();
-    }
-  }
-
-  /**
    * Load YouTube subtitle track
    */
   async _loadYouTubeTrack(track: any): Promise<void> {
@@ -625,10 +582,6 @@ export class VideoUIController {
    * Destroy UI controller
    */
   destroy(): void {
-    if (this.loadButton && this.loadButton.parentElement) {
-      this.loadButton.parentElement.removeChild(this.loadButton);
-    }
-    this.loadButton = null;
     this.isInitialized = false;
   }
 }

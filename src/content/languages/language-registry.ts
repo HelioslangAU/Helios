@@ -255,42 +255,29 @@ export class LanguageRegistry {
       return true;
     }
 
-    let adapter: BaseLanguageAdapter | null = null;
+    let adapter: BaseLanguageAdapter;
 
     switch (languageCode) {
       case 'zh':
-        if (typeof ChineseLanguageAdapter !== 'undefined') {
-          adapter = new ChineseLanguageAdapter();
-        }
+        adapter = new ChineseLanguageAdapter();
         break;
       case 'en':
-        if (typeof EnglishLanguageAdapter !== 'undefined') {
-          adapter = new EnglishLanguageAdapter();
-        }
+        adapter = new EnglishLanguageAdapter();
         break;
       case 'es':
-        if (typeof SpanishLanguageAdapter !== 'undefined') {
-          adapter = new SpanishLanguageAdapter();
-        }
+        adapter = new SpanishLanguageAdapter();
         break;
       case 'fr':
-        if (typeof FrenchLanguageAdapter !== 'undefined') {
-          adapter = new FrenchLanguageAdapter();
-        }
+        adapter = new FrenchLanguageAdapter();
         break;
       default:
         console.warn(`Unknown language code: ${languageCode}`);
         return false;
     }
 
-    if (adapter) {
-      this.register(languageCode, adapter);
-      console.log(`Initialized language adapter: ${languageCode}`);
-      return true;
-    }
-
-    console.warn(`Language adapter class not available for: ${languageCode}`);
-    return false;
+    this.register(languageCode, adapter);
+    console.log(`Initialized language adapter: ${languageCode}`);
+    return true;
   }
 
   /**
@@ -299,24 +286,16 @@ export class LanguageRegistry {
    */
   initializeDefaultAdapters(): void {
     // Register Chinese adapter
-    if (typeof ChineseLanguageAdapter !== 'undefined') {
-      this.register('zh', new ChineseLanguageAdapter());
-    }
+    this.register('zh', new ChineseLanguageAdapter());
 
     // Register English adapter
-    if (typeof EnglishLanguageAdapter !== 'undefined') {
-      this.register('en', new EnglishLanguageAdapter());
-    }
+    this.register('en', new EnglishLanguageAdapter());
 
     // Register Spanish adapter
-    if (typeof SpanishLanguageAdapter !== 'undefined') {
-      this.register('es', new SpanishLanguageAdapter());
-    }
+    this.register('es', new SpanishLanguageAdapter());
 
     // Register French adapter
-    if (typeof FrenchLanguageAdapter !== 'undefined') {
-      this.register('fr', new FrenchLanguageAdapter());
-    }
+    this.register('fr', new FrenchLanguageAdapter());
 
     console.log(`Initialized ${this.adapters.size} language adapters`);
   }

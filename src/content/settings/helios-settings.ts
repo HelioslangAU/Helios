@@ -138,9 +138,6 @@ export class HeliosSettingsManager {
     console.log("🔍 DEBUG: Initializing Helios Settings Manager...");
 
     try {
-      // Wait for all module classes to be available
-      await this.waitForModules();
-
       console.log("🔍 DEBUG: All modules loaded, initializing...");
 
       // Initialize modules
@@ -219,47 +216,6 @@ export class HeliosSettingsManager {
       // Fallback: show error message
       this.showInitializationError(error);
     }
-  }
-
-  async waitForModules(): Promise<void> {
-    const maxAttempts = 50; // 5 seconds max
-    let attempts = 0;
-
-    while (attempts < maxAttempts) {
-      if (
-        typeof HeliosSettingsStorage !== "undefined" &&
-        typeof HeliosSettingsUI !== "undefined" &&
-        typeof HeliosSettingsAnki !== "undefined" &&
-        typeof HeliosSettingsVocabulary !== "undefined" &&
-        typeof HeliosSettingsAdvanced !== "undefined"
-      ) {
-        console.log(
-          "🔍 DEBUG: All module classes found after",
-          attempts,
-          "attempts"
-        );
-        return;
-      }
-
-      console.log("🔍 DEBUG: Waiting for modules... attempt", attempts + 1);
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      attempts++;
-    }
-
-    // Check which modules are missing
-    const missing = [];
-    if (typeof HeliosSettingsStorage === "undefined")
-      missing.push("HeliosSettingsStorage");
-    if (typeof HeliosSettingsUI === "undefined")
-      missing.push("HeliosSettingsUI");
-    if (typeof HeliosSettingsAnki === "undefined")
-      missing.push("HeliosSettingsAnki");
-    if (typeof HeliosSettingsVocabulary === "undefined")
-      missing.push("HeliosSettingsVocabulary");
-    if (typeof HeliosSettingsAdvanced === "undefined")
-      missing.push("HeliosSettingsAdvanced");
-
-    throw new Error(`Module classes not found: ${missing.join(", ")}`);
   }
 
   showInitializationError(error: any): void {

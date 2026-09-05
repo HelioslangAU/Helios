@@ -55,23 +55,19 @@ export class ChineseLanguageAdapter extends BaseLanguageAdapter {
    */
   async _initJieba(): Promise<void> {
     try {
-      if (typeof Jieba !== 'undefined') {
-        this.jieba = new Jieba();
-        await this.jieba.init();
-        // Verify jieba is actually ready - check cache exists and trie is populated
-        if (this.jieba.initialized &&
-            this.jieba._cache_ &&
-            this.jieba._cache_.trie &&
-            Object.keys(this.jieba._cache_.trie).length > 0) {
-          this.jiebaInitialized = true;
-          console.log('Jieba initialized successfully');
-          console.log(await this.jieba.cut('不敢出来丢人现眼'));
-          // Test jieba after successful initialization
-        } else {
-          console.warn('Jieba instance created but not fully initialized. Cache:', this.jieba._cache_);
-        }
+      this.jieba = new Jieba();
+      await this.jieba.init();
+      // Verify jieba is actually ready - check cache exists and trie is populated
+      if (this.jieba.initialized &&
+          this.jieba._cache_ &&
+          this.jieba._cache_.trie &&
+          Object.keys(this.jieba._cache_.trie).length > 0) {
+        this.jiebaInitialized = true;
+        console.log('Jieba initialized successfully');
+        console.log(await this.jieba.cut('不敢出来丢人现眼'));
+        // Test jieba after successful initialization
       } else {
-        console.warn('Jieba class not found. Make sure lib/jieba/jieba.js is loaded.');
+        console.warn('Jieba instance created but not fully initialized. Cache:', this.jieba._cache_);
       }
     } catch (error) {
       console.error('Failed to initialize jieba:', error);

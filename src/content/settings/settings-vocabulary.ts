@@ -25,23 +25,15 @@ export class HeliosSettingsVocabulary {
 
   async init(): Promise<void> {
     // Initialize language registry and adapters for validation
-    if (typeof LanguageRegistry !== 'undefined') {
-      this.languageRegistry = new LanguageRegistry();
-      this.languageRegistry.initializeDefaultAdapters();
-      window.languageRegistry = this.languageRegistry;
-      console.log('🔍 Language registry initialized in settings page');
-    } else {
-      console.warn('🔍 LanguageRegistry not available - validation will be skipped');
-    }
+    this.languageRegistry = new LanguageRegistry();
+    this.languageRegistry.initializeDefaultAdapters();
+    window.languageRegistry = this.languageRegistry;
+    console.log('🔍 Language registry initialized in settings page');
 
     // Initialize dictionary manager
-    if (this.languageRegistry && typeof DictionaryManager !== 'undefined') {
-      this.dictionaryManager = new DictionaryManager(this.languageRegistry);
-      window.dictionaryManager = this.dictionaryManager;
-      console.log('🔍 Dictionary manager initialized in settings page');
-    } else {
-      console.warn('🔍 DictionaryManager not available - validation will be skipped');
-    }
+    this.dictionaryManager = new DictionaryManager(this.languageRegistry);
+    window.dictionaryManager = this.dictionaryManager;
+    console.log('🔍 Dictionary manager initialized in settings page');
 
     this.vocabManager = new VocabManager();
     // Make vocabManager available globally for AnkiManager
