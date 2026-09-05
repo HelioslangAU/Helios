@@ -133,7 +133,7 @@ export class ChineseLanguageLearningExtension {
       },
       onSettingsUpdated: (s: any) => window.ContentSettingsApplier?.apply(this, s),
       onActivationKeyChanged: (key: string) => this.activation.setKey(key),
-      onAutoHighlightChanged: (enabled: boolean) => (this.featureToggle as any)?.setAutoHighlight(enabled),
+      onAutoHighlightChanged: (enabled: boolean) => this.featureToggle?.setAutoHighlight(enabled),
       onLanguageChanged: async (languageCode: string) => {
         console.log(`🔄 Language change requested: ${languageCode}`);
         // Use the coordinator for smooth language switching
@@ -244,7 +244,7 @@ export class ChineseLanguageLearningExtension {
       videoFeature: this.videoFeature,
       youtubeSidebar: this.youtubeSidebar,
       parentExtension: this, // Pass reference to parent for updating references
-    } as ConstructorParameters<typeof FeatureToggle>[0]);
+    });
 
     // Apply initial settings (extension is enabled if we got here)
     this.featureToggle.applyInitial({ ...currentSettings, extensionEnabled: true });
@@ -338,7 +338,7 @@ export class ChineseLanguageLearningExtension {
   getStats() {
     if (!this.dictionaryManager || !this.vocabManager) return null;
     const totalWords = Object.keys(this.dictionaryManager.dictionary || {}).length;
-    const knownWords = (this.vocabManager as any).knownWords?.size || 0;
+    const knownWords = this.vocabManager.getKnownWordsCount();
     const unknownWordsOnPage = document.querySelectorAll('.chinese-unknown-word').length;
     return {
       totalWords,

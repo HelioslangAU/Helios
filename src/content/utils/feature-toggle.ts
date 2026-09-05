@@ -9,7 +9,7 @@ interface FeatureToggleDeps {
   pageProcessor?: any;
   popup?: any;
   sidebarManager?: any;
-  pinyinManager?: any;
+  pronunciationManager?: any;
   bannerManager?: BannerManager | null;
   videoFeature?: any;
   youtubeSidebar?: YouTubeSidebar | null;
@@ -29,7 +29,7 @@ export class FeatureToggle {
   pageProcessor: any;
   popup: any;
   sidebarManager: any;
-  pinyinManager: any;
+  pronunciationManager: any;
   bannerManager: BannerManager | null | undefined;
   videoFeature: any;
   youtubeSidebar: YouTubeSidebar | null | undefined;
@@ -37,13 +37,13 @@ export class FeatureToggle {
   extensionEnabled: boolean;
   autoHighlight: boolean;
 
-  constructor({ activation, textScanner, pageProcessor, popup, sidebarManager, pinyinManager, bannerManager, videoFeature, youtubeSidebar, parentExtension }: FeatureToggleDeps) {
+  constructor({ activation, textScanner, pageProcessor, popup, sidebarManager, pronunciationManager, bannerManager, videoFeature, youtubeSidebar, parentExtension }: FeatureToggleDeps) {
     this.activation = activation;
     this.textScanner = textScanner;
     this.pageProcessor = pageProcessor;
     this.popup = popup;
     this.sidebarManager = sidebarManager;
-    this.pinyinManager = pinyinManager;
+    this.pronunciationManager = pronunciationManager;
     this.bannerManager = bannerManager;
     this.videoFeature = videoFeature;
     this.youtubeSidebar = youtubeSidebar;
@@ -71,6 +71,15 @@ export class FeatureToggle {
     if (enabled) this.enable(); else this.disable();
   }
 
+  setAutoHighlight(enabled: boolean): void {
+    this.autoHighlight = enabled;
+    // autoHighlight is only read when enable() runs, so re-apply the highlight
+    // pass here instead of waiting for the next enable/disable cycle.
+    if (this.pageProcessor && this.pageProcessor.handleAutoHighlightUpdate) {
+      this.pageProcessor.handleAutoHighlightUpdate(this.autoHighlight, this.extensionEnabled);
+    }
+  }
+
   enable(): void {
     // Re-enable page processing
     if (this.pageProcessor && this.pageProcessor.startProcessing) {
@@ -95,8 +104,8 @@ export class FeatureToggle {
     }
 
     // Restart pronunciation observer if it wasn't started on load
-    if (this.pinyinManager && this.pinyinManager.observeForDynamicContent) {
-      this.pinyinManager.observeForDynamicContent();
+    if (this.pronunciationManager && this.pronunciationManager.observeForDynamicContent) {
+      this.pronunciationManager.observeForDynamicContent();
     }
 
     // Re-enable video features if on YouTube
@@ -174,7 +183,7 @@ export class FeatureToggle {
     this.bannerManager && this.bannerManager.hideBanner && this.bannerManager.hideBanner();
 
     // Destroy pronunciation manager (removes observers and pronunciation)
-    this.pinyinManager && this.pinyinManager.destroy && this.pinyinManager.destroy();
+    this.pronunciationManager && this.pronunciationManager.destroy && this.pronunciationManager.destroy();
 
     // Disable video features
     if (this.youtubeSidebar && this.youtubeSidebar.hide) {
