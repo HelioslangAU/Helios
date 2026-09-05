@@ -147,16 +147,13 @@ describe('BaseLanguageAdapter — config accessors', () => {
   it('exposes scan resolution, case sensitivity, name and code from the config', () => {
     expect(adapter.getScanResolution()).toBe('word');
     expect(adapter.getCaseSensitive()).toBe(false);
-    expect(adapter.getDisplayName()).toBe('Testish');
+    expect(adapter.getDisplayName()).toBe('Testish (Test)');
     expect(adapter.getLanguageCode()).toBe('xx');
   });
 
-  it('getDisplayName returns config.name, not config.displayName', () => {
-    // BUG: getDisplayName() returns `name` ("Testish") while the config also carries a
-    // dedicated `displayName` ("Testish (Test)"). Reads like a naming mix-up, but the
-    // registry's getLanguageOptions() is what actually surfaces displayName in the UI.
-    expect(adapter.getDisplayName()).toBe(VALID_CONFIG.name);
-    expect(adapter.getDisplayName()).not.toBe(VALID_CONFIG.displayName);
+  it('getDisplayName returns config.displayName, not config.name', () => {
+    expect(adapter.getDisplayName()).toBe(VALID_CONFIG.displayName);
+    expect(adapter.getDisplayName()).not.toBe(VALID_CONFIG.name);
   });
 
   it('builds the default dictionary path from the language code', () => {
@@ -243,9 +240,11 @@ describe('BaseLanguageAdapter.detectVariantPattern — CEDICT-style variant defi
   ])('extracts the base word from %j', (definition, expected) => {
     const result = adapter.detectVariantPattern(definition);
     expect(result?.baseWords).toEqual(expected);
-    // BUG: the qualified patterns (old/archaic/ancient/obsolete/classical variant of) are
-    // listed AFTER the generic /variant\s+of/ pattern, so the generic one always wins and
-    // the qualifier-specific entries in variantPatterns are unreachable.
+    // The qualified patterns (old/archaic/ancient/obsolete/classical variant of) sit AFTER
+    // the generic /variant\s+of/ in the list, so the generic one always wins. That is
+    // harmless: the generic pattern captures exactly the same base word, and only the
+    // reported `pattern`/`fullMatch` differ, so the qualified entries are left as
+    // documentation rather than reordered.
     expect(result?.pattern).toBe('variant\\s+of\\s+(.+?)(?:\\s*\\[|;|$)');
   });
 
@@ -277,25 +276,32 @@ describe('BaseLanguageAdapter.detectVariantPattern — CEDICT-style variant defi
 
   it('detects "see also:" cross-references', () => {
     const result = adapter.detectVariantPattern('see also: 傻瓜[sha3 gua1]');
-    expect(result?.pattern).toBe('see\\s+also\\s*[:：]?\\s*(.+?)(?:\\s*\\[|;|$)');
+    expect(result?.pattern).toBe('^see\\s+also\\b\\s*[:：]?\\s*(.+?)(?:\\s*\\[|;|$)');
     expect(result?.baseWords).toEqual(['傻瓜']);
   });
 
   it('detects a bare "see" cross-reference', () => {
     const result = adapter.detectVariantPattern('see 上邊|上边[shang4 bian5]');
-    expect(result?.pattern).toBe('see\\s*[:：]?\\s*(.+?)(?:\\s*\\[|;|$)');
+    expect(result?.pattern).toBe('^see\\b\\s*[:：]?\\s*(.+?)(?:\\s*\\[|;|$)');
     expect(result?.baseWords).toEqual(['上邊', '上边']);
   });
 
-  it('misfires on ordinary definitions containing the word "see"', () => {
-    // BUG: /see\s*[:：]?\s*(.+?)(?:\s*\[|;|$)/ is unanchored, so any definition that merely
-    // contains "see" is treated as a cross-reference. "to see the doctor" resolves to a
-    // bogus base word "the doctor". Expected: only leading "see"/"see also" references.
-    expect(adapter.detectVariantPattern('to see the doctor')).toEqual({
-      pattern: 'see\\s*[:：]?\\s*(.+?)(?:\\s*\\[|;|$)',
-      baseWords: ['the doctor'],
-      fullMatch: 'see the doctor',
-    });
+  it('ignores ordinary definitions that merely contain the word "see"', () => {
+    // The "see" patterns are anchored, so only a definition that *starts* with the
+    // cross-reference counts. An unanchored "see" turned every definition containing the
+    // word into a cross-reference with a bogus base word ("to see the doctor" -> "the doctor").
+    expect(adapter.detectVariantPattern('to see the doctor')).toBeNull();
+    expect(adapter.detectVariantPattern('to go and see also his brother')).toBeNull();
+  });
+
+  it('does not treat a word merely starting with "see" as a cross-reference', () => {
+    // \b after "see" stops "seeing"/"seed" from matching with an empty separator.
+    expect(adapter.detectVariantPattern('seeing is believing')).toBeNull();
+    expect(adapter.detectVariantPattern('seed of a plant')).toBeNull();
+  });
+
+  it('still detects a leading "see" with a full-width colon', () => {
+    expect(adapter.detectVariantPattern('see：傻瓜')?.baseWords).toEqual(['傻瓜']);
   });
 
   it('is case-insensitive', () => {

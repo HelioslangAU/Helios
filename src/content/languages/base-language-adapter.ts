@@ -240,7 +240,7 @@ export class BaseLanguageAdapter {
    * @returns Human-readable language name
    */
   getDisplayName(): string {
-    return this.getConfig().name;
+    return this.getConfig().displayName;
   }
 
   /**
@@ -278,9 +278,12 @@ export class BaseLanguageAdapter {
       // Alternative spellings
       /alternative\s+spelling\s+of\s+(.+?)(?:\s*\[|;|$)/i,
       /alternate\s+spelling\s+of\s+(.+?)(?:\s*\[|;|$)/i,
-      // Other common patterns
-      /see\s+also\s*[:：]?\s*(.+?)(?:\s*\[|;|$)/i,
-      /see\s*[:：]?\s*(.+?)(?:\s*\[|;|$)/i,
+      // Other common patterns. Anchored, unlike the "variant of" family above: "see" is an
+      // ordinary English word, so an unanchored match turns any definition containing it
+      // ("to see the doctor") into a cross-reference with a bogus base word. \b keeps
+      // "seeing"/"seed" from matching once the trailing \s* is allowed to be empty.
+      /^see\s+also\b\s*[:：]?\s*(.+?)(?:\s*\[|;|$)/i,
+      /^see\b\s*[:：]?\s*(.+?)(?:\s*\[|;|$)/i,
 
 
     ];

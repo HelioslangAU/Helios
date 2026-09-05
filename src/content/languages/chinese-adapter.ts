@@ -81,7 +81,10 @@ export class ChineseLanguageAdapter extends BaseLanguageAdapter {
    */
   override isTargetCharacter(char: string): boolean {
     if (!char) return false;
-    const code = char.charCodeAt(0);
+    // codePointAt (not charCodeAt) so supplementary-plane ideographs such as CJK Extension B
+    // are read as a full code point instead of their leading surrogate. For BMP characters
+    // the two are identical.
+    const code = char.codePointAt(0)!;
     return (code >= 0x4E00 && code <= 0x9FFF) ||
            (code >= 0x3400 && code <= 0x4DBF) ||
            (code >= 0x20000 && code <= 0x2A6DF);

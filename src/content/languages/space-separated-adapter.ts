@@ -64,8 +64,10 @@ export class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
     const words: ExtractedWord[] = [];
 
     // Extract all words AND non-word content to preserve full subtitle text
-    // Pattern allows apostrophes and hyphens within words (e.g., "don't", "M'appelle")
-    const wordRegex = new RegExp(`\\b[\\p{L}\\p{M}]+(?:[''-][\\p{L}\\p{M}]+)*\\b`, 'gu');
+    // Pattern allows apostrophes (ASCII U+0027 and typographic U+2019) and hyphens within
+    // words (e.g., "don't", "don’t", "well-known"). Lookarounds (rather than ASCII \b) keep
+    // accented letters attached at the word edges (e.g., "café", "über").
+    const wordRegex = /(?<![\p{L}\p{M}])[\p{L}\p{M}]+(?:['\u2019-][\p{L}\p{M}]+)*(?![\p{L}\p{M}])/gu;
 
     let lastIndex = 0;
     let match;
@@ -188,19 +190,18 @@ export class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
   findDictionaryForm(word: string, dictionary: any): string | null {
       const normalizedWord = word.toLowerCase().trim().normalize('NFC');
 
-      // First check if the word exists as is
-      if (dictionary[normalizedWord] && dictionary[normalizedWord].length > 0) {
-        return normalizedWord;
-      }
-
-      // Check if this is a form mapping to another word
-      if (dictionary[normalizedWord] && dictionary[normalizedWord][0] &&
-          Array.isArray(dictionary[normalizedWord][0][5])) {
-        // Get the base form from the mapping array
-        for (const mapping of dictionary[normalizedWord][0][5]) {
+      // Check first whether this is a raw non-lemma row that only maps to another word.
+      // processTermBank turns such a row into an object carrying its own definition (plus
+      // baseFormDefinitions), so an object entry is answered as-is below; but a dictionary
+      // holding the unprocessed term-bank row ([word, reading, 'non-lemma', pos, score,
+      // [[lemma, [morphology]]]]) has no definition of its own and must resolve to its lemma.
+      // This check has to run before the direct hit below, otherwise it is unreachable.
+      const baseFormMappings = this.getBaseFormMappings(dictionary[normalizedWord]);
+      if (baseFormMappings) {
+        for (const mapping of baseFormMappings) {
           if (Array.isArray(mapping) && mapping.length > 0) {
             const baseForm = mapping[0];
-            const normalizedBaseForm = baseForm.toLowerCase().trim().normalize('NFC');
+            const normalizedBaseForm = String(baseForm).toLowerCase().trim().normalize('NFC');
             if (dictionary[normalizedBaseForm]) {
               return normalizedBaseForm;
             }
@@ -208,7 +209,24 @@ export class SpaceSeparatedLanguageAdapter extends BaseLanguageAdapter {
         }
       }
 
+      // The word exists as is
+      if (dictionary[normalizedWord] && dictionary[normalizedWord].length > 0) {
+        return normalizedWord;
+      }
+
       return null;
+  }
+
+  /**
+   * Get the lemma mapping array of a raw (unprocessed) non-lemma term-bank row, if that is
+   * what the dictionary holds for this key.
+   * @param entries - Dictionary value for a word
+   * @returns The mapping array ([[lemma, [morphology]], ...]) or null
+   */
+  protected getBaseFormMappings(entries: any): any[] | null {
+    if (!Array.isArray(entries) || entries.length === 0) return null;
+    const first = entries[0];
+    return Array.isArray(first) && Array.isArray(first[5]) ? first[5] : null;
   }
 
   /**
@@ -595,7 +613,7 @@ export class SpanishLanguageAdapter extends SpaceSeparatedLanguageAdapter {
     const words: ExtractedWord[] = [];
     // Pattern allows apostrophes and hyphens within words (e.g., "no's", "d'accord")
 
-    const wordRegex = /(?<![\p{L}\p{M}])[\p{L}\p{M}]+(?:[''-][\p{L}\p{M}]+)*(?![\p{L}\p{M}])/gu;
+    const wordRegex = /(?<![\p{L}\p{M}])[\p{L}\p{M}]+(?:['\u2019-][\p{L}\p{M}]+)*(?![\p{L}\p{M}])/gu;
 
 
     let lastIndex = 0;
@@ -719,6 +737,34 @@ export class SpanishLanguageAdapter extends SpaceSeparatedLanguageAdapter {
 }
 
 /**
+ * French elisions: an elided word, an apostrophe (ASCII U+0027 or typographic U+2019) and the
+ * word it attaches to. The elided part is not always a single letter — que/jusque/lorsque/
+ * puisque/quoique/presque all elide to a multi-letter form (qu', jusqu', lorsqu', ...).
+ * Listing the closed set keeps words that merely contain an apostrophe (e.g. "aujourd'hui")
+ * from being split into a bogus base word.
+ */
+const FRENCH_ELISION_PATTERN =
+  /^(l|d|c|j|m|n|s|t|qu|jusqu|lorsqu|puisqu|quoiqu|presqu)['\u2019]([a-zàâäéèêëïîôùûüÿç]+)$/i;
+
+/** Which full word each elided form stands for (used to annotate contraction lookups). */
+const FRENCH_ELISION_WORDS: Record<string, string> = {
+  l: 'le/la',
+  d: 'de',
+  c: 'ce',
+  n: 'ne',
+  s: 'se',
+  t: 'te',
+  m: 'me',
+  j: 'je',
+  qu: 'que',
+  jusqu: 'jusque',
+  lorsqu: 'lorsque',
+  puisqu: 'puisque',
+  quoiqu: 'quoique',
+  presqu: 'presque',
+};
+
+/**
  * French Language Adapter
  */
 export class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
@@ -785,29 +831,30 @@ export class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
   override findDictionaryForm(word: string, dictionary: any): string | null {
     const normalizedWord = word.toLowerCase().trim().normalize('NFC');
 
-    // First check if the word exists as is (including contractions if they're in dictionary)
+    // A raw non-lemma term-bank row only maps to another word, so resolve it to its lemma
+    // before answering with the word itself (see the base-class implementation).
+    const baseFormMappings = this.getBaseFormMappings(dictionary[normalizedWord]);
+    if (baseFormMappings) {
+      for (const mapping of baseFormMappings) {
+        if (Array.isArray(mapping) && mapping.length > 0) {
+          const baseForm = mapping[0];
+          if (dictionary[baseForm]) {
+            return baseForm;
+          }
+        }
+      }
+    }
+
+    // Check if the word exists as is (including contractions if they're in dictionary)
     if (dictionary[normalizedWord] && dictionary[normalizedWord].length > 0) {
       return normalizedWord;
     }
 
-    // Check if this is a French contraction (e.g., l'image, d'accord, c'est)
-    // Pattern: single letter + apostrophe + word
-    const contractionPattern = /^([a-z])'([a-zàâäéèêëïîôùûüÿç]+)$/i;
-    const match = normalizedWord.match(contractionPattern);
+    // Check if this is a French elision (e.g., l'image, d'accord, c'est, qu'il, jusqu'à)
+    const match = normalizedWord.match(FRENCH_ELISION_PATTERN);
 
     if (match) {
-      const article = match[1].toLowerCase();
       const baseWord = match[2].toLowerCase();
-
-      // Common French contractions and their meanings:
-      // l' = le/la (the)
-      // d' = de (of/from)
-      // c' = ce (this/that)
-      // n' = ne (not - usually part of "ne...pas")
-      // s' = se (reflexive pronoun)
-      // t' = te (you - informal object)
-      // m' = me (me)
-      // j' = je (I)
 
       // Try to find the base word in the dictionary
       if (dictionary[baseWord] && dictionary[baseWord].length > 0) {
@@ -820,20 +867,6 @@ export class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
         const capitalizedBase = baseWord.charAt(0).toUpperCase() + baseWord.slice(1);
         if (dictionary[capitalizedBase] && dictionary[capitalizedBase].length > 0) {
           return capitalizedBase;
-        }
-      }
-    }
-
-    // Check if this is a form mapping to another word (from parent class logic)
-    if (dictionary[normalizedWord] && dictionary[normalizedWord][0] &&
-        Array.isArray(dictionary[normalizedWord][0][5])) {
-      // Get the base form from the mapping array
-      for (const mapping of dictionary[normalizedWord][0][5]) {
-        if (Array.isArray(mapping) && mapping.length > 0) {
-          const baseForm = mapping[0];
-          if (dictionary[baseForm]) {
-            return baseForm;
-          }
         }
       }
     }
@@ -860,7 +893,7 @@ export class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
   override extractWords(text: string, dictionary: any): ExtractedWord[] {
     const words: ExtractedWord[] = [];
     // Pattern allows apostrophes and hyphens within words (e.g., "M'appelle", "d'accord", "c'est")
-    const wordRegex = /(?<![\p{L}\p{M}])[\p{L}\p{M}]+(?:[''-][\p{L}\p{M}]+)*(?![\p{L}\p{M}])/gu;
+    const wordRegex = /(?<![\p{L}\p{M}])[\p{L}\p{M}]+(?:['\u2019-][\p{L}\p{M}]+)*(?![\p{L}\p{M}])/gu;
 
     let lastIndex = 0;
     let match;
@@ -1016,22 +1049,11 @@ export class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
     if (baseWord && baseWord !== normalizedWord) {
       entries = dictionary[baseWord];
       if (entries && entries.length > 0) {
-        // Check if this is a French contraction and enhance definitions
-        const contractionPattern = /^([a-z])'([a-zàâäéèêëïîôùûüÿç]+)$/i;
-        const match = normalizedWord.match(contractionPattern);
+        // Check if this is a French elision and enhance definitions
+        const match = normalizedWord.match(FRENCH_ELISION_PATTERN);
         if (match) {
-          const article = match[1].toLowerCase();
-          const articleMap: Record<string, string> = {
-            'l': 'le/la',
-            'd': 'de',
-            'c': 'ce',
-            'n': 'ne',
-            's': 'se',
-            't': 'te',
-            'm': 'me',
-            'j': 'je'
-          };
-          const articleText = articleMap[article] || article + "'";
+          const elided = match[1].toLowerCase();
+          const articleText = FRENCH_ELISION_WORDS[elided] || elided + "'";
 
           // Enhance each definition with article info (only if definition/translation is not empty)
           // return entries.map(entry => ({

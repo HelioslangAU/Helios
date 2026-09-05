@@ -158,14 +158,25 @@ describe('EnglishLanguageAdapter.extractWords', () => {
     expectContiguousSpans(result, text);
   });
 
-  it('splits a contraction written with a typographic apostrophe', () => {
-    // BUG: the in-word character class is ['][']-] — two copies of U+0027 plus a hyphen.
-    // U+2019 (the apostrophe real subtitles and web text actually use) is NOT in it, so
-    // "don’t" becomes three chunks. Expected: same result as the ASCII apostrophe.
+  it('keeps a typographic apostrophe inside a contraction (don’t)', () => {
+    // U+2019 is the apostrophe real subtitles and web text actually use; it is now in the
+    // in-word class alongside the ASCII one, so it behaves exactly like don't.
     const text = `don${CURLY}t stop`;
     const result = en.extractWords(text, {});
-    expect(result.map(w => w.word)).toEqual(['don', CURLY, 't', ' ', 'stop']);
+    expect(result.map(w => w.word)).toEqual([`don${CURLY}t`, ' ', 'stop']);
+    expect(result[0]).toEqual({ word: `don${CURLY}t`, start: 0, end: 5, isTargetLang: false });
     expectContiguousSpans(result, text);
+  });
+
+  it('matches a curly-apostrophe contraction against the dictionary', () => {
+    const result = en.extractWords(`don${CURLY}t`, { [`don${CURLY}t`]: [{}] });
+    expect(result[0]?.isTargetLang).toBe(true);
+  });
+
+  it('treats the modifier letter apostrophe as a letter, not a separator', () => {
+    // U+02BC is category Lm, so \p{L} already covers it — no need for it in the in-word class.
+    const text = 'donʼt';
+    expect(en.extractWords(text, {}).map(w => w.word)).toEqual([text]);
   });
 
   it('keeps a hyphenated compound as one word', () => {
@@ -194,6 +205,16 @@ describe('EnglishLanguageAdapter.extractWords', () => {
     expectContiguousSpans(result, text);
   });
 
+  it('splits the letters off an alphanumeric token', () => {
+    // Consequence of dropping ASCII \b for the Unicode lookarounds: the letters of "3rd" are
+    // now a word chunk of their own instead of being swallowed into the non-word run. This is
+    // how the Spanish and French adapters have always behaved.
+    const text = '3rd time';
+    const result = en.extractWords(text, {});
+    expect(result.map(w => w.word)).toEqual(['3', 'rd', ' ', 'time']);
+    expectContiguousSpans(result, text);
+  });
+
   it('returns an empty array for empty text', () => {
     expect(en.extractWords('', {})).toEqual([]);
   });
@@ -216,24 +237,35 @@ describe('EnglishLanguageAdapter.extractWords', () => {
     expectContiguousSpans(result, text);
   });
 
-  it('cuts an accented letter off the end of a word', () => {
-    // BUG: the English regex is anchored with ASCII \b, which does not treat é as a word
-    // character. "café" is split into "caf" plus a non-word chunk "é ". Spanish and French
-    // use lookaround instead and get this right. Expected: one word "café" (0-4).
+  it('keeps an accented letter at the end of a word', () => {
+    // The English regex uses the same Unicode lookarounds as Spanish and French; ASCII \b
+    // used to cut "café" into "caf" plus a non-word chunk "é ".
     const text = 'café au lait';
     const result = en.extractWords(text, {});
-    expect(result.map(w => w.word)).toEqual(['caf', 'é ', 'au', ' ', 'lait']);
-    expect(result[0]).toEqual({ word: 'caf', start: 0, end: 3, isTargetLang: false });
+    expect(result.map(w => w.word)).toEqual(['café', ' ', 'au', ' ', 'lait']);
+    expect(result[0]).toEqual({ word: 'café', start: 0, end: 4, isTargetLang: false });
     expectContiguousSpans(result, text);
   });
 
-  it('cuts an accented letter off the start of a word', () => {
-    // BUG: same ASCII \b problem at the leading edge — "über" becomes "ü" + "ber", and the
-    // stray "ü" is even emitted as a word rather than as non-word content.
+  it('keeps an accented letter at the start of a word', () => {
     const text = 'über';
     expect(en.extractWords(text, {})).toEqual([
-      { word: 'ü', start: 0, end: 1, isTargetLang: false },
-      { word: 'ber', start: 1, end: 4, isTargetLang: false },
+      { word: 'über', start: 0, end: 4, isTargetLang: false },
+    ]);
+  });
+
+  it('matches an accented loanword against the dictionary', () => {
+    const result = en.extractWords('café naïve résumé Ça', {
+      'café': [{}],
+      'naïve': [{}],
+      'résumé': [{}],
+      'ça': [{}],
+    });
+    expect(result.filter(w => w.isTargetLang).map(w => w.word)).toEqual([
+      'café',
+      'naïve',
+      'résumé',
+      'Ça',
     ]);
   });
 
@@ -296,9 +328,8 @@ describe('SpanishLanguageAdapter.extractWords', () => {
     expect(es.extractWords('well-known', {})[0]?.word).toBe('well-known');
   });
 
-  it('splits on a typographic apostrophe', () => {
-    // BUG: same missing U+2019 as English — the class holds two copies of U+0027 instead.
-    expect(es.extractWords(`don${CURLY}t`, {}).map(w => w.word)).toEqual(['don', CURLY, 't']);
+  it('keeps a typographic apostrophe inside a word', () => {
+    expect(es.extractWords(`don${CURLY}t`, {}).map(w => w.word)).toEqual([`don${CURLY}t`]);
   });
 
   it('returns an empty array for empty text', () => {
@@ -332,19 +363,25 @@ describe('FrenchLanguageAdapter.extractWords', () => {
     ]);
   });
 
-  it("leaves qu'il unresolved", () => {
-    // BUG: the contraction pattern is /^([a-z])'(...)$/ — exactly ONE letter before the
-    // apostrophe — so the two-letter elision "qu'" is never split. "qu'il" is reported as a
-    // single unknown word even though "il" is in the dictionary.
+  it("resolves the two-letter elision in qu'il", () => {
     const text = `qu${STRAIGHT}il pleut`;
     const result = fr.extractWords(text, { il: [{}], pleut: [{}] });
     expect(result[0]).toEqual({
       word: `qu${STRAIGHT}il`,
       start: 0,
       end: 5,
-      dictionaryForm: null,
-      isTargetLang: false,
+      dictionaryForm: 'il',
+      isTargetLang: true,
     });
+    expectContiguousSpans(result, text);
+  });
+
+  it('resolves an elision written with a typographic apostrophe', () => {
+    const text = `d${CURLY}accord`;
+    const result = fr.extractWords(text, { accord: [{}] });
+    expect(result).toEqual([
+      { word: text, start: 0, end: 8, dictionaryForm: 'accord', isTargetLang: true },
+    ]);
     expectContiguousSpans(result, text);
   });
 
@@ -465,16 +502,34 @@ describe('SpaceSeparatedLanguageAdapter.isValidWord / findDictionaryForm / getDi
     expect(es.findDictionaryForm('gato', { gato: [] })).toBeNull();
   });
 
-  it('never reaches its non-lemma mapping branch', () => {
-    // BUG: the mapping branch requires dictionary[word] to exist AND dictionary[word][0] to be
-    // truthy, but that combination already returned from the first `if`. So a non-lemma entry
-    // resolves to itself instead of to its lemma. Expected: 'gato'.
+  it('resolves a raw non-lemma term-bank row to its lemma', () => {
+    // The value stored for "gatos" is an unprocessed term-bank row whose 6th element maps it
+    // to its lemma; it carries no definition of its own, so it has to resolve to "gato".
     const dictionary = {
       gato: [{ definition: 'cat' }],
       gatos: [[0, 0, 0, 0, 0, [['gato', ['plural']]]]],
     };
+    expect(es.findDictionaryForm('gatos', dictionary)).toBe('gato');
+    expect(fr.findDictionaryForm('gatos', dictionary)).toBe('gato');
+  });
+
+  it('falls back to the word itself when the mapped lemma is unknown', () => {
+    const dictionary = { gatos: [[0, 0, 0, 0, 0, [['gato', ['plural']]]]] };
     expect(es.findDictionaryForm('gatos', dictionary)).toBe('gatos');
-    expect(fr.findDictionaryForm('gatos', dictionary)).toBe('gatos');
+  });
+
+  it('leaves a processed non-lemma entry pointing at itself', () => {
+    // processTermBank stores non-lemma entries as objects that already carry the lemma's
+    // definitions (baseFormDefinitions), so they are answered directly rather than redirected.
+    const dictionary: Record<string, any[]> = {};
+    const adapter = new SpaceSeparatedLanguageAdapter({} as any);
+    adapter.processTermBank([['hablar', 'hablar', 'lemma', 'v', 1, []]], dictionary);
+    adapter.processTermBank(
+      [['hablo', 'hablo', 'non-lemma', 'v', 1, [['hablar', ['1sg present']]]]],
+      dictionary
+    );
+    expect(adapter.findDictionaryForm('hablo', dictionary)).toBe('hablo');
+    expect(dictionary['hablo']?.[0]?.variations).toEqual(['hablar']);
   });
 
   it('getDictionaryEntries returns the entries for a direct hit', () => {
@@ -535,15 +590,29 @@ describe('FrenchLanguageAdapter.findDictionaryForm — contractions', () => {
     expect(fr.findDictionaryForm(`z${STRAIGHT}xyz`, {})).toBeNull();
   });
 
-  it('does not handle two-letter elisions', () => {
-    // BUG: only a single letter is allowed before the apostrophe, so qu' / jusqu' / lorsqu'
-    // never resolve. Expected: 'il'.
-    expect(fr.findDictionaryForm(`qu${STRAIGHT}il`, { il: [{}] })).toBeNull();
+  it.each([
+    [`qu${STRAIGHT}il`, 'il'],
+    [`jusqu${STRAIGHT}à`, 'à'],
+    [`lorsqu${STRAIGHT}on`, 'on'],
+    [`puisqu${STRAIGHT}il`, 'il'],
+    [`quoiqu${STRAIGHT}il`, 'il'],
+    [`presqu${STRAIGHT}île`, 'île'],
+  ])('handles the multi-letter elision in %j', (word, base) => {
+    expect(fr.findDictionaryForm(word, { [base]: [{}] })).toBe(base);
   });
 
-  it('does not handle typographic apostrophes in contractions', () => {
-    // BUG: contractionPattern hardcodes the ASCII U+0027; text using U+2019 never matches.
-    expect(fr.findDictionaryForm(`d${CURLY}accord`, { accord: [{}] })).toBeNull();
+  it('handles typographic apostrophes in elisions', () => {
+    expect(fr.findDictionaryForm(`d${CURLY}accord`, { accord: [{}] })).toBe('accord');
+    expect(fr.findDictionaryForm(`qu${CURLY}il`, { il: [{}] })).toBe('il');
+  });
+
+  it('only splits on the closed set of French elisions', () => {
+    // "aujourd'hui" is one word, not the elision "aujourd" + "hui"; splitting on any
+    // apostrophe would resolve it to a bogus base word.
+    expect(fr.findDictionaryForm(`aujourd${STRAIGHT}hui`, { hui: [{}] })).toBeNull();
+    expect(fr.findDictionaryForm(`aujourd${STRAIGHT}hui`, { [`aujourd${STRAIGHT}hui`]: [{}] })).toBe(
+      `aujourd${STRAIGHT}hui`
+    );
   });
 
   it('rejects base words with characters outside the French accent set', () => {

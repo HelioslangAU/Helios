@@ -85,11 +85,24 @@ describe('ChineseLanguageAdapter.isTargetCharacter', () => {
     expect(zh.isTargetCharacter('䷀')).toBe(false); // Yijing hexagram symbols
   });
 
-  it('rejects a supplementary-plane ideograph despite the configured U+20000 range', () => {
-    // BUG: charCodeAt(0) returns the leading surrogate (0xD840) for astral characters, so
-    // the configured 0x20000-0x2A6DF (CJK Extension B) range can never match. Expected: true.
+  it('accepts a supplementary-plane ideograph from the configured U+20000 range', () => {
+    // codePointAt reads the whole astral code point; charCodeAt used to return the leading
+    // surrogate (0xD840), which made the CJK Extension B range unreachable.
     expect('\u{20000}'.codePointAt(0)).toBe(0x20000);
-    expect(zh.isTargetCharacter('\u{20000}')).toBe(false);
+    expect(zh.isTargetCharacter('\u{20000}')).toBe(true);
+    expect(zh.isTargetCharacter('\u{2A6DF}')).toBe(true); // last char of CJK Extension B
+  });
+
+  it('rejects a supplementary-plane character past CJK Extension B', () => {
+    expect(zh.isTargetCharacter('\u{2A700}')).toBe(false); // CJK Extension C
+    expect(zh.isTargetCharacter('\u{1F600}')).toBe(false); // emoji
+  });
+
+  it('still rejects a lone surrogate half', () => {
+    // extractWords walks the string one UTF-16 code unit at a time, so each half of an
+    // astral character is inspected on its own and remains non-target.
+    expect(zh.isTargetCharacter('\u{20000}'[0])).toBe(false);
+    expect(zh.isTargetCharacter('\u{20000}'[1])).toBe(false);
   });
 
   it.each(['a', 'Z', '1', ' ', '\n', '.', '-'])('rejects the ASCII character %j', char => {
