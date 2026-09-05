@@ -449,20 +449,3 @@ export function debugStorageState(): void {
     console.log(`Current language (${currentLang}) known words:`, knownWordsByLanguage[currentLang] || []);
   });
 }
-
-// Make functions globally available for debugging and external use
-window.heliosExtension = {
-  updateKnownWordsCounter,
-  loadVocabularyList,
-  addToVocabList,
-  incrementSessionCounter,
-  openHeliosSettings,
-  removeVocabItem,
-  initializeExtensionToggle,
-  applyExtensionState, // New function for sunset/sunrise
-  updateSessionCounter,
-  updateProgress,
-  exportData,
-  openReview,
-  debugStorageState, // New debug function
-};

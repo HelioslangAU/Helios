@@ -55,8 +55,3 @@ export const VideoConstants = {
     PRIME_WATCH: ['/detail', '/player']
   }
 };
-
-// Make constants globally available
-if (typeof window !== 'undefined') {
-  window.VideoConstants = VideoConstants;
-}

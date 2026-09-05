@@ -409,8 +409,3 @@ export class Jieba {
     return yieldValues;
   }
 }
-
-// Export for browser environment
-if (typeof window !== 'undefined') {
-  window.Jieba = Jieba;
-}

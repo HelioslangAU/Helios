@@ -521,6 +521,3 @@ export class BaseLanguageAdapter {
   }
 
 }
-
-// Export for use in other modules
-window.BaseLanguageAdapter = BaseLanguageAdapter;

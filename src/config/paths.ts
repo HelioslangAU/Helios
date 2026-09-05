@@ -94,8 +94,3 @@ export const PATHS = {
     return [...PATHS.FREQUENCY_FILES];
   },
 } as const;
-
-// Kept on window for cross-context runtime access (legacy pattern).
-if (typeof window !== 'undefined') {
-  window.PATHS = PATHS;
-}

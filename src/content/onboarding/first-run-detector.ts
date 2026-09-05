@@ -84,8 +84,3 @@ export class FirstRunDetector {
     return !completed && !installDate;
   }
 }
-
-// Export
-if (typeof window !== 'undefined') {
-  window.FirstRunDetector = FirstRunDetector;
-}

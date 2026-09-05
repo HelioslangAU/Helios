@@ -188,8 +188,3 @@ export class LanguageSelector {
     this.selectedLanguage = languageCode;
   }
 }
-
-// Export for use in other modules
-if (typeof window !== 'undefined') {
-  window.LanguageSelector = LanguageSelector;
-}

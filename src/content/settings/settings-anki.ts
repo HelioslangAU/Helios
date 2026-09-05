@@ -1288,6 +1288,3 @@ export class HeliosSettingsAnki {
     }
   }
 }
-
-// Export for use in settings
-window.HeliosSettingsAnki = HeliosSettingsAnki;

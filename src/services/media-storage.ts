@@ -211,8 +211,3 @@ export class MediaStorage {
         return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
     }
 }
-
-// Make available globally
-if (typeof window !== 'undefined') {
-    window.HeliosMediaStorage = MediaStorage;
-}

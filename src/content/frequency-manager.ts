@@ -31,6 +31,3 @@ export class FrequencyManager {
     return this.freqMap[word] || null;
   }
 }
-
-// Make available globally if needed
-window.FrequencyManager = FrequencyManager;

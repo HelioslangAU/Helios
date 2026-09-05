@@ -468,5 +468,3 @@ export class HeliosSettingsStorage {
     }
   }
 }
-
-window.HeliosSettingsStorage = HeliosSettingsStorage;

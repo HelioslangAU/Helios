@@ -442,6 +442,3 @@ export class PronunciationManager {
     this.removePronunciationFromPage();
   }
 }
-
-// Export for use in other modules
-window.PronunciationManager = PronunciationManager;

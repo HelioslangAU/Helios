@@ -195,7 +195,6 @@ export class ChineseLanguageLearningExtension {
     // Update language switch coordinator with initialized components
     this.languageSwitchCoordinator.pageProcessor = this.pageProcessor;
     this.languageSwitchCoordinator.popup = this.popup;
-    window.languageSwitchCoordinator = this.languageSwitchCoordinator;
 
     this.lookup = new LookupController({
       pageProcessor: this.pageProcessor,
@@ -210,9 +209,6 @@ export class ChineseLanguageLearningExtension {
         this.videoFeature = window.heliosVideoFeature;
         await this.videoFeature.init();
         console.log("✅ Helios video player initialized");
-
-        // Make accessible globally for debugging
-        window.heliosVideo = this.videoFeature;
 
         // Initialize YouTube-specific sidebar
         if (window.location.hostname.includes("youtube.com") || window.location.hostname.includes("youtu.be")) {

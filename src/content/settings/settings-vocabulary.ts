@@ -703,5 +703,3 @@ export class HeliosSettingsVocabulary {
     }
   }
 }
-
-window.HeliosSettingsVocabulary = HeliosSettingsVocabulary;

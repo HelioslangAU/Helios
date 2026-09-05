@@ -1320,5 +1320,3 @@ export class HeliosSettingsUI {
     return hotkeyMap[hotkeyId];
   }
 }
-
-window.HeliosSettingsUI = HeliosSettingsUI;

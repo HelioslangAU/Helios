@@ -503,10 +503,3 @@ export class DictionaryManagerProxy {
     return await this.bridge.hasWord(word);
   }
 }
-
-// Export singleton instance
-if (typeof window !== 'undefined') {
-  window.DictionaryBridge = DictionaryBridge;
-  window.DictionaryProxy = DictionaryProxy;
-  window.DictionaryManagerProxy = DictionaryManagerProxy;
-}

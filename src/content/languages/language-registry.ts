@@ -328,6 +328,3 @@ export class LanguageRegistry {
            this.adapters.has(languageCode);
   }
 }
-
-// Export for use in other modules
-window.LanguageRegistry = LanguageRegistry;

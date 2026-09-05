@@ -104,8 +104,3 @@ export class OnboardingController {
     });
   }
 }
-
-// Export
-if (typeof window !== 'undefined') {
-  window.OnboardingController = OnboardingController;
-}

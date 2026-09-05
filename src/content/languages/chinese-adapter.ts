@@ -423,6 +423,3 @@ export class ChineseLanguageAdapter extends BaseLanguageAdapter {
     return (entries && entries.length > 0) ? entries : null;
   }
 }
-
-// Export for use in other modules
-window.ChineseLanguageAdapter = ChineseLanguageAdapter;

@@ -1069,9 +1069,3 @@ export class FrenchLanguageAdapter extends SpaceSeparatedLanguageAdapter {
     return null;
   }
 }
-
-// Export for use in other modules
-window.SpaceSeparatedLanguageAdapter = SpaceSeparatedLanguageAdapter;
-window.EnglishLanguageAdapter = EnglishLanguageAdapter;
-window.SpanishLanguageAdapter = SpanishLanguageAdapter;
-window.FrenchLanguageAdapter = FrenchLanguageAdapter;

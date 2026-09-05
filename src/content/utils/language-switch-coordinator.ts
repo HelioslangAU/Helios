@@ -318,8 +318,3 @@ export class LanguageSwitchCoordinator {
     }, 3000);
   }
 }
-
-// Export
-if (typeof window !== 'undefined') {
-  window.LanguageSwitchCoordinator = LanguageSwitchCoordinator;
-}

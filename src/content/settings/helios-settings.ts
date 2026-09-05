@@ -402,5 +402,3 @@ document.addEventListener("DOMContentLoaded", () => {
     window.heliosSettings.init();
   }, 100);
 });
-
-window.HeliosSettingsManager = HeliosSettingsManager;

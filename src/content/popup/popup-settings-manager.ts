@@ -217,8 +217,3 @@ export class PopupSettingsManager {
     this.clearAutoCloseTimer();
   }
 }
-
-// Export for use by other modules
-if (typeof window !== 'undefined') {
-  window.PopupSettingsManager = PopupSettingsManager;
-}
