@@ -199,11 +199,31 @@ describe('VTTParser.parse — hour-less timestamps', () => {
     expect(entry.end).toBe(3602000);
   });
 
-  it('drops a cue with a three-digit hour field', () => {
+  it('parses a cue with a three-digit hour field', () => {
     const vtt = ['WEBVTT', '', '100:00:00.000 --> 100:00:02.000', 'Very long film'].join('\n');
-    // BUG: the hour group is `(\d{1,2}:)?`, so '100:' can never match and the
-    // whole cue is discarded. Valid WebVTT allows hours of any length.
-    expect(VTTParser.parse(vtt)).toEqual([]);
+    // The hour group used to be `(\d{1,2}:)?`, so '100:' matched nothing and the
+    // whole cue was silently dropped. WebVTT allows hours of any length.
+    const [entry] = VTTParser.parse(vtt);
+    expect([entry.start, entry.end, entry.text]).toEqual([
+      100 * 3600000,
+      100 * 3600000 + 2000,
+      'Very long film'
+    ]);
+  });
+
+  it('parses a long-hour cue alongside ordinary ones without losing either', () => {
+    const vtt = [
+      'WEBVTT',
+      '',
+      '00:00:01.000 --> 00:00:02.000',
+      'normal',
+      '',
+      '999:59:59.999 --> 1000:00:00.000',
+      'absurdly late'
+    ].join('\n');
+    const entries = VTTParser.parse(vtt);
+    expect(entries.map(e => e.text)).toEqual(['normal', 'absurdly late']);
+    expect(entries[1].start).toBe(999 * 3600000 + 59 * 60000 + 59 * 1000 + 999);
   });
 });
 
@@ -235,7 +255,7 @@ describe('VTTParser.parse — NOTE blocks', () => {
     expect(VTTParser.parse(vtt).map(e => e.text)).toEqual(['first', 'second']);
   });
 
-  it('strips a NOTE line that sits directly under a timestamp with no blank line', () => {
+  it('strips a NOTE line that sits directly under a timestamp, and the rest of its block', () => {
     const vtt = [
       'WEBVTT',
       '',
@@ -243,7 +263,46 @@ describe('VTTParser.parse — NOTE blocks', () => {
       'NOTE this should not be shown',
       'visible text'
     ].join('\n');
-    expect(VTTParser.parse(vtt).map(e => e.text)).toEqual(['visible text']);
+    // A NOTE block runs to the next blank line, so everything after the NOTE
+    // line is comment too and the cue is left with no text.
+    expect(VTTParser.parse(vtt)).toEqual([]);
+  });
+
+  it('keeps the text lines that precede a NOTE line in the same block', () => {
+    const vtt = [
+      'WEBVTT',
+      '',
+      '00:00:01.000 --> 00:00:02.000',
+      'real dialogue',
+      'NOTE translator comment',
+      'still comment'
+    ].join('\n');
+    expect(VTTParser.parse(vtt).map(e => e.text)).toEqual(['real dialogue']);
+  });
+
+  it('starts a NOTE block on a bare NOTE line', () => {
+    const vtt = [
+      'WEBVTT',
+      '',
+      '00:00:01.000 --> 00:00:02.000',
+      'NOTE',
+      'comment body'
+    ].join('\n');
+    expect(VTTParser.parse(vtt)).toEqual([]);
+  });
+
+  it('ends the NOTE block at the blank line, so the next cue is unaffected', () => {
+    const vtt = [
+      'WEBVTT',
+      '',
+      '00:00:01.000 --> 00:00:02.000',
+      'NOTE comment starts',
+      'comment continues',
+      '',
+      '00:00:03.000 --> 00:00:04.000',
+      'second cue'
+    ].join('\n');
+    expect(VTTParser.parse(vtt).map(e => e.text)).toEqual(['second cue']);
   });
 
   it('keeps a text line that merely starts with the word NOTE followed by punctuation', () => {
@@ -266,9 +325,9 @@ describe('VTTParser.parse — NOTE blocks', () => {
       'NOTE first note line',
       'second note line'
     ].join('\n');
-    // BUG: only lines matching /^NOTE\s/ are skipped, so a multi-line NOTE's
-    // continuation lines are shown as subtitle text.
-    expect(VTTParser.parse(vtt).map(e => e.text)).toEqual(['second note line']);
+    // Previously only lines matching /^NOTE\s/ were skipped, so a multi-line
+    // NOTE's continuation lines were shown as subtitle text.
+    expect(VTTParser.parse(vtt)).toEqual([]);
   });
 });
 
@@ -322,10 +381,15 @@ describe('VTTParser._cleanVttText — tags and entities', () => {
     expect(VTTParser._cleanVttText('<B>bold</B> <U>under</U>')).toBe('bold under');
   });
 
-  it('leaves an uppercase <I> italic tag in place', () => {
-    // BUG: the tag character class is [vVibBuU] — it has 'i' but not 'I', so an
-    // uppercase italic tag survives while <B>/<U> are stripped.
-    expect(VTTParser._cleanVttText('<I>italic</I>')).toBe('<I>italic</I>');
+  it('removes an uppercase <I> italic tag', () => {
+    // The tag character class used to be [vVibBuU] — it had 'i' but not 'I', so
+    // an uppercase italic tag survived while <B>/<U> were stripped.
+    expect(VTTParser._cleanVttText('<I>italic</I>')).toBe('italic');
+  });
+
+  it('removes a mixed-case <I>/<b> pair through parse()', () => {
+    const vtt = ['WEBVTT', '', '00:00:01.000 --> 00:00:02.000', '<I>a</I> <b>b</b>'].join('\n');
+    expect(VTTParser.parse(vtt)[0].text).toBe('a b');
   });
 
   it('leaves an inline karaoke timestamp tag in the text', () => {
@@ -522,7 +586,7 @@ describe('VTTParser.parse — ordering, overlap and deduplication', () => {
     expect(VTTParser.parse(vtt).map(e => e.text)).toEqual(['repeat', 'different', 'repeat']);
   });
 
-  it('leaves an index gap when a duplicate is removed', () => {
+  it('leaves no index gap when a duplicate is removed', () => {
     const vtt = [
       'WEBVTT',
       '',
@@ -535,10 +599,35 @@ describe('VTTParser.parse — ordering, overlap and deduplication', () => {
       '00:00:04.000 --> 00:00:05.000',
       'next'
     ].join('\n');
-    // BUG: indexes are assigned before deduplication, so the surviving entries
-    // are numbered 0 and 2 — anything using index as a position into the list
-    // will be off.
-    expect(VTTParser.parse(vtt).map(e => e.index)).toEqual([0, 2]);
+    // Indexes used to be assigned before deduplication, leaving the survivors
+    // numbered 0 and 2; they are now renumbered to match list position.
+    const entries = VTTParser.parse(vtt);
+    expect(entries.map(e => e.text)).toEqual(['dup', 'next']);
+    expect(entries.map(e => e.index)).toEqual([0, 1]);
+  });
+
+  it('numbers entries contiguously when several duplicates are dropped', () => {
+    const vtt = [
+      'WEBVTT',
+      '',
+      '00:00:01.000 --> 00:00:03.000',
+      'a',
+      '',
+      '00:00:01.000 --> 00:00:03.000',
+      'a',
+      '',
+      '00:00:04.000 --> 00:00:05.000',
+      'b',
+      '',
+      '00:00:04.000 --> 00:00:05.000',
+      'b',
+      '',
+      '00:00:06.000 --> 00:00:07.000',
+      'c'
+    ].join('\n');
+    const entries = VTTParser.parse(vtt);
+    expect(entries.map(e => e.text)).toEqual(['a', 'b', 'c']);
+    expect(entries.map(e => e.index)).toEqual([0, 1, 2]);
   });
 });
 

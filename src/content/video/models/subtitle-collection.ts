@@ -8,7 +8,10 @@ export class SubtitleCollection {
   currentIndex: number;
 
   constructor(entries: SubtitleEntry[] = []) {
-    this.entries = entries.sort((a, b) => a.start - b.start);
+    // Copy before sorting: sorting in place would reorder the caller's array
+    // behind its back, and staying aliased to it would let later external
+    // pushes leak in unsorted. The SubtitleEntry objects are still shared.
+    this.entries = [...entries].sort((a, b) => a.start - b.start);
     this.currentIndex = -1;
   }
 
@@ -75,10 +78,11 @@ export class SubtitleCollection {
   }
 
   /**
-   * Get all subtitle entries
+   * Get all subtitle entries (a copy — callers cannot reorder or resize the
+   * collection through the returned array)
    */
   getAll(): SubtitleEntry[] {
-    return this.entries;
+    return [...this.entries];
   }
 
   /**

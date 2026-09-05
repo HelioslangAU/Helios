@@ -13,7 +13,27 @@ export class SubtitleParser {
    */
   static parse(content: string, filename: string = ''): SubtitleEntry[] {
     const format = this.detectFormat(content, filename);
+    const entries = this._parseAs(content, format);
 
+    // A filename extension can lie (a .srt that actually holds WEBVTT). If the
+    // chosen parser found nothing, retry with the format the content itself
+    // suggests rather than handing back an empty track.
+    if (entries.length === 0) {
+      const contentFormat = this.detectFormatFromContent(content);
+      if (contentFormat !== format) {
+        return this._parseAs(content, contentFormat);
+      }
+    }
+
+    return entries;
+  }
+
+  /**
+   * Run the parser for a known format identifier
+   * @param content - Subtitle content
+   * @param format - Format identifier
+   */
+  static _parseAs(content: string, format: string): SubtitleEntry[] {
     switch (format) {
       case 'srt':
         return SRTParser.parse(content);
@@ -37,19 +57,28 @@ export class SubtitleParser {
     if (ext === 'srt') return 'srt';
     if (ext === 'vtt') return 'vtt';
 
-    // Check content
+    return this.detectFormatFromContent(content);
+  }
+
+  /**
+   * Detect subtitle format from the content alone
+   * @param content - Subtitle content
+   * @returns Format identifier
+   */
+  static detectFormatFromContent(content: string): string {
+    // The WEBVTT signature is definitive
     if (content.trim().startsWith('WEBVTT')) {
       return 'vtt';
     }
 
-    // Check for SRT timestamp format (uses comma)
-    if (content.includes('-->') && content.includes(',')) {
-      return 'srt';
-    }
-
-    // Check for VTT timestamp format (uses period)
-    if (content.includes('-->') && /\d{2}:\d{2}:\d{2}\.\d{3}/.test(content)) {
-      return 'vtt';
+    // Otherwise decide on the decimal separator of the actual cue-timing lines
+    // (VTT uses '.', SRT uses ','). Punctuation elsewhere in the file — a comma
+    // in dialogue, say — must not get a vote, or a headerless VTT would be
+    // routed to the SRT parser and come back empty.
+    for (const line of content.split(/\r?\n/)) {
+      if (!line.includes('-->')) continue;
+      if (/\d{2}:\d{2}\.\d{3}/.test(line)) return 'vtt';
+      if (/\d{2}:\d{2},\d{3}/.test(line)) return 'srt';
     }
 
     // Default to SRT

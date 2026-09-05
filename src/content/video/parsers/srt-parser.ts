@@ -10,7 +10,11 @@ export class SRTParser {
    */
   static parse(content: string): SubtitleEntry[] {
     const entries: SubtitleEntry[] = [];
-    const blocks = content.trim().split(/\n\s*\n/);
+    // Normalize line endings first: blocks are split on blank lines but lines
+    // are split on '\n', so a CRLF file would otherwise leave a stray '\r' at
+    // the end of every text line except the last (which .trim() cleans up).
+    const normalized = content.replace(/\r\n?/g, '\n');
+    const blocks = normalized.trim().split(/\n\s*\n/);
 
     for (const block of blocks) {
       const lines = block.trim().split('\n');

@@ -144,12 +144,23 @@ describe('SRTParser.parse — line endings and BOM', () => {
     expect(entries[0].text).toBe('你好，世界。');
   });
 
-  it('leaves an embedded CR inside multi-line CRLF cue text', () => {
+  it('does not leave an embedded CR inside multi-line CRLF cue text', () => {
     const srt = ['1', '00:00:01,000 --> 00:00:04,000', 'First line', 'Second line'].join('\r\n');
     const [entry] = SRTParser.parse(srt);
-    // BUG: the parser only splits on '\n', so the CR that terminated the first
-    // text line survives into the cue text. Expected 'First line\nSecond line'.
-    expect(entry.text).toBe('First line\r\nSecond line');
+    // Previously the parser split blocks on blank lines but lines on '\n' only,
+    // so the CR that terminated each inner text line survived into the cue text.
+    expect(entry.text).toBe('First line\nSecond line');
+  });
+
+  it('does not leave an embedded CR in a three-line CRLF cue', () => {
+    const srt = ['1', '00:00:01,000 --> 00:00:04,000', '第一行', '第二行', '第三行'].join('\r\n');
+    expect(SRTParser.parse(srt)[0].text).toBe('第一行\n第二行\n第三行');
+  });
+
+  it('normalizes lone-CR (classic Mac) line endings', () => {
+    const srt = ['1', '00:00:01,000 --> 00:00:04,000', 'First line', 'Second line'].join('\r');
+    const [entry] = SRTParser.parse(srt);
+    expect([entry.start, entry.end, entry.text]).toEqual([1000, 4000, 'First line\nSecond line']);
   });
 
   it('parses a file that starts with a UTF-8 BOM', () => {

@@ -30,8 +30,10 @@ export class VTTParser {
         // Examples:
         // 00:00:00.000 --> 00:00:02.000
         // 00:00.000 --> 00:02.000 align:middle line:90%
+        // WebVTT allows an hour field of any length (100:00:00.000 is legal),
+        // so the hour group is \d+ rather than \d{1,2}.
         const timestampMatch = line.match(
-          /(\d{1,2}:)?(\d{2}:\d{2}\.\d{3})\s*-->\s*(\d{1,2}:)?(\d{2}:\d{2}\.\d{3})/
+          /(\d+:)?(\d{2}:\d{2}\.\d{3})\s*-->\s*(\d+:)?(\d{2}:\d{2}\.\d{3})/
         );
 
         if (timestampMatch) {
@@ -44,10 +46,17 @@ export class VTTParser {
 
           // Collect text lines
           const textLines: string[] = [];
+          let inNote = false;
           i++;
           while (i < lines.length && lines[i].trim() !== '') {
             const textLine = lines[i].trim();
-            if (textLine && !textLine.match(/^NOTE\s/)) { // Skip VTT NOTE lines
+            // A VTT NOTE block starts with 'NOTE' (alone or followed by
+            // whitespace) and runs until the next blank line, so every
+            // continuation line belongs to the comment too.
+            if (/^NOTE(\s|$)/.test(textLine)) {
+              inNote = true;
+            }
+            if (textLine && !inNote) {
               textLines.push(textLine);
             }
             i++;
@@ -76,6 +85,12 @@ export class VTTParser {
       }
     }
 
+    // Renumber after deduplication so index always matches list position
+    // (numbering before dedup left gaps wherever a duplicate was dropped).
+    deduplicated.forEach((entry, position) => {
+      entry.index = position;
+    });
+
     console.log('[VTTParser] Parsed entries:', {
       total: entries.length,
       afterDedup: deduplicated.length,
@@ -99,7 +114,7 @@ export class VTTParser {
     text = text.replace(/<(\/)?c(\.[^>]*)?>/g, '');
 
     // Remove other VTT tags like <v>, <i>, <b>, <u> but keep their content
-    text = text.replace(/<\/?[vVibBuU][^>]*>/g, '');
+    text = text.replace(/<\/?[vVbBuUiI][^>]*>/g, '');
 
     // Handle Netflix RTL markers (asbplayer approach)
     // Convert &lrm; to Unicode left-to-right mark

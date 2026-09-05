@@ -28,9 +28,23 @@ export interface PopupShortcuts {
   ankiAdd: string;
 }
 
+/** Build a fresh copy of the video shortcut defaults (fresh so callers can mutate safely). */
+function videoShortcutDefaults(): Record<string, ShortcutConfig> {
+  return {
+    loadSubtitles: { key: "L", ctrl: true, shift: true, alt: false, meta: false },
+    togglePanel: { key: "S", ctrl: true, shift: true, alt: false, meta: false },
+    loadYouTube: { key: "Y", ctrl: true, shift: true, alt: false, meta: false }
+  };
+}
+
 export class ShortcutHelper {
   /**
-   * Check if a keyboard event matches a video shortcut configuration
+   * Check if a keyboard event matches a video shortcut configuration.
+   *
+   * `ctrl` and `meta` are treated as one cross-platform "command" modifier: a
+   * config asking for either is satisfied by Ctrl *or* Cmd, matching
+   * SubtitleOverlay._matchesShortcut. Every other modifier must match exactly.
+   *
    * @param event - The keyboard event
    * @param shortcutConfig - Shortcut configuration { key, ctrl, shift, alt, meta }
    * @returns True if the event matches the shortcut
@@ -44,23 +58,21 @@ export class ShortcutHelper {
     // Check if the key matches
     if (eventKey !== configKey) return false;
 
-    // Check modifiers
-    const ctrlMatch = shortcutConfig.ctrl ? (event.ctrlKey || event.metaKey) : (!event.ctrlKey && !event.metaKey);
+    // Check modifiers. Ctrl/Cmd are interchangeable (cross-platform).
+    const ctrlMatch = (shortcutConfig.ctrl || shortcutConfig.meta)
+      ? (event.ctrlKey || event.metaKey)
+      : (!event.ctrlKey && !event.metaKey);
     const shiftMatch = shortcutConfig.shift ? event.shiftKey : !event.shiftKey;
     const altMatch = shortcutConfig.alt ? event.altKey : !event.altKey;
-    const metaMatch = shortcutConfig.meta ? (event.metaKey || event.ctrlKey) : (!event.metaKey && !event.ctrlKey);
 
-    // For Ctrl/Cmd, we allow either ctrl or meta to match (cross-platform)
-    if (shortcutConfig.ctrl) {
-      const ctrlOrMeta = event.ctrlKey || event.metaKey;
-      return ctrlOrMeta && shiftMatch && altMatch;
-    }
-
-    return ctrlMatch && shiftMatch && altMatch && metaMatch;
+    return ctrlMatch && shiftMatch && altMatch;
   }
 
   /**
    * Parse hotkey display string to configuration object
+   * Modifier names are matched case-insensitively, and the usual aliases
+   * (Control, Cmd/Command for Meta) are accepted.
+   *
    * @param displayString - Display string like "Ctrl+Shift+L"
    * @returns Hotkey configuration object
    */
@@ -69,36 +81,40 @@ export class ShortcutHelper {
 
     const parts = displayString.split("+").map(p => p.trim());
     const key = parts[parts.length - 1].toLowerCase();
-    const ctrl = parts.includes("Ctrl");
-    const shift = parts.includes("Shift");
-    const alt = parts.includes("Alt");
+    const lowered = parts.map(p => p.toLowerCase());
+    const ctrl = lowered.includes("ctrl") || lowered.includes("control");
+    const shift = lowered.includes("shift");
+    const alt = lowered.includes("alt");
+    const meta = lowered.includes("meta") || lowered.includes("cmd") || lowered.includes("command");
 
-    return { key, ctrl, shift, alt, meta: false };
+    return { key, ctrl, shift, alt, meta };
   }
 
   /**
-   * Get video shortcuts from settings
+   * Get video shortcuts from settings.
+   * Merges per action (like getVideoNavigationShortcuts) so a partially
+   * populated stored `video` section cannot unbind the actions it omits.
    * @returns Video shortcuts configuration
    */
   static async getVideoShortcuts(): Promise<Record<string, ShortcutConfig>> {
+    const defaults = videoShortcutDefaults();
+
     try {
       const result = await storage.get(['shortcuts']);
       const shortcuts = result.shortcuts || {};
 
-      // Return video shortcuts with defaults
-      return shortcuts.video || {
-        loadSubtitles: { key: "L", ctrl: true, shift: true, alt: false, meta: false },
-        togglePanel: { key: "S", ctrl: true, shift: true, alt: false, meta: false },
-        loadYouTube: { key: "Y", ctrl: true, shift: true, alt: false, meta: false }
-      };
+      const stored: Record<string, ShortcutConfig | undefined> = shortcuts.video || {};
+
+      const merged: Record<string, ShortcutConfig> = {};
+      Object.keys(defaults).forEach(key => {
+        merged[key] = stored[key] || defaults[key];
+      });
+
+      return merged;
     } catch (error) {
       console.error('[ShortcutHelper] Error loading shortcuts:', error);
       // Return defaults
-      return {
-        loadSubtitles: { key: "L", ctrl: true, shift: true, alt: false, meta: false },
-        togglePanel: { key: "S", ctrl: true, shift: true, alt: false, meta: false },
-        loadYouTube: { key: "Y", ctrl: true, shift: true, alt: false, meta: false }
-      };
+      return defaults;
     }
   }
 
@@ -155,22 +171,19 @@ export class ShortcutHelper {
   }
 
   /**
-   * Check if a keyboard event matches a single-character shortcut (no modifiers)
+   * Check if a keyboard event matches a navigation shortcut.
+   *
+   * Named "single key" because the navigation defaults are modifier-free, but
+   * it honours whatever modifiers the config declares — a config with every
+   * modifier false still requires that no modifier is held, and a config that
+   * asks for e.g. Shift now requires Shift instead of forbidding it.
+   *
    * @param event - The keyboard event
-   * @param shortcutConfig - Shortcut configuration { key }
+   * @param shortcutConfig - Shortcut configuration { key, ctrl, shift, alt, meta }
    * @returns True if the event matches the shortcut
    */
   static matchesSingleKeyShortcut(event: KeyboardEvent, shortcutConfig: ShortcutConfig | null | undefined): boolean {
-    if (!shortcutConfig || !shortcutConfig.key) return false;
-
-    const eventKey = event.key.toUpperCase();
-    const configKey = shortcutConfig.key.toUpperCase();
-
-    // Check if the key matches
-    if (eventKey !== configKey) return false;
-
-    // For single-key shortcuts, no modifiers should be pressed
-    return !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey;
+    return this.matchesVideoShortcut(event, shortcutConfig);
   }
 
   /**
@@ -192,6 +205,12 @@ export class ShortcutHelper {
         'hotkeyAnkiAdd'
       ]);
 
+      // `||` (not `??`) is deliberate: "" is not an "unbound" state here.
+      // SettingsStorage.collectShortcutsData rebuilds `shortcuts.popup` from
+      // scratch and only writes an action when the input has a value, so a
+      // cleared binding arrives as a *missing* key. The legacy top-level
+      // `hotkey*` keys, by contrast, can be written as "" (`parsed.key || ""`),
+      // and that empty string must fall through to the default rather than win.
       return {
         markUnknown: popupShortcuts.markUnknown || legacyResult.hotkeyMarkUnknown || "1",
         markIgnored: popupShortcuts.markIgnored || legacyResult.hotkeyMarkIgnored || "2",

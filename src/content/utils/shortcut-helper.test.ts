@@ -93,8 +93,7 @@ describe('ShortcutHelper.matchesVideoShortcut', () => {
       ).toBe(true);
     });
 
-    it('ignores the config meta flag entirely once ctrl is set', () => {
-      // The ctrl branch returns before metaMatch is consulted.
+    it('treats ctrl and meta as one modifier, so setting both is not stricter', () => {
       expect(
         ShortcutHelper.matchesVideoShortcut(key('p', { ctrlKey: true }), {
           key: 'P',
@@ -138,24 +137,32 @@ describe('ShortcutHelper.matchesVideoShortcut', () => {
   });
 
   describe('meta-only configs', () => {
-    it('never matches a meta-only config, even with Cmd held', () => {
-      // BUG: with `ctrl` falsy, ctrlMatch requires (!ctrlKey && !metaKey) while
-      // metaMatch requires (metaKey || ctrlKey). The two conditions are mutually
-      // exclusive, so `{ meta: true }` is unmatchable. A Cmd-only shortcut can
-      // only be expressed today by setting `ctrl: true`.
-      expect(
-        ShortcutHelper.matchesVideoShortcut(key('l', { metaKey: true }), {
-          key: 'L',
-          ctrl: false,
-          meta: true,
-        })
-      ).toBe(false);
+    const metaL: ShortcutConfig = { key: 'L', ctrl: false, meta: true };
+
+    it('matches a meta-only config when Cmd is held', () => {
+      expect(ShortcutHelper.matchesVideoShortcut(key('l', { metaKey: true }), metaL)).toBe(true);
     });
 
-    it('also rejects a meta-only config with no modifiers held', () => {
+    it('also accepts Ctrl for a meta-only config, mirroring the ctrl/meta parity', () => {
+      // ctrl and meta are one cross-platform modifier here (same rule as
+      // SubtitleOverlay._matchesShortcut), so a Cmd binding fires on Ctrl too.
+      expect(ShortcutHelper.matchesVideoShortcut(key('l', { ctrlKey: true }), metaL)).toBe(true);
+    });
+
+    it('rejects a meta-only config with no modifiers held', () => {
+      expect(ShortcutHelper.matchesVideoShortcut(key('l'), metaL)).toBe(false);
+    });
+
+    it('still enforces the other modifiers on a meta config', () => {
       expect(
-        ShortcutHelper.matchesVideoShortcut(key('l'), { key: 'L', ctrl: false, meta: true })
+        ShortcutHelper.matchesVideoShortcut(key('l', { metaKey: true, shiftKey: true }), metaL)
       ).toBe(false);
+      expect(
+        ShortcutHelper.matchesVideoShortcut(key('l', { metaKey: true, shiftKey: true }), {
+          ...metaL,
+          shift: true,
+        })
+      ).toBe(true);
     });
   });
 
@@ -205,16 +212,29 @@ describe('ShortcutHelper.matchesSingleKeyShortcut', () => {
     expect(ShortcutHelper.matchesSingleKeyShortcut(key('a', { altKey: true }), previous)).toBe(false);
   });
 
-  it('ignores the modifier flags on the config itself', () => {
-    // BUG: matchesSingleKeyShortcut never reads shortcutConfig.shift, so the
-    // `increaseSize` / `decreaseSize` navigation defaults (which set
-    // shift: true) can only fire with *no* Shift held — the opposite of what
-    // they declare. youtube-sidebar.ts only routes previous/next/restart/toggle
-    // through this matcher, so the mismatch is currently invisible there.
+  it('honours the modifier flags on the config itself', () => {
+    // The increaseSize/decreaseSize navigation defaults declare shift: true, so
+    // they must fire *with* Shift, matching what the settings UI displays and
+    // what SubtitleOverlay._matchesShortcut does with the same config bag.
     expect(
       ShortcutHelper.matchesSingleKeyShortcut(key('Equal', { shiftKey: true }), NAV_DEFAULTS.increaseSize)
+    ).toBe(true);
+    expect(ShortcutHelper.matchesSingleKeyShortcut(key('Equal'), NAV_DEFAULTS.increaseSize)).toBe(false);
+  });
+
+  it('still requires a bare press for the modifier-free navigation defaults', () => {
+    // previous/next/restart/toggle are the only actions youtube-sidebar.ts
+    // routes here, and all four declare every modifier false.
+    expect(ShortcutHelper.matchesSingleKeyShortcut(key('w'), NAV_DEFAULTS.toggle)).toBe(true);
+    expect(
+      ShortcutHelper.matchesSingleKeyShortcut(key('w', { shiftKey: true }), NAV_DEFAULTS.toggle)
     ).toBe(false);
-    expect(ShortcutHelper.matchesSingleKeyShortcut(key('Equal'), NAV_DEFAULTS.increaseSize)).toBe(true);
+  });
+
+  it('accepts a modifier-bearing binding recorded through the settings UI', () => {
+    const shiftA: ShortcutConfig = { key: 'A', ctrl: false, shift: true, alt: false, meta: false };
+    expect(ShortcutHelper.matchesSingleKeyShortcut(key('a', { shiftKey: true }), shiftA)).toBe(true);
+    expect(ShortcutHelper.matchesSingleKeyShortcut(key('a'), shiftA)).toBe(false);
   });
 
   it('returns false for a null config', () => {
@@ -257,28 +277,45 @@ describe('ShortcutHelper.parseHotkeyDisplay', () => {
     });
   });
 
-  it('always reports meta as false because it never parses Cmd/Meta', () => {
-    // BUG: there is no branch for "Meta" or "Cmd", so a macOS-style binding
-    // round-trips as an unmodified key.
+  it('parses a Meta modifier', () => {
     expect(ShortcutHelper.parseHotkeyDisplay('Meta+L')).toEqual({
       key: 'l',
       ctrl: false,
       shift: false,
       alt: false,
-      meta: false,
+      meta: true,
     });
   });
 
-  it('does not recognize lower-cased modifier names', () => {
-    // BUG: parts.includes("Ctrl") is case-sensitive, so "ctrl+l" parses as a
-    // plain "l" with no modifiers.
+  it('accepts Cmd/Command as aliases for Meta and Control for Ctrl', () => {
+    expect(ShortcutHelper.parseHotkeyDisplay('Cmd+K')?.meta).toBe(true);
+    expect(ShortcutHelper.parseHotkeyDisplay('Command+K')?.meta).toBe(true);
+    expect(ShortcutHelper.parseHotkeyDisplay('Control+K')?.ctrl).toBe(true);
+  });
+
+  it('recognizes modifier names case-insensitively', () => {
     expect(ShortcutHelper.parseHotkeyDisplay('ctrl+l')).toEqual({
       key: 'l',
-      ctrl: false,
+      ctrl: true,
       shift: false,
       alt: false,
       meta: false,
     });
+    expect(ShortcutHelper.parseHotkeyDisplay('ALT + shift + Equal')).toEqual({
+      key: 'equal',
+      ctrl: false,
+      shift: true,
+      alt: true,
+      meta: false,
+    });
+  });
+
+  it('round-trips a Meta binding into a config that matches a Cmd press', () => {
+    const parsed = ShortcutHelper.parseHotkeyDisplay('Meta+Shift+L')!;
+    expect(
+      ShortcutHelper.matchesVideoShortcut(key('L', { metaKey: true, shiftKey: true }), parsed)
+    ).toBe(true);
+    expect(ShortcutHelper.matchesVideoShortcut(key('L', { shiftKey: true }), parsed)).toBe(false);
   });
 
   it('produces an empty key for a lone "+" separator', () => {
@@ -331,21 +368,24 @@ describe('ShortcutHelper.getVideoShortcuts', () => {
     expect(await ShortcutHelper.getVideoShortcuts()).toEqual(video);
   });
 
-  it('drops the defaults for actions missing from a partial video section', async () => {
-    // BUG: unlike getVideoNavigationShortcuts, this getter replaces the whole
-    // defaults object rather than merging per action, so a stored `video` bag
-    // that only rebinds togglePanel leaves loadSubtitles/loadYouTube unbound.
-    await chrome.storage.local.set({
-      shortcuts: { video: { togglePanel: { key: 'P', ctrl: true, shift: false, alt: false, meta: false } } },
-    });
+  it('merges per action, keeping defaults for the ones not stored', async () => {
+    const togglePanel = { key: 'P', ctrl: true, shift: false, alt: false, meta: false };
+    await chrome.storage.local.set({ shortcuts: { video: { togglePanel } } });
     const result = await ShortcutHelper.getVideoShortcuts();
-    expect(Object.keys(result)).toEqual(['togglePanel']);
-    expect(result.loadSubtitles).toBeUndefined();
+    expect(result).toEqual({ ...VIDEO_DEFAULTS, togglePanel });
   });
 
-  it('returns an empty object for an empty stored video section', async () => {
+  it('ignores stored keys that are not known video actions', async () => {
+    await chrome.storage.local.set({
+      shortcuts: { video: { bogusAction: { key: 'X', ctrl: true } } },
+    });
+    const result = await ShortcutHelper.getVideoShortcuts();
+    expect(Object.keys(result).sort()).toEqual(Object.keys(VIDEO_DEFAULTS).sort());
+  });
+
+  it('returns the defaults for an empty stored video section', async () => {
     await chrome.storage.local.set({ shortcuts: { video: {} } });
-    expect(await ShortcutHelper.getVideoShortcuts()).toEqual({});
+    expect(await ShortcutHelper.getVideoShortcuts()).toEqual(VIDEO_DEFAULTS);
   });
 });
 
@@ -458,10 +498,19 @@ describe('ShortcutHelper.getPopupShortcuts', () => {
     });
   });
 
-  it('falls through an empty-string binding to the default', async () => {
-    // BUG: `popupShortcuts.markUnknown || ...` means a user who deliberately
-    // clears a binding gets the default back instead of no binding.
+  it('falls through an empty-string binding to the default (intentional)', async () => {
+    // "" is not an "unbound" state for popup hotkeys, so `||` is correct here:
+    // SettingsStorage.collectShortcutsData rebuilds `shortcuts.popup` from
+    // scratch and only writes an action whose input has a value, so a cleared
+    // binding arrives as a missing key, never as "".
     await chrome.storage.local.set({ shortcuts: { popup: { markUnknown: '' } } });
     expect((await ShortcutHelper.getPopupShortcuts()).markUnknown).toBe('1');
+  });
+
+  it('falls through an empty legacy hotkey* value to the default', async () => {
+    // The legacy keys *can* legitimately be written as "" (settings-storage
+    // saves `parsed.key || ""`), so that empty string must not win.
+    await chrome.storage.local.set({ hotkeyMarkKnown: '' });
+    expect((await ShortcutHelper.getPopupShortcuts()).markKnown).toBe('3');
   });
 });

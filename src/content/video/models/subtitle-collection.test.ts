@@ -50,28 +50,35 @@ describe('SubtitleCollection — sorting', () => {
     expect(collection.getAll().map(e => e.text)).toEqual(['first', 'second', 'third']);
   });
 
-  it('sorts the caller\'s array IN PLACE rather than copying it', () => {
+  it('copies the caller\'s array instead of sorting it in place', () => {
     const input = [entry(2, 5000, 6000, 'later'), entry(1, 1000, 2000, 'earlier')];
     const collection = new SubtitleCollection(input);
-    // BUG(ish): Array.prototype.sort mutates, and the result is assigned
-    // directly — the caller's array is reordered behind its back and stays
-    // aliased to collection.entries.
-    expect(input.map(e => e.text)).toEqual(['earlier', 'later']);
-    expect(collection.entries).toBe(input);
+    // Previously Array.prototype.sort reordered the caller's array behind its
+    // back and the collection stayed aliased to it.
+    expect(input.map(e => e.text)).toEqual(['later', 'earlier']);
+    expect(collection.entries).not.toBe(input);
+    expect(collection.getAll().map(e => e.text)).toEqual(['earlier', 'later']);
   });
 
-  it('stays aliased to the caller\'s array, so later pushes leak in', () => {
+  it('is not aliased to the caller\'s array, so later pushes do not leak in', () => {
     const input = threeCues();
     const collection = new SubtitleCollection(input);
     input.push(entry(4, 10000, 11000, 'appended later'));
-    expect(collection.getCount()).toBe(4);
+    expect(collection.getCount()).toBe(3);
   });
 
-  it('does not re-sort on later mutation, so an appended early cue is out of order', () => {
+  it('ignores a cue appended to the caller\'s array after construction', () => {
     const input = threeCues();
     const collection = new SubtitleCollection(input);
     input.push(entry(0, 0, 500, 'appended early cue'));
-    expect(collection.getAll().map(e => e.start)).toEqual([1000, 4000, 7000, 0]);
+    // Previously the appended cue leaked in unsorted, leaving starts out of order.
+    expect(collection.getAll().map(e => e.start)).toEqual([1000, 4000, 7000]);
+  });
+
+  it('shares the SubtitleEntry objects with the caller (shallow copy)', () => {
+    const input = threeCues();
+    const collection = new SubtitleCollection(input);
+    expect(collection.getAll()[0]).toBe(input[0]);
   });
 
   it('sorts by start only, leaving equal-start cues in insertion order', () => {
@@ -425,9 +432,20 @@ describe('SubtitleCollection.applyOffset', () => {
 });
 
 describe('SubtitleCollection.getAll', () => {
-  it('returns the live internal array, not a defensive copy', () => {
+  it('returns a defensive copy, not the live internal array', () => {
     const collection = new SubtitleCollection(threeCues());
-    // BUG(ish): callers can mutate the collection's state through getAll().
-    expect(collection.getAll()).toBe(collection.entries);
+    // Callers used to be able to reorder or resize the collection through the
+    // array handed back by getAll().
+    expect(collection.getAll()).not.toBe(collection.entries);
+    expect(collection.getAll()).toEqual(collection.entries);
+  });
+
+  it('is unaffected by mutation of the returned array', () => {
+    const collection = new SubtitleCollection(threeCues());
+    const all = collection.getAll();
+    all.push(entry(4, 10000, 11000, 'pushed through getAll'));
+    all.reverse();
+    expect(collection.getCount()).toBe(3);
+    expect(collection.getAll().map(e => e.start)).toEqual([1000, 4000, 7000]);
   });
 });

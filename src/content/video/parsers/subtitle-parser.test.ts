@@ -35,11 +35,20 @@ describe('SubtitleParser.detectFormat — by filename', () => {
     expect(SubtitleParser.detectFormat('', '让子弹飞.2010.zh-Hans.vtt')).toBe('vtt');
   });
 
-  it('lets the filename override contradicting content', () => {
-    // BUG: a .srt filename wins over a WEBVTT signature, so a mislabelled file
-    // is handed to the SRT parser and yields nothing.
+  it('lets the filename override contradicting content, but still parses the file', () => {
+    // The extension still wins the format vote...
     expect(SubtitleParser.detectFormat(VTT_CONTENT, 'mislabelled.srt')).toBe('srt');
-    expect(SubtitleParser.parse(VTT_CONTENT, 'mislabelled.srt')).toEqual([]);
+    // ...yet parse() now falls back to content detection when the chosen parser
+    // comes back empty, so a mislabelled file is no longer silently dropped.
+    const entries = SubtitleParser.parse(VTT_CONTENT, 'mislabelled.srt');
+    expect(entries).toHaveLength(1);
+    expect([entries[0].start, entries[0].text]).toEqual([1000, '你好，世界。']);
+  });
+
+  it('falls back the other way for VTT-named content that is really SRT', () => {
+    const entries = SubtitleParser.parse(SRT_CONTENT, 'mislabelled.vtt');
+    expect(entries).toHaveLength(1);
+    expect([entries[0].start, entries[0].text]).toEqual([1000, '你好，世界。']);
   });
 
   it('falls back to content sniffing for an unrelated extension', () => {
@@ -76,13 +85,25 @@ describe('SubtitleParser.detectFormat — by content', () => {
     expect(SubtitleParser.detectFormat(headerless)).toBe('vtt');
   });
 
-  it('misdetects a headerless VTT file as SRT when its dialogue contains a comma', () => {
+  it('detects a headerless VTT file whose dialogue contains a comma', () => {
     const headerless = ['00:00:01.000 --> 00:00:03.000', 'Hello, world'].join('\n');
-    // BUG: the SRT check is `content.includes('-->') && content.includes(',')`,
-    // so any comma anywhere in the file — including inside dialogue — wins over
-    // the period-timestamp VTT check that comes after it.
-    expect(SubtitleParser.detectFormat(headerless)).toBe('srt');
-    expect(SubtitleParser.parse(headerless)).toEqual([]);
+    // The SRT check used to be `content.includes('-->') && content.includes(',')`,
+    // so a comma anywhere — including inside dialogue — outranked the
+    // period-timestamp VTT check. Only the cue-timing lines get a vote now.
+    expect(SubtitleParser.detectFormat(headerless)).toBe('vtt');
+    expect(SubtitleParser.parse(headerless).map(e => e.text)).toEqual(['Hello, world']);
+  });
+
+  it('detects SRT from comma timestamps even when the dialogue contains a period', () => {
+    const srt = ['1', '00:00:01,000 --> 00:00:03,000', 'Hello. World.'].join('\n');
+    expect(SubtitleParser.detectFormat(srt)).toBe('srt');
+    expect(SubtitleParser.parse(srt).map(e => e.text)).toEqual(['Hello. World.']);
+  });
+
+  it('detects a headerless HLS-segment VTT with hour-less timestamps and a comma', () => {
+    const segment = ['00:01.000 --> 00:03.000 align:middle', 'Well, hello there'].join('\n');
+    expect(SubtitleParser.detectFormat(segment)).toBe('vtt');
+    expect(SubtitleParser.parse(segment).map(e => e.text)).toEqual(['Well, hello there']);
   });
 
   it('still detects VTT when a comma appears but a WEBVTT signature is present', () => {
