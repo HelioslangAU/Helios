@@ -328,8 +328,9 @@ class BackgroundService {
 
         case "CAPTURE_TAB_AUDIO":
           await this.handleCaptureTabAudio(message.duration, sender, sendResponse);
+          break;
 
-          case "ANKI_GET_DECK_NOTES":
+        case "ANKI_GET_DECK_NOTES":
           await this.handleAnkiGetDeckNotes(
             message.deck,
             message.noteType,

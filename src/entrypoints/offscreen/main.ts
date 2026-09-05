@@ -356,11 +356,6 @@ class OffscreenDictionaryService {
 
       console.log(`📦 Downloaded zip file (${zipBytes.length} bytes), extracting...`);
 
-      // Check if fflate is available
-      if (typeof unzipSync !== 'function') {
-        throw new Error('fflate library not available. Make sure lib/fflate.js is loaded.');
-      }
-
       // Unzip using fflate
       let unzipped: Record<string, Uint8Array> | null = unzipSync(zipBytes);
 
@@ -527,6 +522,7 @@ class OffscreenDictionaryService {
         const entries = adapter.getDictionaryEntries(word, this.dictionaryManager.dictionary);
         return { success: true, hasWord: !!entries };
       }
+      return { success: false, error: 'No language adapter available' };
     } catch (error: any) {
       return { success: false, error: error.message };
     }
