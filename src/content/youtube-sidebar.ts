@@ -7,15 +7,30 @@ import { YouTubeLayoutManager } from '@/content/video/youtube/layout-manager';
 import { SidebarPositioner } from '@/content/video/youtube/sidebar-positioner';
 import { SubtitleSelectorModal } from '@/content/video/ui/subtitle-selector-modal';
 import { ShortcutHelper } from '@/content/utils/shortcut-helper';
+import {
+  buildLanguageMap,
+  getLanguageDisplayName,
+  sortLanguagesByName
+} from '@/content/video/youtube/language-display';
+import {
+  conflictsWithYouTubeControls,
+  findConflictingHotkey,
+  formatHotkeyDisplay,
+  hotkeyFromEvent,
+  isTypingTarget,
+  shouldBlockTheaterModeToggle
+} from '@/content/video/youtube/hotkeys';
+import type { HotkeyConfig } from '@/content/video/youtube/hotkeys';
+import {
+  deduplicateEntries,
+  findActiveSubtitle,
+  findMatchingSubtitle,
+  findSubtitleAtOrBefore,
+  formatTime
+} from '@/content/video/youtube/subtitle-timing';
+import { extractPotentialWords } from '@/content/video/youtube/subtitle-word-extraction';
 import type { SubtitleEntry } from '@/content/video/models/subtitle-entry';
 import type { VideoBinding } from '@/content/video/core/video-binding';
-
-interface HotkeyConfig {
-  key: string;
-  shift: boolean;
-  ctrl: boolean;
-  alt: boolean;
-}
 
 interface YTSidebarSettings {
   hotkeysEnabled: boolean;
@@ -443,22 +458,7 @@ export class YouTubeSidebar {
    */
   _blockTheaterModeToggle(): void {
     this._theaterModeBlockListener = (e) => {
-      // Only block 't' key when:
-      // 1. Sidebar is visible
-      // 2. User is not typing in an input field
-      // 3. Key is 't' without modifiers
-      const target = e.target as HTMLElement;
-      if (
-        this.isVisible &&
-        e.key.toLowerCase() === 't' &&
-        !e.shiftKey &&
-        !e.ctrlKey &&
-        !e.altKey &&
-        !e.metaKey &&
-        target.tagName !== 'INPUT' &&
-        target.tagName !== 'TEXTAREA' &&
-        !target.isContentEditable
-      ) {
+      if (shouldBlockTheaterModeToggle(e, this.isVisible)) {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
@@ -621,8 +621,7 @@ export class YouTubeSidebar {
       }
 
       // Don't trigger if user is typing in an input field
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+      if (isTypingTarget(e.target as HTMLElement)) {
         return;
       }
 
@@ -759,28 +758,7 @@ export class YouTubeSidebar {
         return;
       }
 
-      // Create a map to store unique language entries
-      // Key: full language code (e.g., "en", "zh-Hans", "zh-Hant")
-      // Value: display name
-      const languageMap = new Map<string, string>();
-
-      tracks.forEach(track => {
-        const langCode = track.language;
-        const langName = track.languageName || track.language;
-
-        if (langCode && !languageMap.has(langCode)) {
-          // Keep Chinese variants separate
-          if (langCode.startsWith('zh')) {
-            languageMap.set(langCode, langName);
-          } else {
-            // For other languages, use base code but keep full name
-            const baseCode = langCode.split('-')[0];
-            if (!languageMap.has(baseCode)) {
-              languageMap.set(baseCode, this._getLanguageDisplayName(langName, langCode));
-            }
-          }
-        }
-      });
+      const languageMap = buildLanguageMap(tracks);
 
       // Store current selection
       const currentSelection = this.settings.secondarySubtitleLanguage;
@@ -789,9 +767,7 @@ export class YouTubeSidebar {
       this.secondaryLanguageSelect.innerHTML = '';
 
       // Add available languages sorted alphabetically
-      const sortedLanguages = Array.from(languageMap.entries()).sort((a, b) =>
-        a[1].localeCompare(b[1])
-      );
+      const sortedLanguages = sortLanguagesByName(languageMap);
 
       sortedLanguages.forEach(([code, name]) => {
         const option = document.createElement('option');
@@ -817,48 +793,7 @@ export class YouTubeSidebar {
    * Get proper display name for language
    */
   _getLanguageDisplayName(youtubeName: string, langCode: string): string {
-    // Language code to proper name mapping
-    const languageNames: Record<string, string> = {
-      'en': 'English',
-      'es': 'Spanish',
-      'fr': 'French',
-      'de': 'German',
-      'it': 'Italian',
-      'pt': 'Portuguese',
-      'ru': 'Russian',
-      'ja': 'Japanese',
-      'ko': 'Korean',
-      'zh': 'Chinese',
-      'ar': 'Arabic',
-      'hi': 'Hindi',
-      'nl': 'Dutch',
-      'pl': 'Polish',
-      'sv': 'Swedish',
-      'tr': 'Turkish',
-      'vi': 'Vietnamese',
-      'th': 'Thai',
-      'id': 'Indonesian',
-      'ms': 'Malay',
-      'cs': 'Czech',
-      'da': 'Danish',
-      'fi': 'Finnish',
-      'el': 'Greek',
-      'he': 'Hebrew',
-      'hu': 'Hungarian',
-      'no': 'Norwegian',
-      'ro': 'Romanian',
-      'sk': 'Slovak',
-      'uk': 'Ukrainian'
-    };
-
-    // If YouTube provides a good name, use it (especially for Chinese variants)
-    if (youtubeName && youtubeName.length > 2 && !youtubeName.includes('-')) {
-      return youtubeName;
-    }
-
-    // Otherwise, use our mapping
-    const baseCode = langCode.split('-')[0];
-    return languageNames[baseCode] || youtubeName || langCode;
+    return getLanguageDisplayName(youtubeName, langCode);
   }
 
   /**
@@ -996,29 +931,6 @@ export class YouTubeSidebar {
    * Setup hotkey input listeners for customization
    */
   _setupHotkeyInputs(): void {
-    // YouTube's native controls that should be blocked when no modifiers are used
-    const youtubeControlKeys = [
-      'k', // Play/Pause
-      ' ', // Space - Play/Pause
-      'j', // Rewind 10s
-      'l', // Forward 10s
-      'left', // Rewind 5s
-      'right', // Forward 5s
-      'up', // Volume up
-      'down', // Volume down
-      'm', // Mute
-      'f', // Fullscreen
-      't', // Theater mode
-      'i', // Miniplayer
-      'c', // Captions
-      '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', // Seek to %
-      'home', // Start
-      'end', // End
-      '<', '>', // Playback speed
-      '/', // Search
-      'escape' // Exit fullscreen
-    ];
-
     const inputs: Array<{ element: HTMLInputElement | null; key: keyof YTSidebarSettings['hotkeys'] }> = [
       { element: this.hotkeyPrevInput, key: 'previous' },
       { element: this.hotkeyNextInput, key: 'next' },
@@ -1041,27 +953,13 @@ export class YouTubeSidebar {
         e.preventDefault();
         e.stopPropagation();
 
-        // Ignore modifier keys alone
-        if (['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) {
+        const newHotkey = hotkeyFromEvent(e);
+        if (!newHotkey) {
           return;
         }
 
-        // Normalize key names for special keys
-        let keyName = e.key;
-        if (keyName.startsWith('Arrow')) {
-          keyName = keyName.substring(5); // "ArrowLeft" -> "Left"
-        }
-
-        const newHotkey: HotkeyConfig = {
-          key: keyName.toLowerCase(),
-          shift: e.shiftKey,
-          ctrl: e.ctrlKey || e.metaKey, // Meta (Cmd) treated as Ctrl
-          alt: e.altKey
-        };
-
         // Check if this conflicts with YouTube controls (only if no modifiers used)
-        const hasModifiers = newHotkey.shift || newHotkey.ctrl || newHotkey.alt;
-        if (!hasModifiers && youtubeControlKeys.includes(newHotkey.key)) {
+        if (conflictsWithYouTubeControls(newHotkey)) {
           const displayKey = this._formatHotkeyDisplay(newHotkey);
           this._showNotification(
             `'${displayKey}' is used by YouTube. Try adding Shift, Ctrl, or Alt (e.g., Shift+${displayKey})`,
@@ -1073,13 +971,7 @@ export class YouTubeSidebar {
         }
 
         // Check if key combination is already used by another hotkey
-        const existingUse = Object.entries(this.settings.hotkeys).find(
-          ([k, v]) => k !== key &&
-                      v.key === newHotkey.key &&
-                      v.shift === newHotkey.shift &&
-                      v.ctrl === newHotkey.ctrl &&
-                      v.alt === newHotkey.alt
-        );
+        const existingUse = findConflictingHotkey(this.settings.hotkeys, key, newHotkey);
 
         if (existingUse) {
           const comboStr = this._formatHotkeyDisplay(newHotkey);
@@ -1116,16 +1008,7 @@ export class YouTubeSidebar {
    * Format hotkey object for display (e.g., "Ctrl+Shift+L")
    */
   _formatHotkeyDisplay(hotkey: HotkeyConfig): string {
-    const parts: string[] = [];
-    if (hotkey.ctrl) parts.push('Ctrl');
-    if (hotkey.shift) parts.push('Shift');
-    if (hotkey.alt) parts.push('Alt');
-
-    // Capitalize first letter of key for display
-    const keyDisplay = hotkey.key.charAt(0).toUpperCase() + hotkey.key.slice(1);
-    parts.push(keyDisplay);
-
-    return parts.join('+');
+    return formatHotkeyDisplay(hotkey);
   }
 
   /**
@@ -1245,70 +1128,7 @@ export class YouTubeSidebar {
    * Removes entries with identical text and overlapping time ranges
    */
   _deduplicateEntries(entries: SubtitleEntry[]): SubtitleEntry[] {
-    if (!entries || entries.length === 0) {
-      return [];
-    }
-
-    // CRITICAL: Sort FIRST by start time before deduplication
-    // This ensures we process entries in chronological order
-    const sortedEntries = [...entries].sort((a, b) => a.start - b.start);
-
-    const textGroups = new Map<string, SubtitleEntry[]>(); // Group entries by text
-
-    // Group all entries by their text content
-    for (const entry of sortedEntries) {
-      const normalizedText = entry.text.trim();
-      if (!textGroups.has(normalizedText)) {
-        textGroups.set(normalizedText, []);
-      }
-      textGroups.get(normalizedText)!.push(entry);
-    }
-
-    const deduplicated: SubtitleEntry[] = [];
-
-    // Process each text group
-    for (const [text, groupEntries] of textGroups.entries()) {
-      if (groupEntries.length === 1) {
-        // Only one entry with this text - keep it
-        deduplicated.push(groupEntries[0]);
-      } else {
-        // Multiple entries with same text - need to deduplicate by time overlap
-        const kept: SubtitleEntry[] = [];
-
-        for (const entry of groupEntries) {
-          // Check if this entry overlaps with any already kept entry
-          const overlapsWithKept = kept.some(keptEntry => {
-            // Two entries overlap if one starts before the other ends
-            return !(entry.end <= keptEntry.start || entry.start >= keptEntry.end);
-          });
-
-          if (!overlapsWithKept) {
-            // No overlap with any kept entry - keep this one
-            kept.push(entry);
-          } else {
-            // Overlaps with at least one kept entry
-            // Replace the overlapping entry if this one has longer duration
-            const overlappingIndex = kept.findIndex(keptEntry => {
-              return !(entry.end <= keptEntry.start || entry.start >= keptEntry.end);
-            });
-
-            if (overlappingIndex !== -1) {
-              const overlapping = kept[overlappingIndex];
-              if (entry.getDuration() > overlapping.getDuration()) {
-                kept[overlappingIndex] = entry;
-              }
-            }
-          }
-        }
-
-        deduplicated.push(...kept);
-      }
-    }
-
-    // Final sort by start time to ensure chronological order
-    deduplicated.sort((a, b) => a.start - b.start);
-
-    return deduplicated;
+    return deduplicateEntries(entries);
   }
 
   /**
@@ -1493,48 +1313,9 @@ export class YouTubeSidebar {
    * @returns Array of potential words
    */
   _extractPotentialWords(text: string): string[] {
-    const words: string[] = [];
     const currentLang = services.languageRegistry?.getCurrentLanguage();
     const adapter = services.languageRegistry?.getAdapter();
-
-    if (currentLang && ['zh', 'ja', 'ko'].includes(currentLang)) {
-      // For CJK languages, extract unique characters and sequences up to maxWordLength
-      // This ensures longer words (like idioms and chengyus) are preloaded
-      const seen = new Set<string>();
-      const maxWordLength = adapter?.getConfig()?.maxWordLength || 10;
-
-      // Extract single characters (keep everything from subtitles except whitespace)
-      for (let i = 0; i < text.length; i++) {
-        const char = text[i];
-        if (char.trim() && !seen.has(char)) {
-          words.push(char);
-          seen.add(char);
-        }
-      }
-
-      // Extract sequences from 2 to maxWordLength characters
-      // This ensures longer words (4+ characters like idioms/chengyus) are preloaded
-      for (let len = 2; len <= maxWordLength; len++) {
-        for (let i = 0; i <= text.length - len; i++) {
-          const candidate = text.substring(i, i + len);
-          // Keep sequences as they appear in subtitles (skip only whitespace and duplicates)
-          if (candidate.trim() && !seen.has(candidate)) {
-            words.push(candidate);
-            seen.add(candidate);
-          }
-        }
-      }
-    } else {
-      // For space-separated languages, extract words including apostrophes
-      // Pattern allows apostrophes and hyphens within words (e.g., "don't", "M'appelle")
-      const matches = text.match(/[\p{L}\p{M}]+(?:[''-][\p{L}\p{M}]+)*/gu);
-      if (matches) {
-        words.push(...matches.map(w => w.toLowerCase()));
-      }
-    }
-
-    // Return unique words
-    return [...new Set(words)];
+    return extractPotentialWords(text, currentLang, () => adapter?.getConfig()?.maxWordLength || 10);
   }
 
   /**
@@ -1867,23 +1648,7 @@ export class YouTubeSidebar {
    * Find matching secondary subtitle based on time overlap
    */
   _findMatchingSubtitle(primaryEntry: SubtitleEntry, secondarySubtitles: SubtitleEntry[]): SubtitleEntry | null {
-    let bestMatch: SubtitleEntry | null = null;
-    let maxOverlap = 0;
-
-    for (const secondary of secondarySubtitles) {
-      // Calculate overlap duration
-      const overlapStart = Math.max(primaryEntry.start, secondary.start);
-      const overlapEnd = Math.min(primaryEntry.end, secondary.end);
-      const overlap = Math.max(0, overlapEnd - overlapStart);
-
-      if (overlap > maxOverlap) {
-        maxOverlap = overlap;
-        bestMatch = secondary;
-      }
-    }
-
-    // Only return match if there's significant overlap (at least 50ms)
-    return maxOverlap >= 50 ? bestMatch : null;
+    return findMatchingSubtitle(primaryEntry, secondarySubtitles);
   }
 
   /**
@@ -1898,9 +1663,7 @@ export class YouTubeSidebar {
     }
 
     // Find active subtitle
-    const activeEntry = this.currentSubtitles.find(entry =>
-      currentTime >= entry.start && currentTime <= entry.end
-    );
+    const activeEntry = findActiveSubtitle(this.currentSubtitles, currentTime);
 
     if (!activeEntry) {
       // Clear active state
@@ -2013,10 +1776,7 @@ export class YouTubeSidebar {
    * Format time in MM:SS format
    */
   _formatTime(ms: number): string {
-    const seconds = Math.floor(ms / 1000);
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return formatTime(ms);
   }
 
   /**
@@ -2217,18 +1977,8 @@ export class YouTubeSidebar {
     const currentTime = this.videoBinding.videoElement.currentTime * 1000;
     const wasPlaying = !this.videoBinding.videoElement.paused;
 
-    // Try to find the currently active subtitle
-    let targetSubtitle = this.currentSubtitles.find(entry =>
-      currentTime >= entry.start && currentTime <= entry.end
-    );
-
-    // If no active subtitle (in a gap), go to the previous subtitle
-    if (!targetSubtitle) {
-      const previousSubs = this.currentSubtitles.filter(entry => entry.end < currentTime);
-      if (previousSubs.length > 0) {
-        targetSubtitle = previousSubs[previousSubs.length - 1];
-      }
-    }
+    // The active subtitle, or the previous one when we're in a gap
+    const targetSubtitle = findSubtitleAtOrBefore(this.currentSubtitles, currentTime);
 
     if (targetSubtitle) {
       this.videoBinding.seekTo(targetSubtitle.start);
