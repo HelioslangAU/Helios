@@ -106,6 +106,14 @@ export class YouTubeSidebar {
   notificationTimeout: ReturnType<typeof setTimeout> | null = null;
   _hotkeyListener: ((e: KeyboardEvent) => Promise<void>) | null = null;
   _globalMouseMoveListener: EventListener | null = null;
+  _subtitlesLoadedListener: EventListener | null = null;
+  _videoTimeUpdateListener: EventListener | null = null;
+  _toggleSubtitlePanelListener: EventListener | null = null;
+  _vocabUpdatedListener: EventListener | null = null;
+  _videoNotificationListener: EventListener | null = null;
+  _subtitleLoadFailedListener: EventListener | null = null;
+  _theaterModeBlockListener: ((e: KeyboardEvent) => void) | null = null;
+  _pageScrollListener: EventListener | null = null;
   layoutObserver: MutationObserver | null = null;
   resizeObserver: ResizeObserver | null = null;
   resizeHandler: (() => void) | null = null;
@@ -322,13 +330,14 @@ export class YouTubeSidebar {
    */
   _setupEventListeners(): void {
     // Listen for subtitles being loaded
-    document.addEventListener('helios-subtitles-loaded', (e) => {
+    this._subtitlesLoadedListener = (e) => {
       const { track, entries } = (e as CustomEvent).detail;
       this.updateSubtitles(entries, track);
-    });
+    };
+    document.addEventListener('helios-subtitles-loaded', this._subtitlesLoadedListener);
 
     // Listen for time updates to highlight current subtitle
-    document.addEventListener('helios-video-timeupdate', (e) => {
+    this._videoTimeUpdateListener = (e) => {
       const { currentTime, binding } = (e as CustomEvent).detail;
 
       // If this is a new binding, update overlay settings
@@ -342,15 +351,17 @@ export class YouTubeSidebar {
       }
 
       this._updateActiveSubtitle(currentTime);
-    });
+    };
+    document.addEventListener('helios-video-timeupdate', this._videoTimeUpdateListener);
 
     // Toggle sidebar visibility
-    document.addEventListener('helios-toggle-subtitle-panel', () => {
+    this._toggleSubtitlePanelListener = () => {
       this.toggle();
-    });
+    };
+    document.addEventListener('helios-toggle-subtitle-panel', this._toggleSubtitlePanelListener);
 
     // Listen for vocabulary updates to refresh underlining
-    document.addEventListener('helios-vocab-updated', (e) => {
+    this._vocabUpdatedListener = (e) => {
       const detail = e && (e as CustomEvent).detail;
       const rawWords = detail ? detail.words : null;
       const changedWords = Array.isArray(rawWords) || typeof rawWords === 'string'
@@ -361,21 +372,24 @@ export class YouTubeSidebar {
       this._updateUnderlining(changedWords).catch(err => {
         console.error('[Helios YouTube Sidebar] Error updating underlining:', err);
       });
-    });
+    };
+    document.addEventListener('helios-vocab-updated', this._vocabUpdatedListener);
 
     // Setup global mouse listener for pause-on-hover resume logic
     this._setupPauseOnHoverListener();
 
     // Listen for video notifications to display in sidebar
-    document.addEventListener('helios-video-notification', (e) => {
+    this._videoNotificationListener = (e) => {
       const { message, type } = (e as CustomEvent).detail;
       this._showNotification(message, type);
-    });
+    };
+    document.addEventListener('helios-video-notification', this._videoNotificationListener);
 
     // Listen for subtitle load failures to remove loading overlay
-    document.addEventListener('helios-subtitle-load-failed', () => {
+    this._subtitleLoadFailedListener = () => {
 
-    });
+    };
+    document.addEventListener('helios-subtitle-load-failed', this._subtitleLoadFailedListener);
 
     // Setup hotkeys
     this._setupHotkeys().catch(err => {
@@ -394,7 +408,7 @@ export class YouTubeSidebar {
    * This prevents users from accidentally exiting theater mode, which breaks the sidebar layout
    */
   _blockTheaterModeToggle(): void {
-    document.addEventListener('keydown', (e) => {
+    this._theaterModeBlockListener = (e) => {
       // Only block 't' key when:
       // 1. Sidebar is visible
       // 2. User is not typing in an input field
@@ -415,7 +429,8 @@ export class YouTubeSidebar {
         e.stopPropagation();
         e.stopImmediatePropagation();
       }
-    }, true); // Use capture phase to intercept before YouTube's handlers
+    };
+    document.addEventListener('keydown', this._theaterModeBlockListener, true); // Use capture phase to intercept before YouTube's handlers
   }
 
   /**
@@ -470,6 +485,7 @@ export class YouTubeSidebar {
       }, 1500);
     };
 
+    this._pageScrollListener = handlePageScroll;
     window.addEventListener('scroll', handlePageScroll, { passive: true });
 
     // Listen for sidebar container scroll events (user manually scrolling subtitles)
@@ -2371,6 +2387,49 @@ export class YouTubeSidebar {
     if (this._globalMouseMoveListener) {
       document.removeEventListener('mousemove', this._globalMouseMoveListener);
       this._globalMouseMoveListener = null;
+    }
+
+    // Remove document-level custom event listeners
+    if (this._subtitlesLoadedListener) {
+      document.removeEventListener('helios-subtitles-loaded', this._subtitlesLoadedListener);
+      this._subtitlesLoadedListener = null;
+    }
+
+    if (this._videoTimeUpdateListener) {
+      document.removeEventListener('helios-video-timeupdate', this._videoTimeUpdateListener);
+      this._videoTimeUpdateListener = null;
+    }
+
+    if (this._toggleSubtitlePanelListener) {
+      document.removeEventListener('helios-toggle-subtitle-panel', this._toggleSubtitlePanelListener);
+      this._toggleSubtitlePanelListener = null;
+    }
+
+    if (this._vocabUpdatedListener) {
+      document.removeEventListener('helios-vocab-updated', this._vocabUpdatedListener);
+      this._vocabUpdatedListener = null;
+    }
+
+    if (this._videoNotificationListener) {
+      document.removeEventListener('helios-video-notification', this._videoNotificationListener);
+      this._videoNotificationListener = null;
+    }
+
+    if (this._subtitleLoadFailedListener) {
+      document.removeEventListener('helios-subtitle-load-failed', this._subtitleLoadFailedListener);
+      this._subtitleLoadFailedListener = null;
+    }
+
+    // Remove theater mode blocking listener (registered in capture phase)
+    if (this._theaterModeBlockListener) {
+      document.removeEventListener('keydown', this._theaterModeBlockListener, true);
+      this._theaterModeBlockListener = null;
+    }
+
+    // Remove page scroll listener
+    if (this._pageScrollListener) {
+      window.removeEventListener('scroll', this._pageScrollListener);
+      this._pageScrollListener = null;
     }
 
     // Remove loading overlay

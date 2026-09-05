@@ -81,6 +81,7 @@ export class HeliosSideTab {
 
     // Listeners
     handleKeydown: ((e: KeyboardEvent) => void) | null = null;
+    handleDocumentClick: ((e: MouseEvent) => void) | null = null;
 
     constructor() {
         this.container = document.getElementById('helios-side-tab');
@@ -179,14 +180,16 @@ export class HeliosSideTab {
         });
 
         // Click outside full view to collapse to partial
-        document.addEventListener('click', (e) => {
+        this.handleDocumentClick = (e) => {
             if (this.state === 'full' &&
                 !this.fullView!.contains(e.target as Node) &&
                 !this.partialView!.contains(e.target as Node) &&
                 !this.peekTab!.contains(e.target as Node)) {
                 this.setState('partial');
             }
-        });
+        };
+
+        document.addEventListener('click', this.handleDocumentClick);
 
         // Settings button
         this.settingsBtn?.addEventListener('click', () => {
@@ -862,6 +865,11 @@ export class HeliosSideTab {
         if (this.handleKeydown) {
             document.removeEventListener('keydown', this.handleKeydown);
             this.handleKeydown = null;
+        }
+
+        if (this.handleDocumentClick) {
+            document.removeEventListener('click', this.handleDocumentClick);
+            this.handleDocumentClick = null;
         }
 
         // Remove from DOM

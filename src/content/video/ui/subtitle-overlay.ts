@@ -1692,7 +1692,7 @@ export class SubtitleOverlay {
     }
 
     if (this._keyboardShortcutHandler) {
-      document.removeEventListener('keydown', this._keyboardShortcutHandler);
+      document.removeEventListener('keydown', this._keyboardShortcutHandler, true);
       this._keyboardShortcutHandler = null;
     }
 
@@ -1706,6 +1706,11 @@ export class SubtitleOverlay {
     if (this._vocabUpdateHandler) {
       document.removeEventListener('helios-vocab-updated', this._vocabUpdateHandler);
       this._vocabUpdateHandler = null;
+    }
+
+    if (this._pinyinToggledHandler) {
+      document.removeEventListener('helios-pinyin-toggled', this._pinyinToggledHandler);
+      this._pinyinToggledHandler = null;
     }
 
     if (this._pauseOnHoverHandler) {

@@ -93,6 +93,16 @@ export class PlatformVideoSidebar {
   notificationTimeout: ReturnType<typeof setTimeout> | null = null;
   resizeHandler: (() => void) | null = null;
 
+  // Stored document/window event handlers (removed on destroy)
+  _fullscreenHandler: (() => void) | null = null;
+  _subtitlesLoadedListener: EventListener | null = null;
+  _videoTimeUpdateListener: EventListener | null = null;
+  _toggleSubtitlePanelListener: EventListener | null = null;
+  _vocabUpdatedListener: EventListener | null = null;
+  _videoNotificationListener: EventListener | null = null;
+  _hotkeyListener: ((e: KeyboardEvent) => void) | null = null;
+  _globalMouseMoveListener: EventListener | null = null;
+
   constructor() {
     this.sidebar = null;
     this.listContainer = null;
@@ -635,6 +645,11 @@ export class PlatformVideoSidebar {
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(syncHeight, VideoConstants.TIMING.RESIZE_DEBOUNCE);
     };
+    // _syncSidebarToVideoHeight() can run multiple times; drop the previous
+    // registration so repeated calls do not stack duplicate resize handlers.
+    if (this.resizeHandler) {
+      window.removeEventListener('resize', this.resizeHandler);
+    }
     window.addEventListener('resize', resizeHandler);
     this.resizeHandler = resizeHandler;
 
@@ -728,6 +743,16 @@ export class PlatformVideoSidebar {
       }
     };
 
+    // _setupFullscreenListener() is reached from _syncSidebarToVideoHeight(),
+    // which can run multiple times; drop the previous registration so repeated
+    // calls do not stack duplicate fullscreen handlers.
+    if (this._fullscreenHandler) {
+      document.removeEventListener('fullscreenchange', this._fullscreenHandler);
+      document.removeEventListener('webkitfullscreenchange', this._fullscreenHandler);
+      document.removeEventListener('mozfullscreenchange', this._fullscreenHandler);
+    }
+    this._fullscreenHandler = fullscreenHandler;
+
     document.addEventListener('fullscreenchange', fullscreenHandler);
     document.addEventListener('webkitfullscreenchange', fullscreenHandler);
     document.addEventListener('mozfullscreenchange', fullscreenHandler);
@@ -738,14 +763,15 @@ export class PlatformVideoSidebar {
    */
   _setupEventListeners(): void {
     // Listen for subtitles being loaded
-    document.addEventListener('helios-subtitles-loaded', (e) => {
+    this._subtitlesLoadedListener = (e) => {
       const { track, entries, binding } = (e as CustomEvent).detail;
       this.videoBinding = binding;
       this.updateSubtitles(entries, track);
-    });
+    };
+    document.addEventListener('helios-subtitles-loaded', this._subtitlesLoadedListener);
 
     // Listen for time updates to highlight current subtitle
-    document.addEventListener('helios-video-timeupdate', (e) => {
+    this._videoTimeUpdateListener = (e) => {
       const { currentTime, binding } = (e as CustomEvent).detail;
 
       // If this is a new binding, update overlay settings
@@ -759,31 +785,35 @@ export class PlatformVideoSidebar {
       }
 
       this._updateActiveSubtitle(currentTime);
-    });
+    };
+    document.addEventListener('helios-video-timeupdate', this._videoTimeUpdateListener);
 
     // Toggle sidebar visibility
-    document.addEventListener('helios-toggle-subtitle-panel', () => {
+    this._toggleSubtitlePanelListener = () => {
       this.toggle();
-    });
+    };
+    document.addEventListener('helios-toggle-subtitle-panel', this._toggleSubtitlePanelListener);
 
     // Listen for vocabulary updates
-    document.addEventListener('helios-vocab-updated', (e) => {
+    this._vocabUpdatedListener = (e) => {
       const rawWords = (e as CustomEvent)?.detail?.words;
       const changedWords = (Array.isArray(rawWords) || typeof rawWords === 'string') ? rawWords : null;
 
       this._updateUnderlining(changedWords).catch(err => {
         console.error('[Helios Platform Sidebar] Error updating underlining:', err);
       });
-    });
+    };
+    document.addEventListener('helios-vocab-updated', this._vocabUpdatedListener);
 
     // Setup global mouse listener for pause-on-hover
     this._setupPauseOnHoverListener();
 
     // Listen for video notifications
-    document.addEventListener('helios-video-notification', (e) => {
+    this._videoNotificationListener = (e) => {
       const { message, type } = (e as CustomEvent).detail;
       this._showNotification(message, type);
-    });
+    };
+    document.addEventListener('helios-video-notification', this._videoNotificationListener);
 
     // Setup hotkeys
     this._setupHotkeys();
@@ -844,7 +874,7 @@ export class PlatformVideoSidebar {
    * Setup keyboard hotkeys
    */
   _setupHotkeys(): void {
-    document.addEventListener('keydown', (e) => {
+    this._hotkeyListener = (e) => {
       // Only trigger if hotkeys are enabled and we're on a watch page
       if (!this.settings.hotkeysEnabled || !this._isWatchPage()) {
         return;
@@ -882,7 +912,8 @@ export class PlatformVideoSidebar {
         e.preventDefault();
         this._toggleSubtitleOverlay();
       }
-    });
+    };
+    document.addEventListener('keydown', this._hotkeyListener);
   }
 
   /**
@@ -1678,7 +1709,7 @@ export class PlatformVideoSidebar {
    * Setup pause-on-hover listener
    */
   _setupPauseOnHoverListener(): void {
-    document.addEventListener('mousemove', (e) => {
+    this._globalMouseMoveListener = (e) => {
       if (!this.settings.pauseOnHover || !this.pausedByHover) return;
 
       const target = e.target as HTMLElement | null;
@@ -1702,7 +1733,9 @@ export class PlatformVideoSidebar {
           this.resumeTimeout = null;
         }
       }
-    });
+    };
+
+    document.addEventListener('mousemove', this._globalMouseMoveListener);
   }
 
   /**
@@ -2446,6 +2479,49 @@ export class PlatformVideoSidebar {
     if (this.resizeHandler) {
       window.removeEventListener('resize', this.resizeHandler);
       this.resizeHandler = null;
+    }
+
+    // Remove document-level event listeners
+    if (this._fullscreenHandler) {
+      document.removeEventListener('fullscreenchange', this._fullscreenHandler);
+      document.removeEventListener('webkitfullscreenchange', this._fullscreenHandler);
+      document.removeEventListener('mozfullscreenchange', this._fullscreenHandler);
+      this._fullscreenHandler = null;
+    }
+
+    if (this._subtitlesLoadedListener) {
+      document.removeEventListener('helios-subtitles-loaded', this._subtitlesLoadedListener);
+      this._subtitlesLoadedListener = null;
+    }
+
+    if (this._videoTimeUpdateListener) {
+      document.removeEventListener('helios-video-timeupdate', this._videoTimeUpdateListener);
+      this._videoTimeUpdateListener = null;
+    }
+
+    if (this._toggleSubtitlePanelListener) {
+      document.removeEventListener('helios-toggle-subtitle-panel', this._toggleSubtitlePanelListener);
+      this._toggleSubtitlePanelListener = null;
+    }
+
+    if (this._vocabUpdatedListener) {
+      document.removeEventListener('helios-vocab-updated', this._vocabUpdatedListener);
+      this._vocabUpdatedListener = null;
+    }
+
+    if (this._videoNotificationListener) {
+      document.removeEventListener('helios-video-notification', this._videoNotificationListener);
+      this._videoNotificationListener = null;
+    }
+
+    if (this._hotkeyListener) {
+      document.removeEventListener('keydown', this._hotkeyListener);
+      this._hotkeyListener = null;
+    }
+
+    if (this._globalMouseMoveListener) {
+      document.removeEventListener('mousemove', this._globalMouseMoveListener);
+      this._globalMouseMoveListener = null;
     }
 
     if (this.sidebarScrollTimeout) {
