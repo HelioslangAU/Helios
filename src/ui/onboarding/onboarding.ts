@@ -13,7 +13,7 @@ import { HighlightManager } from '@/content/text-highlighter';
 import { FrequencyManager } from '@/content/frequency-manager';
 import { LanguageRegistry } from '@/content/languages/language-registry';
 import { PageProcessor } from '@/content/page-processor';
-import { services } from '@/content/services';
+import { provideServices, services } from '@/content/services';
 import { MultiCardPopupManager } from '@/content/popup/multi-card-popup-manager';
 import { ActivationController } from '@/content/utils/activation-controller';
 import { LookupController } from '@/content/utils/lookup-controller';
@@ -1224,6 +1224,10 @@ export class OnboardingPage {
         frequencyManager: this.frequencyManager,
         languageRegistry: this.languageRegistry
       });
+
+      // Register so live settings updates broadcast from the options page reach
+      // the demo popup on this page too.
+      provideServices({ popupManager: this.popupManager });
 
       // Initialize activation controller
       this.activationController = new ActivationController('Shift');

@@ -93,6 +93,21 @@ export class PopupManager {
     this.settingsManager = new PopupSettingsManager();
   }
 
+  /**
+   * The popup element currently mounted on the page, or null.
+   *
+   * Every reader outside this class goes through here rather than querying the
+   * document, so the popup can later move into a shadow root.
+   *
+   * `this.popup` alone is not authoritative: the settings manager's auto-close
+   * timer removes the node without telling us, so the field can outlive the
+   * element it points at. The `isConnected` check keeps the answer identical to
+   * what a document lookup for the popup would have returned.
+   */
+  getPopupElement(): HTMLElement | null {
+    return this.popup?.isConnected ? this.popup : null;
+  }
+
   async showDictionaryPopup(x: number, y: number, character: string, sentence: string | null): Promise<void> {
     // Generate unique request ID for this popup creation
 
@@ -402,6 +417,8 @@ export class PopupManager {
   }
 
   removeAllPopupsFromPage(): void {
+    // Deliberately a document sweep, not `getPopupElement()`: this clears stray
+    // popups left behind by earlier manager instances, not just our own.
     const allPopups = document.querySelectorAll('.chinese-lang-extension-popup');
     allPopups.forEach(popup => popup.remove());
 

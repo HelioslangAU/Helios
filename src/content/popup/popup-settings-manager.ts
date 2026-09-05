@@ -1,6 +1,7 @@
 import { browser } from 'wxt/browser';
 
 import { items } from '@/config/storage';
+import { services } from '@/content/services';
 
 /** User-facing popup settings loaded from extension storage (all optional until loaded). */
 export interface PopupSettings {
@@ -175,30 +176,34 @@ export class PopupSettingsManager {
     }
   }
 
+  /**
+   * The live popup, asked of the popup manager rather than the document.
+   * This manager is also constructed where no popup manager is registered, so
+   * absence is normal and means "no popup open".
+   */
+  private getExistingPopup(): HTMLElement | null {
+    return services.popupManager?.getPopupElement() ?? null;
+  }
+
   // Apply settings to existing popup
   applyThemeToExistingPopup(): void {
-    const popup = document.querySelector<HTMLElement>('.chinese-lang-extension-popup');
-    this.applyTheme(popup);
+    this.applyTheme(this.getExistingPopup());
   }
 
   applyFontSizeToExistingPopup(): void {
-    const popup = document.querySelector<HTMLElement>('.chinese-lang-extension-popup');
-    this.applyFontSize(popup);
+    this.applyFontSize(this.getExistingPopup());
   }
 
   applyFrequencyDisplayToExistingPopup(): void {
-    const popup = document.querySelector<HTMLElement>('.chinese-lang-extension-popup');
-    this.applyFrequencyDisplay(popup);
+    this.applyFrequencyDisplay(this.getExistingPopup());
   }
 
   applyPersistenceToExistingPopup(): void {
-    const popup = document.querySelector<HTMLElement>('.chinese-lang-extension-popup');
-    this.applyPersistence(popup);
+    this.applyPersistence(this.getExistingPopup());
   }
 
   applyAutoCloseToExistingPopup(): void {
-    const popup = document.querySelector<HTMLElement>('.chinese-lang-extension-popup');
-    this.applyAutoClose(popup);
+    this.applyAutoClose(this.getExistingPopup());
   }
 
   shouldPreventAutoHide(): boolean | undefined {

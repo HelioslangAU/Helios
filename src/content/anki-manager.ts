@@ -1042,7 +1042,7 @@ export class AnkiManager {
       }
 
       // Find the current popup
-      const popup = document.querySelector('.chinese-lang-extension-popup');
+      const popup = services.popupManager?.getPopupElement() ?? null;
       if (!popup) {
         return; // No popup open
       }
