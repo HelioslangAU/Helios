@@ -119,7 +119,7 @@ export class CardManager {
     const characterCards: WordCard[] = [];
 
     // Only create character cards for char based languages
-    if (!this.languageRegistry || this.languageRegistry.getLanguageInfo(this.languageRegistry.getCurrentLanguage()).scanResolution !== 'char') {
+    if (!this.languageRegistry || this.languageRegistry.getLanguageInfo(this.languageRegistry.getCurrentLanguage()!)!.scanResolution !== 'char') {
       return characterCards;
     }
 
@@ -201,7 +201,7 @@ export class CardManager {
 
   async prepareBasicPopupData(character: string): Promise<PopupDictionaryData> {
 
-    if (this.languageRegistry!.getCaseSensitive(this.languageRegistry!.getCurrentLanguage())) {
+    if (this.languageRegistry!.getCaseSensitive(this.languageRegistry!.getCurrentLanguage()!)) {
       character = character.toLowerCase();
     }
     // Use adapter's getDictionaryEntries to handle base word resolution and enhancements

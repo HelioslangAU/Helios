@@ -112,7 +112,7 @@ export class ChineseLanguageLearningExtension {
     this.languageSwitchCoordinator = new LanguageSwitchCoordinator({
       languageRegistry: this.languageRegistry,
       dictionaryManager: this.dictionaryManager,
-      pageProcessor: null, // Will be set later
+      pageProcessor: null as any, // Will be set later
       popup: null, // Will be set later
       vocabManager: this.vocabManager
     });
@@ -133,7 +133,7 @@ export class ChineseLanguageLearningExtension {
       },
       onSettingsUpdated: (s: any) => window.ContentSettingsApplier?.apply(this, s),
       onActivationKeyChanged: (key: string) => this.activation.setKey(key),
-      onAutoHighlightChanged: (enabled: boolean) => this.featureToggle?.setAutoHighlight(enabled),
+      onAutoHighlightChanged: (enabled: boolean) => (this.featureToggle as any)?.setAutoHighlight(enabled),
       onLanguageChanged: async (languageCode: string) => {
         console.log(`🔄 Language change requested: ${languageCode}`);
         // Use the coordinator for smooth language switching
@@ -231,7 +231,7 @@ export class ChineseLanguageLearningExtension {
     }
 
     // Load current settings for feature toggle
-    const currentSettings = await chrome.storage.local.get(['activationKey', 'autoHighlight']);
+    const currentSettings = await storage.get(['activationKey', 'autoHighlight']);
 
     // Initialize FeatureToggle with video features
     this.featureToggle = new FeatureToggle({
@@ -244,7 +244,7 @@ export class ChineseLanguageLearningExtension {
       videoFeature: this.videoFeature,
       youtubeSidebar: this.youtubeSidebar,
       parentExtension: this, // Pass reference to parent for updating references
-    });
+    } as ConstructorParameters<typeof FeatureToggle>[0]);
 
     // Apply initial settings (extension is enabled if we got here)
     this.featureToggle.applyInitial({ ...currentSettings, extensionEnabled: true });
@@ -287,7 +287,7 @@ export class ChineseLanguageLearningExtension {
   }
 
   _registerScanner(): void {
-    const onPointerMove = (e: MouseEvent) => this.lookup!.onPointerMove(e);
+    const onPointerMove = (e: PointerEvent) => this.lookup!.onPointerMove(e);
     const onKeyDown = (e: KeyboardEvent) => {
       // Activation key
       const wasActive = this.activation.isActive();
@@ -338,7 +338,7 @@ export class ChineseLanguageLearningExtension {
   getStats() {
     if (!this.dictionaryManager || !this.vocabManager) return null;
     const totalWords = Object.keys(this.dictionaryManager.dictionary || {}).length;
-    const knownWords = this.vocabManager.knownWords?.size || 0;
+    const knownWords = (this.vocabManager as any).knownWords?.size || 0;
     const unknownWordsOnPage = document.querySelectorAll('.chinese-unknown-word').length;
     return {
       totalWords,

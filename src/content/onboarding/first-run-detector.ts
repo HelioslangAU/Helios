@@ -3,9 +3,11 @@
  * Detects if this is the user's first time using the extension
  */
 
+import { storage } from '@/config/storage';
+
 export class FirstRunDetector {
-  ONBOARDING_KEY: string;
-  INSTALL_DATE_KEY: string;
+  ONBOARDING_KEY: 'hasCompletedOnboarding';
+  INSTALL_DATE_KEY: 'installDate';
 
   constructor() {
     this.ONBOARDING_KEY = 'hasCompletedOnboarding';
@@ -17,7 +19,7 @@ export class FirstRunDetector {
    */
   async hasCompletedOnboarding(): Promise<boolean> {
     try {
-      const result = await chrome.storage.local.get(this.ONBOARDING_KEY);
+      const result = await storage.get(this.ONBOARDING_KEY);
       return result[this.ONBOARDING_KEY] === true;
     } catch (error) {
       console.error('Error checking onboarding status:', error);
@@ -30,7 +32,7 @@ export class FirstRunDetector {
    */
   async markOnboardingComplete(): Promise<void> {
     try {
-      await chrome.storage.local.set({
+      await storage.setRaw({
         [this.ONBOARDING_KEY]: true,
         onboardingCompletedDate: new Date().toISOString()
       });
@@ -60,7 +62,7 @@ export class FirstRunDetector {
    */
   async getInstallDate(): Promise<string | null> {
     try {
-      const result = await chrome.storage.local.get(this.INSTALL_DATE_KEY);
+      const result = await storage.get(this.INSTALL_DATE_KEY);
       return result[this.INSTALL_DATE_KEY] || null;
     } catch (error) {
       console.error('Error getting install date:', error);
@@ -75,7 +77,7 @@ export class FirstRunDetector {
     try {
       const existing = await this.getInstallDate();
       if (!existing) {
-        await chrome.storage.local.set({
+        await storage.set({
           [this.INSTALL_DATE_KEY]: new Date().toISOString()
         });
         console.log('Install date recorded');

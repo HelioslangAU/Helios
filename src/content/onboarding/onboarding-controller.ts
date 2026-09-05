@@ -4,6 +4,7 @@
  */
 
 import { FirstRunDetector } from '@/content/onboarding/first-run-detector';
+import { storage } from '@/config/storage';
 
 export class OnboardingController {
   firstRunDetector: FirstRunDetector;
@@ -51,7 +52,7 @@ export class OnboardingController {
       }
 
       // Save everything in a single atomic operation
-      await chrome.storage.local.set(settingsToSave);
+      await storage.setRaw(settingsToSave);
 
       // Notify background script about language selection
       // This will reload settings on all open tabs
@@ -76,7 +77,7 @@ export class OnboardingController {
    */
   async getCurrentLanguage(): Promise<string | null> {
     try {
-      const result = await chrome.storage.local.get('targetLanguage');
+      const result = await storage.get('targetLanguage');
       return result.targetLanguage || null;
     } catch (error) {
       console.error('Error getting current language:', error);

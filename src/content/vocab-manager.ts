@@ -1,11 +1,5 @@
 import { storage } from '@/config/storage';
 
-interface WordsByLanguageStorage {
-  knownWordsByLanguage?: Record<string, string[]>;
-  ignoredWordsByLanguage?: Record<string, string[]>;
-  learningWordsByLanguage?: Record<string, string[]>;
-}
-
 export class VocabManager {
   // Support per-language known words - dynamically created as needed
   // Format: { 'zh': Set(), 'en': Set(), 'fr': Set(), ... }
@@ -72,9 +66,7 @@ export class VocabManager {
       console.log(`VocabManager: Loading known words for language: ${this.currentLanguage}`);
 
       // Load new per-language format
-      // `learningWordsByLanguage` is not declared in HeliosStorage, so this read
-      // cannot go through the typed `storage` wrapper.
-      const newResult = await chrome.storage.local.get<WordsByLanguageStorage>([
+      const newResult = await storage.get([
         'knownWordsByLanguage',
         'ignoredWordsByLanguage',
         'learningWordsByLanguage'
@@ -175,7 +167,7 @@ export class VocabManager {
       const currentKnownWords = this.knownWordsByLanguage[this.currentLanguage] || this.knownWordsByLanguage['zh'] || new Set();
       const currentIgnoredWords = this.ignoredWordsByLanguage[this.currentLanguage] || this.ignoredWordsByLanguage['zh'] || new Set();
 
-      await storage.setRaw({
+      await storage.set({
         knownWordsByLanguage: knownWordsObj,
         ignoredWordsByLanguage: ignoredWordsObj,
         learningWordsByLanguage: learningWordsObj,
@@ -711,9 +703,9 @@ export class VocabManager {
     if (!normalizedWord) return;
 
     // Non-blocking: don't await, just fire and forget
-    const storageKey = `recentVocab_${this.currentLanguage}`;
+    const storageKey: `recentVocab_${string}` = `recentVocab_${this.currentLanguage}`;
 
-    chrome.storage.local.get([storageKey], (result: Record<string, any>) => {
+    storage.get([storageKey]).then((result) => {
       let recentWords: any[] = result[storageKey] || [];
 
       // Remove if already exists (to move to front) - compare normalized
@@ -761,9 +753,8 @@ export class VocabManager {
       // Keep only last 20 words
       recentWords = recentWords.slice(0, 20);
 
-      chrome.storage.local.set({ [storageKey]: recentWords }, () => {
-        //console.log(`✅ Tracked word lookup: ${normalizedWord} (${this.currentLanguage}) - Def: "${definitionText}" - Total: ${recentWords.length}`);
-      });
+      storage.set({ [storageKey]: recentWords });
+      //console.log(`✅ Tracked word lookup: ${normalizedWord} (${this.currentLanguage}) - Def: "${definitionText}" - Total: ${recentWords.length}`);
     });
   }
 }

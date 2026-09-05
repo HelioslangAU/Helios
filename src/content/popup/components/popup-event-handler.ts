@@ -1,3 +1,4 @@
+import { storage } from '@/config/storage';
 import type { AnkiManager } from '@/content/anki-manager';
 import type { FrequencyManager } from '@/content/frequency-manager';
 import type { CardNavigator } from '@/content/popup/components/card-navigator';
@@ -28,6 +29,19 @@ interface HotkeySettings {
   hotkeyMarkKnown: HotkeyShortcut;
   hotkeyMarkLearning: HotkeyShortcut;
   hotkeyAnkiAdd: HotkeyShortcut;
+}
+
+/**
+ * Pre-unification hotkey storage keys (plain single-character strings).
+ * `hotkeyMarkLearning` is read below but never included in the storage request,
+ * so it is always undefined — kept to match the existing runtime behaviour.
+ */
+interface LegacyHotkeySettings {
+  hotkeyMarkUnknown?: string;
+  hotkeyMarkIgnored?: string;
+  hotkeyMarkKnown?: string;
+  hotkeyMarkLearning?: string;
+  hotkeyAnkiAdd?: string;
 }
 
 type MarkState = 'known' | 'learning' | 'ignored' | 'unknown';
@@ -516,7 +530,9 @@ export class PopupEventHandler {
     // Get current language
     const currentLanguage = window.languageRegistry?.getCurrentLanguage() || 'zh';
 
-    const wordData = {
+    // Typed loosely: AnkiManager's AnkiWordData is not exported and declares
+    // `sentence?: string`, while capturedSentence is `string | null`.
+    const wordData: Record<string, any> = {
       character: character,
       language: currentLanguage, // Add language
       // Use pinyin for Chinese, pronunciation for other languages
@@ -528,7 +544,7 @@ export class PopupEventHandler {
       simplified: firstMatch.simplified || character,
     };
 
-    const ankiBtn = managers.popupManager.popup!.querySelector(".anki-btn");
+    const ankiBtn = managers.popupManager.popup!.querySelector<HTMLButtonElement>(".anki-btn");
     await ankiManager.createCardFromPopup(wordData, ankiBtn, frequencyManager);
   }
 
@@ -543,7 +559,8 @@ export class PopupEventHandler {
     // Get current language
     const currentLanguage = window.languageRegistry?.getCurrentLanguage() || 'zh';
 
-    const wordData = {
+    // See handleAnkiAdd: AnkiWordData is not exported and rejects a null sentence.
+    const wordData: Record<string, any> = {
       character: displayCharacter,
       language: currentLanguage, // Add language
       // Use pinyin for Chinese, pronunciation for other languages
@@ -555,7 +572,7 @@ export class PopupEventHandler {
       simplified: firstEntry.simplified || displayCharacter,
     };
 
-    const ankiBtn = managers.popupManager.popup!.querySelector(".anki-btn");
+    const ankiBtn = managers.popupManager.popup!.querySelector<HTMLButtonElement>(".anki-btn");
     await ankiManager.createCardFromPopup(wordData, ankiBtn, frequencyManager);
   }
 
@@ -566,7 +583,7 @@ export class PopupEventHandler {
       button.title = "Loading audio...";
 
       const ttsText = button.getAttribute("data-tts-text") || word;
-      const success = await pronunciationManager.playPronunciation(ttsText);
+      const success = await pronunciationManager.playPronunciation(ttsText!);
 
       if (success) {
         button.classList.remove("loading");

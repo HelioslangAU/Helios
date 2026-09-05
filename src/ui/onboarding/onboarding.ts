@@ -220,7 +220,7 @@ export class OnboardingPage {
       this.resetPopupSystem();
     }
 
-    this.selectedLanguage = { code, ...language };
+    this.selectedLanguage = Object.assign({ code }, language);
 
     // Don't start loading dictionary yet - wait until user clicks Next
     // This ensures the loading page always shows up
@@ -656,7 +656,7 @@ export class OnboardingPage {
   async getLanguageAdapter(languageCode: string): Promise<BaseLanguageAdapter | null> {
     // Try to get adapter from language registry if available
     if (window.languageRegistry) {
-      return window.languageRegistry.getAdapter(languageCode);
+      return (window.languageRegistry as any).getAdapter(languageCode);
     }
 
     // Fallback: create adapter directly based on language code
@@ -1154,7 +1154,7 @@ export class OnboardingPage {
         }
 
         // Get character info
-        const result = originalGetCharacterAtPosition(event);
+        const result: any = originalGetCharacterAtPosition(event);
 
         // If result is a space or whitespace, ignore it
         if (result && result.word && /^\s+$/.test(result.word.trim())) {

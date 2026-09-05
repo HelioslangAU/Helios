@@ -748,9 +748,23 @@ export class SubtitleOverlay {
   async _loadSettings(): Promise<void> {
     try {
       const platform = this._detectPlatform();
-      // getAll: the legacy migration keys (subtitlePosition/subtitleSize/
-      // subtitleVisibility) are not declared in HeliosStorage.
-      const result: Record<string, any> = await storage.getAll();
+      // Not `storage.get`: the legacy migration keys (subtitlePosition /
+      // subtitleSize / subtitleVisibility) are not declared in HeliosStorage,
+      // and reading the whole bag instead would be a much larger read.
+      const result = await chrome.storage.local.get<{
+        ytSidebarSettings?: any;
+        subtitleSettings?: any;
+        subtitlePosition?: any;
+        subtitleSize?: any;
+        subtitleVisibility?: any;
+      }>([
+        'ytSidebarSettings',
+        'subtitleSettings',
+        // Legacy keys for migration
+        'subtitlePosition',
+        'subtitleSize',
+        'subtitleVisibility'
+      ]);
 
       // Load pause on hover setting
       if (result.ytSidebarSettings && result.ytSidebarSettings.pauseOnHover !== undefined) {

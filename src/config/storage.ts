@@ -96,6 +96,10 @@ export interface HeliosStorage {
   videoPlayer: VideoPlayerSettings;
   subtitleSettings: Record<string, unknown>;
   subtitlePreferences: Record<string, unknown>;
+  /** Legacy single-overlay keys, still read for migration and written on change. */
+  subtitlePosition: Record<string, unknown>;
+  subtitleSize: Record<string, unknown>;
+  subtitleVisibility: boolean;
   platformSidebarSettings: Record<string, unknown>;
   /** Legacy, migrated into `videoPlayer` on load. */
   ytSidebarSettings: Record<string, unknown>;

@@ -1,15 +1,7 @@
 import type { DictionaryManager } from '@/content/dictionary-manager';
 import type { DictionaryManagerProxy } from '@/content/dictionary-bridge';
 import type { FrequencyManager } from '@/content/frequency-manager';
-
-/** Anki stat counters; only `ankiCardsCreated` is declared in HeliosStorage. */
-interface AnkiStatsStorage {
-  ankiCardsCreated?: number;
-  ankiCardsToday?: number;
-  ankiSuccessCount?: number;
-  ankiTotalAttempts?: number;
-  lastAnkiResetDate?: string;
-}
+import { storage } from '@/config/storage';
 
 interface AnkiStatus {
   connected: boolean;
@@ -754,15 +746,15 @@ export class AnkiManager {
   updateAnkiStatistics(success: boolean): void {
     try {
       if (chrome.storage?.local) {
-        chrome.storage.local.get(
-          [
+        storage
+          .get([
             "ankiCardsCreated", // Read current value but don't increment (background script handles this)
             "ankiCardsToday",
             "ankiSuccessCount",
             "ankiTotalAttempts",
             "lastAnkiResetDate",
-          ],
-          (result: AnkiStatsStorage) => {
+          ])
+          .then((result) => {
             const today = new Date().toDateString();
             const lastReset = result.lastAnkiResetDate || "";
 
@@ -790,7 +782,7 @@ export class AnkiManager {
                 ? Math.round((successCount / totalAttempts) * 100)
                 : 100;
 
-            chrome.storage.local.set({
+            storage.set({
               // Don't set ankiCardsCreated - background script handles this
               ankiCardsToday: cardsToday,
               ankiSuccessCount: successCount,
@@ -802,8 +794,7 @@ export class AnkiManager {
             console.log(
               `📊 Anki stats: ${cardsCreated} total, ${cardsToday} today, ${successRate}% success`
             );
-          }
-        );
+          });
       }
     } catch (error) {
       console.warn("Could not update Anki statistics:", error);
