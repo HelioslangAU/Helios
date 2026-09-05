@@ -1,5 +1,6 @@
 import { browser, type Browser } from 'wxt/browser';
 import { items, storage } from '@/config/storage';
+import { provideServices, services } from '@/content/services';
 import type { SubtitlePreferences } from '@/config/storage';
 import { TheaterModeController } from '@/content/video/youtube/theater-mode-controller';
 import { YouTubeLayoutManager } from '@/content/video/youtube/layout-manager';
@@ -1362,7 +1363,7 @@ export class YouTubeSidebar {
       }
 
       // Use the YouTube loader's loadTrack method
-      const youtubeLoader = window.heliosVideoFeature?.youtubeLoader;
+      const youtubeLoader = services.videoFeature?.youtubeLoader;
       if (!youtubeLoader) {
         console.warn('[Helios YouTube Sidebar] YouTube loader not available');
         return;
@@ -1461,8 +1462,8 @@ export class YouTubeSidebar {
    */
   _extractPotentialWords(text: string): string[] {
     const words: string[] = [];
-    const currentLang = window.languageRegistry?.getCurrentLanguage();
-    const adapter = window.languageRegistry?.getAdapter();
+    const currentLang = services.languageRegistry?.getCurrentLanguage();
+    const adapter = services.languageRegistry?.getAdapter();
 
     if (currentLang && ['zh', 'ja', 'ko'].includes(currentLang)) {
       // For CJK languages, extract unique characters and sequences up to maxWordLength
@@ -1531,7 +1532,7 @@ export class YouTubeSidebar {
     }
 
     // Preload words from all subtitles before rendering
-    if (window.dictionaryManager && (window.dictionaryManager as any).preloadWords) {
+    if (services.dictionaryManager && (services.dictionaryManager as any).preloadWords) {
       const allWordsToPreload: string[] = [];
       this.currentSubtitles.forEach(entry => {
         const words = this._extractPotentialWords(entry.text);
@@ -1541,7 +1542,7 @@ export class YouTubeSidebar {
       // Preload unique words
       const uniqueWords = [...new Set(allWordsToPreload)];
       if (uniqueWords.length > 0) {
-        await (window.dictionaryManager as any).preloadWords(uniqueWords);
+        await (services.dictionaryManager as any).preloadWords(uniqueWords);
       }
     }
 
@@ -1565,21 +1566,21 @@ export class YouTubeSidebar {
       primaryText.className = 'yt-subtitle-text yt-subtitle-text-primary';
 
       // Extract words using language adapter (handles Chinese, English, etc.)
-      const adapter = window.languageRegistry?.getAdapter();
+      const adapter = services.languageRegistry?.getAdapter();
 
-      if (adapter && adapter.extractWords && window.dictionaryManager) {
+      if (adapter && adapter.extractWords && services.dictionaryManager) {
         // Preload potential words from this subtitle text before extraction
         const wordsToPreload = this._extractPotentialWords(entry.text);
-        if (wordsToPreload.length > 0 && (window.dictionaryManager as any).preloadWords) {
-          await (window.dictionaryManager as any).preloadWords(wordsToPreload);
+        if (wordsToPreload.length > 0 && (services.dictionaryManager as any).preloadWords) {
+          await (services.dictionaryManager as any).preloadWords(wordsToPreload);
         }
 
-        const dictionary: any = window.dictionaryManager?.dictionary || {};
+        const dictionary: any = services.dictionaryManager?.dictionary || {};
         // Use language-aware word extraction
         const extractedWords: any[] = await adapter.extractWords(entry.text, dictionary);
 
         // Check if language uses spaces between words (not CJK languages)
-        const currentLang = window.languageRegistry?.getCurrentLanguage();
+        const currentLang = services.languageRegistry?.getCurrentLanguage();
         const usesSpaces = currentLang && !['zh', 'ja', 'ko'].includes(currentLang);
 
         extractedWords.forEach(({ word, offset, isTargetLang }, index) => {
@@ -1598,13 +1599,13 @@ export class YouTubeSidebar {
             // Only underline if: word is in dictionary, not known, and not ignored
             const cleanWord = word.toLowerCase();
 
-            if (window.vocabManager &&
+            if (services.vocabManager &&
                 dictionary[cleanWord] &&
-                !window.vocabManager.isWordKnown(cleanWord) &&
-                !window.vocabManager.isWordIgnored(cleanWord) &&
-                !window.vocabManager.isWordLearning(cleanWord)) {
+                !services.vocabManager.isWordKnown(cleanWord) &&
+                !services.vocabManager.isWordIgnored(cleanWord) &&
+                !services.vocabManager.isWordLearning(cleanWord)) {
               wordSpan.classList.add('unknown-word');
-            } else if (window.vocabManager.isWordLearning(cleanWord)) {
+            } else if (services.vocabManager!.isWordLearning(cleanWord)) {
               wordSpan.classList.add('learning-word');
             }
 
@@ -1675,8 +1676,8 @@ export class YouTubeSidebar {
    */
   _isPopupVisible(): boolean {
     // Check if popup manager exists and has an active popup
-    if (window.popupManager && (window.popupManager as any).popup) {
-      const popup = (window.popupManager as any).popup;
+    if (services.popupManager && (services.popupManager as any).popup) {
+      const popup = (services.popupManager as any).popup;
       // Check if popup exists in DOM and is visible
       return popup && popup.parentElement && popup.style.display !== 'none';
     }
@@ -1726,7 +1727,7 @@ export class YouTubeSidebar {
    * @param changedWords - Optional word or list of words whose state changed
    */
   async _updateUnderlining(changedWords: string | string[] | null = null): Promise<void> {
-    if (!this.listContainer || !window.vocabManager || !window.dictionaryManager) return;
+    if (!this.listContainer || !services.vocabManager || !services.dictionaryManager) return;
 
     const t0 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
 
@@ -1747,7 +1748,7 @@ export class YouTubeSidebar {
         return;
       }
 
-      const dictionary: any = window.dictionaryManager.dictionary || {};
+      const dictionary: any = services.dictionaryManager.dictionary || {};
       const hasCssEscape = window.CSS && typeof window.CSS.escape === 'function';
 
       normalizedWords.forEach(cleanWord => {
@@ -1767,16 +1768,16 @@ export class YouTubeSidebar {
         let updatedCount = 0;
         wordSpans.forEach(wordSpan => {
           const shouldUnderline = dictionary[cleanWord] &&
-                                 !window.vocabManager.isWordKnown(cleanWord) &&
-                                 !window.vocabManager.isWordIgnored(cleanWord) &&
-                                 !window.vocabManager.isWordLearning(cleanWord);
+                                 !services.vocabManager!.isWordKnown(cleanWord) &&
+                                 !services.vocabManager!.isWordIgnored(cleanWord) &&
+                                 !services.vocabManager!.isWordLearning(cleanWord);
 
           // Remove all word state classes first
           wordSpan.classList.remove('unknown-word', 'learning-word');
 
           if (shouldUnderline) {
             wordSpan.classList.add('unknown-word');
-          } else if (window.vocabManager.isWordLearning(cleanWord)) {
+          } else if (services.vocabManager!.isWordLearning(cleanWord)) {
             wordSpan.classList.add('learning-word');
           }
           updatedCount++;
@@ -1798,11 +1799,11 @@ export class YouTubeSidebar {
     }).filter((w): w is string => w !== null);
 
     // Preload words to ensure they're in cache
-    if (wordsToCheck.length > 0 && (window.dictionaryManager as any).preloadWords) {
-      await (window.dictionaryManager as any).preloadWords(wordsToCheck);
+    if (wordsToCheck.length > 0 && (services.dictionaryManager as any).preloadWords) {
+      await (services.dictionaryManager as any).preloadWords(wordsToCheck);
     }
 
-    const dictionary: any = window.dictionaryManager.dictionary || {};
+    const dictionary: any = services.dictionaryManager.dictionary || {};
 
     let updatedCount = 0;
     wordSpans.forEach(wordSpan => {
@@ -1811,16 +1812,16 @@ export class YouTubeSidebar {
 
       const cleanWord = word.toLowerCase();
       const shouldUnderline = dictionary[cleanWord] &&
-                             !window.vocabManager.isWordKnown(cleanWord) &&
-                             !window.vocabManager.isWordIgnored(cleanWord) &&
-                             !window.vocabManager.isWordLearning(cleanWord);
+                             !services.vocabManager!.isWordKnown(cleanWord) &&
+                             !services.vocabManager!.isWordIgnored(cleanWord) &&
+                             !services.vocabManager!.isWordLearning(cleanWord);
 
       // Remove all word state classes first
       wordSpan.classList.remove('unknown-word', 'learning-word');
 
       if (shouldUnderline) {
         wordSpan.classList.add('unknown-word');
-      } else if (window.vocabManager.isWordLearning(cleanWord)) {
+      } else if (services.vocabManager!.isWordLearning(cleanWord)) {
         wordSpan.classList.add('learning-word');
       }
       updatedCount++;
@@ -1999,7 +2000,7 @@ export class YouTubeSidebar {
    */
   async _showCaptionSelector(): Promise<void> {
     // Get available tracks from YouTube loader
-    const youtubeLoader = window.heliosVideoFeature?.youtubeLoader;
+    const youtubeLoader = services.videoFeature?.youtubeLoader;
     if (!youtubeLoader) {
       console.warn('[Helios YouTube Sidebar] YouTube loader not available');
       this._showNotification('YouTube loader not available', 'error');
@@ -2021,12 +2022,13 @@ export class YouTubeSidebar {
       }
 
       // Create or get subtitle selector modal
-      if (!window.subtitleSelectorModal) {
+      if (!services.subtitleSelectorModal) {
         window.subtitleSelectorModal = new SubtitleSelectorModal();
+        provideServices({ subtitleSelectorModal: window.subtitleSelectorModal });
       }
 
       // Show modal with tracks, callback, and current track
-      window.subtitleSelectorModal.show(tracks, async (selectedTrack: any) => {
+      services.subtitleSelectorModal!.show(tracks, async (selectedTrack: any) => {
         this._showNotification(`Loading ${selectedTrack.languageName} captions...`, 'info');
 
         try {
@@ -2042,7 +2044,7 @@ export class YouTubeSidebar {
           }
 
           // Load into video binding with track info
-          const binding = window.heliosVideoFeature?.videoDetector?.getPrimaryBinding();
+          const binding = services.videoFeature?.videoDetector?.getPrimaryBinding();
           if (binding) {
             binding.loadSubtitles(entries, selectedTrack);
             this._showNotification(`Loaded ${entries.length} captions (${selectedTrack.languageName})`, 'success');

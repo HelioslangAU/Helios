@@ -6,6 +6,7 @@ import { LanguageRegistry } from '@/content/languages/language-registry';
 import { PageProcessor } from '@/content/page-processor';
 import { MultiCardPopupManager } from '@/content/popup/multi-card-popup-manager';
 import { PronunciationManager } from '@/content/pronunciation-manager';
+import { provideServices } from '@/content/services';
 import { SettingsSync } from '@/content/settings/settings-sync';
 import { HighlightManager } from '@/content/text-highlighter';
 import { ActivationController } from '@/content/utils/activation-controller';
@@ -100,6 +101,7 @@ export class ChineseLanguageLearningExtension {
     }
 
     window.languageRegistry = this.languageRegistry;
+    provideServices({ languageRegistry: this.languageRegistry });
 
     // Core managers - use DictionaryManagerProxy for offscreen dictionary
     this.dictionaryManager = new DictionaryManagerProxy(this.languageRegistry);
@@ -164,22 +166,27 @@ export class ChineseLanguageLearningExtension {
       ankiManager.checkAnkiConnect().catch((error: unknown) => {
         console.warn("🃏 Anki connection check failed:", error);
       });
+      provideServices({ ankiManager });
     }
 
     // Extension is enabled if we got here - create all components
     this.pageProcessor = new PageProcessor(this.dictionaryManager, this.vocabManager, this.languageRegistry);
     window.pageProcessor = this.pageProcessor;
     window.dictionaryManager = this.dictionaryManager;
+    provideServices({ pageProcessor: this.pageProcessor, dictionaryManager: this.dictionaryManager });
 
     this.bannerManager = new BannerManager();
     window.bannerManager = this.bannerManager;
     window.sidebarManager = this.bannerManager;
+    provideServices({ bannerManager: this.bannerManager });
 
     window.vocabManager = this.vocabManager;
     window.languageRegistry = this.languageRegistry;
+    provideServices({ vocabManager: this.vocabManager, languageRegistry: this.languageRegistry });
 
     this.pronunciationManager = new PronunciationManager(this.dictionaryManager, this.pageProcessor, this.languageRegistry);
     window.pronunciationManager = this.pronunciationManager;
+    provideServices({ pronunciationManager: this.pronunciationManager });
     this.pronunciationManager.observeForDynamicContent();
 
     this.popup = new MultiCardPopupManager({
@@ -191,6 +198,7 @@ export class ChineseLanguageLearningExtension {
     });
     window.popupManager = this.popup; // Expose for subtitle overlay
     window.highlightManager = this.highlightManager;
+    provideServices({ popupManager: this.popup, highlightManager: this.highlightManager });
 
     // Update language switch coordinator with initialized components
     this.languageSwitchCoordinator.pageProcessor = this.pageProcessor;

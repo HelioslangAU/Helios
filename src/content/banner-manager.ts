@@ -1,4 +1,5 @@
 import { PATHS } from '@/config/paths';
+import { services } from '@/content/services';
 import { HeliosSideTab, type SentenceBreakdown, type SideTabStats } from '@/content/side-tab';
 
 interface BannerStats {
@@ -66,21 +67,21 @@ export class BannerManager {
         this.sideTabInstance = new HeliosSideTab();
 
         // Calculate and update initial stats
-        const comprehension = await window.pageProcessor.calculateComprehensionPercentage();
+        const comprehension = await services.pageProcessor!.calculateComprehensionPercentage();
         const pageWords = await this.calculatePageWordsCount();
-        const knownWordsCount = window.vocabManager.getKnownWordsCount();
-        const learningWordsCount = window.vocabManager.getLearningWordsCount
-            ? window.vocabManager.getLearningWordsCount()
+        const knownWordsCount = services.vocabManager!.getKnownWordsCount();
+        const learningWordsCount = services.vocabManager?.getLearningWordsCount
+            ? services.vocabManager.getLearningWordsCount()
             : 0;
-        const ignoredWordsCount = window.vocabManager.getIgnoredWordsCount
-            ? window.vocabManager.getIgnoredWordsCount()
+        const ignoredWordsCount = services.vocabManager?.getIgnoredWordsCount
+            ? services.vocabManager.getIgnoredWordsCount()
             : 0;
 
-        const uniqueStats = window.pageProcessor?.getUniqueWordStats
-            ? window.pageProcessor.getUniqueWordStats()
+        const uniqueStats = services.pageProcessor?.getUniqueWordStats
+            ? services.pageProcessor.getUniqueWordStats()
             : { totalUnique: 0, knownUnique: 0 };
-        const breakdown = window.pageProcessor?.getSentenceBreakdownStats
-            ? window.pageProcessor.getSentenceBreakdownStats()
+        const breakdown = services.pageProcessor?.getSentenceBreakdownStats
+            ? services.pageProcessor.getSentenceBreakdownStats()
             : { totalSentences: 0, t0Sentences: 0, t1Sentences: 0, t2Sentences: 0 };
 
         const uniqueComprehension =
@@ -105,11 +106,11 @@ export class BannerManager {
         });
 
         // Set initial hover tooltips for comprehension and unique stats
-        const totalTokens = window.pageProcessor?.getTotalWordsCount
-            ? window.pageProcessor.getTotalWordsCount()
+        const totalTokens = services.pageProcessor?.getTotalWordsCount
+            ? services.pageProcessor.getTotalWordsCount()
             : 0;
-        const knownTokens = window.pageProcessor?.getKnownWordsCount
-            ? window.pageProcessor.getKnownWordsCount()
+        const knownTokens = services.pageProcessor?.getKnownWordsCount
+            ? services.pageProcessor.getKnownWordsCount()
             : 0;
 
         if (this.sideTabInstance?.updateComprehensionTooltip) {
@@ -126,8 +127,8 @@ export class BannerManager {
         this.updateLanguageFeatures();
 
         // Listen for language changes to update language-specific features
-        if (window.languageRegistry) {
-            window.languageRegistry.on('languageChanged', () => {
+        if (services.languageRegistry) {
+            services.languageRegistry.on('languageChanged', () => {
                 this.updateLanguageFeatures();
             });
         }
@@ -141,7 +142,7 @@ export class BannerManager {
 
         try {
             // Get current language code directly from languageRegistry
-            const language = window.languageRegistry?.getCurrentLanguage();
+            const language = services.languageRegistry?.getCurrentLanguage();
 
             console.log('Banner Manager: Current language code:', language);
 
@@ -167,17 +168,17 @@ export class BannerManager {
 
             if (subtitleText !== null) {
                 // Video subtitles are active - reuse PageProcessor's cached totals
-                if (window.pageProcessor && typeof window.pageProcessor.getTotalWordsCount === 'function') {
-                    const cachedTotal = window.pageProcessor.getTotalWordsCount();
+                if (services.pageProcessor && typeof services.pageProcessor.getTotalWordsCount === 'function') {
+                    const cachedTotal = services.pageProcessor.getTotalWordsCount();
                     if (cachedTotal && Number.isFinite(cachedTotal)) {
                         return cachedTotal;
                     }
                 }
 
                 // Fallback: if cache is not available yet, derive from adapter once
-                const adapter = window.languageRegistry?.getAdapter();
+                const adapter = services.languageRegistry?.getAdapter();
                 if (adapter) {
-                    const words = await adapter.extractWords(subtitleText, window.dictionaryManager?.dictionary || {});
+                    const words = await adapter.extractWords(subtitleText, services.dictionaryManager?.dictionary || {});
                     return words.length;
                 }
                 return 0;
@@ -188,9 +189,9 @@ export class BannerManager {
             let totalWords = 0;
 
             for (const textNode of textNodes) {
-                const adapter = window.languageRegistry?.getAdapter();
+                const adapter = services.languageRegistry?.getAdapter();
                 if (adapter) {
-                    const words = await adapter.extractWords(textNode.textContent, window.dictionaryManager?.dictionary || {});
+                    const words = await adapter.extractWords(textNode.textContent, services.dictionaryManager?.dictionary || {});
                     totalWords += words.length;
                 }
             }
@@ -381,14 +382,14 @@ export class BannerManager {
       this.refreshTimeout = setTimeout(async () => {
         try {
           // Recalculate comprehension and page words
-          const comprehensionRaw = await window.pageProcessor?.calculateComprehensionPercentage();
+          const comprehensionRaw = await services.pageProcessor?.calculateComprehensionPercentage();
           const pageWordsRaw = await this.calculatePageWordsCount();
-          const knownWordsRaw = window.vocabManager?.getKnownWordsCount();
-          const learningWordsRaw = window.vocabManager?.getLearningWordsCount
-            ? window.vocabManager.getLearningWordsCount()
+          const knownWordsRaw = services.vocabManager?.getKnownWordsCount();
+          const learningWordsRaw = services.vocabManager?.getLearningWordsCount
+            ? services.vocabManager.getLearningWordsCount()
             : NaN;
-          const ignoredWordsRaw = window.vocabManager?.getIgnoredWordsCount
-            ? window.vocabManager.getIgnoredWordsCount()
+          const ignoredWordsRaw = services.vocabManager?.getIgnoredWordsCount
+            ? services.vocabManager.getIgnoredWordsCount()
             : NaN;
 
           const comprehension = Number.isFinite(comprehensionRaw) ? comprehensionRaw : this.lastStats.comprehension;
@@ -398,11 +399,11 @@ export class BannerManager {
           const ignoredWords = Number.isFinite(ignoredWordsRaw) ? ignoredWordsRaw : this.lastStats.ignoredWords;
 
           // Read derived stats from PageProcessor after comprehension calculation (which updates caches)
-          const uniqueStats = window.pageProcessor?.getUniqueWordStats
-            ? window.pageProcessor.getUniqueWordStats()
+          const uniqueStats = services.pageProcessor?.getUniqueWordStats
+            ? services.pageProcessor.getUniqueWordStats()
             : { totalUnique: 0, knownUnique: 0 };
-          const breakdown = window.pageProcessor?.getSentenceBreakdownStats
-            ? window.pageProcessor.getSentenceBreakdownStats()
+          const breakdown = services.pageProcessor?.getSentenceBreakdownStats
+            ? services.pageProcessor.getSentenceBreakdownStats()
             : { totalSentences: 0, t0Sentences: 0, t1Sentences: 0, t2Sentences: 0 };
 
           const uniqueComprehension =
@@ -428,11 +429,11 @@ export class BannerManager {
           });
 
           // Update hover tooltips with raw counts
-          const totalTokens = window.pageProcessor?.getTotalWordsCount
-            ? window.pageProcessor.getTotalWordsCount()
+          const totalTokens = services.pageProcessor?.getTotalWordsCount
+            ? services.pageProcessor.getTotalWordsCount()
             : 0;
-          const knownTokens = window.pageProcessor?.getKnownWordsCount
-            ? window.pageProcessor.getKnownWordsCount()
+          const knownTokens = services.pageProcessor?.getKnownWordsCount
+            ? services.pageProcessor.getKnownWordsCount()
             : 0;
 
           if (this.sideTabInstance?.updateComprehensionTooltip) {

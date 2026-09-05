@@ -1,4 +1,5 @@
 import { isInsideOcrPdfTextLayer, OCR_PDF_TEXT_LAYER_SELECTOR } from '@/content/config/constants';
+import { services } from '@/content/services';
 import type { DictionaryManager } from '@/content/dictionary-manager';
 import type { DictionaryManagerProxy } from '@/content/dictionary-bridge';
 import type { VocabManager } from '@/content/vocab-manager';
@@ -850,10 +851,10 @@ export class PageProcessor {
 
   notifySidebarUpdate(): void {
     // Notify banner manager (which manages the side tab) of data changes
-    if (window.bannerManager && window.bannerManager.refreshData) {
+    if (services.bannerManager?.refreshData) {
       // Use a small delay to ensure all processing is complete
       setTimeout(() => {
-        window.bannerManager.refreshData();
+        services.bannerManager!.refreshData();
       }, 100);
     }
   }
@@ -1934,15 +1935,15 @@ export class PageProcessor {
       );
       if (newHighlight) {
         newHighlight.classList.add('lookup-highlight');
-        if (window.highlightManager) {
-          window.highlightManager.currentHighlight = newHighlight as HTMLElement;
+        if (services.highlightManager) {
+          services.highlightManager.currentHighlight = newHighlight as HTMLElement;
         }
       }
     }
   const container = document.querySelector<HTMLElement>('.asbplayer-offscreen');
   if (container) {
     console.log(container.innerText);
-    window.bannerManager.updateComprehension(
+    services.bannerManager!.updateComprehension(
       await this.analyzeASBPlayerSubtitlesComprehension(container.innerText)
     );
   } else {
@@ -1967,8 +1968,8 @@ export class PageProcessor {
   // Clear both lookup highlight and unknown word highlights
   clearHighlights(): void {
     try {
-      if (window.highlightManager && window.highlightManager.removeLookupHighlight) {
-        window.highlightManager.removeLookupHighlight();
+      if (services.highlightManager && services.highlightManager.removeLookupHighlight) {
+        services.highlightManager.removeLookupHighlight();
       }
     } catch (_) {}
     this.clearUnknownWordHighlights();

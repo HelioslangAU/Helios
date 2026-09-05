@@ -1,4 +1,5 @@
 import { browser } from 'wxt/browser';
+import { provideServices, revokeService, services } from '@/content/services';
 import { items, storage } from '@/config/storage';
 import { VideoConstants } from '@/content/video/config/video-constants';
 import { PlatformDetector } from '@/content/video/core/platform-detector';
@@ -991,9 +992,9 @@ export class PlatformVideoSidebar {
       // Get the appropriate loader based on platform
       let platformLoader: any = null;
       if (platform === 'netflix') {
-        platformLoader = window.heliosVideoFeature?.netflixLoader;
+        platformLoader = services.videoFeature?.netflixLoader;
       } else if (platform === 'youtube') {
-        platformLoader = window.heliosVideoFeature?.youtubeLoader;
+        platformLoader = services.videoFeature?.youtubeLoader;
       }
 
       if (!platformLoader || !platformLoader.getAvailableTracks) {
@@ -1365,9 +1366,9 @@ export class PlatformVideoSidebar {
       // Get the appropriate loader based on platform
       let platformLoader: any = null;
       if (platform === 'netflix') {
-        platformLoader = window.heliosVideoFeature?.netflixLoader;
+        platformLoader = services.videoFeature?.netflixLoader;
       } else if (platform === 'youtube') {
-        platformLoader = window.heliosVideoFeature?.youtubeLoader;
+        platformLoader = services.videoFeature?.youtubeLoader;
       }
 
       if (!platformLoader || !platformLoader.getAvailableTracks) {
@@ -1466,7 +1467,7 @@ export class PlatformVideoSidebar {
    */
   _extractPotentialWords(text: string): string[] {
     const words: string[] = [];
-    const currentLang = window.languageRegistry?.getCurrentLanguage();
+    const currentLang = services.languageRegistry?.getCurrentLanguage();
 
     if (currentLang && ['zh', 'ja', 'ko'].includes(currentLang)) {
       const seen = new Set<string>();
@@ -1525,7 +1526,7 @@ export class PlatformVideoSidebar {
     }
 
     // Preload words
-    if (window.dictionaryManager && (window.dictionaryManager as any).preloadWords) {
+    if (services.dictionaryManager && (services.dictionaryManager as any).preloadWords) {
       const allWordsToPreload: string[] = [];
       this.currentSubtitles.forEach(entry => {
         const words = this._extractPotentialWords(entry.text);
@@ -1534,7 +1535,7 @@ export class PlatformVideoSidebar {
 
       const uniqueWords = [...new Set(allWordsToPreload)];
       if (uniqueWords.length > 0) {
-        await (window.dictionaryManager as any).preloadWords(uniqueWords);
+        await (services.dictionaryManager as any).preloadWords(uniqueWords);
       }
     }
 
@@ -1555,27 +1556,27 @@ export class PlatformVideoSidebar {
       const primaryText = document.createElement('div');
       primaryText.className = 'yt-subtitle-text yt-subtitle-text-primary';
 
-      const adapter = window.languageRegistry?.getAdapter();
+      const adapter = services.languageRegistry?.getAdapter();
 
-      if (adapter && adapter.extractWords && window.dictionaryManager) {
+      if (adapter && adapter.extractWords && services.dictionaryManager) {
         const wordsToPreload = this._extractPotentialWords(entry.text);
-        if (wordsToPreload.length > 0 && (window.dictionaryManager as any).preloadWords) {
-          await (window.dictionaryManager as any).preloadWords(wordsToPreload);
+        if (wordsToPreload.length > 0 && (services.dictionaryManager as any).preloadWords) {
+          await (services.dictionaryManager as any).preloadWords(wordsToPreload);
         }
 
-        const dictionary: any = window.dictionaryManager?.dictionary || {};
+        const dictionary: any = services.dictionaryManager?.dictionary || {};
         // Use language-aware word extraction (EXACTLY like YouTube)
         const extractedWords: any[] = await adapter.extractWords(entry.text, dictionary);
 
         // Additional safeguard: preload ALL extracted words (including those marked as non-target)
         // This ensures words that weren't found during initial extraction can be found after preloading
         const allExtractedWords = extractedWords.map(({ word }) => word.toLowerCase());
-        if (allExtractedWords.length > 0 && (window.dictionaryManager as any).preloadWords) {
-          await (window.dictionaryManager as any).preloadWords(allExtractedWords);
+        if (allExtractedWords.length > 0 && (services.dictionaryManager as any).preloadWords) {
+          await (services.dictionaryManager as any).preloadWords(allExtractedWords);
         }
 
         // Refresh dictionary reference after preloading
-        const dictionaryAfterPreload: any = window.dictionaryManager?.dictionary || {};
+        const dictionaryAfterPreload: any = services.dictionaryManager?.dictionary || {};
 
         // Re-check words that were marked as non-target - they might be in dictionary now
         // This fixes cases where words weren't found during initial extraction due to timing
@@ -1593,7 +1594,7 @@ export class PlatformVideoSidebar {
         });
 
         // Check if language uses spaces between words (not CJK languages)
-        const currentLang = window.languageRegistry?.getCurrentLanguage();
+        const currentLang = services.languageRegistry?.getCurrentLanguage();
         const usesSpaces = currentLang && !['zh', 'ja', 'ko'].includes(currentLang);
 
         extractedWords.forEach(({ word, offset, isTargetLang, dictionaryForm }, index) => {
@@ -1616,13 +1617,13 @@ export class PlatformVideoSidebar {
             const cleanWord = dictionaryForm || word.toLowerCase();
 
             // Underline unknown words (no length restriction, matches YouTube sidebar and caption overlay)
-            if (window.vocabManager &&
+            if (services.vocabManager &&
                 dictionaryAfterPreload[cleanWord] &&
-                !window.vocabManager.isWordKnown(cleanWord) &&
-                !window.vocabManager.isWordIgnored(cleanWord) &&
-                !window.vocabManager.isWordLearning(cleanWord)) {
+                !services.vocabManager.isWordKnown(cleanWord) &&
+                !services.vocabManager.isWordIgnored(cleanWord) &&
+                !services.vocabManager.isWordLearning(cleanWord)) {
               wordSpan.classList.add('unknown-word');
-            } else if (window.vocabManager.isWordLearning(cleanWord)) {
+            } else if (services.vocabManager!.isWordLearning(cleanWord)) {
               wordSpan.classList.add('learning-word');
             }
 
@@ -1744,7 +1745,7 @@ export class PlatformVideoSidebar {
    * @param changedWords - Optional word or list of words whose state changed
    */
   async _updateUnderlining(changedWords: string | string[] | null = null): Promise<void> {
-    if (!this.listContainer || !window.vocabManager || !window.dictionaryManager) return;
+    if (!this.listContainer || !services.vocabManager || !services.dictionaryManager) return;
 
     const t0 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
 
@@ -1765,7 +1766,7 @@ export class PlatformVideoSidebar {
         return;
       }
 
-      const dictionary: any = window.dictionaryManager.dictionary || {};
+      const dictionary: any = services.dictionaryManager.dictionary || {};
       const hasCssEscape = window.CSS && typeof window.CSS.escape === 'function';
 
       normalizedWords.forEach(cleanWord => {
@@ -1785,16 +1786,16 @@ export class PlatformVideoSidebar {
         let updatedCount = 0;
         wordSpans.forEach(wordSpan => {
           const shouldUnderline = dictionary[cleanWord] &&
-                                 !window.vocabManager.isWordKnown(cleanWord) &&
-                                 !window.vocabManager.isWordIgnored(cleanWord) &&
-                                 !window.vocabManager.isWordLearning(cleanWord);
+                                 !services.vocabManager!.isWordKnown(cleanWord) &&
+                                 !services.vocabManager!.isWordIgnored(cleanWord) &&
+                                 !services.vocabManager!.isWordLearning(cleanWord);
 
           // Remove all word state classes first
           wordSpan.classList.remove('unknown-word', 'learning-word');
 
           if (shouldUnderline) {
             wordSpan.classList.add('unknown-word');
-          } else if (window.vocabManager.isWordLearning(cleanWord)) {
+          } else if (services.vocabManager!.isWordLearning(cleanWord)) {
             wordSpan.classList.add('learning-word');
           }
           updatedCount++;
@@ -1815,11 +1816,11 @@ export class PlatformVideoSidebar {
       return word ? word.toLowerCase() : null;
     }).filter((w): w is string => w !== null);
 
-    if (wordsToCheck.length > 0 && (window.dictionaryManager as any).preloadWords) {
-      await (window.dictionaryManager as any).preloadWords(wordsToCheck);
+    if (wordsToCheck.length > 0 && (services.dictionaryManager as any).preloadWords) {
+      await (services.dictionaryManager as any).preloadWords(wordsToCheck);
     }
 
-    const dictionary: any = window.dictionaryManager.dictionary || {};
+    const dictionary: any = services.dictionaryManager.dictionary || {};
 
     let updatedCount = 0;
     wordSpans.forEach(wordSpan => {
@@ -1828,16 +1829,16 @@ export class PlatformVideoSidebar {
 
       const cleanWord = word.toLowerCase();
       const shouldUnderline = dictionary[cleanWord] &&
-                             !window.vocabManager.isWordKnown(cleanWord) &&
-                             !window.vocabManager.isWordIgnored(cleanWord) &&
-                             !window.vocabManager.isWordLearning(cleanWord);
+                             !services.vocabManager!.isWordKnown(cleanWord) &&
+                             !services.vocabManager!.isWordIgnored(cleanWord) &&
+                             !services.vocabManager!.isWordLearning(cleanWord);
 
       // Remove all word state classes first
       wordSpan.classList.remove('unknown-word', 'learning-word');
 
       if (shouldUnderline) {
         wordSpan.classList.add('unknown-word');
-      } else if (window.vocabManager.isWordLearning(cleanWord)) {
+      } else if (services.vocabManager!.isWordLearning(cleanWord)) {
         wordSpan.classList.add('learning-word');
       }
       updatedCount++;
@@ -2026,9 +2027,9 @@ export class PlatformVideoSidebar {
     // Get the appropriate loader based on platform
     let platformLoader: any = null;
     if (platform === 'netflix') {
-      platformLoader = window.heliosVideoFeature?.netflixLoader;
+      platformLoader = services.videoFeature?.netflixLoader;
     } else if (platform === 'youtube') {
-      platformLoader = window.heliosVideoFeature?.youtubeLoader;
+      platformLoader = services.videoFeature?.youtubeLoader;
     }
 
     if (!platformLoader) {
@@ -2051,11 +2052,12 @@ export class PlatformVideoSidebar {
 
       console.log('[Helios Platform Sidebar] Available tracks:', tracks.length);
 
-      if (!window.subtitleSelectorModal) {
+      if (!services.subtitleSelectorModal) {
         window.subtitleSelectorModal = new SubtitleSelectorModal();
+        provideServices({ subtitleSelectorModal: window.subtitleSelectorModal });
       }
 
-      window.subtitleSelectorModal.show(tracks, async (selectedTrack: any) => {
+      services.subtitleSelectorModal!.show(tracks, async (selectedTrack: any) => {
         console.log('[Helios Platform Sidebar] Selected track:', selectedTrack.languageName);
         this._showNotification(`Loading ${selectedTrack.languageName} captions...`, 'info');
 
@@ -2067,7 +2069,7 @@ export class PlatformVideoSidebar {
             return;
           }
 
-          const binding = window.heliosVideoFeature?.videoDetector?.getPrimaryBinding();
+          const binding = services.videoFeature?.videoDetector?.getPrimaryBinding();
           if (binding) {
             binding.loadSubtitles(entries, selectedTrack);
             this._showNotification(`Loaded ${entries.length} captions (${selectedTrack.languageName})`, 'success');
@@ -2559,6 +2561,7 @@ export class PlatformVideoSidebar {
 
 // Initialize platform sidebar
 window.platformVideoSidebar = new PlatformVideoSidebar();
+provideServices({ platformVideoSidebar: window.platformVideoSidebar });
 
 // Listen for video feature toggle changes AND global extension toggle
 browser.storage.onChanged.addListener((changes, namespace) => {
@@ -2567,15 +2570,17 @@ browser.storage.onChanged.addListener((changes, namespace) => {
     if (changes.extensionEnabled) {
       const isEnabled = changes.extensionEnabled.newValue !== false;
 
-      if (!isEnabled && window.platformVideoSidebar) {
+      if (!isEnabled && services.platformVideoSidebar) {
         console.log('[Helios Platform Sidebar] Extension disabled - hiding and disabling sidebar');
-        window.platformVideoSidebar.hide();
+        services.platformVideoSidebar.hide();
         // Optionally destroy to clean up completely
-        window.platformVideoSidebar.destroy();
+        services.platformVideoSidebar.destroy();
         window.platformVideoSidebar = null;
-      } else if (isEnabled && !window.platformVideoSidebar) {
+        revokeService('platformVideoSidebar');
+      } else if (isEnabled && !services.platformVideoSidebar) {
         console.log('[Helios Platform Sidebar] Extension enabled - reinitializing sidebar');
         window.platformVideoSidebar = new PlatformVideoSidebar();
+        provideServices({ platformVideoSidebar: window.platformVideoSidebar });
       }
     }
 
@@ -2583,13 +2588,15 @@ browser.storage.onChanged.addListener((changes, namespace) => {
     if (changes.videoFeatureEnabled) {
       const isEnabled = changes.videoFeatureEnabled.newValue !== false;
 
-      if (!isEnabled && window.platformVideoSidebar) {
+      if (!isEnabled && services.platformVideoSidebar) {
         console.log('[Helios Platform Sidebar] Video features disabled - destroying sidebar');
-        window.platformVideoSidebar.destroy();
+        services.platformVideoSidebar.destroy();
         window.platformVideoSidebar = null;
-      } else if (isEnabled && !window.platformVideoSidebar) {
+        revokeService('platformVideoSidebar');
+      } else if (isEnabled && !services.platformVideoSidebar) {
         console.log('[Helios Platform Sidebar] Video features enabled - reinitializing sidebar');
         window.platformVideoSidebar = new PlatformVideoSidebar();
+        provideServices({ platformVideoSidebar: window.platformVideoSidebar });
       }
     }
   }

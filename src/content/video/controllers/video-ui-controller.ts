@@ -1,5 +1,6 @@
 import { browser } from 'wxt/browser';
 import { items } from '@/config/storage';
+import { services } from '@/content/services';
 import { ShortcutHelper } from '@/content/utils/shortcut-helper';
 import { SubtitleSelectorModal } from '@/content/video/ui/subtitle-selector-modal';
 import type { VideoDetector } from '@/content/video/core/video-detector';
@@ -177,8 +178,8 @@ export class VideoUIController {
     if (!isYouTube && !isNetflix) return;
 
     // Listen for language change from the language registry
-    if (window.languageRegistry) {
-      window.languageRegistry.on('languageChanged', async (newLanguage: string) => {
+    if (services.languageRegistry) {
+      services.languageRegistry.on('languageChanged', async (newLanguage: string) => {
         // Clear old subtitles
         const binding = this.videoDetector.getPrimaryBinding();
         if (binding) {
@@ -226,13 +227,13 @@ export class VideoUIController {
       binding.startLoadingSubtitles();
 
       // Get target language from language registry (already loaded and synced)
-      let targetLanguage = window.languageRegistry?.getCurrentLanguage() || 'zh';
+      let targetLanguage = services.languageRegistry?.getCurrentLanguage() || 'zh';
 
       // Fallback: if language registry not available, read from storage.
       // NOTE: `targetLanguage` is a `local` key everywhere else in the
       // extension; this reads `sync`, so it always misses and falls through to
       // 'zh'. Preserved as-is — fixing it would change behavior.
-      if (!window.languageRegistry) {
+      if (!services.languageRegistry) {
         const settings = await browser.storage.sync.get('targetLanguage');
         targetLanguage = (settings.targetLanguage as string | undefined)?.toLowerCase() || 'zh';
       }
@@ -311,12 +312,12 @@ export class VideoUIController {
       binding.startLoadingSubtitles();
 
       // Get target language from language registry (same as YouTube)
-      let targetLanguage = window.languageRegistry?.getCurrentLanguage() || 'zh';
+      let targetLanguage = services.languageRegistry?.getCurrentLanguage() || 'zh';
 
       // Fallback: if language registry not available, read from storage.
       // NOTE: reads `sync` while `targetLanguage` lives in `local` — see the
       // matching note in autoLoadSubtitles().
-      if (!window.languageRegistry) {
+      if (!services.languageRegistry) {
         const settings = await browser.storage.sync.get('targetLanguage');
         targetLanguage = (settings.targetLanguage as string | undefined)?.toLowerCase() || 'zh';
       }

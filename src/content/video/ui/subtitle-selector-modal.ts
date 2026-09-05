@@ -1,3 +1,5 @@
+import { services } from '@/content/services';
+
 /**
  * Subtitle Selector Modal (ASB Player style)
  * Shows available subtitle tracks for user to select
@@ -222,7 +224,7 @@ export class SubtitleSelectorModal {
    */
   _handleImport(): void {
     // Check if file loader is available
-    if (!window.heliosVideoFeature?.fileLoader) {
+    if (!services.videoFeature?.fileLoader) {
       console.error('[Helios Subtitle Selector] File loader not available');
       // Dispatch notification event that sidebar can catch
       document.dispatchEvent(new CustomEvent('helios-video-notification', {
@@ -240,7 +242,7 @@ export class SubtitleSelectorModal {
     }));
 
     // Trigger the file picker
-    window.heliosVideoFeature.fileLoader.openFilePicker();
+    services.videoFeature.fileLoader.openFilePicker();
   }
 
   /**

@@ -1,6 +1,7 @@
 import type { DictionaryManager } from '@/content/dictionary-manager';
 import type { DictionaryManagerProxy } from '@/content/dictionary-bridge';
 import type { FrequencyManager } from '@/content/frequency-manager';
+import { services } from '@/content/services';
 import { items, storage } from '@/config/storage';
 import { browser } from 'wxt/browser';
 
@@ -161,7 +162,7 @@ export class AnkiManager {
   // Extract word data from character and context
   async extractWordData(character: string, options: Record<string, any> = {}): Promise<AnkiWordData> {
     // Get current language from registry
-    const currentLanguage = window.languageRegistry?.getCurrentLanguage() || 'zh';
+    const currentLanguage = services.languageRegistry?.getCurrentLanguage() || 'zh';
 
     const wordData: AnkiWordData = {
       character: character,
@@ -183,7 +184,7 @@ export class AnkiManager {
         let definition = match.definition || match.meaning || "";
 
         // Enhance variant definitions (e.g., "variant of {something}") by including base definitions
-        const adapter = window.languageRegistry?.getAdapter();
+        const adapter = services.languageRegistry?.getAdapter();
         if (adapter && adapter.enhanceVariantDefinition && definition) {
           definition = await adapter.enhanceVariantDefinition(
             definition,
@@ -530,7 +531,7 @@ export class AnkiManager {
         }
 
         // Enhance variant definitions if definition exists and wasn't already enhanced
-        const adapter = window.languageRegistry?.getAdapter();
+        const adapter = services.languageRegistry?.getAdapter();
         if (adapter && adapter.enhanceVariantDefinition && wordData.definition && this.dictionaryManager?.dictionary) {
           const allEntries = wordData.character ? this.dictionaryManager.dictionary[wordData.character] : null;
           wordData.definition = await adapter.enhanceVariantDefinition(
@@ -569,15 +570,15 @@ export class AnkiManager {
         // If auto-sync learning words is enabled, mark the word as learning
         try {
           const settings = await this.getSettings();
-          if (settings.autoSyncLearningWords && window.vocabManager) {
+          if (settings.autoSyncLearningWords && services.vocabManager) {
             const character = wordData.character;
             if (character) {
               // Ensure vocab manager has the correct language set
-              const currentLanguage = window.languageRegistry?.getCurrentLanguage() || wordData.language || 'zh';
-              window.vocabManager.setCurrentLanguage(currentLanguage);
+              const currentLanguage = services.languageRegistry?.getCurrentLanguage() || wordData.language || 'zh';
+              services.vocabManager.setCurrentLanguage(currentLanguage);
 
               // Mark word as learning
-              await window.vocabManager.markWordAsLearning(character);
+              await services.vocabManager.markWordAsLearning(character);
               console.log(`🃏 Marked word as learning (auto-sync enabled): ${character}`);
 
               // Update popup button state if popup is open
@@ -1042,7 +1043,7 @@ export class AnkiManager {
   // Update popup button state after vocabulary changes
   updatePopupButtonState(character: string): void {
     try {
-      if (!character || !window.vocabManager) {
+      if (!character || !services.vocabManager) {
         return;
       }
 
@@ -1059,9 +1060,9 @@ export class AnkiManager {
       }
 
       // Check the word's current state
-      const isKnown = window.vocabManager.isWordKnown(character);
-      const isLearning = window.vocabManager.isWordLearning(character);
-      const isIgnored = window.vocabManager.isWordIgnored(character);
+      const isKnown = services.vocabManager.isWordKnown(character);
+      const isLearning = services.vocabManager.isWordLearning(character);
+      const isIgnored = services.vocabManager.isWordIgnored(character);
 
       // Determine the state
       let state = "unknown";

@@ -1,3 +1,5 @@
+import { services } from '@/content/services';
+
 export class HighlightManager {
   currentHighlight: HTMLElement | null;
   currentHighlightGroup: HTMLElement[];
@@ -76,15 +78,15 @@ export class HighlightManager {
 
   _onHighlightEnter = (): void => {
     this.isMouseOverHighlight = true;
-    if (window.popupManager?.hideTimeout) {
-      clearTimeout(window.popupManager.hideTimeout);
-      window.popupManager.hideTimeout = null;
+    if (services.popupManager?.hideTimeout) {
+      clearTimeout(services.popupManager.hideTimeout);
+      services.popupManager.hideTimeout = null;
     }
   };
 
   _onHighlightLeave = (): void => {
     this.isMouseOverHighlight = false;
-    window.popupManager?.scheduleHidePopup();
+    services.popupManager?.scheduleHidePopup();
   };
 
   getHighlightText(): string {

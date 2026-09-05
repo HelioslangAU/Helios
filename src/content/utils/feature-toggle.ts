@@ -1,4 +1,5 @@
 import { BannerManager } from '@/content/banner-manager';
+import { provideServices } from '@/content/services';
 import { YouTubeSidebar } from '@/content/youtube-sidebar';
 import type { ActivationController } from '@/content/utils/activation-controller';
 import type { TextScanner } from '@/content/utils/text-scanner';
@@ -95,6 +96,7 @@ export class FeatureToggle {
     if (!this.bannerManager && typeof BannerManager !== 'undefined') {
       this.bannerManager = new BannerManager();
       window.bannerManager = this.bannerManager;
+      provideServices({ bannerManager: this.bannerManager });
       if (this.parentExtension) {
         this.parentExtension.bannerManager = this.bannerManager;
       }

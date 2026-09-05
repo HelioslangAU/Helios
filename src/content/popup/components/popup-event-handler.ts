@@ -1,4 +1,5 @@
 import { items, storage } from '@/config/storage';
+import { services } from '@/content/services';
 import { browser } from 'wxt/browser';
 import type { AnkiManager } from '@/content/anki-manager';
 import type { FrequencyManager } from '@/content/frequency-manager';
@@ -464,10 +465,10 @@ export class PopupEventHandler {
   }
 
   static async handleMarkKnown(character: string): Promise<void> {
-    await window.vocabManager.markWordAsUnignored(character);
-    await window.vocabManager.markWordAsKnown(character);
-    if (window.pageProcessor) {
-      window.pageProcessor.updateWordStyling(character, true);
+    await services.vocabManager!.markWordAsUnignored(character);
+    await services.vocabManager!.markWordAsKnown(character);
+    if (services.pageProcessor) {
+      services.pageProcessor.updateWordStyling(character, true);
     }
     // Update counter via chrome storage listener (will trigger in extension tab)
     this.notifyCounterUpdate();
@@ -476,10 +477,10 @@ export class PopupEventHandler {
   }
 
   static async handleMarkUnknown(character: string): Promise<void> {
-    await window.vocabManager.markWordAsUnignored(character);
-    await window.vocabManager.markWordAsUnknown(character);
-    if (window.pageProcessor) {
-      window.pageProcessor.updateWordStyling(character, false);
+    await services.vocabManager!.markWordAsUnignored(character);
+    await services.vocabManager!.markWordAsUnknown(character);
+    if (services.pageProcessor) {
+      services.pageProcessor.updateWordStyling(character, false);
     }
     // Update counter via chrome storage listener (will trigger in extension tab)
     this.notifyCounterUpdate();
@@ -488,10 +489,10 @@ export class PopupEventHandler {
   }
 
   static async handleMarkLearning(character: string): Promise<void> {
-    await window.vocabManager.markWordAsUnignored(character);
-    await window.vocabManager.markWordAsLearning(character);
-    if (window.pageProcessor) {
-      window.pageProcessor.updateWordStyling(character, true);
+    await services.vocabManager!.markWordAsUnignored(character);
+    await services.vocabManager!.markWordAsLearning(character);
+    if (services.pageProcessor) {
+      services.pageProcessor.updateWordStyling(character, true);
     }
     // Update counter via chrome storage listener (will trigger in extension tab)
     this.notifyCounterUpdate();
@@ -500,10 +501,10 @@ export class PopupEventHandler {
   }
 
   static async handleMarkIgnored(character: string): Promise<void> {
-    await window.vocabManager.markWordAsUnknown(character);
-    await window.vocabManager.markWordAsIgnored(character);
-    if (window.pageProcessor) {
-      window.pageProcessor.updateWordStyling(character, true);
+    await services.vocabManager!.markWordAsUnknown(character);
+    await services.vocabManager!.markWordAsIgnored(character);
+    if (services.pageProcessor) {
+      services.pageProcessor.updateWordStyling(character, true);
     }
     // Update counter via chrome storage listener (will trigger in extension tab)
     this.notifyCounterUpdate();
@@ -517,7 +518,7 @@ export class PopupEventHandler {
     const firstMatch = matches.length > 0 ? matches[0] : {};
 
     // Get current language
-    const currentLanguage = window.languageRegistry?.getCurrentLanguage() || 'zh';
+    const currentLanguage = services.languageRegistry?.getCurrentLanguage() || 'zh';
 
     // Typed loosely: AnkiManager's AnkiWordData is not exported and declares
     // `sentence?: string`, while capturedSentence is `string | null`.
@@ -546,7 +547,7 @@ export class PopupEventHandler {
     const firstEntry: Partial<DictionaryEntry> = currentCard.entries[0] || {};
 
     // Get current language
-    const currentLanguage = window.languageRegistry?.getCurrentLanguage() || 'zh';
+    const currentLanguage = services.languageRegistry?.getCurrentLanguage() || 'zh';
 
     // See handleAnkiAdd: AnkiWordData is not exported and rejects a null sentence.
     const wordData: Record<string, any> = {
@@ -641,8 +642,8 @@ export class PopupEventHandler {
   static updateSideTabStats(): void {
     // Update side tab stats after marking words
     // Delegate to BannerManager's debounced refresh logic to avoid duplicate heavy calculations
-    if (window.bannerManager && typeof window.bannerManager.refreshData === 'function') {
-      window.bannerManager.refreshData();
+    if (services.bannerManager && typeof services.bannerManager.refreshData === 'function') {
+      services.bannerManager.refreshData();
     }
   }
 }

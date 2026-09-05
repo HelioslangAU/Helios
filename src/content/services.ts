@@ -19,6 +19,7 @@
 import type { AnkiManager } from '@/content/anki-manager';
 import type { BannerManager } from '@/content/banner-manager';
 import type { DictionaryManagerProxy } from '@/content/dictionary-bridge';
+import type { DictionaryManager } from '@/content/dictionary-manager';
 import type { LanguageRegistry } from '@/content/languages/language-registry';
 import type { PageProcessor } from '@/content/page-processor';
 import type { PopupManager } from '@/content/popup/popup-manager';
@@ -32,7 +33,11 @@ import type { YouTubeSidebar } from '@/content/youtube-sidebar';
 
 export interface HeliosServices {
   languageRegistry: LanguageRegistry;
-  dictionaryManager: DictionaryManagerProxy;
+  /**
+   * Content scripts get the proxy (lookups hop to the offscreen document);
+   * the options page constructs a plain DictionaryManager directly.
+   */
+  dictionaryManager: DictionaryManager | DictionaryManagerProxy;
   vocabManager: VocabManager;
   pageProcessor: PageProcessor;
   highlightManager: HighlightManager;
@@ -62,6 +67,15 @@ export function provideServices(provided: Partial<HeliosServices>): void {
  * exactly as they did when reading `window`.
  */
 export const services: Readonly<Partial<HeliosServices>> = registry;
+
+/**
+ * Withdraw a single service. Teardown paths must call this so a destroyed
+ * instance stops being handed out — absence is how the registry models the
+ * `null` these features used to assign to `window`.
+ */
+export function revokeService(key: keyof HeliosServices): void {
+  delete registry[key];
+}
 
 /** Drop all registered services. Used when the content script is torn down. */
 export function clearServices(): void {

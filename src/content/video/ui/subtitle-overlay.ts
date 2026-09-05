@@ -1,4 +1,5 @@
 import { items, storage } from '@/config/storage';
+import { services } from '@/content/services';
 import type { SubtitleEntry } from '@/content/video/models/subtitle-entry';
 
 /**
@@ -973,7 +974,7 @@ export class SubtitleOverlay {
    * Used when vocabulary changes to avoid closing popup
    */
   async _updateSubtitleUnderlining(changedWords: string | string[] | null = null): Promise<void> {
-    if (!window.dictionaryManager || !window.vocabManager) return;
+    if (!services.dictionaryManager || !services.vocabManager) return;
 
     const t0 = performance && typeof performance.now === 'function' ? performance.now() : Date.now();
 
@@ -994,7 +995,7 @@ export class SubtitleOverlay {
         return;
       }
 
-      const dictionary: any = window.dictionaryManager?.dictionary || {};
+      const dictionary: any = services.dictionaryManager?.dictionary || {};
       const hasCssEscape = window.CSS && typeof window.CSS.escape === 'function';
 
       normalizedWords.forEach(cleanWord => {
@@ -1017,13 +1018,13 @@ export class SubtitleOverlay {
           wordSpan.classList.remove('unknown-word', 'learning-word');
 
           // Re-check if word should be underlined
-          if (window.vocabManager &&
+          if (services.vocabManager &&
               dictionary[cleanWord] &&
-              !window.vocabManager.isWordKnown(cleanWord) &&
-              !window.vocabManager.isWordIgnored(cleanWord) &&
-              !window.vocabManager.isWordLearning(cleanWord)) {
+              !services.vocabManager.isWordKnown(cleanWord) &&
+              !services.vocabManager.isWordIgnored(cleanWord) &&
+              !services.vocabManager.isWordLearning(cleanWord)) {
             wordSpan.classList.add('unknown-word');
-          } else if (window.vocabManager.isWordLearning(cleanWord)) {
+          } else if (services.vocabManager!.isWordLearning(cleanWord)) {
             wordSpan.classList.add('learning-word');
           }
           updatedCount++;
@@ -1045,11 +1046,11 @@ export class SubtitleOverlay {
     }).filter((w): w is string => w !== null);
 
     // Preload words to ensure they're in cache
-    if (wordsToCheck.length > 0 && (window.dictionaryManager as any).preloadWords) {
-      await (window.dictionaryManager as any).preloadWords(wordsToCheck);
+    if (wordsToCheck.length > 0 && (services.dictionaryManager as any).preloadWords) {
+      await (services.dictionaryManager as any).preloadWords(wordsToCheck);
     }
 
-    const dictionary: any = window.dictionaryManager?.dictionary || {};
+    const dictionary: any = services.dictionaryManager?.dictionary || {};
 
     let updatedCount = 0;
     wordSpans.forEach(wordSpan => {
@@ -1062,13 +1063,13 @@ export class SubtitleOverlay {
       wordSpan.classList.remove('unknown-word', 'learning-word');
 
       // Re-check if word should be underlined
-      if (window.vocabManager &&
+      if (services.vocabManager &&
           dictionary[cleanWord] &&
-          !window.vocabManager.isWordKnown(cleanWord) &&
-          !window.vocabManager.isWordIgnored(cleanWord) &&
-          !window.vocabManager.isWordLearning(cleanWord)) {
+          !services.vocabManager.isWordKnown(cleanWord) &&
+          !services.vocabManager.isWordIgnored(cleanWord) &&
+          !services.vocabManager.isWordLearning(cleanWord)) {
         wordSpan.classList.add('unknown-word');
-      } else if (window.vocabManager.isWordLearning(cleanWord)) {
+      } else if (services.vocabManager!.isWordLearning(cleanWord)) {
         wordSpan.classList.add('learning-word');
       }
       updatedCount++;
@@ -1143,7 +1144,7 @@ export class SubtitleOverlay {
    * This preserves hover states and popups
    */
   async _updateUnderlining(): Promise<void> {
-    if (!this.container || !window.vocabManager || !window.dictionaryManager) return;
+    if (!this.container || !services.vocabManager || !services.dictionaryManager) return;
 
     const wordSpans = this.container.querySelectorAll('.helios-subtitle-word');
     const wordsToCheck = Array.from(wordSpans).map(span => {
@@ -1152,11 +1153,11 @@ export class SubtitleOverlay {
     }).filter((w): w is string => w !== null);
 
     // Preload words to ensure they're in cache
-    if (wordsToCheck.length > 0 && (window.dictionaryManager as any).preloadWords) {
-      await (window.dictionaryManager as any).preloadWords(wordsToCheck);
+    if (wordsToCheck.length > 0 && (services.dictionaryManager as any).preloadWords) {
+      await (services.dictionaryManager as any).preloadWords(wordsToCheck);
     }
 
-    const dictionary: any = window.dictionaryManager.dictionary || {};
+    const dictionary: any = services.dictionaryManager.dictionary || {};
 
     wordSpans.forEach(wordSpan => {
       const word = wordSpan.getAttribute('data-helios-word');
@@ -1164,16 +1165,16 @@ export class SubtitleOverlay {
 
       const cleanWord = word.toLowerCase();
       const shouldUnderline = dictionary[cleanWord] &&
-                             !window.vocabManager.isWordKnown(cleanWord) &&
-                             !window.vocabManager.isWordIgnored(cleanWord) &&
-                             !window.vocabManager.isWordLearning(cleanWord);
+                             !services.vocabManager!.isWordKnown(cleanWord) &&
+                             !services.vocabManager!.isWordIgnored(cleanWord) &&
+                             !services.vocabManager!.isWordLearning(cleanWord);
 
       // Remove all word state classes first
       wordSpan.classList.remove('unknown-word', 'learning-word');
 
       if (shouldUnderline) {
         wordSpan.classList.add('unknown-word');
-      } else if (window.vocabManager.isWordLearning(cleanWord)) {
+      } else if (services.vocabManager!.isWordLearning(cleanWord)) {
         wordSpan.classList.add('learning-word');
       }
     });
@@ -1184,8 +1185,8 @@ export class SubtitleOverlay {
    */
   _isPopupVisible(): boolean {
     // Check if popup manager exists and has an active popup
-    if (window.popupManager && (window.popupManager as any).popup) {
-      const popup = (window.popupManager as any).popup;
+    if (services.popupManager && (services.popupManager as any).popup) {
+      const popup = (services.popupManager as any).popup;
       // Check if popup exists in DOM and is visible
       return popup && popup.parentElement && popup.style.display !== 'none';
     }
@@ -1225,8 +1226,8 @@ export class SubtitleOverlay {
    */
   _extractPotentialWords(text: string): string[] {
     const words: string[] = [];
-    const currentLang = window.languageRegistry?.getCurrentLanguage();
-    const adapter = window.languageRegistry?.getAdapter();
+    const currentLang = services.languageRegistry?.getCurrentLanguage();
+    const adapter = services.languageRegistry?.getAdapter();
 
     if (currentLang && ['zh', 'ja', 'ko'].includes(currentLang)) {
       // For CJK languages, extract unique characters and sequences up to maxWordLength
@@ -1278,11 +1279,11 @@ export class SubtitleOverlay {
     }
 
     // Clean up any popups/highlights before clearing DOM
-    if (window.popupManager) {
-      window.popupManager.hidePopup();
+    if (services.popupManager) {
+      services.popupManager.hidePopup();
     }
-    if (window.highlightManager) {
-      window.highlightManager.removeLookupHighlight();
+    if (services.highlightManager) {
+      services.highlightManager.removeLookupHighlight();
     }
 
     // Clear existing content
@@ -1309,29 +1310,29 @@ export class SubtitleOverlay {
       primarySubtitleEl.style.background = 'rgba(0, 0, 0, ' + this.subtitleBackgroundOpacity + ')';
 
       // Extract words using language adapter (handles Chinese, English, etc.)
-      const adapter = window.languageRegistry?.getAdapter();
+      const adapter = services.languageRegistry?.getAdapter();
 
-      if (adapter && adapter.extractWords && window.dictionaryManager) {
+      if (adapter && adapter.extractWords && services.dictionaryManager) {
         // Preload potential words from subtitle text before extraction
         // This ensures words are in cache for extractWords to find them
         const wordsToPreload = this._extractPotentialWords(subtitle.text);
-        if (wordsToPreload.length > 0 && (window.dictionaryManager as any).preloadWords) {
-          await (window.dictionaryManager as any).preloadWords(wordsToPreload);
+        if (wordsToPreload.length > 0 && (services.dictionaryManager as any).preloadWords) {
+          await (services.dictionaryManager as any).preloadWords(wordsToPreload);
         }
 
-        const dictionary: any = window.dictionaryManager?.dictionary || {};
+        const dictionary: any = services.dictionaryManager?.dictionary || {};
         // Use language-aware word extraction
         const extractedWords: any[] = await adapter.extractWords(subtitle.text, dictionary);
 
         // Additional safeguard: preload ALL extracted words (including those marked as non-target)
         // This ensures words that weren't found during initial extraction can be found after preloading
         const allExtractedWords = extractedWords.map(({ word }) => word.toLowerCase());
-        if (allExtractedWords.length > 0 && (window.dictionaryManager as any).preloadWords) {
-          await (window.dictionaryManager as any).preloadWords(allExtractedWords);
+        if (allExtractedWords.length > 0 && (services.dictionaryManager as any).preloadWords) {
+          await (services.dictionaryManager as any).preloadWords(allExtractedWords);
         }
 
         // Refresh dictionary reference after preloading to ensure cache is up to date
-        const dictionaryAfterPreload: any = window.dictionaryManager?.dictionary || {};
+        const dictionaryAfterPreload: any = services.dictionaryManager?.dictionary || {};
 
         // Re-check words that were marked as non-target - they might be in dictionary now
         // This fixes cases where words weren't found during initial extraction due to timing
@@ -1349,7 +1350,7 @@ export class SubtitleOverlay {
         });
 
         // Check if language uses spaces between words (not CJK languages)
-        const currentLang = window.languageRegistry?.getCurrentLanguage();
+        const currentLang = services.languageRegistry?.getCurrentLanguage();
         const usesSpaces = currentLang && !['zh', 'ja', 'ko'].includes(currentLang);
 
         extractedWords.forEach(({ word, offset, isTargetLang, dictionaryForm }, index) => {
@@ -1374,13 +1375,13 @@ export class SubtitleOverlay {
             // Use dictionaryForm if available (normalized form), otherwise use lowercase word
             const cleanWord = dictionaryForm || word.toLowerCase();
 
-            if (window.vocabManager &&
+            if (services.vocabManager &&
                 dictionaryAfterPreload[cleanWord] &&
-                !window.vocabManager.isWordKnown(cleanWord) &&
-                !window.vocabManager.isWordIgnored(cleanWord) &&
-                !window.vocabManager.isWordLearning(cleanWord)) {
+                !services.vocabManager.isWordKnown(cleanWord) &&
+                !services.vocabManager.isWordIgnored(cleanWord) &&
+                !services.vocabManager.isWordLearning(cleanWord)) {
               wordSpan.classList.add('unknown-word');
-            } else if (window.vocabManager.isWordLearning(cleanWord)) {
+            } else if (services.vocabManager!.isWordLearning(cleanWord)) {
               wordSpan.classList.add('learning-word');
             }
 
@@ -1568,11 +1569,11 @@ export class SubtitleOverlay {
       this.container!.innerHTML = '';
 
       // Clean up any popups/highlights from subtitle words
-      if (window.popupManager) {
-        window.popupManager.hidePopup();
+      if (services.popupManager) {
+        services.popupManager.hidePopup();
       }
-      if (window.highlightManager) {
-        window.highlightManager.removeLookupHighlight();
+      if (services.highlightManager) {
+        services.highlightManager.removeLookupHighlight();
       }
     }
   }

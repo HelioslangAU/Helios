@@ -1,5 +1,6 @@
 import { browser } from 'wxt/browser';
 import { PATHS } from '@/config/paths';
+import { provideServices, revokeService, services } from '@/content/services';
 import { VideoDetector } from '@/content/video/core/video-detector';
 import { SubtitleFileLoader } from '@/content/video/loaders/subtitle-file-loader';
 import { YouTubeSubtitleLoader } from '@/content/video/loaders/youtube-subtitle-loader';
@@ -268,15 +269,17 @@ export class VideoFeatureManager {
     }
 
     // Destroy YouTube sidebar if it exists
-    if (window.youtubeSidebar && typeof window.youtubeSidebar.destroy === 'function') {
-      window.youtubeSidebar.destroy();
+    if (services.youtubeSidebar && typeof services.youtubeSidebar.destroy === 'function') {
+      services.youtubeSidebar.destroy();
       (window as any).youtubeSidebar = null;
+      revokeService('youtubeSidebar');
     }
 
     // Destroy platform video sidebar if it exists
-    if (window.platformVideoSidebar && typeof window.platformVideoSidebar.destroy === 'function') {
-      window.platformVideoSidebar.destroy();
+    if (services.platformVideoSidebar && typeof services.platformVideoSidebar.destroy === 'function') {
+      services.platformVideoSidebar.destroy();
       (window as any).platformVideoSidebar = null;
+      revokeService('platformVideoSidebar');
     }
 
     // Remove all subtitle overlays
@@ -314,18 +317,19 @@ export class VideoFeatureManager {
 // Global instance
 if (!window.heliosVideoFeature) {
   window.heliosVideoFeature = new VideoFeatureManager();
+  provideServices({ videoFeature: window.heliosVideoFeature });
 
   // Listen for setting changes to enable/disable video features in real-time
   browser.storage.onChanged.addListener((changes, namespace) => {
     if (namespace === 'local' && changes.videoFeatureEnabled) {
       const isEnabled = changes.videoFeatureEnabled.newValue !== false;
 
-      if (isEnabled && !window.heliosVideoFeature!.isInitialized) {
+      if (isEnabled && !services.videoFeature!.isInitialized) {
         console.log('[Helios Video] Video features enabled via toggle');
-        window.heliosVideoFeature!.enable();
-      } else if (!isEnabled && window.heliosVideoFeature!.isInitialized) {
+        services.videoFeature!.enable();
+      } else if (!isEnabled && services.videoFeature!.isInitialized) {
         console.log('[Helios Video] Video features disabled via toggle');
-        window.heliosVideoFeature!.disable();
+        services.videoFeature!.disable();
       }
     }
   });

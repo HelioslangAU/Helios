@@ -1,4 +1,5 @@
 import { items, recentVocabItem, storage } from '@/config/storage';
+import { services } from '@/content/services';
 
 export class VocabManager {
   // Support per-language known words - dynamically created as needed
@@ -629,21 +630,21 @@ export class VocabManager {
     }
 
     // Notify sidebar manager of vocabulary changes
-    if (window.sidebarManager && window.sidebarManager.onVocabUpdate) {
+    if (services.bannerManager?.onVocabUpdate) {
       // Use a small delay to ensure processing is complete
       setTimeout(() => {
-        window.sidebarManager.onVocabUpdate();
+        services.bannerManager!.onVocabUpdate();
       }, 100);
     }
 
     // Also trigger page highlight update, but avoid full reprocess when we know the words
-    if (wordsArray && window.pageProcessor && window.pageProcessor.updateWordStyling) {
-      wordsArray.forEach(word => window.pageProcessor.updateWordStyling(word, isKnownOrIgnored));
-    } else if (!wordsArray && window.pageProcessor && window.pageProcessor.reprocessPage) {
+    if (wordsArray && services.pageProcessor?.updateWordStyling) {
+      wordsArray.forEach(word => services.pageProcessor!.updateWordStyling(word, isKnownOrIgnored));
+    } else if (!wordsArray && services.pageProcessor?.reprocessPage) {
       // Fallback: full reprocess when we don't know which words changed
       console.warn('[Helios VocabManager] Triggering full pageProcessor.reprocessPage() due to missing changedWords');
       requestAnimationFrame(() => {
-        window.pageProcessor.reprocessPage();
+        services.pageProcessor!.reprocessPage();
       });
     }
 
