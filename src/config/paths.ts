@@ -1,74 +1,97 @@
 /**
- * Centralized runtime asset paths.
+ * Runtime asset paths.
  *
- * All paths are relative to the built extension root (WXT output). Assets that
- * are fetched at runtime live in `src/public/` and keep these stable URLs.
+ * Every path here is typed as WXT's `PublicPath`, a union generated from the
+ * files actually present in the build. A typo or a moved asset is therefore a
+ * type error rather than a 404 at runtime.
  */
+import { browser } from 'wxt/browser';
+import type { PublicPath } from 'wxt/browser';
 
-export type SettingsTabName =
-  | 'general'
-  | 'anki'
-  | 'vocabulary'
-  | 'advanced'
-  | 'popup'
-  | 'shortcuts'
-  | 'video-player';
+export const SETTINGS_TABS = [
+  'general',
+  'anki',
+  'vocabulary',
+  'advanced',
+  'popup',
+  'shortcuts',
+  'video-player',
+] as const;
+
+export type SettingsTabName = (typeof SETTINGS_TABS)[number];
+
+/**
+ * Tab names reach us from localStorage and DOM attributes, so they're
+ * unvalidated strings until this guard narrows them.
+ */
+export function isSettingsTabName(value: string): value is SettingsTabName {
+  return (SETTINGS_TABS as readonly string[]).includes(value);
+}
 
 export const PATHS = {
-  FREQ_DICT: 'freq-dict/',
-
   FREQUENCY_FILES: [
-    'term_meta_bank_1.json',
-    'term_meta_bank_2.json',
-    'term_meta_bank_3.json',
-    'term_meta_bank_4.json',
-    'term_meta_bank_5.json',
-    'term_meta_bank_6.json',
-    'term_meta_bank_7.json',
-    'term_meta_bank_8.json',
-    'term_meta_bank_9.json',
-    'term_meta_bank_10.json',
-    'term_meta_bank_11.json',
-    'term_meta_bank_12.json',
-  ],
+    '/freq-dict/term_meta_bank_1.json',
+    '/freq-dict/term_meta_bank_2.json',
+    '/freq-dict/term_meta_bank_3.json',
+    '/freq-dict/term_meta_bank_4.json',
+    '/freq-dict/term_meta_bank_5.json',
+    '/freq-dict/term_meta_bank_6.json',
+    '/freq-dict/term_meta_bank_7.json',
+    '/freq-dict/term_meta_bank_8.json',
+    '/freq-dict/term_meta_bank_9.json',
+    '/freq-dict/term_meta_bank_10.json',
+    '/freq-dict/term_meta_bank_11.json',
+    '/freq-dict/term_meta_bank_12.json',
+  ] satisfies PublicPath[],
 
   HTML: {
-    BANNER: 'ui/banner/banner.html',
-    SIDE_TAB: 'ui/side-tab/side-tab.html',
-    YOUTUBE_SIDEBAR: 'ui/youtube-sidebar/youtube-sidebar.html',
-    ONBOARDING: 'onboarding.html',
-    SETTINGS: 'options.html',
-  },
+    BANNER: '/ui/banner/banner.html',
+    SIDE_TAB: '/ui/side-tab/side-tab.html',
+    YOUTUBE_SIDEBAR: '/ui/youtube-sidebar/youtube-sidebar.html',
+    ONBOARDING: '/onboarding.html',
+    SETTINGS: '/options.html',
+  } satisfies Record<string, PublicPath>,
 
   CSS: {
-    BANNER: 'ui/banner/banner.css',
-    SIDE_TAB: 'ui/side-tab/side-tab.css',
-    YOUTUBE_SIDEBAR: 'ui/youtube-sidebar/youtube-sidebar.css',
-    VIDEO_STYLES: 'ui/video/video-styles.css',
-    POPUP: 'ui/popup/popup.css',
-  },
+    BANNER: '/ui/banner/banner.css',
+    SIDE_TAB: '/ui/side-tab/side-tab.css',
+    YOUTUBE_SIDEBAR: '/ui/youtube-sidebar/youtube-sidebar.css',
+    VIDEO_STYLES: '/ui/video/video-styles.css',
+    POPUP: '/ui/popup/popup.css',
+  } satisfies Record<string, PublicPath>,
 
   /** MAIN-world page scripts injected via <script src> (web accessible). */
   PAGE_SCRIPTS: {
-    YOUTUBE: 'youtube-page.js',
-    NETFLIX: 'netflix-page.js',
-  },
+    YOUTUBE: '/youtube-page.js',
+    NETFLIX: '/netflix-page.js',
+  } satisfies Record<string, PublicPath>,
 
-  JIEBA_DICT: 'lib/jieba/dict.txt.big',
+  JIEBA_DICT: '/lib/jieba/dict.txt.big',
+
+  ICONS: {
+    SMALL: '/icons/icon16.png',
+    MEDIUM: '/icons/icon48.png',
+    LARGE: '/icons/icon128.png',
+  } satisfies Record<string, PublicPath>,
 
   /** Settings tab HTML fragments fetched into the options page. */
-  settingsTabHtml(tab: SettingsTabName | string): string {
-    return `ui/settings/${tab}-settings.html`;
+  settingsTabHtml(tab: SettingsTabName): PublicPath {
+    return `/ui/settings/${tab}-settings.html`;
   },
 
-  /** Full chrome-extension:// URL for a path relative to the extension root. */
-  url(path: string): string {
-    return chrome.runtime.getURL(path);
+  /** Onboarding vocabulary list for a language. */
+  onboardingVocab(languageCode: string): PublicPath {
+    return `/OnboardingVocab/${languageCode}5k.csv` as PublicPath;
+  },
+
+  /** Full chrome-extension:// URL for a build asset. */
+  url(path: PublicPath): string {
+    return browser.runtime.getURL(path);
   },
 
   /** All frequency dictionary file paths. */
-  getFrequencyFiles(): string[] {
-    return PATHS.FREQUENCY_FILES.map((file) => `${PATHS.FREQ_DICT}${file}`);
+  getFrequencyFiles(): PublicPath[] {
+    return [...PATHS.FREQUENCY_FILES];
   },
 } as const;
 

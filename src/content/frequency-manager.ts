@@ -10,12 +10,10 @@ export class FrequencyManager {
   async loadFrequencyList(): Promise<void> {
     // Load all files in freq-dict/ that start with term_meta_bank
     // File paths are centralized in src/config/paths.ts
-    const folder = PATHS.FREQ_DICT;
-    const fileNames = PATHS.FREQUENCY_FILES;
     this.freqMap = {};
-    for (const file of fileNames) {
+    for (const file of PATHS.getFrequencyFiles()) {
       try {
-        const response = await fetch(chrome.runtime.getURL(folder + file));
+        const response = await fetch(PATHS.url(file));
         if (!response.ok) continue;
         const freqArr: any[] = await response.json();
         for (const entry of freqArr) {

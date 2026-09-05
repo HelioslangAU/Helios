@@ -3,6 +3,7 @@
  * Coordinates all components during a language switch to ensure smooth transitions
  */
 
+import { browser } from 'wxt/browser';
 import type { LanguageRegistry } from '@/content/languages/language-registry';
 import type { PageProcessor } from '@/content/page-processor';
 import type { VocabManager } from '@/content/vocab-manager';
@@ -152,7 +153,7 @@ export class LanguageSwitchCoordinator {
    */
   async _saveLanguagePreference(languageCode: string): Promise<void> {
     try {
-      await chrome.storage.local.set({ targetLanguage: languageCode });
+      await browser.storage.local.set({ targetLanguage: languageCode });
     } catch (error) {
       console.error('Error saving language preference:', error);
     }

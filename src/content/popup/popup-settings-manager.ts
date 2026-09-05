@@ -1,4 +1,8 @@
-/** User-facing popup settings loaded from chrome.storage (all optional until loaded). */
+import { browser } from 'wxt/browser';
+
+import { items } from '@/config/storage';
+
+/** User-facing popup settings loaded from extension storage (all optional until loaded). */
 export interface PopupSettings {
   popupTheme?: string;
   popupFontSize?: string;
@@ -26,33 +30,34 @@ export class PopupSettingsManager {
 
   async loadSettings(): Promise<void> {
     try {
-      if (chrome.storage && chrome.storage.local) {
-        // Only `popupTheme` is declared in HeliosStorage; the rest are popup-only
-        // keys, so this read stays raw rather than pulling the whole bag via getAll().
-        const result = await chrome.storage.local.get<PopupSettings>([
-          'popupTheme',
-          'popupFontSize',
-          'showFrequency',
-          'persistentPopup',
-          'autoCloseDelay'
+      const [popupTheme, popupFontSize, showFrequency, persistentPopup, autoCloseDelay] =
+        await Promise.all([
+          items.popupTheme.getValue(),
+          items.popupFontSize.getValue(),
+          items.showFrequency.getValue(),
+          items.persistentPopup.getValue(),
+          items.autoCloseDelay.getValue(),
         ]);
 
-        this.settings = {
-          popupTheme: result.popupTheme || 'dark',
-          popupFontSize: result.popupFontSize || 'medium',
-          showFrequency: result.showFrequency !== false,
-          persistentPopup: result.persistentPopup !== false, // Default to ON
-          autoCloseDelay: result.autoCloseDelay || 0
-        };
-      }
+      this.settings = {
+        // The `||` guards keep an empty stored string falling through to the
+        // default; an item fallback only applies when the key is unset.
+        popupTheme: popupTheme || 'dark',
+        popupFontSize: popupFontSize || 'medium',
+        showFrequency,
+        persistentPopup,
+        autoCloseDelay,
+      };
     } catch (error) {
       console.error('Error loading popup settings:', error);
     }
   }
 
   setupMessageListener(): void {
-    if (chrome.runtime && chrome.runtime.onMessage) {
-      chrome.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
+    // `browser.runtime.id` is only set inside an extension context; this class is
+    // also constructed from plain pages in tests, where registering would throw.
+    if (browser.runtime?.id) {
+      browser.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
         switch (message.action) {
           case 'updatePopupTheme':
             this.settings.popupTheme = message.theme;

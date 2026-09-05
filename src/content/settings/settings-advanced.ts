@@ -1,6 +1,8 @@
 // Helios Settings Advanced Operations
 // Handles cache, logs, diagnostics and advanced features
 
+import { browser } from 'wxt/browser';
+
 import type { HeliosSettingsManager } from '@/content/settings/helios-settings';
 
 export class HeliosSettingsAdvanced {
@@ -65,10 +67,10 @@ export class HeliosSettingsAdvanced {
           cookieEnabled: navigator.cookieEnabled,
         },
         extension: {
-          chromeStorageAvailable: !!(chrome.storage && chrome.storage.local),
-          chromeRuntimeAvailable: !!(
-            chrome.runtime && chrome.runtime.sendMessage
-          ),
+          // Reported, not branched on: the diagnostic is meant to show whether
+          // the extension APIs are actually reachable from this page.
+          chromeStorageAvailable: !!browser.storage?.local,
+          chromeRuntimeAvailable: !!browser.runtime?.id,
           settingsLoaded: Object.keys(this.manager.settings).length > 0,
           loadedTabs: Array.from(this.manager.loadedTabs),
         },

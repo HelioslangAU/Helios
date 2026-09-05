@@ -1,5 +1,7 @@
 // Updated Helios Settings Anki Integration - Simplified and Clean
 
+import { browser } from 'wxt/browser';
+
 import { AnkiManager } from '@/content/anki-manager';
 import type { HeliosSettingsManager } from '@/content/settings/helios-settings';
 
@@ -137,11 +139,6 @@ export class HeliosSettingsAnki {
   // Send message to background script
   async sendMessage(action: string, data: Record<string, any> = {}): Promise<any> {
     return new Promise((resolve, reject) => {
-      if (!chrome.runtime?.sendMessage) {
-        reject(new Error("Chrome extension context not available"));
-        return;
-      }
-
       const message = { action, ...data };
       // Use longer timeout for deck notes requests (large decks can take time)
       const timeoutDuration = action === "ANKI_GET_DECK_NOTES" ? 60000 : 10000; // 60s for deck notes, 10s for others
@@ -149,11 +146,13 @@ export class HeliosSettingsAnki {
         reject(new Error("Message timeout"));
       }, timeoutDuration);
 
-      chrome.runtime.sendMessage(message, (response) => {
+      // Callback form, not the promise form: `lastError` has to be read inside
+      // the callback to distinguish "no receiver" from a failed response.
+      browser.runtime.sendMessage(message, (response) => {
         clearTimeout(timeout);
 
-        if (chrome.runtime.lastError) {
-          reject(new Error(chrome.runtime.lastError.message));
+        if (browser.runtime.lastError) {
+          reject(new Error(browser.runtime.lastError.message));
         } else if (response?.success) {
           resolve(response);
         } else {

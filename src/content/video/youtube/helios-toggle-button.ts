@@ -1,3 +1,5 @@
+import { PATHS } from '@/config/paths';
+
 /** Minimal surface of the sidebar this button controls. */
 interface ToggleSidebar {
   isVisible: boolean;
@@ -47,7 +49,7 @@ export class HeliosToggleButton {
 
     // Create image element for Helios logo
     const img = document.createElement('img');
-    img.src = chrome.runtime.getURL('icons/icon48.png');
+    img.src = PATHS.url(PATHS.ICONS.MEDIUM);
     img.className = 'helios-toggle-icon';
     img.alt = 'Helios';
     this.button.appendChild(img);

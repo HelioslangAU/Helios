@@ -1,3 +1,5 @@
+import { browser } from 'wxt/browser';
+
 export interface SettingsSyncCallbacks {
   onLoaded?: (settings: any) => void;
   onToggled?: (enabled: boolean) => void;
@@ -16,7 +18,7 @@ export class SettingsSync {
 
   async load(): Promise<void> {
     try {
-      const response = await chrome.runtime.sendMessage({ action: "getExtensionSettings" });
+      const response = await browser.runtime.sendMessage({ action: "getExtensionSettings" });
       if (response && response.success) {
         this.callbacks.onLoaded && this.callbacks.onLoaded(response.settings);
       } else {
@@ -29,7 +31,7 @@ export class SettingsSync {
   }
 
   _listen(): void {
-    chrome.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
+    browser.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
       switch (message.action) {
         case "extensionToggled":
           this.callbacks.onToggled && this.callbacks.onToggled(message.enabled);

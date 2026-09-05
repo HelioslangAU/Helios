@@ -1,7 +1,9 @@
 // Main Helios Settings Manager - Entry Point
 // This file coordinates all the settings modules
 
-import { PATHS } from '@/config/paths';
+import { browser } from 'wxt/browser';
+
+import { PATHS, isSettingsTabName } from '@/config/paths';
 import { HeliosSettingsAdvanced } from '@/content/settings/settings-advanced';
 import { HeliosSettingsAnki } from '@/content/settings/settings-anki';
 import { HeliosSettingsStorage } from '@/content/settings/settings-storage';
@@ -195,7 +197,7 @@ export class HeliosSettingsManager {
       console.log("🔍 DEBUG: Helios Settings Manager initialized successfully");
 
       // Listen for storage changes from other sources (like YouTube sidebar)
-      chrome.storage.onChanged.addListener((changes, areaName) => {
+      browser.storage.onChanged.addListener((changes, areaName) => {
         if (areaName === 'local' && (changes.videoPlayer || changes.ytSidebarSettings)) {
           console.log("🔍 DEBUG: Storage changed externally, reloading settings");
           this.storage!.loadAllSettings().then(() => {
@@ -303,6 +305,13 @@ export class HeliosSettingsManager {
     const tabElement = document.getElementById(tabName);
     if (!tabElement) {
       console.error("🔍 DEBUG: Tab element not found:", tabName);
+      return;
+    }
+
+    // tabName comes from localStorage and DOM attributes, so it may name a tab
+    // that no longer exists; fetching it would 404 into the catch below.
+    if (!isSettingsTabName(tabName)) {
+      console.error("🔍 DEBUG: Unknown settings tab:", tabName);
       return;
     }
 

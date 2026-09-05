@@ -3,6 +3,8 @@
  * Manages the collapsible side panel with stats and actions
  */
 
+import { browser } from 'wxt/browser';
+
 export interface SentenceBreakdown {
   totalSentences: number;
   t0Sentences: number;
@@ -700,9 +702,9 @@ export class HeliosSideTab {
 
         // Send message to background script to open options page
         // Content scripts can't directly call openOptionsPage()
-        chrome.runtime.sendMessage({ action: 'openSettings' }, (response) => {
-            if (chrome.runtime.lastError) {
-                console.error('Error opening settings:', chrome.runtime.lastError);
+        browser.runtime.sendMessage({ action: 'openSettings' }, () => {
+            if (browser.runtime.lastError) {
+                console.error('Error opening settings:', browser.runtime.lastError);
             }
         });
     }

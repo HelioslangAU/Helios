@@ -632,7 +632,7 @@ export class PopupEventHandler {
   }
 
   static notifyCounterUpdate(): void {
-    // The chrome.storage.onChanged listener in extensiontab.js will automatically
+    // The storage.onChanged listener in extensiontab will automatically
     // detect changes to chineseExtensionKnownWords and update the counter
     // This happens because VocabManager.saveKnownWords() triggers storage changes
     console.log("Word status updated - extension tab will auto-update via storage listener");

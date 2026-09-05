@@ -1,3 +1,4 @@
+import { PATHS } from '@/config/paths';
 import { BasePlatformSubtitleLoader } from '@/content/video/loaders/base-subtitle-loader';
 import { SubtitleParser } from '@/content/video/parsers/subtitle-parser';
 import { VTTParser } from '@/content/video/parsers/vtt-parser';
@@ -54,7 +55,7 @@ export class NetflixSubtitleLoader extends BasePlatformSubtitleLoader {
     if (this.pageScriptInjected) return;
 
     const success = this.injectScript(
-      'netflix-page.js',
+      PATHS.PAGE_SCRIPTS.NETFLIX,
       () => {
         console.log('[Helios Netflix] Page script injected successfully');
         this.pageScriptInjected = true;

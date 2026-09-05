@@ -1,3 +1,5 @@
+import { browser } from 'wxt/browser';
+import type { PublicPath } from 'wxt/browser';
 import type { LanguageRegistry } from '@/content/languages/language-registry';
 
 export class DictionaryManager {
@@ -17,12 +19,14 @@ export class DictionaryManager {
         return;
       }
 
-      // Get dictionary path from adapter
-      const dictionaryPath = adapter.getDictionaryPath()!;
+      // Get dictionary path from adapter. Adapters build this themselves (and
+      // for multi-bank dictionaries it is a directory prefix, not a file), so
+      // it cannot be one of the typed PublicPath literals.
+      const dictionaryPath = adapter.getDictionaryPath()! as PublicPath;
 
       if (dictionaryPath.endsWith('/')) {
         // Handle French dictionary with multiple term bank files
-        const baseUrl = chrome.runtime.getURL(dictionaryPath);
+        const baseUrl = browser.runtime.getURL(dictionaryPath);
         const dictionary: Record<string, any> = {};
 
         // Load and process each term bank file
@@ -39,7 +43,7 @@ export class DictionaryManager {
         this.dictionary = dictionary;
       } else {
         // Handle other languages with single dictionary file
-        const dictionaryUrl = chrome.runtime.getURL(dictionaryPath);
+        const dictionaryUrl = browser.runtime.getURL(dictionaryPath);
         const response = await fetch(dictionaryUrl);
         const text = await response.text();
         this.dictionary = adapter.parseDictionary(text);

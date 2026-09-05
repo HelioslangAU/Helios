@@ -4,6 +4,7 @@
  * This is critical for intercepting Netflix's JSON.parse/stringify calls
  */
 import { defineContentScript } from '#imports';
+import { PATHS } from '@/config/paths';
 
 export default defineContentScript({
   matches: ['*://*.netflix.com/*'],
@@ -19,7 +20,7 @@ export default defineContentScript({
 
     // Inject page script immediately
     const script = document.createElement('script');
-    script.src = chrome.runtime.getURL('netflix-page.js');
+    script.src = PATHS.url(PATHS.PAGE_SCRIPTS.NETFLIX);
     script.onload = () => {
       console.log('[Helios Netflix] Page script injected early');
       script.remove();

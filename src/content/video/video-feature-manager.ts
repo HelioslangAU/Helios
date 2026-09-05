@@ -1,3 +1,5 @@
+import { browser } from 'wxt/browser';
+import { PATHS } from '@/config/paths';
 import { VideoDetector } from '@/content/video/core/video-detector';
 import { SubtitleFileLoader } from '@/content/video/loaders/subtitle-file-loader';
 import { YouTubeSubtitleLoader } from '@/content/video/loaders/youtube-subtitle-loader';
@@ -76,7 +78,7 @@ export class VideoFeatureManager {
    */
   async _loadSettings(): Promise<void> {
     try {
-      const settings = await chrome.storage.local.get(['videoFeatureEnabled']);
+      const settings = await browser.storage.local.get(['videoFeatureEnabled']);
       this.isEnabled = settings.videoFeatureEnabled !== false; // Default to true
     } catch (error) {
       console.error('[Helios Video] Failed to load settings:', error);
@@ -90,7 +92,7 @@ export class VideoFeatureManager {
   _injectStyles(): void {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = chrome.runtime.getURL('ui/video/video-styles.css');
+    link.href = PATHS.url(PATHS.CSS.VIDEO_STYLES);
     document.head.appendChild(link);
   }
 
@@ -185,7 +187,7 @@ export class VideoFeatureManager {
    */
   enable(): void {
     this.isEnabled = true;
-    chrome.storage.local.set({ videoFeatureEnabled: true });
+    browser.storage.local.set({ videoFeatureEnabled: true });
 
     if (!this.isInitialized) {
       this.init();
@@ -197,7 +199,7 @@ export class VideoFeatureManager {
    */
   disable(): void {
     this.isEnabled = false;
-    chrome.storage.local.set({ videoFeatureEnabled: false });
+    browser.storage.local.set({ videoFeatureEnabled: false });
 
     if (this.isInitialized) {
       this.destroy();
@@ -314,7 +316,7 @@ if (!window.heliosVideoFeature) {
   window.heliosVideoFeature = new VideoFeatureManager();
 
   // Listen for setting changes to enable/disable video features in real-time
-  chrome.storage.onChanged.addListener((changes, namespace) => {
+  browser.storage.onChanged.addListener((changes, namespace) => {
     if (namespace === 'local' && changes.videoFeatureEnabled) {
       const isEnabled = changes.videoFeatureEnabled.newValue !== false;
 

@@ -1,3 +1,4 @@
+import { PATHS } from '@/config/paths';
 import { SubtitleEntry } from '@/content/video/models/subtitle-entry';
 import type { VideoDetector } from '@/content/video/core/video-detector';
 
@@ -38,7 +39,7 @@ export class YouTubeSubtitleLoader {
 
     try {
       const script = document.createElement('script');
-      script.src = chrome.runtime.getURL('youtube-page.js');
+      script.src = PATHS.url(PATHS.PAGE_SCRIPTS.YOUTUBE);
       script.onload = () => {
         script.remove();
       };

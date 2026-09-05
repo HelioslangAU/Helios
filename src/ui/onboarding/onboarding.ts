@@ -3,6 +3,8 @@
  * Handles the onboarding flow and user interactions
  */
 
+import { browser } from 'wxt/browser';
+import { PATHS } from '@/config/paths';
 import { OnboardingController } from '@/content/onboarding/onboarding-controller';
 import { LanguageSelector, type LanguageOption } from '@/content/components/language-selector/language-selector';
 import { VocabManager } from '@/content/vocab-manager';
@@ -403,13 +405,13 @@ export class OnboardingPage {
         } else {
           // Fallback: send message directly to background/offscreen
           const nativeLangCode = this.selectedNativeLanguage ? this.selectedNativeLanguage.code : null;
-          chrome.runtime.sendMessage({
+          browser.runtime.sendMessage({
             action: 'DICT_LOAD',
             languageCode: languageCode,
             nativeLanguageCode: nativeLangCode
           }, (response: any) => {
-            if (chrome.runtime.lastError) {
-              console.warn('Could not trigger dictionary loading:', chrome.runtime.lastError);
+            if (browser.runtime.lastError) {
+              console.warn('Could not trigger dictionary loading:', browser.runtime.lastError);
             } else if (response && response.success) {
               console.log(`✅ Dictionary loading started for ${languageCode}`);
             }
@@ -437,7 +439,7 @@ export class OnboardingPage {
       // Try fallback method
       try {
         const nativeLangCode = this.selectedNativeLanguage ? this.selectedNativeLanguage.code : null;
-        chrome.runtime.sendMessage({
+        browser.runtime.sendMessage({
           action: 'DICT_LOAD',
           languageCode: languageCode,
           nativeLanguageCode: nativeLangCode
@@ -815,16 +817,16 @@ export class OnboardingPage {
       throw new Error('Could not get language adapter');
     }
 
-    // Get vocabulary file path
-    const vocabPath = adapter.getOnboardingVocabPath(level.level);
-    if (!vocabPath) {
+    // The adapter decides whether a vocabulary list exists for this level;
+    // PATHS owns where the file actually lives.
+    if (!adapter.getOnboardingVocabPath(level.level)) {
       console.warn('No vocabulary file path defined for this level');
       return;
     }
 
     try {
       // Load CSV file
-      const fullPath = chrome.runtime.getURL(vocabPath);
+      const fullPath = PATHS.url(PATHS.onboardingVocab(languageCode));
       const response = await fetch(fullPath);
 
       if (!response.ok) {
@@ -937,7 +939,7 @@ export class OnboardingPage {
   }
 
   redirectToSettings(): void {
-    const settingsUrl = chrome.runtime.getURL('options.html');
+    const settingsUrl = PATHS.url(PATHS.HTML.SETTINGS);
     window.location.href = settingsUrl;
   }
 

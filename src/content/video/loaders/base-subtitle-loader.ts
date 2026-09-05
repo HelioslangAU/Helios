@@ -1,3 +1,5 @@
+import type { PublicPath } from 'wxt/browser';
+import { PATHS } from '@/config/paths';
 import type { VideoDetector } from '@/content/video/core/video-detector';
 import type { SubtitleEntry } from '@/content/video/models/subtitle-entry';
 
@@ -255,10 +257,10 @@ export class BasePlatformSubtitleLoader {
    * @param onLoad - Optional load callback
    * @param onError - Optional error callback
    */
-  injectScript(scriptPath: string, onLoad?: () => void, onError?: () => void): boolean {
+  injectScript(scriptPath: PublicPath, onLoad?: () => void, onError?: () => void): boolean {
     try {
       const script = document.createElement('script');
-      script.src = chrome.runtime.getURL(scriptPath);
+      script.src = PATHS.url(scriptPath);
 
       if (onLoad) {
         script.onload = () => {

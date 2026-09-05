@@ -118,6 +118,12 @@ export const items = {
   autoHighlight: storage.defineItem<boolean>('local:autoHighlight', { fallback: true }),
   popupTheme: storage.defineItem<string>('local:popupTheme', { fallback: 'dark' }),
 
+  // ---- Popup display (written by the options page's Popup tab) ----
+  popupFontSize: storage.defineItem<string>('local:popupFontSize', { fallback: 'medium' }),
+  showFrequency: storage.defineItem<boolean>('local:showFrequency', { fallback: true }),
+  persistentPopup: storage.defineItem<boolean>('local:persistentPopup', { fallback: true }),
+  autoCloseDelay: storage.defineItem<number>('local:autoCloseDelay', { fallback: 0 }),
+
   // ---- Vocabulary ----
   vocabList: storage.defineItem<VocabEntry[]>('local:vocabList', { fallback: [] }),
   knownWords: storage.defineItem<string[]>('local:knownWords', { fallback: [] }),

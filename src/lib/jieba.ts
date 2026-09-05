@@ -3,6 +3,9 @@
  * Browser-compatible version for Chrome Extension
  */
 
+import { browser } from 'wxt/browser';
+import { PATHS } from '@/config/paths';
+
 /** Trie node: character keys map to child nodes; '' marks end of word */
 export interface TrieNode {
   [char: string]: TrieNode | true;
@@ -99,12 +102,13 @@ export class Jieba {
     this.initialized = false;
     this._waiting = null;
 
-    // Set default dictionary path
+    // Set default dictionary path. Jieba also runs outside an extension
+    // context (tests, plain pages), where there is no runtime to resolve
+    // against — fall back to the bare relative path there.
+    const runtime = typeof browser === 'undefined' ? undefined : browser.runtime;
     let dictPath = options.dictPath;
-    if (!dictPath && typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL) {
-      dictPath = chrome.runtime.getURL('lib/jieba/dict.txt.big');
-    } else if (!dictPath) {
-      dictPath = 'lib/jieba/dict.txt.big';
+    if (!dictPath) {
+      dictPath = runtime?.getURL ? PATHS.url(PATHS.JIEBA_DICT) : Jieba.DEFAULT_DICT_PATH;
     }
     this.useDict(dictPath);
   }
