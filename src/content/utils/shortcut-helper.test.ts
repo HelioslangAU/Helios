@@ -445,16 +445,25 @@ describe('ShortcutHelper.getVideoNavigationShortcuts', () => {
 });
 
 describe('ShortcutHelper.getPopupShortcuts', () => {
+  /**
+   * Popup bindings are normalized to the object form on the way out, so a bare
+   * key string (legacy install) and an absent key (default) both surface as a
+   * modifier-free binding rather than as the raw string.
+   */
+  function bare(k: string): ShortcutConfig {
+    return { key: k, ctrl: false, shift: false, alt: false, meta: false };
+  }
+
   beforeEach(() => {
     fakeBrowser.reset();
   });
 
   it('returns the numeric defaults when nothing is stored', async () => {
     expect(await ShortcutHelper.getPopupShortcuts()).toEqual({
-      markUnknown: '1',
-      markIgnored: '2',
-      markKnown: '3',
-      ankiAdd: 'q',
+      markUnknown: bare('1'),
+      markIgnored: bare('2'),
+      markKnown: bare('3'),
+      ankiAdd: bare('q'),
     });
   });
 
@@ -463,10 +472,10 @@ describe('ShortcutHelper.getPopupShortcuts', () => {
       shortcuts: { popup: { markUnknown: '7', markIgnored: '8', markKnown: '9', ankiAdd: 'z' } },
     });
     expect(await ShortcutHelper.getPopupShortcuts()).toEqual({
-      markUnknown: '7',
-      markIgnored: '8',
-      markKnown: '9',
-      ankiAdd: 'z',
+      markUnknown: bare('7'),
+      markIgnored: bare('8'),
+      markKnown: bare('9'),
+      ankiAdd: bare('z'),
     });
   });
 
@@ -478,10 +487,10 @@ describe('ShortcutHelper.getPopupShortcuts', () => {
       hotkeyAnkiAdd: 'd',
     });
     expect(await ShortcutHelper.getPopupShortcuts()).toEqual({
-      markUnknown: 'a',
-      markIgnored: 'b',
-      markKnown: 'c',
-      ankiAdd: 'd',
+      markUnknown: bare('a'),
+      markIgnored: bare('b'),
+      markKnown: bare('c'),
+      ankiAdd: bare('d'),
     });
   });
 
@@ -491,10 +500,32 @@ describe('ShortcutHelper.getPopupShortcuts', () => {
       hotkeyMarkIgnored: '8',
     });
     expect(await ShortcutHelper.getPopupShortcuts()).toEqual({
-      markUnknown: '7', // unified
-      markIgnored: '8', // legacy
-      markKnown: '3', // default
-      ankiAdd: 'q', // default
+      markUnknown: bare('7'), // unified
+      markIgnored: bare('8'), // legacy
+      markKnown: bare('3'), // default
+      ankiAdd: bare('q'), // default
+    });
+  });
+
+  it('passes a stored binding object through with its modifiers intact', async () => {
+    // The settings page writes full binding objects, so the modifiers must
+    // survive the read instead of being flattened to a bare key.
+    const markUnknown = { key: 'k', ctrl: true, shift: false, alt: false, meta: false };
+    await chrome.storage.local.set({ shortcuts: { popup: { markUnknown } } });
+    expect((await ShortcutHelper.getPopupShortcuts()).markUnknown).toEqual(markUnknown);
+  });
+
+  it('normalizes object, legacy-string and absent bindings side by side', async () => {
+    const markUnknown = { key: 'k', ctrl: true, shift: true, alt: false, meta: true };
+    await chrome.storage.local.set({
+      shortcuts: { popup: { markUnknown } },
+      hotkeyMarkIgnored: '8',
+    });
+    expect(await ShortcutHelper.getPopupShortcuts()).toEqual({
+      markUnknown, // stored object, modifiers preserved
+      markIgnored: bare('8'), // legacy string, widened to a binding
+      markKnown: bare('3'), // default
+      ankiAdd: bare('q'), // default
     });
   });
 
@@ -504,13 +535,13 @@ describe('ShortcutHelper.getPopupShortcuts', () => {
     // scratch and only writes an action whose input has a value, so a cleared
     // binding arrives as a missing key, never as "".
     await chrome.storage.local.set({ shortcuts: { popup: { markUnknown: '' } } });
-    expect((await ShortcutHelper.getPopupShortcuts()).markUnknown).toBe('1');
+    expect((await ShortcutHelper.getPopupShortcuts()).markUnknown).toEqual(bare('1'));
   });
 
   it('falls through an empty legacy hotkey* value to the default', async () => {
     // The legacy keys *can* legitimately be written as "" (settings-storage
     // saves `parsed.key || ""`), so that empty string must not win.
     await chrome.storage.local.set({ hotkeyMarkKnown: '' });
-    expect((await ShortcutHelper.getPopupShortcuts()).markKnown).toBe('3');
+    expect((await ShortcutHelper.getPopupShortcuts()).markKnown).toEqual(bare('3'));
   });
 });

@@ -22,10 +22,22 @@ interface LegacyPopupHotkeys {
 }
 
 export interface PopupShortcuts {
-  markUnknown: string;
-  markIgnored: string;
-  markKnown: string;
-  ankiAdd: string;
+  markUnknown: ShortcutConfig;
+  markIgnored: ShortcutConfig;
+  markKnown: ShortcutConfig;
+  ankiAdd: ShortcutConfig;
+}
+
+/**
+ * Popup bindings are stored either as a bare key string (legacy) or as a full
+ * binding object (written by the settings page). Normalize to the object form.
+ */
+function toShortcutConfig(
+  stored: string | ShortcutConfig | undefined,
+  fallbackKey: string,
+): ShortcutConfig {
+  if (stored && typeof stored === 'object') return stored;
+  return { key: stored || fallbackKey, ctrl: false, shift: false, alt: false, meta: false };
 }
 
 /** Build a fresh copy of the video shortcut defaults (fresh so callers can mutate safely). */
@@ -212,18 +224,18 @@ export class ShortcutHelper {
       // `hotkey*` keys, by contrast, can be written as "" (`parsed.key || ""`),
       // and that empty string must fall through to the default rather than win.
       return {
-        markUnknown: popupShortcuts.markUnknown || legacyResult.hotkeyMarkUnknown || "1",
-        markIgnored: popupShortcuts.markIgnored || legacyResult.hotkeyMarkIgnored || "2",
-        markKnown: popupShortcuts.markKnown || legacyResult.hotkeyMarkKnown || "3",
-        ankiAdd: popupShortcuts.ankiAdd || legacyResult.hotkeyAnkiAdd || "q"
+        markUnknown: toShortcutConfig(popupShortcuts.markUnknown || legacyResult.hotkeyMarkUnknown, "1"),
+        markIgnored: toShortcutConfig(popupShortcuts.markIgnored || legacyResult.hotkeyMarkIgnored, "2"),
+        markKnown: toShortcutConfig(popupShortcuts.markKnown || legacyResult.hotkeyMarkKnown, "3"),
+        ankiAdd: toShortcutConfig(popupShortcuts.ankiAdd || legacyResult.hotkeyAnkiAdd, "q")
       };
     } catch (error) {
       console.error('[ShortcutHelper] Error loading popup shortcuts:', error);
       return {
-        markUnknown: "1",
-        markIgnored: "2",
-        markKnown: "3",
-        ankiAdd: "q"
+        markUnknown: toShortcutConfig(undefined, "1"),
+        markIgnored: toShortcutConfig(undefined, "2"),
+        markKnown: toShortcutConfig(undefined, "3"),
+        ankiAdd: toShortcutConfig(undefined, "q")
       };
     }
   }

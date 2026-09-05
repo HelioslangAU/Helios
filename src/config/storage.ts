@@ -26,7 +26,11 @@ export interface VideoPlayerSettings {
 }
 
 export interface ShortcutSettings {
-  popup?: Record<string, string>;
+  /**
+   * Written by the settings page as `HotkeyBinding` objects; older installs
+   * hold bare key strings. Readers must handle both.
+   */
+  popup?: Record<string, string | HotkeyBinding>;
   video?: Record<string, HotkeyBinding>;
   videoNavigation?: Record<string, HotkeyBinding>;
   [key: string]: unknown;
