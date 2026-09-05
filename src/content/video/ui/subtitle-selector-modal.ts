@@ -8,6 +8,7 @@ export class SubtitleSelectorModal {
   onTrackSelected: ((track: any) => void) | null;
   isVisible: boolean;
   currentTrack: any;
+  _escKeyHandler: ((e: KeyboardEvent) => void) | null = null;
 
   constructor() {
     this.modal = null;
@@ -108,11 +109,13 @@ export class SubtitleSelectorModal {
     });
 
     // ESC key to close
-    document.addEventListener('keydown', (e) => {
+    this._escKeyHandler = (e) => {
       if (e.key === 'Escape' && this.isVisible) {
         this.hide();
       }
-    });
+    };
+
+    document.addEventListener('keydown', this._escKeyHandler);
   }
 
   /**
@@ -244,6 +247,11 @@ export class SubtitleSelectorModal {
    * Destroy modal
    */
   destroy(): void {
+    if (this._escKeyHandler) {
+      document.removeEventListener('keydown', this._escKeyHandler);
+      this._escKeyHandler = null;
+    }
+
     if (this.modal && this.modal.parentElement) {
       this.modal.parentElement.removeChild(this.modal);
     }

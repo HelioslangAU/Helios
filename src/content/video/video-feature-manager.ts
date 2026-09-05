@@ -98,9 +98,11 @@ export class VideoFeatureManager {
    * Setup integration events with other Helios features
    */
   _setupIntegrationEvents(): void {
-    // Toggle subtitle panel
+    // Toggle subtitle panel.
+    // The active sidebars (YouTubeSidebar / PlatformVideoSidebar) listen for this event
+    // themselves, so this only fires when a standalone panel controller is in use.
     document.addEventListener('helios-toggle-subtitle-panel', () => {
-      this.panelController!.toggle();
+      this.panelController?.toggle();
     });
 
     // Auto-load YouTube subtitles - DISABLED (now handled by VideoUIController)

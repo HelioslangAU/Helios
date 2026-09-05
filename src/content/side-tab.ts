@@ -79,6 +79,9 @@ export class HeliosSideTab {
     // Position state
     position: string;
 
+    // Listeners
+    handleKeydown: ((e: KeyboardEvent) => void) | null = null;
+
     constructor() {
         this.container = document.getElementById('helios-side-tab');
         this.state = 'closed'; // closed, partial, full
@@ -214,7 +217,7 @@ export class HeliosSideTab {
         });
 
         // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
+        this.handleKeydown = (e) => {
             // Escape key to close/collapse
             if (e.key === 'Escape' && this.state !== 'closed') {
                 if (this.state === 'full') {
@@ -229,7 +232,9 @@ export class HeliosSideTab {
                 e.preventDefault();
                 this.toggleState();
             }
-        });
+        };
+
+        document.addEventListener('keydown', this.handleKeydown);
     }
 
     /**
@@ -854,7 +859,10 @@ export class HeliosSideTab {
      */
     destroy(): void {
         // Remove event listeners
-        document.removeEventListener('keydown', (this as any).handleKeydown);
+        if (this.handleKeydown) {
+            document.removeEventListener('keydown', this.handleKeydown);
+            this.handleKeydown = null;
+        }
 
         // Remove from DOM
         if (this.container && this.container.parentNode) {

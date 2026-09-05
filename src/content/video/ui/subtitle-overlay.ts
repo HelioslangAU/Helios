@@ -948,7 +948,7 @@ export class SubtitleOverlay {
    * Setup listener for vocabulary updates to refresh underlining
    */
   _setupVocabUpdateListener(): void {
-    document.addEventListener('helios-vocab-updated', (e) => {
+    this._vocabUpdateHandler = (e) => {
       const detail = e && (e as CustomEvent).detail;
       const rawWords = detail ? detail.words : null;
       const changedWords = Array.isArray(rawWords) || typeof rawWords === 'string'
@@ -961,7 +961,9 @@ export class SubtitleOverlay {
           await this._updateSubtitleUnderlining(changedWords);
         }, 50);
       }
-    });
+    };
+
+    document.addEventListener('helios-vocab-updated', this._vocabUpdateHandler);
 
     // Listen for pinyin toggle to re-render subtitles with/without pinyin
     document.addEventListener('helios-pinyin-toggled', () => {
@@ -1091,7 +1093,7 @@ export class SubtitleOverlay {
    */
   _setupPopupListener(): void {
     // Use a global mousemove listener to detect when mouse leaves both word and popup
-    document.addEventListener('mousemove', (e) => {
+    this._pauseOnHoverHandler = (e) => {
       if (!this.pauseOnHover || !this.pausedByHover) return;
 
       // Check if mouse is over popup or subtitle word
@@ -1117,7 +1119,9 @@ export class SubtitleOverlay {
           this.resumeTimeout = null;
         }
       }
-    });
+    };
+
+    document.addEventListener('mousemove', this._pauseOnHoverHandler);
   }
 
   /**

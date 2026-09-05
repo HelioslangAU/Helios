@@ -109,7 +109,6 @@ export class YouTubeSidebar {
   layoutObserver: MutationObserver | null = null;
   resizeObserver: ResizeObserver | null = null;
   resizeHandler: (() => void) | null = null;
-  subtitleListContainer: HTMLElement | null = null;
   currentVideoId: string | null = null;
 
   constructor() {
@@ -1666,7 +1665,7 @@ export class YouTubeSidebar {
    * Resumes video when mouse leaves both sidebar word and popup
    */
   _setupPauseOnHoverListener(): void {
-    document.addEventListener('mousemove', (e) => {
+    this._globalMouseMoveListener = (e) => {
       if (!this.settings.pauseOnHover || !this.pausedByHover) return;
 
       // Check if mouse is over popup or sidebar word
@@ -1693,7 +1692,9 @@ export class YouTubeSidebar {
           this.resumeTimeout = null;
         }
       }
-    });
+    };
+
+    document.addEventListener('mousemove', this._globalMouseMoveListener);
   }
 
   /**
@@ -2293,8 +2294,8 @@ export class YouTubeSidebar {
    */
   _clearSubtitleData(): void {
     // Clear the subtitle list container
-    if (this.subtitleListContainer) {
-      this.subtitleListContainer.innerHTML = '';
+    if (this.listContainer) {
+      this.listContainer.innerHTML = '';
     }
 
     // Reset subtitle-related state
@@ -2312,7 +2313,7 @@ export class YouTubeSidebar {
    */
   _showLoadingState(): void {
     // Show loading in sidebar - position it in the lower portion of the video (60% down)
-    if (this.subtitleListContainer) {
+    if (this.listContainer) {
       const videoPlayer = document.querySelector('.html5-video-player');
       const sidebarRect = this.sidebar?.getBoundingClientRect();
 
@@ -2333,7 +2334,7 @@ export class YouTubeSidebar {
           <div class="loading-text">Loading subtitles...</div>
         </div>
       `;
-      this.subtitleListContainer.innerHTML = sidebarLoadingHTML;
+      this.listContainer.innerHTML = sidebarLoadingHTML;
     }
   }
 
