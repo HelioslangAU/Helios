@@ -3,6 +3,7 @@
 
 import { storage } from '@/config/storage';
 import type { HeliosSettingsManager } from '@/content/settings/helios-settings';
+import { ShortcutHelper } from '@/content/utils/shortcut-helper';
 
 interface HotkeyConfig {
   key: string;
@@ -527,6 +528,10 @@ export class HeliosSettingsUI {
 
     const parts = [];
     if (hotkey.ctrl) parts.push("Ctrl");
+    // "Meta" must be emitted, otherwise a Cmd binding renders as a bare key and
+    // is silently downgraded the next time the display string is parsed back.
+    // ShortcutHelper.parseHotkeyDisplay reads it back (Meta/Cmd/Command).
+    if (hotkey.meta) parts.push("Meta");
     if (hotkey.shift) parts.push("Shift");
     if (hotkey.alt) parts.push("Alt");
 
@@ -588,20 +593,27 @@ export class HeliosSettingsUI {
   }
 
   /**
-   * Parse hotkey display string to configuration object
+   * Parse hotkey display string to configuration object.
+   *
+   * Thin wrapper over ShortcutHelper.parseHotkeyDisplay so the settings page
+   * cannot drift from the parser the content scripts use. The only local work
+   * is widening the helper's optional modifier flags into the required
+   * booleans HotkeyConfig declares.
+   *
    * @param displayString - Display string like "Ctrl+Shift+L"
    * @returns Hotkey configuration object
    */
   parseHotkeyDisplay(displayString: string): HotkeyConfig | null {
-    if (!displayString) return null;
+    const parsed = ShortcutHelper.parseHotkeyDisplay(displayString);
+    if (!parsed) return null;
 
-    const parts = displayString.split("+").map(p => p.trim());
-    const key = parts[parts.length - 1].toLowerCase();
-    const ctrl = parts.includes("Ctrl");
-    const shift = parts.includes("Shift");
-    const alt = parts.includes("Alt");
-
-    return { key, ctrl, shift, alt, meta: false };
+    return {
+      key: parsed.key,
+      ctrl: !!parsed.ctrl,
+      shift: !!parsed.shift,
+      alt: !!parsed.alt,
+      meta: !!parsed.meta
+    };
   }
 
   /**
@@ -625,7 +637,10 @@ export class HeliosSettingsUI {
         otherHotkey.key === newHotkey.key &&
         otherHotkey.ctrl === newHotkey.ctrl &&
         otherHotkey.shift === newHotkey.shift &&
-        otherHotkey.alt === newHotkey.alt
+        otherHotkey.alt === newHotkey.alt &&
+        // Meta is optional on recorded hotkeys, so compare truthiness: a
+        // "Meta+L" binding must not read as a conflict with a bare "L".
+        !!otherHotkey.meta === !!newHotkey.meta
       ) {
         return otherId;
       }

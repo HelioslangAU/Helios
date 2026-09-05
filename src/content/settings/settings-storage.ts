@@ -3,6 +3,7 @@
 
 import { storage } from '@/config/storage';
 import type { HeliosSettingsManager } from '@/content/settings/helios-settings';
+import { ShortcutHelper } from '@/content/utils/shortcut-helper';
 
 interface HotkeyConfig {
   key: string;
@@ -286,20 +287,28 @@ export class HeliosSettingsStorage {
   }
 
   /**
-   * Parse hotkey display string to configuration object
+   * Parse hotkey display string to configuration object.
+   *
+   * Thin wrapper over ShortcutHelper.parseHotkeyDisplay — this is the parse
+   * that runs on the *save* path, so it must agree with the matcher the
+   * content scripts use (Meta/Cmd recognised, modifiers case-insensitive).
+   * The only local work is widening the helper's optional modifier flags into
+   * the required booleans HotkeyConfig declares.
+   *
    * @param displayString - Display string like "Ctrl+Shift+L"
    * @returns Hotkey configuration object
    */
   parseHotkeyFromDisplay(displayString: string): HotkeyConfig | null {
-    if (!displayString) return null;
+    const parsed = ShortcutHelper.parseHotkeyDisplay(displayString);
+    if (!parsed) return null;
 
-    const parts = displayString.split("+").map(p => p.trim());
-    const key = parts[parts.length - 1].toLowerCase();
-    const ctrl = parts.includes("Ctrl");
-    const shift = parts.includes("Shift");
-    const alt = parts.includes("Alt");
-
-    return { key, ctrl, shift, alt, meta: false };
+    return {
+      key: parsed.key,
+      ctrl: !!parsed.ctrl,
+      shift: !!parsed.shift,
+      alt: !!parsed.alt,
+      meta: !!parsed.meta
+    };
   }
 
   getSettingKey(elementId: string): string {
