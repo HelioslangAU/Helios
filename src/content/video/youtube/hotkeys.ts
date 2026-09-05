@@ -1,15 +1,10 @@
 /**
- * Pure keyboard helpers for the YouTube sidebar: hotkey value objects, the
- * conflict rules the settings panel enforces, and the guards that decide when a
- * key press belongs to us rather than to YouTube or to a text field.
+ * Pure keyboard helpers specific to the YouTube sidebar: the conflict rules the
+ * settings panel enforces, and the guards that decide when a key press belongs
+ * to us rather than to YouTube or to a text field. The hotkey value object and
+ * its display format live in `@/content/video/sidebar/hotkey-display`.
  */
-
-export interface HotkeyConfig {
-  key: string;
-  shift: boolean;
-  ctrl: boolean;
-  alt: boolean;
-}
+import type { HotkeyConfig } from '@/content/video/sidebar/hotkey-display';
 
 /** YouTube's native controls that should be blocked when no modifiers are used */
 export const YOUTUBE_CONTROL_KEYS = [
@@ -33,22 +28,6 @@ export const YOUTUBE_CONTROL_KEYS = [
   '/', // Search
   'escape' // Exit fullscreen
 ];
-
-/**
- * Format hotkey object for display (e.g., "Ctrl+Shift+L")
- */
-export function formatHotkeyDisplay(hotkey: HotkeyConfig): string {
-  const parts: string[] = [];
-  if (hotkey.ctrl) parts.push('Ctrl');
-  if (hotkey.shift) parts.push('Shift');
-  if (hotkey.alt) parts.push('Alt');
-
-  // Capitalize first letter of key for display
-  const keyDisplay = hotkey.key.charAt(0).toUpperCase() + hotkey.key.slice(1);
-  parts.push(keyDisplay);
-
-  return parts.join('+');
-}
 
 /**
  * Build a hotkey from a keydown event, or null when the press is a modifier

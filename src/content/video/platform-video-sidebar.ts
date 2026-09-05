@@ -1253,7 +1253,10 @@ export class PlatformVideoSidebar {
    * Extract potential words from text
    */
   _extractPotentialWords(text: string): string[] {
-    return extractPotentialWords(text);
+    const currentLang = services.languageRegistry?.getCurrentLanguage();
+    // This sidebar has always used a fixed 10-character cap, unlike the YouTube
+    // one which reads the adapter's maxWordLength.
+    return extractPotentialWords(text, currentLang, () => 10);
   }
 
   /**

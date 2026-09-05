@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import type { HotkeyConfig } from './hotkeys';
+import type { HotkeyConfig } from '@/content/video/sidebar/hotkey-display';
 import {
   conflictsWithYouTubeControls,
   findConflictingHotkey,
-  formatHotkeyDisplay,
   hotkeyFromEvent,
   isTypingTarget,
   shouldBlockTheaterModeToggle
@@ -21,17 +20,6 @@ function keydown(init: KeyboardEventInit & { key: string }, target?: EventTarget
   }
   return event;
 }
-
-describe('formatHotkeyDisplay', () => {
-  it('lists modifiers in Ctrl, Shift, Alt order', () => {
-    expect(formatHotkeyDisplay(hotkey({ key: 'l', ctrl: true, shift: true, alt: true })))
-      .toBe('Ctrl+Shift+Alt+L');
-  });
-
-  it('capitalizes the key on its own when there are no modifiers', () => {
-    expect(formatHotkeyDisplay(hotkey({ key: 'left' }))).toBe('Left');
-  });
-});
 
 describe('hotkeyFromEvent', () => {
   it('returns null for a bare modifier press', () => {

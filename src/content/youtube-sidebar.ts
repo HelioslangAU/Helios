@@ -15,20 +15,20 @@ import {
 import {
   conflictsWithYouTubeControls,
   findConflictingHotkey,
-  formatHotkeyDisplay,
   hotkeyFromEvent,
   isTypingTarget,
   shouldBlockTheaterModeToggle
 } from '@/content/video/youtube/hotkeys';
-import type { HotkeyConfig } from '@/content/video/youtube/hotkeys';
+import { formatHotkeyDisplay } from '@/content/video/sidebar/hotkey-display';
+import type { HotkeyConfig } from '@/content/video/sidebar/hotkey-display';
 import {
   deduplicateEntries,
   findActiveSubtitle,
   findMatchingSubtitle,
   findSubtitleAtOrBefore,
   formatTime
-} from '@/content/video/youtube/subtitle-timing';
-import { extractPotentialWords } from '@/content/video/youtube/subtitle-word-extraction';
+} from '@/content/video/sidebar/subtitle-timing';
+import { extractPotentialWords } from '@/content/video/sidebar/subtitle-text';
 import type { SubtitleEntry } from '@/content/video/models/subtitle-entry';
 import type { VideoBinding } from '@/content/video/core/video-binding';
 

@@ -10,11 +10,13 @@ describe('formatHotkeyDisplay', () => {
 
   it('orders modifiers Ctrl, Shift, Alt before the key', () => {
     expect(formatHotkeyDisplay({ ...base, ctrl: true, shift: true, alt: true })).toBe('Ctrl+Shift+Alt+A');
+    expect(formatHotkeyDisplay({ ...base, key: 'l', ctrl: true, shift: true, alt: true })).toBe('Ctrl+Shift+Alt+L');
     expect(formatHotkeyDisplay({ ...base, alt: true, shift: true })).toBe('Shift+Alt+A');
   });
 
   it('leaves multi-character key names readable', () => {
     expect(formatHotkeyDisplay({ ...base, key: 'ArrowLeft' })).toBe('ArrowLeft');
+    expect(formatHotkeyDisplay({ ...base, key: 'left' })).toBe('Left');
     expect(formatHotkeyDisplay({ ...base, key: 'space', ctrl: true })).toBe('Ctrl+Space');
   });
 
