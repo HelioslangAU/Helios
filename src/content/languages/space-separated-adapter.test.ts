@@ -484,10 +484,10 @@ describe('SpaceSeparatedLanguageAdapter.isValidWord / findDictionaryForm / getDi
   });
 
   it('getDictionaryEntries falls back to findDictionaryForm for a decomposed accent', () => {
-    // getDictionaryEntries does not NFC-normalise, but findDictionaryForm does, so the
-    // decomposed spelling still resolves via the fallback path.
-    const decomposed = 'Café';
-    expect(en.getDictionaryEntries(decomposed, { 'café': [{ definition: 'coffee' }] })).toEqual([
+    // getDictionaryEntries lowercases/trims but does NOT NFC-normalise, so the decomposed
+    // spelling misses on the direct lookup and only resolves via findDictionaryForm.
+    const decomposed = 'CAFE\u0301';
+    expect(en.getDictionaryEntries(decomposed, { 'caf\u00e9': [{ definition: 'coffee' }] })).toEqual([
       { definition: 'coffee' },
     ]);
   });
