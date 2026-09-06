@@ -8,7 +8,27 @@ import { LanguageRegistry } from '@/content/languages/language-registry';
 import { DictionaryManager } from '@/content/dictionary-manager';
 import { browser } from 'wxt/browser';
 import type { Browser } from 'wxt/browser';
-import { items } from '@/config/storage';
+
+/**
+ * Ask the background worker which languages are configured.
+ *
+ * Offscreen documents get `chrome.runtime` but NOT `chrome.storage` — Chrome
+ * restricts them to a small API subset. Reading storage here throws, which is
+ * why the dictionary was never preloaded on startup. The background worker has
+ * storage access, so it answers on the offscreen document's behalf.
+ */
+async function requestLanguagesFromBackground(): Promise<{
+  targetLanguage?: string;
+  nativeLanguage?: string;
+}> {
+  try {
+    const response = await browser.runtime.sendMessage({ action: 'GET_CONFIGURED_LANGUAGES' });
+    return response ?? {};
+  } catch (error) {
+    console.warn('📚 Could not read configured languages from background:', error);
+    return {};
+  }
+}
 
 type SendResponse = (response?: any) => void;
 
@@ -140,8 +160,7 @@ class OffscreenDictionaryService {
    */
   async loadInitialDictionary(): Promise<void> {
     try {
-      // Get current language from storage
-      const targetLanguage = await items.targetLanguage.getValue();
+      const { targetLanguage } = await requestLanguagesFromBackground();
 
       // Don't load dictionary if no language is selected yet (e.g., during onboarding)
       if (!targetLanguage) {
@@ -329,14 +348,10 @@ class OffscreenDictionaryService {
         throw new Error('No language adapter available');
       }
 
-      // Get native language code from parameter or storage
+      // Fall back to the stored native language when the caller didn't supply one.
       if (!nativeLanguageCode) {
-        try {
-          nativeLanguageCode = await items.nativeLanguage.getValue();
-        } catch (error) {
-          console.warn('Could not get native language from storage, defaulting to English:', error);
-          nativeLanguageCode = 'en';
-        }
+        const { nativeLanguage } = await requestLanguagesFromBackground();
+        nativeLanguageCode = nativeLanguage ?? 'en';
       }
 
       // Get download URL from adapter (may be async, pass native language)

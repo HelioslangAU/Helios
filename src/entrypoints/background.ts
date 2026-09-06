@@ -317,6 +317,10 @@ class BackgroundService {
           await this.handleGetExtensionSettings(sendResponse);
           break;
 
+        case "GET_CONFIGURED_LANGUAGES":
+          await this.handleGetConfiguredLanguages(sendResponse);
+          break;
+
         case "onboardingCompleted":
           await this.handleOnboardingCompleted(message.language, sendResponse);
           break;
@@ -1168,6 +1172,28 @@ class BackgroundService {
         success: false,
         error: error.message,
       });
+    }
+  }
+
+  /**
+   * Answer the offscreen document's language query.
+   *
+   * Offscreen documents have `chrome.runtime` but not `chrome.storage`, so the
+   * dictionary service cannot read these itself.
+   */
+  async handleGetConfiguredLanguages(sendResponse: SendResponse): Promise<void> {
+    try {
+      const [targetLanguage, nativeLanguage] = await storage.getItems([
+        items.targetLanguage,
+        items.nativeLanguage,
+      ]);
+      sendResponse({
+        targetLanguage: targetLanguage.value ?? undefined,
+        nativeLanguage: nativeLanguage.value ?? undefined,
+      });
+    } catch (error: any) {
+      console.error("Error reading configured languages:", error);
+      sendResponse({});
     }
   }
 
