@@ -10,10 +10,12 @@
   <div class="helios-youtube-sidebar" id="helios-youtube-sidebar">
     <!-- Header Bar -->
     <div class="yt-sidebar-header">
-      <span class="yt-sidebar-title">
-        <span class="yt-sidebar-mark" aria-hidden="true"></span>
-        Helios
-      </span>
+      <button class="yt-select-caption-btn" id="yt-select-caption-btn" data-empty="true" title="Choose which subtitle track to read">
+        <span class="yt-track-name" id="yt-track-name">Choose a track</span>
+        <svg class="yt-track-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </button>
       <button class="yt-header-btn" id="yt-settings-btn" title="Settings">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
@@ -35,15 +37,6 @@
 
     <!-- Subtitle Section -->
     <div class="yt-subtitle-section" id="yt-subtitle-section">
-      <div class="yt-section-header">
-        <button class="yt-select-caption-btn" id="yt-select-caption-btn" title="Choose which subtitle track to read">
-          <span class="yt-track-label">Track</span>
-          <span class="yt-track-name" id="yt-track-name">Choose a track</span>
-          <svg class="yt-track-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="6 9 12 15 18 9"></polyline>
-          </svg>
-        </button>
-      </div>
       <div class="yt-subtitle-list" id="yt-subtitle-list">
         <div class="yt-subtitle-empty">
           <div class="empty-icon">
