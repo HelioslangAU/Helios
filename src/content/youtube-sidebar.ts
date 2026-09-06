@@ -1070,6 +1070,21 @@ export class YouTubeSidebar {
   /**
    * Update subtitles in sidebar
    */
+
+  /**
+   * Write the loaded track's name into the picker.
+   *
+   * The picker's label was static markup reading "Subtitles" forever, so it
+   * carried no information: you could not tell from the panel which track you
+   * were reading, or whether one had loaded at all.
+   */
+  _setTrackName(name: string | null): void {
+    const slot = this.sidebar?.querySelector<HTMLElement>('#yt-track-name');
+    if (!slot) return;
+    slot.textContent = name ?? 'Choose a track';
+    this.selectCaptionBtn?.setAttribute('data-empty', name ? 'false' : 'true');
+  }
+
   async updateSubtitles(entries: SubtitleEntry[], track: any): Promise<void> {
     // Race condition protection: if already updating, queue this update
     if (this.isUpdatingSubtitles) {
@@ -1084,6 +1099,7 @@ export class YouTubeSidebar {
       this.currentSubtitles = this._deduplicateEntries(entries || []);
       this.currentTrack = track;
       this.currentSecondarySubtitles = []; // Reset secondary subtitles
+      this._setTrackName(track?.languageName ?? track?.language ?? null);
 
       // Remove loading overlay from video player
 

@@ -1333,13 +1333,13 @@ export class SubtitleOverlay {
       // Create container for dual subtitles
       const dualContainer = document.createElement('div');
       dualContainer.className = 'helios-subtitle-dual-container';
+      dualContainer.style.background = 'rgba(0, 0, 0, ' + this.subtitleBackgroundOpacity + ')';
 
       // Primary subtitle
       const primarySubtitleEl = document.createElement('div');
       primarySubtitleEl.className = 'helios-subtitle-text helios-subtitle-primary';
       primarySubtitleEl.setAttribute('data-subtitle-index', String(subtitle.index));
       primarySubtitleEl.style.fontSize = this.subtitleSize + 'px'; // Apply saved font size (ASBplayer-style)
-      primarySubtitleEl.style.background = 'rgba(0, 0, 0, ' + this.subtitleBackgroundOpacity + ')';
 
       // Extract words using language adapter (handles Chinese, English, etc.)
       const adapter = services.languageRegistry?.getAdapter();
@@ -1501,7 +1501,6 @@ export class SubtitleOverlay {
           secondarySubtitleEl.className = 'helios-subtitle-text helios-subtitle-secondary';
           secondarySubtitleEl.textContent = matchingSecondary.text;
           secondarySubtitleEl.style.fontSize = (this.subtitleSize * 0.8) + 'px'; // Secondary subtitles 80% of primary size
-          secondarySubtitleEl.style.background = 'rgba(0, 0, 0, ' + Math.min(1, this.subtitleBackgroundOpacity * 1.1) + ')'; // Slightly more opaque than primary
           secondarySubtitleEl.style.userSelect = 'text';
           dualContainer.appendChild(secondarySubtitleEl);
         }

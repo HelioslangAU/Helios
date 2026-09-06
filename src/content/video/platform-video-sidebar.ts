@@ -742,6 +742,21 @@ export class PlatformVideoSidebar {
     }
   }
 
+
+  /**
+   * Write the loaded track's name into the picker.
+   *
+   * The picker's label was static markup that read "Subtitles" forever, so it
+   * carried no information: you could not tell from the panel which track you
+   * were reading, or whether one had loaded at all.
+   */
+  _setTrackName(name: string | null): void {
+    const slot = this.sidebar?.querySelector<HTMLElement>('#yt-track-name');
+    if (!slot) return;
+    slot.textContent = name ?? 'Choose a track';
+    this.selectCaptionBtn?.setAttribute('data-empty', name ? 'false' : 'true');
+  }
+
   /**
    * Toggle between subtitle view and settings view
    */
@@ -1106,6 +1121,7 @@ export class PlatformVideoSidebar {
         this.currentSubtitles = entries || [];
         this.currentTrack = track;
         this.currentSecondarySubtitles = [];
+        this._setTrackName(track?.languageName ?? track?.language ?? null);
 
         // Render subtitle list (async)
         await this._renderSubtitleList().catch(err => {

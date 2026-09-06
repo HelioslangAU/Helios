@@ -203,42 +203,66 @@
   padding: 0 14px;
 }
 
+/* The picker names the thing it picks. It used to be a full-width bordered
+   bar reading "Subtitles" — a label nothing ever updated — which is why it
+   read as an empty text field rather than as a control with a value in it. */
 .yt-select-caption-btn {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
-  padding: 6px 10px;
+  padding: 8px 10px 8px 12px;
   background: var(--helios-bg-card);
   border: 1px solid var(--helios-border);
   border-radius: var(--helios-radius);
   cursor: pointer;
   font-family: inherit;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--helios-text-secondary);
+  text-align: left;
   transition:
-    border-color 0.2s var(--helios-ease),
-    color 0.2s var(--helios-ease);
+    background-color 0.2s var(--helios-ease),
+    border-color 0.2s var(--helios-ease);
 }
 
-.yt-select-caption-btn:hover {
-  border-color: var(--helios-border-strong);
+.yt-track-label {
+  flex: none;
+  font-family: 'Chivo Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--helios-text-muted);
+}
+
+.yt-track-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  font-weight: 500;
   color: var(--helios-text-primary);
 }
 
-.yt-select-caption-btn:hover svg {
-  transform: translateY(1px);
+/* Nothing loaded yet: the value is a prompt, so it is set as one. */
+.yt-select-caption-btn[data-empty="true"] .yt-track-name {
+  font-weight: 400;
+  color: var(--helios-text-muted);
 }
 
-.yt-select-caption-btn svg {
-  transition: transform 0.2s ease;
-  opacity: 0.6;
+.yt-track-chevron {
+  flex: none;
+  color: var(--helios-text-muted);
+  transition: color 0.2s var(--helios-ease);
 }
 
-.yt-select-caption-btn:hover svg {
-  opacity: 1;
+.yt-select-caption-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--helios-border-strong);
+}
+
+.yt-select-caption-btn:hover .yt-track-chevron {
+  color: var(--helios-text-secondary);
 }
 
 .yt-subtitle-count {
@@ -731,7 +755,7 @@ body:not(.helios-sidebar-active) ytd-watch-flexy[theater] .ytp-size-button {
 .yt-size-control {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
   width: fit-content;
 }
 
@@ -739,11 +763,11 @@ body:not(.helios-sidebar-active) ytd-watch-flexy[theater] .ytp-size-button {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 28px;
   padding: 0;
   background: var(--helios-bg-secondary);
-  border: 1.5px solid var(--helios-border);
+  border: 1px solid var(--helios-border);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -771,18 +795,19 @@ body:not(.helios-sidebar-active) ytd-watch-flexy[theater] .ytp-size-button {
 }
 
 .yt-size-input {
-  width: 70px;
-  height: 32px;
-  padding: 0 12px;
+  width: 46px;
+  height: 28px;
+  padding: 0 4px;
   text-align: center;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
   color: var(--helios-text-primary);
   background: var(--helios-bg-secondary);
-  border: 1.5px solid var(--helios-border);
+  border: 1px solid var(--helios-border);
   border-radius: 8px;
   outline: none;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, monospace;
+  font-family: 'Chivo Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   -moz-appearance: textfield;
   transition: all 0.2s ease;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
@@ -806,6 +831,7 @@ body:not(.helios-sidebar-active) ytd-watch-flexy[theater] .ytp-size-button {
 }
 
 .yt-size-unit {
+  font-family: 'Chivo Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 13px;
   font-weight: 500;
   color: var(--helios-text-tertiary);
@@ -856,11 +882,35 @@ body:not(.helios-sidebar-active) ytd-watch-flexy[theater] .ytp-size-button {
 }
 
 /* Setting Row Layout */
-.yt-setting-row {
-  display: flex;
+/* The same arrangement the extension's settings page uses: the label and its
+   explanation share one column and the control sits in the next, centred
+   against both. `display: contents` hoists the row's children into the item's
+   grid so the control can span both lines without a markup change. */
+.yt-setting-item:has(> .yt-setting-row) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  column-gap: 14px;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+}
+
+.yt-setting-row {
+  display: contents;
+}
+
+.yt-setting-item:has(> .yt-setting-row) > .yt-setting-hint {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.yt-setting-row > .yt-label {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.yt-setting-row > .yt-size-control {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  justify-self: end;
 }
 
 .yt-label {
