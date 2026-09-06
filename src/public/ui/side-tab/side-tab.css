@@ -806,8 +806,10 @@
 }
 
 .vocab-learning-dot {
-    /* Use same purple tone as learning underline (#9333ea) */
-    background: linear-gradient(135deg, rgba(147, 51, 234, 0.95), rgba(192, 132, 252, 0.9));
+    /* Pairs with the learning underline, which is now the amber end of the
+       accent ramp rather than purple. The legend and the mark it explains
+       have to agree. */
+    background: linear-gradient(135deg, rgba(255, 179, 71, 0.95), rgba(255, 196, 120, 0.9));
 }
 
 .vocab-ignored-dot {

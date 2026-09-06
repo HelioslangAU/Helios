@@ -8,7 +8,20 @@ import type { VideoDetector } from '@/content/video/core/video-detector';
 export class YouTubeSubtitleLoader {
   videoDetector: VideoDetector;
   pageScriptInjected: boolean;
-  pendingRequest: { resolve: (tracks: any[]) => void } | null;
+  /**
+   * The track request still waiting on the page script.
+   *
+   * Tagged with an id because YouTube is a single-page app: navigating to
+   * another video can start a second request while the first is in flight.
+   * With a bare slot, the second overwrote the first, and the first request's
+   * timeout then cleared the *second* one — so a request that had every chance
+   * of succeeding was silently abandoned and its promise never settled. The id
+   * lets a response and a timeout each check whether they still own the slot.
+   */
+  pendingRequest:
+    | { id: number; resolve: (tracks: any[]) => void; timeout: ReturnType<typeof setTimeout> }
+    | null;
+  private nextRequestId = 1;
 
   constructor(videoDetector: VideoDetector) {
     this.videoDetector = videoDetector;
@@ -59,18 +72,21 @@ export class YouTubeSubtitleLoader {
    */
   _setupEventListeners(): void {
     window.addEventListener('helios-youtube-subtitles-response', (event) => {
-      if (this.pendingRequest) {
-        const { resolve } = this.pendingRequest;
-        this.pendingRequest = null;
+      const pending = this.pendingRequest;
+      if (!pending) return;
 
-        const { success, tracks, error } = (event as CustomEvent).detail;
+      // The response settles this request, so its timeout must not outlive it
+      // and clear whichever request comes next.
+      clearTimeout(pending.timeout);
+      this.pendingRequest = null;
 
-        if (success && tracks) {
-          resolve(tracks);
-        } else {
-          console.warn('[Helios YouTube] Page script error:', error);
-          resolve([]);
-        }
+      const { success, tracks, error } = (event as CustomEvent).detail;
+
+      if (success && tracks) {
+        pending.resolve(tracks);
+      } else {
+        console.warn('[Helios YouTube] Page script error:', error);
+        pending.resolve([]);
       }
     });
   }
@@ -92,21 +108,30 @@ export class YouTubeSubtitleLoader {
     try {
       // Request tracks from page script
       const tracks = await new Promise<any[]>((resolve) => {
-        this.pendingRequest = { resolve };
+        const id = this.nextRequestId++;
 
-        // Dispatch request event
-        window.dispatchEvent(new CustomEvent('helios-youtube-request-subtitles', {
-          detail: { videoId: this._getCurrentVideoId() }
-        }));
+        // A request already in flight is superseded, not left dangling: its
+        // promise is settled here rather than being abandoned to hang forever.
+        if (this.pendingRequest) {
+          clearTimeout(this.pendingRequest.timeout);
+          this.pendingRequest.resolve([]);
+        }
 
-        // Timeout after 5 seconds
-        setTimeout(() => {
-          if (this.pendingRequest) {
+        const timeout = setTimeout(() => {
+          // Only give up on this request if it is still the one waiting.
+          if (this.pendingRequest?.id === id) {
             console.warn('[Helios YouTube] Timeout waiting for page script response');
             this.pendingRequest = null;
             resolve([]);
           }
         }, 5000);
+
+        this.pendingRequest = { id, resolve, timeout };
+
+        // Dispatch request event
+        window.dispatchEvent(new CustomEvent('helios-youtube-request-subtitles', {
+          detail: { videoId: this._getCurrentVideoId() }
+        }));
       });
 
       return tracks;

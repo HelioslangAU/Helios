@@ -17,6 +17,30 @@
         "value": "font-family: \"inter",
         "createdAt": "2026-09-06T11:47:50.620Z",
         "reason": "User directed: 'combine this style with that style' pointing at helios-web-new, whose tailwind.config.ts sets Inter as the sans and display face. The extension self-hosts the same file so the settings page and the site are one product; picking a more distinctive face here would defeat the instruction."
+      },
+      {
+        "rule": "overused-font",
+        "value": "font-family: 'inter",
+        "createdAt": "2026-09-06T12:42:05.357Z",
+        "reason": "User directed: match helios-web-new, whose tailwind.config.ts sets Inter as the sans and display face. Same sanctioned exception already recorded for the double-quoted spelling."
+      },
+      {
+        "rule": "layout-transition",
+        "value": "*",
+        "files": [
+          "src/public/ui/youtube-sidebar/youtube-sidebar.css"
+        ],
+        "createdAt": "2026-09-06T12:42:22.461Z",
+        "reason": "Claude: the three flagged transitions all animate a box whose size genuinely changes — YouTube's player container making room for the sidebar (max-width, width) and the sidebar matching the player's measured height. A transform would scale the video picture instead of resizing its box, so width/height is the correct property here, not a lazy choice."
+      },
+      {
+        "rule": "layout-transition",
+        "value": "*",
+        "files": [
+          "src/public/ui/youtube-sidebar/youtube-sidebar.html"
+        ],
+        "createdAt": "2026-09-06T12:48:08.843Z",
+        "reason": "Claude: same rules as the linked stylesheet, seen through the HTML. The sidebar's height is set from the player's measured height and YouTube's player container is genuinely resized to clear the panel; width/height is the property that changes, not a stand-in for transform."
       }
     ]
   }

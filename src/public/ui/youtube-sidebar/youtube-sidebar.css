@@ -11,19 +11,29 @@
 /* ============================================================================
    CSS Variables / Theme
    ============================================================================ */
-:root {
-  --helios-bg-primary: #0a0a0b;
-  --helios-bg-secondary: #151518;
-  --helios-bg-card: #1a1a1d;
+/* Scoped to the sidebar, not :root. This stylesheet is injected into
+   YouTube's own document, where three Helios surfaces can be present at once
+   and each used to declare its palette globally — whichever loaded last won.
+   The values match `src/styles/theme.css`, so the panel, the settings page and
+   the marketing site are one product. */
+.helios-youtube-sidebar {
+  --helios-bg-primary: #0f0f12;
+  --helios-bg-secondary: #1a1a1f;
+  --helios-bg-card: #222228;
   --helios-accent-primary: #ff6b47;
   --helios-accent-secondary: #ff8f47;
-  --helios-accent-gradient: linear-gradient(135deg, #ff6b47 0%, #ff8f47 100%);
+  --helios-accent-gradient: linear-gradient(135deg, #ff6b47 0%, #ff8f47 50%, #ffb347 100%);
+  --helios-accent-tint: rgba(255, 107, 71, 0.12);
   --helios-text-primary: #f8fafc;
-  --helios-text-secondary: #cbd5e1;
+  --helios-text-secondary: #e2e8f0;
   --helios-text-muted: #94a3b8;
-  --helios-border: rgba(255, 255, 255, 0.06);
-  --helios-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
-  --helios-shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.3);
+  --helios-border: rgba(255, 255, 255, 0.08);
+  --helios-border-strong: rgba(255, 255, 255, 0.14);
+  --helios-radius: 12px;
+  --helios-radius-pill: 999px;
+  --helios-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --helios-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  --helios-shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
 /* ============================================================================
@@ -39,7 +49,7 @@
   display: flex;
   flex-direction: column;
   z-index: 2000 !important; /* Below YouTube header (z-index: 2020) */
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   color: var(--helios-text-primary);
   transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), top 0.3s cubic-bezier(0.4, 0, 0.2, 1), height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
@@ -55,30 +65,60 @@
    ============================================================================ */
 .yt-sidebar-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
+  gap: 8px;
+  height: 48px;
+  padding: 0 10px 0 14px;
   background: var(--helios-bg-secondary);
   border-bottom: 1px solid var(--helios-border);
   flex-shrink: 0;
 }
 
+/* The panel says what it is. Sitting inside YouTube's own chrome, an unlabelled
+   strip of icon buttons is not self-evidently ours. */
+.yt-sidebar-title {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--helios-text-primary);
+}
+
+.yt-sidebar-mark {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--helios-accent-gradient);
+}
+
 .yt-header-btn {
+  flex: none;
   background: transparent;
   border: none;
   color: var(--helios-text-muted);
   cursor: pointer;
-  padding: 8px;
+  padding: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    background-color 0.2s var(--helios-ease),
+    color 0.2s var(--helios-ease);
+}
+
+.yt-header-btn svg {
+  width: 17px;
+  height: 17px;
 }
 
 .yt-header-btn:hover {
-  background: var(--helios-bg-card);
-  color: var(--helios-accent-primary);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--helios-text-primary);
 }
 
 .yt-header-btn:active {
@@ -97,7 +137,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: 24px 20px 20px 20px;
+  padding: 12px 0 0;
 }
 
 /* ============================================================================
@@ -112,20 +152,16 @@
 }
 
 .yt-settings-header {
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   padding: 0 4px;
 }
 
 .yt-settings-header h2 {
   margin: 0;
-  font-size: 28px;
-  font-weight: 700;
+  font-size: 17px;
+  font-weight: 600;
   color: var(--helios-text-primary);
-  letter-spacing: -0.02em;
-  background: var(--helios-accent-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  letter-spacing: -0.015em;
 }
 
 .yt-settings-content {
@@ -162,29 +198,34 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  padding: 0 4px;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 0 14px;
 }
 
 .yt-select-caption-btn {
-  background: transparent;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  transition: all 0.2s ease;
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--helios-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  justify-content: space-between;
+  gap: 8px;
   width: 100%;
+  padding: 6px 10px;
+  background: var(--helios-bg-card);
+  border: 1px solid var(--helios-border);
+  border-radius: var(--helios-radius);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--helios-text-secondary);
+  transition:
+    border-color 0.2s var(--helios-ease),
+    color 0.2s var(--helios-ease);
 }
 
 .yt-select-caption-btn:hover {
-  color: var(--helios-accent-primary);
+  border-color: var(--helios-border-strong);
+  color: var(--helios-text-primary);
 }
 
 .yt-select-caption-btn:hover svg {
@@ -212,9 +253,8 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  margin: 0 -4px;
-  padding: 0 4px;
   position: relative;
+  border-top: 1px solid var(--helios-border);
 }
 
 /* Scroll zone indicator - subtle gradient on the right edge */
@@ -259,32 +299,35 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 80px 20px;
+  padding: 48px 24px;
   text-align: center;
 }
 
 .empty-icon {
-  width: 80px;
-  height: 80px;
-  border-radius: 20px;
-  background: linear-gradient(135deg, rgba(255, 107, 71, 0.08) 0%, rgba(255, 143, 71, 0.04) 100%);
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 24px;
-  color: var(--helios-accent-primary);
-  opacity: 0.6;
+  margin-bottom: 14px;
+  color: var(--helios-text-muted);
+  opacity: 0.5;
+}
+
+.empty-icon svg {
+  width: 32px;
+  height: 32px;
 }
 
 .yt-subtitle-empty p {
-  margin: 0 0 8px 0;
-  font-size: 15px;
-  font-weight: 600;
+  margin: 0 0 5px 0;
+  font-size: 13.5px;
+  font-weight: 500;
   color: var(--helios-text-secondary);
 }
 
 .yt-subtitle-empty small {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--helios-text-muted);
   line-height: 1.5;
 }
@@ -293,16 +336,12 @@
 .yt-subtitle-item {
   position: relative;
   display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 16px;
-  margin: 8px 0;
-  background: var(--helios-bg-secondary);
-  border: 1px solid var(--helios-border);
-  border-radius: 14px;
+  align-items: baseline;
+  gap: 12px;
+  padding: 9px 14px 9px 12px;
+  border-bottom: 1px solid var(--helios-border);
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow: hidden;
+  transition: background-color 0.15s var(--helios-ease);
   max-width: 100%;
 }
 
@@ -310,7 +349,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
   min-width: 0;
   overflow: hidden;
 }
@@ -319,61 +358,48 @@
   content: '';
   position: absolute;
   left: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
+  top: -1px;
+  bottom: -1px;
+  width: 2px;
   background: transparent;
-  border-radius: 14px 0 0 14px;
-  transition: all 0.25s;
 }
 
 .yt-subtitle-item:hover {
-  background: var(--helios-bg-card);
-  border-color: rgba(255, 107, 71, 0.2);
-  transform: translateX(4px) scale(1.01);
-  box-shadow: var(--helios-shadow-sm);
+  background: rgba(255, 255, 255, 0.04);
 }
 
-.yt-subtitle-item:hover::before {
-  background: linear-gradient(180deg, var(--helios-accent-primary) 0%, var(--helios-accent-secondary) 100%);
-}
-
+/* The line playing now. A tint plus a hairline in the gutter, which is enough
+   to find at a glance while scrolling and does not shout over the text. */
 .yt-subtitle-item.active {
-  background: linear-gradient(135deg, rgba(255, 107, 71, 0.12) 0%, rgba(255, 143, 71, 0.06) 100%);
-  border-color: rgba(255, 107, 71, 0.3);
-  box-shadow: 0 4px 20px rgba(255, 107, 71, 0.15);
+  background: var(--helios-accent-tint);
 }
 
 .yt-subtitle-item.active::before {
-  background: var(--helios-accent-gradient);
-  width: 4px;
-  box-shadow: 0 0 12px rgba(255, 107, 71, 0.6);
+  background: var(--helios-accent-primary);
 }
 
+/* A cue time is a number in a column: fixed width and tabular figures so the
+   whole list reads as one column rather than ragged. It stops being a chip. */
 .yt-subtitle-timestamp {
   flex-shrink: 0;
-  min-width: 52px;
-  padding: 6px 10px;
-  background: rgba(255, 107, 71, 0.1);
-  border: 1px solid rgba(255, 107, 71, 0.2);
-  border-radius: 8px;
-  color: var(--helios-accent-primary);
-  font-size: 11px;
-  font-weight: 700;
-  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-  letter-spacing: 0.03em;
-  text-align: center;
+  min-width: 34px;
+  color: var(--helios-text-muted);
+  font-family: 'Chivo Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 10.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  text-align: right;
 }
 
 .yt-subtitle-item.active .yt-subtitle-timestamp {
-  background: rgba(255, 107, 71, 0.15);
-  border-color: rgba(255, 107, 71, 0.3);
+  color: var(--helios-accent-primary);
 }
 
 .yt-subtitle-text {
   color: var(--helios-text-secondary);
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: 13.5px;
+  line-height: 1.55;
   word-break: break-word;
   font-weight: 500;
   overflow-wrap: break-word;
@@ -412,7 +438,7 @@
 
 /* Word styling in sidebar */
 .yt-subtitle-word {
-  transition: all 0.15s ease;
+  transition: background-color 0.15s var(--helios-ease);
   border-radius: 4px;
   padding: 2px 1px;
 }
@@ -422,29 +448,33 @@
   color: var(--helios-accent-primary);
 }
 
-/* Unknown word styling in sidebar */
+/* Word states, matched to the page.
+   A word Helios has flagged is underlined in the accent wherever you meet it —
+   on a page, in the transcript, or over the video. These used to be red for
+   unknown and purple for learning, so the same word in the same state looked
+   like a different thing depending on where it was read. Learning takes the
+   amber end of the accent ramp: related enough to read as the same system,
+   distinct enough to tell apart. */
 .yt-subtitle-word.unknown-word {
   text-decoration: underline;
-  text-decoration-color: #ff4444;
+  text-decoration-color: var(--helios-accent-primary);
   text-decoration-thickness: 2px;
   text-underline-offset: 4px;
 }
 
 .yt-subtitle-word.unknown-word:hover {
-  background: rgba(255, 68, 68, 0.2);
-  color: #ff6666;
+  background: rgba(255, 107, 71, 0.18);
 }
 
 .yt-subtitle-word.learning-word {
   text-decoration: underline;
-  text-decoration-color: #9333ea;
+  text-decoration-color: #ffb347;
   text-decoration-thickness: 2px;
   text-underline-offset: 4px;
 }
 
 .yt-subtitle-word.learning-word:hover {
-  background: rgba(147, 51, 234, 0.2);
-  color: #a855f7;
+  background: rgba(255, 179, 71, 0.18);
 }
 
 /* ============================================================================
@@ -597,12 +627,14 @@ body:not(.helios-sidebar-active) ytd-watch-flexy[theater] .ytp-size-button {
   opacity: 0.8;
 }
 
+/* A note, not a callout. A thick accent stripe on one side of a rounded box
+   fights its own corners; a hairline all the way round does not. */
 .yt-hotkey-hint {
   margin: 12px 0 16px 0;
-  padding: 12px 14px;
-  background: rgba(255, 107, 71, 0.05);
-  border-left: 3px solid rgba(255, 107, 71, 0.3);
-  border-radius: 6px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--helios-border);
+  border-radius: var(--helios-radius);
   line-height: 1.6;
 }
 
@@ -773,7 +805,7 @@ body:not(.helios-sidebar-active) ytd-watch-flexy[theater] .ytp-size-button {
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .yt-btn-secondary {
@@ -987,15 +1019,14 @@ body:not(.helios-sidebar-active) ytd-watch-flexy[theater] .ytp-size-button {
 /* Notification */
 .yt-notification {
   position: relative;
-  padding: 14px 18px;
-  margin: 16px 20px 0 20px;
-  border-radius: 10px;
+  padding: 10px 14px;
+  margin: 12px 14px 0;
+  border-radius: var(--helios-radius);
   font-size: 13px;
   font-weight: 500;
   line-height: 1.4;
   animation: notificationSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border: 1px solid;
-  box-shadow: var(--helios-shadow-sm);
 }
 
 .yt-notification-message {
