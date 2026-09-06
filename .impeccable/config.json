@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": [
+          "src/entrypoints/onboarding/index.html"
+        ],
+        "createdAt": "2026-09-06T11:28:45.682Z",
+        "reason": "Claude: the flagged pair is .key, a <kbd> keycap set inline in prose at 0.78em, not a card. The heavier edge is neutral (var(--rule-strong)), not an accent, and it draws the key's front face; the 4px radius is a keycap corner. Removing either, as the rule advises, makes it read as a code span."
+      }
+    ]
+  }
+}

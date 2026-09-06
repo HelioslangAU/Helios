@@ -361,7 +361,8 @@ h2.headword {
   color: var(--ink);
 }
 
-/* A key you actually press. */
+/* A key you actually press. The bottom edge is the heavier one because that is
+   the keycap's front face; flatten it and this reads as a code span. */
 .key {
   display: inline-block;
   padding: 0.1em 0.4em;
