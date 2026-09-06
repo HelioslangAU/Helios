@@ -48,6 +48,9 @@ export default defineConfig({
       {
         resources: [
           'ui/*',
+          // popup.css is injected into arbitrary pages, so the faces it
+          // declares are fetched from the page's context and must be reachable.
+          'fonts/*',
           'freq-dict/*',
           'OnboardingVocab/*',
           'lib/jieba/*',

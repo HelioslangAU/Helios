@@ -1394,33 +1394,31 @@ export class OnboardingPage {
       'A', 'B', 'C', 'D', 'E', 'F'
     ];
 
-    // Create 30 floating characters
-    for (let i = 0; i < 30; i++) {
+    // Placed in the outer margins only, the way the marketing site's hero does
+    // it. Scattering these across the whole viewport puts them behind the
+    // reading column, where they stop being atmosphere and become noise.
+    const placements = [
+      { top: '12%', left: '4%' },
+      { top: '30%', left: '90%' },
+      { top: '52%', left: '6%' },
+      { top: '68%', left: '92%' },
+      { top: '84%', left: '10%' },
+      { top: '18%', left: '84%' },
+      { top: '44%', left: '95%' },
+      { top: '76%', left: '2%' },
+    ];
+
+    placements.forEach((spot, i) => {
       const char = document.createElement('div');
       char.className = 'floating-char';
       char.textContent = characters[Math.floor(Math.random() * characters.length)];
-
-      // Random position
-      char.style.left = `${Math.random() * 100}%`;
-      char.style.top = `${Math.random() * 100}%`;
-
-      // Random size
-      const size = 40 + Math.random() * 60;
-      char.style.fontSize = `${size}px`;
-
-      // Random animation duration (slower = more graceful)
-      const duration = 20 + Math.random() * 30;
-      char.style.animationDuration = `${duration}s`;
-
-      // Random animation delay
-      char.style.animationDelay = `${Math.random() * 10}s`;
-
-      // Random opacity
-      const opacity = 0.03 + Math.random() * 0.07;
-      char.style.opacity = `${opacity}`;
-
+      char.style.top = spot.top;
+      char.style.left = spot.left;
+      char.style.fontSize = `${44 + (i % 3) * 14}px`;
+      char.style.animationDuration = `${22 + i * 2}s`;
+      char.style.animationDelay = `${i * 1.4}s`;
       floatingBg.appendChild(char);
-    }
+    });
   }
 }
 
