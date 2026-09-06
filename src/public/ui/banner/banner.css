@@ -1,4 +1,9 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap");
+/* Inter is not fetched here. It is declared with @font-face in
+   `ui/popup/popup.css`, which is injected into the same document by the same
+   content script, and @font-face is document-scoped — so the faces are already
+   available to this file. Fetching them from Google again would be a request
+   from every page the user visits, blocked outright on sites with a strict
+   font-src, for a family the extension already ships. */
 
 :root {
     --helios-bg-primary: #0a0a0b;

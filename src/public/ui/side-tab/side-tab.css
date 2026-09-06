@@ -612,14 +612,10 @@
 }
 
 .full-logo {
-    font-size: 24px;
-    font-weight: 900;
-    letter-spacing: -0.5px;
-    /* Bright orange gradient matching other elements */
-    background: linear-gradient(135deg, rgba(255, 107, 71, 1), rgba(255, 143, 71, 1));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--helios-text-primary);
 }
 
 .full-subtitle {
@@ -900,11 +896,7 @@
 }
 
 .comprehension-value {
-    /* Bright orange gradient text */
-    background: linear-gradient(135deg, rgba(255, 143, 71, 1), rgba(255, 179, 71, 1));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: var(--helios-accent-primary);
 }
 
 .stat-card-footer {
@@ -959,8 +951,9 @@
     /* Muted orange gradient - professional */
     background: linear-gradient(90deg, rgba(255, 160, 122, 0.6), rgba(255, 178, 140, 0.5));
     border-radius: 4px;
+    /* Width, because on a progress bar the width is the value. A transform
+       would scale the rounded caps along with it. */
     transition: width 0.8s var(--transition-timing);
-    box-shadow: 0 0 12px rgba(255, 160, 122, 0.25);
 }
 
 /* Stats Grid */

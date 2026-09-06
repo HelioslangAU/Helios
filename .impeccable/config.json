@@ -41,6 +41,24 @@
         ],
         "createdAt": "2026-09-06T12:48:08.843Z",
         "reason": "Claude: same rules as the linked stylesheet, seen through the HTML. The sidebar's height is set from the player's measured height and YouTube's player container is genuinely resized to clear the panel; width/height is the property that changes, not a stand-in for transform."
+      },
+      {
+        "rule": "layout-transition",
+        "value": "*",
+        "files": [
+          "src/public/ui/side-tab/side-tab.css"
+        ],
+        "createdAt": "2026-09-06T12:50:28.040Z",
+        "reason": "Claude: the only match is .progress-fill on the comprehension bar, where the width IS the value being shown. A transform would scale the bar's rounded caps rather than fill it."
+      },
+      {
+        "rule": "layout-transition",
+        "value": "*",
+        "files": [
+          "src/public/ui/banner/banner.css"
+        ],
+        "createdAt": "2026-09-06T12:50:28.060Z",
+        "reason": "Claude: same as side-tab — .progress-fill on the comprehension bar, where width is the quantity being displayed."
       }
     ]
   }
