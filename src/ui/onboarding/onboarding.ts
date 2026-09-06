@@ -7,6 +7,7 @@ import { browser } from 'wxt/browser';
 import { PATHS } from '@/config/paths';
 import { OnboardingController } from '@/content/onboarding/onboarding-controller';
 import { LanguageSelector, type LanguageOption } from '@/content/components/language-selector/language-selector';
+import { flagSvg } from '@/content/components/language-selector/flags';
 import { VocabManager } from '@/content/vocab-manager';
 import { DictionaryBridge, DictionaryManagerProxy } from '@/content/dictionary-bridge';
 import { HighlightManager } from '@/content/text-highlighter';
@@ -252,18 +253,12 @@ export class OnboardingPage {
     this.initializeNativeLanguageSelector();
   }
 
+  /**
+   * Inline SVG flag markup for a language code, or an empty string for a
+   * language we have not drawn.
+   */
   getLanguageFlag(code: string): string {
-    const flags: Record<string, string> = {
-      'en': '🇬🇧',
-      'es': '🇪🇸',
-      'fr': '🇫🇷',
-      'zh': '🇨🇳',
-      'vi': '🇻🇳',
-      'ko': '🇰🇷',
-      'ja': '🇯🇵',
-      'de': '🇩🇪'
-    };
-    return flags[code] || '🌐';
+    return flagSvg(code);
   }
 
   initializeNativeLanguageSelector(): void {

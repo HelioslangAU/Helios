@@ -347,7 +347,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
       if (words.length === 0) {
         alert(
-          "No valid Chinese characters found. Please enter Chinese words! 🇨🇳"
+          "No valid Chinese characters found. Please enter Chinese words!"
         );
         return;
       }

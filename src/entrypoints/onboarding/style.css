@@ -207,13 +207,13 @@ body::-webkit-scrollbar-thumb:hover,
 
 h1 {
   font-family: var(--font-display);
-  font-size: 5.5rem;
+  font-size: clamp(3rem, 4.5vw + 1.5vh, 5.5rem);
   font-weight: 700;
 }
 
 h2 {
   font-family: var(--font-display);
-  font-size: 3.5rem;
+  font-size: clamp(2rem, 2.6vw + 1.2vh, 3.5rem);
   font-weight: 700;
 }
 
@@ -317,7 +317,7 @@ h3 {
   width: min(1180px, 100%);
   min-height: 100vh;
   margin: 0 auto;
-  padding: clamp(2rem, 4vh, 3rem) clamp(1.5rem, 5vw, 4rem) clamp(2rem, 4vh, 3rem);
+  padding: clamp(1.125rem, 2.6vh, 2.75rem) clamp(1.5rem, 5vw, 4rem);
   display: grid;
   grid-template-columns: minmax(0, 1fr) max-content;
   column-gap: clamp(2rem, 5vw, 4.5rem);
@@ -343,7 +343,7 @@ h3 {
 
 .onboarding-step.active .entry {
   align-self: center;
-  padding-block: clamp(1.5rem, 4vh, 3rem);
+  padding-block: clamp(0.75rem, 3vh, 2.5rem);
 }
 
 /* --- Running head -------------------------------------------------------- */
@@ -715,65 +715,23 @@ h2.headword {
   border-bottom-color: var(--accent);
 }
 
-/* The emoji flags are replaced by the language's code, set the way a
-   dictionary sets one. */
+/* Drawn flags (see language-selector/flags.ts), set above the name at their
+   true 3:2 size and closed with a hairline so they read as objects on the
+   ground rather than as stickers. No shadow, no lift. */
 #language-selector-container .language-flag,
 #native-language-selector-container .language-flag {
   font-size: 0;
-  line-height: 1;
-  margin: 0 0 0.5rem;
+  line-height: 0;
+  margin: 0 0 0.625rem;
 }
 
-#language-selector-container .language-flag::before,
-#native-language-selector-container .language-flag::before {
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  font-weight: 500;
-  line-height: 1;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
-
-#language-selector-container .language-card.selected .language-flag::before,
-#native-language-selector-container .language-card.selected .language-flag::before {
-  color: var(--accent);
-}
-
-#language-selector-container .language-card[data-language="zh"] .language-flag::before,
-#native-language-selector-container .language-card[data-code="zh"] .language-flag::before {
-  content: "zh";
-}
-
-#language-selector-container .language-card[data-language="en"] .language-flag::before,
-#native-language-selector-container .language-card[data-code="en"] .language-flag::before {
-  content: "en";
-}
-
-#language-selector-container .language-card[data-language="es"] .language-flag::before,
-#native-language-selector-container .language-card[data-code="es"] .language-flag::before {
-  content: "es";
-}
-
-#language-selector-container .language-card[data-language="fr"] .language-flag::before,
-#native-language-selector-container .language-card[data-code="fr"] .language-flag::before {
-  content: "fr";
-}
-
-#native-language-selector-container .language-card[data-code="vi"] .language-flag::before {
-  content: "vi";
-}
-
-#native-language-selector-container .language-card[data-code="ko"] .language-flag::before {
-  content: "ko";
-}
-
-#native-language-selector-container .language-card[data-code="ja"] .language-flag::before {
-  content: "ja";
-}
-
-#native-language-selector-container .language-card[data-code="de"] .language-flag::before {
-  content: "de";
+#language-selector-container .language-flag .flag-svg,
+#native-language-selector-container .language-flag .flag-svg {
+  display: block;
+  width: 24px;
+  height: 16px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
 }
 
 #language-selector-container .language-info,
@@ -1193,7 +1151,7 @@ h2.headword {
   align-items: baseline;
   justify-content: space-between;
   gap: 1.5rem;
-  padding: 1rem 0.25rem 1rem 1.25rem;
+  padding: clamp(0.5rem, 1.4vh, 1rem) 0.25rem clamp(0.5rem, 1.4vh, 1rem) 1.25rem;
   border-bottom: 1px solid var(--rule);
   cursor: pointer;
   transition: border-color 160ms var(--ease-out);
@@ -1272,7 +1230,7 @@ h2.headword {
 .bulk-import-textarea {
   display: block;
   width: 100%;
-  min-height: 8.5rem;
+  min-height: clamp(5rem, 12vh, 8.5rem);
   margin-top: 1.25rem;
   padding: 0.875rem 1rem;
   background: none;
@@ -1488,5 +1446,69 @@ h2.headword {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* --- Two-column entry body ----------------------------------------------
+   Steps carrying a list plus a secondary panel set them side by side. This
+   uses the width the single column was leaving empty and, more importantly,
+   keeps the step inside one viewport: stacked, the level step ran ~1280px
+   tall against a 900px window. */
+
+.entry-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: clamp(2rem, 4vw, 3.5rem);
+  align-items: start;
+  margin-top: 1.75rem;
+}
+
+.entry-columns > * {
+  margin-top: 0;
+  min-width: 0;
+}
+
+/* The secondary panel is subordinate: a rule in the gutter rather than a box. */
+.entry-columns > .bulk-import-section {
+  padding-left: clamp(2rem, 4vw, 3.5rem);
+  border-left: 1px solid var(--rule);
+}
+
+@media (max-width: 900px) {
+  .entry-columns {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 1.75rem;
+  }
+
+  .entry-columns > .bulk-import-section {
+    padding-left: 0;
+    padding-top: 1.75rem;
+    border-left: none;
+    border-top: 1px solid var(--rule);
+  }
+}
+
+/* Short windows (a laptop carrying a lot of browser chrome). The step still
+   has to fit in one screen, so the secondary panel's explanatory copy and the
+   sense numbering give up their space first. */
+@media (max-height: 780px) {
+  .bulk-import-description {
+    display: none;
+  }
+
+  .entry-columns {
+    margin-top: 1.125rem;
+  }
+
+  .sense + .sense {
+    margin-top: 0.75rem;
+  }
+
+  .onboarding-step.active .entry {
+    padding-block: 0.5rem;
+  }
+
+  .running-head {
+    padding-bottom: 0.625rem;
   }
 }

@@ -40,10 +40,20 @@
   box-shadow: 0 4px 16px rgba(74, 144, 226, 0.2);
 }
 
+/* The flag is drawn artwork (language-selector/flags.ts), not an emoji, so it
+   is sized as a box rather than as text. */
 .language-flag {
-  font-size: 48px;
-  line-height: 1;
+  font-size: 0;
+  line-height: 0;
   margin-bottom: 8px;
+}
+
+.language-flag .flag-svg {
+  display: block;
+  width: 36px;
+  height: 24px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  border-radius: 2px;
 }
 
 .language-info {
@@ -148,6 +158,10 @@
     border-color: #34495e;
     color: #ecf0f1;
   }
+
+  .language-flag .flag-svg {
+    border-color: rgba(255, 255, 255, 0.22);
+  }
 }
 
 /* Responsive adjustments */
@@ -160,7 +174,8 @@
     min-height: 140px;
   }
 
-  .language-flag {
-    font-size: 40px;
+  .language-flag .flag-svg {
+    width: 30px;
+    height: 20px;
   }
 }

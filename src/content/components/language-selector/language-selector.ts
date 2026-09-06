@@ -3,10 +3,13 @@
  * Displays available languages with flags and handles selection
  */
 
+import { flagSvg } from './flags';
+
 export interface LanguageOption {
   code: string;
   name: string;
   nativeName: string;
+  /** Inline SVG markup for the country's flag, sized 24x16. */
   flag: string;
   description: string;
 }
@@ -40,28 +43,28 @@ export class LanguageSelector {
         code: 'zh',
         name: 'Chinese',
         nativeName: '中文',
-        flag: '🇨🇳',
+        flag: flagSvg('zh'),
         description: 'Learn Mandarin Chinese with character-by-character analysis'
       },
       {
         code: 'en',
         name: 'English',
         nativeName: 'English',
-        flag: '🇬🇧',
+        flag: flagSvg('en'),
         description: 'Improve your English vocabulary and comprehension'
       },
       {
         code: 'es',
         name: 'Spanish',
         nativeName: 'Español',
-        flag: '🇪🇸',
+        flag: flagSvg('es'),
         description: 'Learn Spanish with contextual definitions and examples'
       },
       {
         code: 'fr',
         name: 'French',
         nativeName: 'Français',
-        flag: '🇫🇷',
+        flag: flagSvg('fr'),
         description: 'Master French vocabulary with detailed translations'
       }
     ];
@@ -115,6 +118,9 @@ export class LanguageSelector {
 
   /**
    * Render dropdown layout
+   *
+   * No flag here: an <option> renders text only, so the SVG would be shown as
+   * its own source. The name and native name carry the row instead.
    */
   _renderDropdown(): string {
     const languages = this.getLanguages();
@@ -123,7 +129,7 @@ export class LanguageSelector {
         <option value="">Select a language...</option>
         ${languages.map(lang => `
           <option value="${lang.code}" ${this.selectedLanguage === lang.code ? 'selected' : ''}>
-            ${lang.flag} ${lang.name} (${lang.nativeName})
+            ${lang.name} (${lang.nativeName})
           </option>
         `).join('')}
       </select>
