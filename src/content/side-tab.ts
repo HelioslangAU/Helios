@@ -6,6 +6,7 @@
 import { browser } from 'wxt/browser';
 
 import { services } from '@/content/services';
+import { shouldCollapseOnClick } from '@/content/side-tab-collapse';
 
 export interface SentenceBreakdown {
   totalSentences: number;
@@ -200,6 +201,22 @@ export class HeliosSideTab {
         this.partialView?.addEventListener('click', (e) => {
             if (!(e.target as Element).closest('button')) {
                 this.setState('full');
+            }
+        });
+
+        // Click anywhere on the full view to collapse it, the way the partial
+        // view expands on a click. Anything you would be clicking *for* is
+        // excluded: a control, a link, or a label wrapping one. Text you have
+        // selected is excluded too — releasing a drag-select fires a click, and
+        // having the panel shut on you mid-selection would be maddening.
+        this.fullView?.addEventListener('click', (e) => {
+            if (
+                shouldCollapseOnClick({
+                    target: e.target as Element | null,
+                    selection: window.getSelection()?.toString(),
+                })
+            ) {
+                this.setState('partial');
             }
         });
 

@@ -665,7 +665,7 @@
 }
 
 .pinyin-icon {
-    background: linear-gradient(145deg, #fb7185, #f43f5e);
+    background: linear-gradient(145deg, #a78bfa, #8b5cf6);
 }
 
 .comprehension-icon svg,
@@ -1108,10 +1108,10 @@
 }
 
 .pinyin-toggle-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
-    background: linear-gradient(145deg, #fb7185, #f43f5e);
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
+    background: linear-gradient(145deg, #a78bfa, #8b5cf6);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1126,8 +1126,8 @@
 }
 
 .pinyin-toggle-icon svg {
-    width: 30px;
-    height: 30px;
+    width: 26px;
+    height: 26px;
     color: #fff;
     transition: all 0.3s var(--transition-timing);
 }
