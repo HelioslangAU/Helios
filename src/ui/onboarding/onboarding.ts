@@ -295,13 +295,16 @@ export class OnboardingPage {
       langCard.dataset.code = lang.code;
       const isBeta = lang.code !== 'en';
       const betaTag = isBeta ? '<span class="beta-tag">BETA</span>' : '';
+      const nativeMatch = lang.displayName.match(/\(([^)]+)\)/);
+      const nativeLabel = nativeMatch ? nativeMatch[1] : '';
       langCard.innerHTML = `
         <div class="language-flag">${this.getLanguageFlag(lang.code)}</div>
         <div class="language-info">
           <div class="language-name">
-            ${lang.displayName}
+            <span class="language-name-en">${lang.name}</span>
             ${betaTag}
           </div>
+          <div class="language-native">${nativeLabel}</div>
         </div>
         <div class="language-select-indicator">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
