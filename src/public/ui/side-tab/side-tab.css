@@ -5,9 +5,9 @@
 /* CSS Variables - Matching Website */
 :root {
     /* Colors from website */
-    --helios-bg-primary: #0a0a0b;
-    --helios-bg-secondary: #151518;
-    --helios-bg-tertiary: #1e1e21;
+    --helios-bg-primary: #08080a;
+    --helios-bg-secondary: #101013;
+    --helios-bg-tertiary: #17171b;
     --helios-accent-primary: #ff6b47;
     --helios-accent-secondary: #ff8f47;
     --helios-accent-tertiary: #ffb347;
@@ -15,8 +15,11 @@
     --helios-text-secondary: #e2e8f0;
     --helios-text-muted: #94a3b8;
     --helios-text-slate: #cbd5e1;
-    --helios-border: rgba(255, 107, 71, 0.12);
+    --helios-border: rgba(255, 255, 255, 0.08);
     --helios-border-subtle: rgba(255, 255, 255, 0.08);
+    --helios-border-strong: rgba(255, 255, 255, 0.14);
+    --helios-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --helios-mono: 'Chivo Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
     /* Dimensions - Wider for less squishing */
     --side-tab-peek-width: 48px;
@@ -40,7 +43,7 @@
     right: 0;
     height: 100vh;
     z-index: var(--helios-z-index);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: var(--helios-font);
     pointer-events: none;
 }
 
@@ -168,12 +171,7 @@
     width: var(--side-tab-partial-width);
     height: 100vh;
     /* EXTREME liquid glass - ultra transparent with gradient shimmer */
-    background: linear-gradient(
-        to left,
-        rgba(10, 10, 11, 0.18),
-        rgba(15, 15, 18, 0.15),
-        rgba(10, 10, 11, 0.20)
-    );
+    background: rgba(8, 8, 10, 0.72);
     /* Subtle luminous border for glass edge effect */
     border-left: 1px solid rgba(255, 255, 255, 0.15);
     box-shadow:
@@ -198,12 +196,7 @@
 .helios-side-tab[data-position="left"] .side-tab-partial {
     right: auto;
     left: 0;
-    background: linear-gradient(
-        to right,
-        rgba(10, 10, 11, 0.18),
-        rgba(15, 15, 18, 0.15),
-        rgba(10, 10, 11, 0.20)
-    );
+    background: rgba(8, 8, 10, 0.72);
     border-left: none;
     border-right: 1px solid rgba(255, 255, 255, 0.15);
     box-shadow:
@@ -299,124 +292,37 @@
 }
 
 /* Strong colors with high opacity for solid appearance */
-.comprehension-icon {
-    background: linear-gradient(135deg, rgba(255, 107, 71, 0.90), rgba(255, 143, 71, 0.85));
-}
-
-.comprehension-icon svg {
-    color: rgba(255, 143, 71, 1);
-}
-
-.words-icon {
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.90), rgba(52, 211, 153, 0.85));
-}
-
-.words-icon svg {
-    color: rgba(52, 211, 153, 1);
-}
-
-.unique-icon {
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.90), rgba(96, 165, 250, 0.85));
-}
-
-.unique-icon svg {
-    color: rgba(191, 219, 254, 1);
-}
-
-.t1-icon {
-    background: linear-gradient(135deg, rgba(234, 179, 8, 0.90), rgba(251, 191, 36, 0.85));
-}
-
-.t1-icon svg {
-    color: rgba(254, 243, 199, 1);
-}
-
 .t2-icon {
-    background: linear-gradient(135deg, rgba(20, 184, 166, 0.90), rgba(45, 212, 191, 0.85));
+    background: rgba(255, 255, 255, 0.06);
 }
 
 .t2-icon svg {
     color: rgba(204, 251, 241, 1);
 }
 
-.sentence-breakdown-icon {
-    background: linear-gradient(135deg, rgba(234, 179, 8, 0.90), rgba(251, 191, 36, 0.85));
-}
-
-.sentence-breakdown-icon svg {
-    color: rgba(254, 243, 199, 1);
-}
-
-.page-words-icon {
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.90), rgba(96, 165, 250, 0.85));
-}
-
-.page-words-icon svg {
-    color: rgba(96, 165, 250, 1);
-}
-
 /* Pinyin icon in partial view */
-.pinyin-icon {
-    background: linear-gradient(135deg, rgba(168, 85, 247, 0.90), rgba(192, 132, 252, 0.85));
-}
-
-.pinyin-icon svg {
-    color: rgba(168, 85, 247, 1);
-    /* Make the SVG bigger for better text visibility */
-    width: 36px !important;
-    height: 36px !important;
-}
-
 .partial-stat-item:hover .partial-icon {
     transform: scale(1.05);
     border-color: rgba(255, 255, 255, 0.12);
 }
 
-.partial-stat-item:hover .comprehension-icon {
-    background: linear-gradient(135deg, rgba(255, 107, 71, 1.0), rgba(255, 143, 71, 0.95));
+.partial-stat-item:hover .partial-stat-item:hover .partial-stat-item:hover .partial-stat-item:hover .partial-stat-item:hover .partial-stat-item:hover .t2-icon {
+    background: rgba(255, 255, 255, 0.06);
 }
 
-.partial-stat-item:hover .words-icon {
-    background: linear-gradient(135deg, rgba(16, 185, 129, 1.0), rgba(52, 211, 153, 0.95));
-}
-
-.partial-stat-item:hover .page-words-icon {
-    background: linear-gradient(135deg, rgba(59, 130, 246, 1.0), rgba(96, 165, 250, 0.95));
-}
-
-.partial-stat-item:hover .unique-icon {
-    background: linear-gradient(135deg, rgba(59, 130, 246, 1.0), rgba(96, 165, 250, 0.95));
-}
-
-.partial-stat-item:hover .t1-icon {
-    background: linear-gradient(135deg, rgba(234, 179, 8, 1.0), rgba(251, 191, 36, 0.95));
-}
-
-.partial-stat-item:hover .t2-icon {
-    background: linear-gradient(135deg, rgba(20, 184, 166, 1.0), rgba(45, 212, 191, 0.95));
-}
-
-.partial-stat-item:hover .sentence-breakdown-icon {
-    background: linear-gradient(135deg, rgba(234, 179, 8, 1.0), rgba(251, 191, 36, 0.95));
-}
-
-.partial-stat-item:hover .pinyin-icon {
-    background: linear-gradient(135deg, rgba(168, 85, 247, 1.0), rgba(192, 132, 252, 0.95));
-}
-
-.partial-stat-item:hover .partial-icon svg {
+.partial-stat-item:hover .partial-stat-item:hover .partial-stat-item:hover .partial-icon svg {
     transform: scale(1.05);
 }
 
 .partial-value {
-    font-size: 16px;
-    font-weight: 800;
+    font-family: var(--helios-mono);
+    font-size: 13px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
     color: var(--helios-text-primary);
     text-align: center;
-    /* Strong text shadow for visibility on white backgrounds */
-    text-shadow:
-        0 2px 8px rgba(0, 0, 0, 0.6),
-        0 1px 4px rgba(0, 0, 0, 0.8);
+    /* The rail sits over whatever page is behind it, which may be white. */
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
 }
 
 /* Partial Actions */
@@ -432,8 +338,8 @@
     width: 44px;
     height: 44px;
     border-radius: 12px;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.05));
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--helios-border-subtle);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -496,8 +402,8 @@
 }
 
 #partial-expand-btn:hover {
-    background: linear-gradient(135deg, rgba(255, 143, 71, 0.25), rgba(255, 107, 71, 0.20));
-    border-color: rgba(255, 143, 71, 0.4);
+    background: rgba(255, 107, 71, 0.16);
+    border-color: rgba(255, 107, 71, 0.35);
 }
 
 #partial-expand-btn:hover svg {
@@ -509,7 +415,7 @@
 }
 
 .partial-close-btn:hover {
-    background: linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(220, 38, 38, 0.20));
+    background: rgba(248, 113, 113, 0.16);
     border-color: rgba(239, 68, 68, 0.4);
 }
 
@@ -532,12 +438,7 @@
     width: var(--side-tab-full-width);
     height: 100vh;
     /* Apple liquid glass effect - more opaque than partial but still glassy */
-    background: linear-gradient(
-        to left,
-        rgba(10, 10, 11, 0.70),
-        rgba(15, 15, 18, 0.65),
-        rgba(10, 10, 11, 0.68)
-    );
+    background: rgba(8, 8, 10, 0.94);
     /* Subtle luminous border for glass edge effect */
     border-left: 1px solid rgba(255, 255, 255, 0.12);
     box-shadow:
@@ -561,12 +462,7 @@
 .helios-side-tab[data-position="left"] .side-tab-full {
     right: auto;
     left: 0;
-    background: linear-gradient(
-        to right,
-        rgba(10, 10, 11, 0.70),
-        rgba(15, 15, 18, 0.65),
-        rgba(10, 10, 11, 0.68)
-    );
+    background: rgba(8, 8, 10, 0.94);
     border-left: none;
     border-right: 1px solid rgba(255, 255, 255, 0.12);
     box-shadow:
@@ -612,18 +508,19 @@
 }
 
 .full-logo {
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.015em;
     color: var(--helios-text-primary);
 }
 
 .full-subtitle {
-    font-size: 13px;
+    font-family: var(--helios-mono);
+    font-size: 9.5px;
     color: var(--helios-text-muted);
-    font-weight: 600;
+    font-weight: 500;
     text-transform: uppercase;
-    letter-spacing: 0.8px;
+    letter-spacing: 0.16em;
     text-decoration: none;
 }
 
@@ -670,12 +567,13 @@
 
 /* Section Title */
 .section-title {
-    font-size: 12px;
-    font-weight: 700;
+    font-family: var(--helios-mono);
+    font-size: 10px;
+    font-weight: 500;
     color: var(--helios-text-muted);
     text-transform: uppercase;
-    letter-spacing: 1.5px;
-    margin-bottom: 18px;
+    letter-spacing: 0.16em;
+    margin-bottom: 12px;
     text-decoration: none;
 }
 
@@ -688,19 +586,17 @@
 
 /* Stat Cards - Website Style */
 .stat-card {
-    /* Website-style card background */
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+    background: var(--helios-bg-secondary);
     border: 1px solid var(--helios-border-subtle);
-    border-radius: 16px;
-    padding: 20px;
-    transition: all 0.3s var(--transition-timing);
-    /* Website-style shadows */
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    border-radius: 14px;
+    padding: 15px 16px;
+    transition:
+        background-color 0.2s var(--transition-timing),
+        border-color 0.2s var(--transition-timing);
 }
 
 .stat-card:hover {
-    border-color: rgba(255, 255, 255, 0.15);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    border-color: var(--helios-border-strong);
     transform: translateY(-3px);
 }
 
@@ -716,17 +612,41 @@
     margin-bottom: 14px;
 }
 
+/* One treatment for every card mark.
+   These were six gradient-filled tiles in six hues — orange, green, blue,
+   yellow, blue again, purple — which is a colour system with nothing to say:
+   the hue never meant anything, it just varied. The marks are now neutral, and
+   the colour budget goes where it carries meaning: the comprehension figure,
+   and the dots that stand for known, learning and ignored. */
+.comprehension-icon,
+.words-icon,
+.unique-icon,
+.t1-icon,
+.sentence-breakdown-icon,
+.page-words-icon,
+.pinyin-icon {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.comprehension-icon svg,
+.words-icon svg,
+.unique-icon svg,
+.t1-icon svg,
+.sentence-breakdown-icon svg,
+.page-words-icon svg,
+.pinyin-icon svg {
+    color: var(--helios-text-secondary);
+}
+
 .stat-card-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-    transition: all 0.3s var(--transition-timing);
+    transition: background-color 0.2s var(--transition-timing);
 }
 
 .stat-card-icon svg {
@@ -737,7 +657,7 @@
 
 /* Brighter colors with lower opacity - matching popup card */
 .comprehension-gradient {
-    background: linear-gradient(135deg, rgba(255, 107, 71, 0.30), rgba(255, 143, 71, 0.25));
+    background: rgba(255, 255, 255, 0.06);
 }
 
 .comprehension-gradient svg {
@@ -745,7 +665,7 @@
 }
 
 .known-gradient {
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.30), rgba(52, 211, 153, 0.25));
+    background: rgba(255, 255, 255, 0.06);
 }
 
 .known-gradient svg {
@@ -753,7 +673,7 @@
 }
 
 .page-gradient {
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.30), rgba(96, 165, 250, 0.25));
+    background: rgba(255, 255, 255, 0.06);
 }
 
 .page-gradient svg {
@@ -794,22 +714,18 @@
     width: 14px;
     height: 14px;
     border-radius: 9999px;
-    box-shadow: 0 0 8px rgba(0, 0, 0, 0.4);
 }
 
 .vocab-known-dot {
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(52, 211, 153, 0.9));
+    background: #10b981;
 }
 
 .vocab-learning-dot {
-    /* Pairs with the learning underline, which is now the amber end of the
-       accent ramp rather than purple. The legend and the mark it explains
-       have to agree. */
-    background: linear-gradient(135deg, rgba(255, 179, 71, 0.95), rgba(255, 196, 120, 0.9));
+    background: #ffb347;
 }
 
 .vocab-ignored-dot {
-    background: linear-gradient(135deg, rgba(148, 163, 184, 0.95), rgba(148, 163, 184, 0.8));
+    background: #94a3b8;
 }
 
 /* Sentence breakdown rows (All known / T1 / T2) */
@@ -840,21 +756,23 @@
 }
 
 .sentence-breakdown-row-value {
-    font-size: 16px;
-    font-weight: 700;
+    font-family: var(--helios-mono);
+    font-size: 13px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
     color: var(--helios-text-primary);
 }
 
 .sentence-breakdown-t0-dot {
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(52, 211, 153, 0.9));
+    background: #10b981;
 }
 
 .sentence-breakdown-t1-dot {
-    background: linear-gradient(135deg, rgba(234, 179, 8, 0.95), rgba(251, 191, 36, 0.9));
+    background: #ffb347;
 }
 
 .sentence-breakdown-t2-dot {
-    background: linear-gradient(135deg, rgba(20, 184, 166, 0.95), rgba(45, 212, 191, 0.9));
+    background: #38bdf8;
 }
 
 .vocab-item-label {
@@ -863,17 +781,23 @@
 }
 
 .vocab-item-value {
-    font-size: 18px;
-    font-weight: 700;
+    font-family: var(--helios-mono);
+    font-size: 14px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
     color: var(--helios-text-primary);
 }
 
 .stat-card-value {
-    font-size: 36px;
-    font-weight: 900;
+    font-family: var(--helios-mono);
+    font-size: 28px;
+    /* 500, not 600: at this size Chivo Mono's percent sign closes up against
+       its own slash at heavier weights. */
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
     color: var(--helios-text-primary);
-    line-height: 1;
-    letter-spacing: -1px;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
 }
 
 .comprehension-value,
@@ -889,8 +813,10 @@
 }
 
 .stat-secondary-count {
-    font-size: 18px;
-    font-weight: 600;
+    font-family: var(--helios-mono);
+    font-size: 12px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
     color: var(--helios-text-muted);
     text-align: right;
 }
@@ -929,7 +855,7 @@
 
 /* Primary Stat (Larger) */
 .primary-stat {
-    background: linear-gradient(135deg, rgba(255, 107, 71, 0.12), rgba(255, 143, 71, 0.10));
+    background: rgba(255, 107, 71, 0.12);
     border-color: rgba(255, 107, 71, 0.20);
 }
 
@@ -949,7 +875,7 @@
 .progress-fill {
     height: 100%;
     /* Muted orange gradient - professional */
-    background: linear-gradient(90deg, rgba(255, 160, 122, 0.6), rgba(255, 178, 140, 0.5));
+    background: var(--helios-accent-primary);
     border-radius: 4px;
     /* Width, because on a progress bar the width is the value. A transform
        would scale the rounded caps along with it. */
@@ -1053,7 +979,7 @@
 
 /* Brighter orange colors for settings button */
 .settings-button .action-button-icon {
-    background: linear-gradient(135deg, rgba(255, 107, 71, 0.25), rgba(255, 143, 71, 0.20));
+    background: rgba(255, 107, 71, 0.12);
 }
 
 .settings-button .action-button-icon svg {
@@ -1061,12 +987,12 @@
 }
 
 .settings-button:hover .action-button-icon {
-    background: linear-gradient(135deg, rgba(255, 107, 71, 0.35), rgba(255, 143, 71, 0.28));
+    background: rgba(255, 107, 71, 0.2);
 }
 
 /* YouTube Subtitles button styling */
 .youtube-subtitles-button .action-button-icon {
-    background: linear-gradient(135deg, rgba(255, 107, 71, 0.25), rgba(255, 143, 71, 0.20));
+    background: rgba(255, 107, 71, 0.12);
 }
 
 .youtube-subtitles-button .action-button-icon svg {
@@ -1074,7 +1000,7 @@
 }
 
 .youtube-subtitles-button:hover .action-button-icon {
-    background: linear-gradient(135deg, rgba(255, 107, 71, 0.35), rgba(255, 143, 71, 0.28));
+    background: rgba(255, 107, 71, 0.2);
 }
 
 /* Position toggle button styling (Partial View) */
@@ -1135,21 +1061,14 @@
     border-radius: 16px;
     transition: all 0.3s var(--transition-timing);
     cursor: pointer;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
     margin: 0;
 }
 
 .pinyin-toggle-container:hover {
-    transform: translateX(-6px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-    border-color: rgba(168, 85, 247, 0.2);
+    border-color: var(--helios-border-strong);
 }
 
 /* Left-side pinyin toggle hover */
-.helios-side-tab[data-position="left"] .pinyin-toggle-container:hover {
-    transform: translateX(6px);
-}
-
 .pinyin-toggle-content {
     display: flex;
     align-items: center;
@@ -1161,7 +1080,7 @@
     width: 48px;
     height: 48px;
     border-radius: 12px;
-    background: linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(192, 132, 252, 0.20));
+    background: rgba(255, 107, 71, 0.25);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1172,13 +1091,13 @@
 }
 
 .pinyin-toggle-container:hover .pinyin-toggle-icon {
-    background: linear-gradient(135deg, rgba(168, 85, 247, 0.35), rgba(192, 132, 252, 0.28));
+    background: rgba(255, 107, 71, 0.35);
 }
 
 .pinyin-toggle-icon svg {
     width: 24px;
     height: 24px;
-    color: rgba(168, 85, 247, 1);
+    color: var(--helios-accent-primary);
     transition: all 0.3s var(--transition-timing);
 }
 
@@ -1244,14 +1163,13 @@
 }
 
 .pinyin-slider input:checked + .pinyin-slider-track {
-    background: linear-gradient(135deg, rgba(168, 85, 247, 0.6), rgba(192, 132, 252, 0.5));
-    border-color: rgba(168, 85, 247, 0.5);
+    background: rgba(255, 107, 71, 0.6);
+    border-color: rgba(255, 107, 71, 0.5);
 }
 
 .pinyin-slider input:checked + .pinyin-slider-track::before {
     transform: translateX(24px);
-    background: rgba(168, 85, 247, 1);
-    box-shadow: 0 2px 8px rgba(168, 85, 247, 0.4);
+    background: #fff;
 }
 
 .pinyin-slider:hover .pinyin-slider-track {
@@ -1259,22 +1177,20 @@
 }
 
 .pinyin-slider input:checked:hover + .pinyin-slider-track {
-    background: linear-gradient(135deg, rgba(168, 85, 247, 0.7), rgba(192, 132, 252, 0.6));
+    background: rgba(255, 107, 71, 0.7);
 }
 
 /* Active state for container */
 .pinyin-toggle-container.active {
-    border-color: rgba(168, 85, 247, 0.25);
+    border-color: rgba(255, 107, 71, 0.25);
 }
 
 .pinyin-toggle-container.active .pinyin-toggle-icon {
-    background: linear-gradient(135deg, rgba(168, 85, 247, 0.35), rgba(192, 132, 252, 0.28));
-    box-shadow: 0 4px 16px rgba(168, 85, 247, 0.25);
+    background: rgba(255, 107, 71, 0.35);
 }
 
 .pinyin-toggle-container:hover .pinyin-toggle-icon {
-    background: linear-gradient(135deg, rgba(168, 85, 247, 0.35), rgba(192, 132, 252, 0.28));
-    box-shadow: 0 4px 16px rgba(168, 85, 247, 0.25);
+    background: rgba(255, 107, 71, 0.35);
 }
 
 /* ================================================
