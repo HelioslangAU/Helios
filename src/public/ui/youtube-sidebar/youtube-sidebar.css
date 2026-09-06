@@ -17,9 +17,12 @@
    The values match `src/styles/theme.css`, so the panel, the settings page and
    the marketing site are one product. */
 .helios-youtube-sidebar {
-  --helios-bg-primary: #0f0f12;
-  --helios-bg-secondary: #1a1a1f;
-  --helios-bg-card: #222228;
+  /* Near-black, so the panel sits with YouTube's own dark surround (#0f0f0f)
+     rather than glowing lighter beside it. The three steps are kept — a panel
+     ground, a raised block, a control — just moved down. */
+  --helios-bg-primary: #08080a;
+  --helios-bg-secondary: #101013;
+  --helios-bg-card: #17171b;
   --helios-accent-primary: #ff6b47;
   --helios-accent-secondary: #ff8f47;
   --helios-accent-gradient: linear-gradient(135deg, #ff6b47 0%, #ff8f47 50%, #ffb347 100%);
@@ -325,7 +328,7 @@
   gap: 12px;
   padding: 13px 15px;
   margin: 5px 10px;
-  background: rgba(255, 255, 255, 0.022);
+  background: rgba(255, 255, 255, 0.035);
   border: 1px solid transparent;
   border-radius: var(--helios-radius);
   cursor: pointer;
@@ -363,7 +366,7 @@
 /* Background only. Translating and scaling a row inside a list that is also
    auto-scrolling made the whole transcript twitch under the pointer. */
 .yt-subtitle-item:hover {
-  background: rgba(255, 255, 255, 0.055);
+  background: rgba(255, 255, 255, 0.07);
   border-color: var(--helios-border);
 }
 

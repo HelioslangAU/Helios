@@ -62,41 +62,37 @@
   will-change: transform, left, top, bottom;
 }
 
-/* The caption block.
-   One scrim around both lines rather than a box per line: a target-language
-   line and its translation are one caption, and drawing them as two
-   hard-edged rectangles of different widths — the lower one darker than the
-   upper — made them read as two unrelated labels. The blur keeps the text
-   legible over a bright frame without having to crush the picture behind it;
-   the alpha the settings panel controls is written onto this element. */
+/* Dual Subtitle Container */
 .helios-subtitle-dual-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 6px;
   margin: 0;
-  padding: 0.34em 0.75em 0.4em;
-  border-radius: 10px;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  padding: 0;
 }
 
 /* Subtitle Text - ASB Player Style */
 .helios-subtitle-text {
-  display: block;
-  color: #fff;
+  display: inline-block;
+  color: #FFFFFF;
   font-size: 40px;
-  font-weight: 600;
-  line-height: 1.35;
-  letter-spacing: 0.01em;
-  text-align: center;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
 
-  /* A single soft shadow rather than four hard offsets. The block behind the
-     text already carries most of the contrast, so ringing every glyph in
-     black on top of it only muddied the letterforms. */
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+  /* Clean text shadow for readability */
+  text-shadow:
+    -1px -1px 2px #000000,
+    1px -1px 2px #000000,
+    -1px 1px 2px #000000,
+    1px 1px 2px #000000,
+    0px 0px 4px rgba(0, 0, 0, 0.8);
 
-  padding: 0;
+  /* Semi-transparent background */
+  background: rgba(0, 0, 0, 0.4);
+  padding: 6px 16px;
+  border-radius: 4px;
   margin: 0;
 
   /* Text properties */
@@ -115,35 +111,33 @@
   background: rgba(0, 0, 0, 0.85);
 } */
 
-/* The line you are learning from. */
+/* Primary Subtitle (Target Language) */
 .helios-subtitle-primary {
+  /* Primary subtitle has default full styling */
   font-size: 40px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
-/* The translation. Support, not the subject: smaller, lighter, and set back
-   in the ink so the eye lands on the target language first. */
+/* Secondary Subtitle (Native/Translation Language) */
 .helios-subtitle-secondary {
+  /* Secondary subtitle is slightly smaller and lighter */
   font-size: 28px !important;
-  font-weight: 400 !important;
-  color: rgba(255, 255, 255, 0.72) !important;
-  background: none !important;
-  padding: 0 !important;
+  font-weight: 500 !important;
+  color: #E0E0E0 !important;
+  background: rgba(0, 0, 0, 0.6) !important;
+  opacity: 0.9;
+  padding: 4px 14px !important;
+}
+
+.helios-subtitle-secondary:hover {
+  background: rgba(0, 0, 0, 0.75) !important;
+  opacity: 1;
 }
 
 /* Word states. Red for a word you have not met, amber for one you are
    working on — the same pair wherever a word is read, on a page, in the
    transcript or over the video. Red is the user's call; amber replaces the
    old purple, which sat outside the palette entirely. */
-.helios-subtitle-word {
-  border-radius: 3px;
-  transition: background-color 0.12s ease;
-}
-
-.helios-subtitle-word:hover {
-  background: rgba(255, 255, 255, 0.16);
-}
-
 .helios-subtitle-word.unknown-word {
   text-decoration: underline;
   text-decoration-color: #ff4444;
