@@ -451,8 +451,7 @@
 }
 
 .yt-subtitle-word:hover {
-  background: rgba(255, 107, 71, 0.15);
-  color: var(--helios-accent-primary);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 /* Word states. Red for a word you have not met, amber for one you are
@@ -467,7 +466,7 @@
 }
 
 .yt-subtitle-word.unknown-word:hover {
-  background: rgba(255, 68, 68, 0.18);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .yt-subtitle-word.learning-word {
@@ -478,7 +477,7 @@
 }
 
 .yt-subtitle-word.learning-word:hover {
-  background: rgba(255, 179, 71, 0.18);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 /* ============================================================================
@@ -739,11 +738,9 @@ body:not(.helios-sidebar-active) ytd-watch-flexy[theater] .ytp-size-button {
 }
 
 .yt-size-btn:hover {
-  background: var(--helios-accent-primary);
-  border-color: var(--helios-accent-primary);
-  color: white;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(255, 107, 71, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--helios-border-strong);
+  color: var(--helios-text-primary);
 }
 
 .yt-size-btn:active {
@@ -790,7 +787,6 @@ body:not(.helios-sidebar-active) ytd-watch-flexy[theater] .ytp-size-button {
 .yt-size-input:focus {
   background: var(--helios-bg-card);
   border-color: var(--helios-accent-primary);
-  box-shadow: 0 0 0 3px rgba(255, 107, 71, 0.1);
 }
 
 .yt-size-unit {
@@ -983,28 +979,17 @@ body:not(.helios-sidebar-active) ytd-watch-flexy[theater] .ytp-size-button {
 .yt-hotkey-input:hover {
   background: var(--helios-bg-secondary);
   border-color: rgba(255, 107, 71, 0.4);
-  box-shadow: 0 0 0 3px rgba(255, 107, 71, 0.08);
 }
 
 .yt-hotkey-input:focus {
   background: var(--helios-bg-secondary);
   border-color: var(--helios-accent-primary);
-  box-shadow: 0 0 0 3px rgba(255, 107, 71, 0.15);
-  animation: pulse 1.5s infinite;
+  animation: none;
 }
 
 .yt-hotkey-input::placeholder {
   color: var(--helios-text-muted);
   opacity: 0.5;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    box-shadow: 0 0 0 3px rgba(255, 107, 71, 0.15);
-  }
-  50% {
-    box-shadow: 0 0 0 3px rgba(255, 107, 71, 0.25);
-  }
 }
 
 .yt-hotkey-desc {
@@ -1046,7 +1031,6 @@ body:not(.helios-sidebar-active) ytd-watch-flexy[theater] .ytp-size-button {
 .yt-select:focus {
   outline: none;
   border-color: var(--helios-accent-primary);
-  box-shadow: 0 0 0 3px rgba(255, 107, 71, 0.1);
 }
 
 .yt-select option {

@@ -60,6 +60,24 @@
 
   /* GPU acceleration for smooth animations */
   will-change: transform, left, top, bottom;
+
+  /* The caption is grabbable anywhere, not only on its handle. */
+  cursor: grab;
+}
+
+/* While the pointer is driving the position, nothing may ease it. The
+   transition above exists so the caption glides when the player changes shape;
+   left on during a drag it puts the caption 300ms behind the cursor, which is
+   what made dragging feel like hauling something heavy. */
+.helios-subtitle-overlay.helios-subtitle-dragging {
+  transition: none !important;
+  cursor: grabbing;
+}
+
+.helios-subtitle-overlay.helios-subtitle-dragging .helios-subtitle-word {
+  /* No hover highlight mid-drag: the caption is moving, not being read. */
+  background: none !important;
+  cursor: grabbing;
 }
 
 /* Dual Subtitle Container */

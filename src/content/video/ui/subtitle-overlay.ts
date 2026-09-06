@@ -330,72 +330,139 @@ export class SubtitleOverlay {
     this.lastDragX = 0;
     this.lastDragY = 0;
 
-    // Mouse down on drag handle or container - start dragging
-    const startDrag = (e: MouseEvent) => {
-      // Only allow left-click (button 0) for dragging - prevent right-click drag
-      if (e.button !== 0) {
-        return;
-      }
+    // A drag is only a drag once the pointer has actually travelled. Below
+    // this it is a click, which is what a word lookup is — that distinction is
+    // what lets the whole caption be draggable rather than just the strip of
+    // padding around the words.
+    const DRAG_THRESHOLD_PX = 4;
 
-      // Don't start drag if clicking on a word (for hover lookup) or resize handle
-      const target = e.target as HTMLElement;
-      if (target.classList.contains('helios-subtitle-word') ||
-          target.classList.contains('helios-subtitle-resize-handle')) {
-        return;
-      }
+    let armed = false;
+    let startX = 0;
+    let startY = 0;
+    let pendingX = 0;
+    let pendingY = 0;
+    let frame = 0;
+    let videoRect: DOMRect | null = null;
+    let activePointerId: number | null = null;
 
-      e.preventDefault();
+    /** Write the position once per frame, not once per pointer event. */
+    const commit = () => {
+      frame = 0;
+      if (!this.isDragging || !videoRect) return;
+
+      const clampedY = Math.max(videoRect.top + window.scrollY, 0);
+      const clampedHeight = Math.min(
+        clampedY + videoRect.height,
+        window.innerHeight + window.scrollY,
+      );
+
+      this.container!.style.left =
+        videoRect.left + videoRect.width / 2 + this.customOffsetX + 'px';
+      this.container!.style.top =
+        clampedHeight - this.contentPositionOffset + this.customOffsetY + 'px';
+    };
+
+    const beginDrag = () => {
       this.isDragging = true;
-      this.lastDragX = e.clientX;
-      this.lastDragY = e.clientY;
+      this.hasCustomPosition = true;
+      // The overlay animates `left`/`top` over 300ms so it glides when the
+      // player changes shape. Left on during a drag, the caption chases the
+      // cursor a third of a second behind, which is what made this feel heavy.
+      this.container!.classList.add('helios-subtitle-dragging');
+      this.dragHandle.style.opacity = '1';
       this.dragHandle.style.cursor = 'grabbing';
       this.container!.style.cursor = 'grabbing';
       this.container!.style.userSelect = 'none';
+      // Measured once: re-reading it per pointer event forced a layout on
+      // every frame of the drag.
+      videoRect = this.videoElement.getBoundingClientRect();
     };
 
-    this.container!.addEventListener('mousedown', startDrag);
-    this.dragHandle.addEventListener('mousedown', startDrag);
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.button !== 0) return;
+      const target = e.target as HTMLElement;
+      if (target.classList.contains('helios-subtitle-resize-handle')) return;
 
-    // Mouse move - Simple direct position updates like ASBPlayer
-    this._dragMoveHandler = (e: MouseEvent) => {
-      if (!this.isDragging) return;
-
-      const deltaX = e.clientX - this.lastDragX;
-      const deltaY = e.clientY - this.lastDragY;
-
-      this.customOffsetX += deltaX;
-      this.customOffsetY += deltaY;
-      this.hasCustomPosition = true;
-
-      this.lastDragX = e.clientX;
-      this.lastDragY = e.clientY;
-
-      // Update position directly like ASBPlayer does
-      const rect = this.videoElement.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) {
-        const clampedY = Math.max(rect.top + window.scrollY, 0);
-        const clampedHeight = Math.min(clampedY + rect.height, window.innerHeight + window.scrollY);
-
-        this.container!.style.left = (rect.left + rect.width / 2 + this.customOffsetX) + 'px';
-        this.container!.style.top = (clampedHeight - this.contentPositionOffset + this.customOffsetY) + 'px';
+      armed = true;
+      startX = pendingX = this.lastDragX = e.clientX;
+      startY = pendingY = this.lastDragY = e.clientY;
+      activePointerId = e.pointerId;
+      // Capture so the drag survives the pointer leaving the caption, the
+      // video, or the window.
+      try {
+        this.container!.setPointerCapture(e.pointerId);
+      } catch {
+        // Older engines without capture on this element; the document-level
+        // listeners below still carry the drag.
       }
     };
-    this._addEventListener(document, 'mousemove', this._dragMoveHandler);
 
-    // Mouse up - stop dragging and save position
-    this._dragUpHandler = () => {
+    const onPointerMove = (e: PointerEvent) => {
+      if (!armed) return;
+
+      if (!this.isDragging) {
+        if (Math.hypot(e.clientX - startX, e.clientY - startY) < DRAG_THRESHOLD_PX) {
+          return;
+        }
+        beginDrag();
+      }
+
+      pendingX = e.clientX;
+      pendingY = e.clientY;
+      this.customOffsetX += pendingX - this.lastDragX;
+      this.customOffsetY += pendingY - this.lastDragY;
+      this.lastDragX = pendingX;
+      this.lastDragY = pendingY;
+
+      if (!frame) frame = requestAnimationFrame(commit);
+    };
+
+    const endDrag = () => {
+      if (activePointerId !== null) {
+        try {
+          this.container!.releasePointerCapture(activePointerId);
+        } catch {
+          // Already released.
+        }
+        activePointerId = null;
+      }
+      armed = false;
+
       if (!this.isDragging) return;
-
       this.isDragging = false;
 
+      if (frame) {
+        cancelAnimationFrame(frame);
+        frame = 0;
+      }
+      commit();
+
+      this.container!.classList.remove('helios-subtitle-dragging');
       this.dragHandle.style.cursor = 'grab';
       this.container!.style.cursor = '';
       this.container!.style.userSelect = 'text';
+      videoRect = null;
 
-      // Save position to storage for persistence across videos
       this._savePosition();
     };
-    this._addEventListener(document, 'mouseup', this._dragUpHandler);
+
+    this.container!.addEventListener('pointerdown', onPointerDown);
+    this.dragHandle.addEventListener('pointerdown', onPointerDown);
+    this._addEventListener(document, 'pointermove', onPointerMove as EventListener);
+    this._addEventListener(document, 'pointerup', endDrag);
+    this._addEventListener(document, 'pointercancel', endDrag);
+
+    // A drag that ended on a word must not also fire that word's lookup.
+    this.container!.addEventListener(
+      'click',
+      (e) => {
+        if (Math.hypot(e.clientX - startX, e.clientY - startY) >= DRAG_THRESHOLD_PX) {
+          e.stopPropagation();
+          e.preventDefault();
+        }
+      },
+      true,
+    );
 
     // Double-click to reset position
     this.container!.addEventListener('dblclick', (e) => {
