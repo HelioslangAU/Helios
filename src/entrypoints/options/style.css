@@ -207,10 +207,34 @@ a {
 
 .running-note::before {
   content: "";
+  flex: none;
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: var(--success);
+  transition: background-color var(--duration) var(--ease-out);
+}
+
+/* Saved: the badge takes the accent for as long as it holds, so a change is
+   acknowledged where the page already promised saving happens. */
+.running-note[data-state="saved"] {
+  border-color: rgba(255, 107, 71, 0.35);
+  background: var(--primary-tint);
+  color: var(--primary);
+}
+
+.running-note[data-state="saved"]::before {
+  background: var(--primary);
+}
+
+.running-note[data-state="failed"] {
+  border-color: rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.1);
+  color: var(--danger);
+}
+
+.running-note[data-state="failed"]::before {
+  background: var(--danger);
 }
 
 .running-mark {

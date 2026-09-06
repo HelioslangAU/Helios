@@ -6,6 +6,7 @@ import { browser } from 'wxt/browser';
 import { items, storage, type VideoPlayerSettings } from '@/config/storage';
 import type { HeliosSettingsManager } from '@/content/settings/helios-settings';
 import { ShortcutHelper } from '@/content/utils/shortcut-helper';
+import { reportSaveState } from "@/content/settings/save-indicator";
 
 interface HotkeyConfig {
   key: string;
@@ -84,11 +85,15 @@ export class HeliosSettingsStorage {
       // fixed set of items to route it through — it goes to the area directly.
       await browser.storage.local.set(this.manager.settings);
       console.log("🔍 Settings saved successfully to Chrome storage");
+      reportSaveState("saved");
 
       // Notify other parts of the extension about settings changes
       this.broadcastSettingsChange(formData);
     } catch (error) {
       console.error("🔍 Error saving settings:", error);
+      // A write that never landed used to be indistinguishable from one that
+      // did, because the only report was to the console.
+      reportSaveState("failed");
     }
   }
 
