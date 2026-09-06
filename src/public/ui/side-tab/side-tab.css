@@ -170,17 +170,20 @@
     right: 0;
     width: var(--side-tab-partial-width);
     height: 100vh;
-    /* EXTREME liquid glass - ultra transparent with gradient shimmer */
-    background: rgba(8, 8, 10, 0.72);
-    /* Subtle luminous border for glass edge effect */
-    border-left: 1px solid rgba(255, 255, 255, 0.15);
+    /* Liquid glass: the page reads through it, blurred and saturated, with a
+       lit inner edge along the side that faces the content. */
+    background: linear-gradient(
+        to left,
+        rgba(255, 255, 255, 0.07),
+        rgba(255, 255, 255, 0.03) 55%,
+        rgba(255, 255, 255, 0.06)
+    );
+    border-left: 1px solid rgba(255, 255, 255, 0.16);
     box-shadow:
-        inset 1px 0 1px rgba(255, 255, 255, 0.08),  /* Inner highlight */
-        -4px 0 20px rgba(0, 0, 0, 0.15),
-        -2px 0 10px rgba(0, 0, 0, 0.1);
-    /* Enhanced liquid glass blur with high saturation and brightness */
-    backdrop-filter: blur(50px) saturate(200%) brightness(1.15);
-    -webkit-backdrop-filter: blur(50px) saturate(200%) brightness(1.15);
+        inset 1px 0 0 rgba(255, 255, 255, 0.12),
+        -8px 0 32px rgba(0, 0, 0, 0.28);
+    backdrop-filter: blur(28px) saturate(180%) brightness(1.1);
+    -webkit-backdrop-filter: blur(28px) saturate(180%) brightness(1.1);
     pointer-events: auto;
     transform: translateX(100%);
     opacity: 0;
@@ -244,17 +247,22 @@
     right: calc(100% + 16px);
     background: var(--helios-bg-secondary);
     color: var(--helios-text-primary);
-    padding: 10px 16px;
-    border-radius: 12px;
-    font-size: 13px;
-    font-weight: 600;
-    white-space: nowrap;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.45;
+    width: max-content;
+    max-width: 240px;
+    text-align: left;
     opacity: 0;
     pointer-events: none;
     transform: translateX(12px);
-    transition: all 0.2s var(--transition-timing);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    transition:
+        opacity 0.18s var(--transition-timing),
+        transform 0.18s var(--transition-timing);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
 }
 
 /* Left-side tooltip */
@@ -338,8 +346,11 @@
     width: 44px;
     height: 44px;
     border-radius: 12px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid var(--helios-border-subtle);
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(12px) saturate(160%);
+    -webkit-backdrop-filter: blur(12px) saturate(160%);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -354,17 +365,22 @@
     right: calc(100% + 16px);
     background: var(--helios-bg-secondary);
     color: var(--helios-text-primary);
-    padding: 10px 16px;
-    border-radius: 12px;
-    font-size: 13px;
-    font-weight: 600;
-    white-space: nowrap;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.45;
+    width: max-content;
+    max-width: 240px;
+    text-align: left;
     opacity: 0;
     pointer-events: none;
     transform: translateX(12px);
-    transition: all 0.2s var(--transition-timing);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    transition:
+        opacity 0.18s var(--transition-timing),
+        transform 0.18s var(--transition-timing);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
 }
 
 /* Left-side action button tooltip */
@@ -437,8 +453,12 @@
     right: 0;
     width: var(--side-tab-full-width);
     height: 100vh;
-    /* Apple liquid glass effect - more opaque than partial but still glassy */
-    background: rgba(8, 8, 10, 0.94);
+    /* Glass, but weighted: this one holds body text over an unknown page. */
+    background: linear-gradient(
+        to left,
+        rgba(12, 12, 15, 0.86),
+        rgba(8, 8, 10, 0.9)
+    );
     /* Subtle luminous border for glass edge effect */
     border-left: 1px solid rgba(255, 255, 255, 0.12);
     box-shadow:
@@ -446,7 +466,7 @@
         -12px 0 48px rgba(0, 0, 0, 0.6),
         -8px 0 32px rgba(0, 0, 0, 0.4);
     /* Enhanced liquid glass blur with saturation and brightness */
-    backdrop-filter: blur(50px) saturate(180%) brightness(1.08);
+    backdrop-filter: blur(32px) saturate(160%) brightness(1.06);
     -webkit-backdrop-filter: blur(50px) saturate(180%) brightness(1.08);
     pointer-events: auto;
     transform: translateX(100%);
@@ -612,41 +632,69 @@
     margin-bottom: 14px;
 }
 
-/* One treatment for every card mark.
-   These were six gradient-filled tiles in six hues — orange, green, blue,
-   yellow, blue again, purple — which is a colour system with nothing to say:
-   the hue never meant anything, it just varied. The marks are now neutral, and
-   the colour budget goes where it carries meaning: the comprehension figure,
-   and the dots that stand for known, learning and ignored. */
-.comprehension-icon,
-.words-icon,
-.unique-icon,
-.t1-icon,
+/* Card marks.
+   A curated set rather than whatever hue came to hand, and the mapping is the
+   one already in the data: green is the colour of a known word wherever it
+   appears, orange is the product accent and belongs to the headline figure,
+   and the rest sit at even steps around them. Each tile is a two-stop wash of
+   its own hue with a lit top edge, which is what makes it read as glass rather
+   than as a flat colour chip. */
+.words-icon {
+    background: linear-gradient(145deg, #34d399, #10b981);
+}
+
+.comprehension-icon {
+    background: linear-gradient(145deg, #ff8f47, #ff6b47);
+}
+
+.unique-icon {
+    background: linear-gradient(145deg, #60a5fa, #3b82f6);
+}
+
 .sentence-breakdown-icon,
-.page-words-icon,
+.t1-icon {
+    background: linear-gradient(145deg, #fbbf24, #f59e0b);
+}
+
+.t2-icon {
+    background: linear-gradient(145deg, #2dd4bf, #14b8a6);
+}
+
+.page-words-icon {
+    background: linear-gradient(145deg, #818cf8, #6366f1);
+}
+
 .pinyin-icon {
-    background: rgba(255, 255, 255, 0.06);
+    background: linear-gradient(145deg, #fb7185, #f43f5e);
 }
 
 .comprehension-icon svg,
 .words-icon svg,
 .unique-icon svg,
 .t1-icon svg,
+.t2-icon svg,
 .sentence-breakdown-icon svg,
 .page-words-icon svg,
 .pinyin-icon svg {
-    color: var(--helios-text-secondary);
+    color: #fff;
 }
 
 .stat-card-icon {
-    width: 30px;
-    height: 30px;
-    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    transition: background-color 0.2s var(--transition-timing);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.28),
+        0 2px 6px rgba(0, 0, 0, 0.32);
+    transition: transform 0.2s var(--transition-timing);
+}
+
+.stat-card:hover .stat-card-icon {
+    transform: translateY(-1px);
 }
 
 .stat-card-icon svg {
