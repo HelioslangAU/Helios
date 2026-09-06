@@ -121,6 +121,11 @@
   --font-display: "Archivo", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-text: "Literata", Georgia, "Times New Roman", serif;
   --font-mono: "Chivo Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Ambient ground (see `@/styles/ambient.css`). The onboarding is a hero
+     surface, so it runs the atmosphere at full strength. */
+  --ambient-ink: var(--accent);
+  --ambient-strength: 1;
+
   --font-cjk: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
     "Noto Sans CJK SC", "Apple SD Gothic Neo", sans-serif;
 

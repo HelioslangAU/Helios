@@ -1,6 +1,7 @@
 // Shared first: the palette, faces and easing every Helios surface is built
 // from. `style.css` extends them and must not redeclare them.
 import '@/styles/tokens.css';
+import '@/styles/ambient.css';
 import './style.css';
 import '@/content/components/language-selector/language-selector.css';
 // Imported rather than linked from the HTML: an absolute /ui/... href is

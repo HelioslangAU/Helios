@@ -1,0 +1,102 @@
+/*
+ * Ambient ground — the marketing site's hero atmosphere.
+ *
+ * Two blurred orange orbs running off canvas at the upper left and lower
+ * right, plus language glyphs drifting in the outer margins. Both layers are
+ * fixed behind the page, never take pointer events, and never overlap the
+ * reading column.
+ *
+ * Shared by the onboarding and the settings page. Each surface sets its own
+ * strength and ink in its token file rather than redeclaring these rules:
+ *
+ *   --ambient-ink       the colour of the glyphs and orbs
+ *   --ambient-strength  a multiplier on every alpha here; 1 is the onboarding's
+ *                       full-bleed hero treatment, lower is fainter for a
+ *                       working surface where the content has to stay first
+ *
+ * The glyphs themselves are placed by `@/ui/shared/ambient-background.ts`,
+ * which sets position, size, duration and delay inline.
+ */
+
+.ambient-glow,
+.floating-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.ambient-glow::before,
+.ambient-glow::after {
+  content: "";
+  position: absolute;
+  width: 800px;
+  height: 800px;
+  border-radius: 50%;
+  background: rgb(
+    from var(--ambient-ink) r g b / calc(0.1 * var(--ambient-strength, 1))
+  );
+  filter: blur(140px);
+  animation: orbBreathe 10s ease-in-out infinite;
+}
+
+.ambient-glow::before {
+  top: -18%;
+  left: -22%;
+}
+
+.ambient-glow::after {
+  bottom: -24%;
+  right: -22%;
+  animation-delay: -5s;
+}
+
+@keyframes orbBreathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+}
+
+/* The keyframes own opacity so every glyph settles at the same alpha, whatever
+   per-glyph delay the script sets inline. `backwards` holds that alpha through
+   the delay instead of flashing at full strength first. */
+.floating-char {
+  position: absolute;
+  font-family: var(--font-display, var(--font-sans)), var(--font-cjk);
+  font-weight: 700;
+  color: var(--ambient-ink);
+  user-select: none;
+  will-change: transform;
+  animation: glyphDrift 25s ease-in-out infinite backwards;
+}
+
+@keyframes glyphDrift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+    opacity: calc(0.05 * var(--ambient-strength, 1));
+  }
+  50% {
+    transform: translate3d(0, -32px, 0) rotate(4deg);
+    opacity: calc(0.09 * var(--ambient-strength, 1));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambient-glow::before,
+  .ambient-glow::after,
+  .floating-char {
+    animation: none;
+  }
+
+  .floating-char {
+    opacity: calc(0.07 * var(--ambient-strength, 1));
+  }
+}

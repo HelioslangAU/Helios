@@ -10,6 +10,12 @@
          the page has to render identically offline and under MV3's CSP. -->
   </head>
   <body>
+    <!-- Ambient ground, shared with the onboarding: two blurred orange orbs
+         and drifting language glyphs, both fixed behind the page and inert to
+         the pointer. Runs at 0.4 strength here (see `styles/theme.css`). -->
+    <div class="ambient-glow" aria-hidden="true"></div>
+    <div class="floating-bg" id="floating-bg" aria-hidden="true"></div>
+
     <div class="settings">
       <!-- Running head: the product, then the open section. The section name is
            written by CSS from whichever .tab-content carries .active, so it

@@ -102,6 +102,8 @@ a {
    ========================================================================== */
 
 .settings {
+  position: relative;
+  z-index: 1;
   height: 100vh;
   display: grid;
   grid-template-columns: 248px minmax(0, 1fr);
@@ -137,7 +139,11 @@ a {
 /* The open section, written from whichever panel carries `.active`, so the
    breadcrumb cannot drift from the panel it names. */
 .running-section {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
   font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
   color: var(--text-muted);
 }
 
@@ -187,8 +193,10 @@ a {
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
   background: rgba(255, 255, 255, 0.02);
-  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
   font-weight: 500;
+  letter-spacing: 0.08em;
   color: var(--text-muted);
   white-space: nowrap;
 }
@@ -209,6 +217,9 @@ a {
   gap: 2px;
   padding: 1rem 0.75rem;
   border-right: 1px solid var(--border);
+  background: rgb(from var(--bg) r g b / 0.55);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   overflow-y: auto;
 }
 
@@ -330,7 +341,9 @@ a {
   padding: 1.25rem 1.5rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--surface);
+  /* Not fully opaque: the ambient ground reads faintly through a card, which
+     is what stops the page from looking like it was pasted onto the glyphs. */
+  background: rgb(from var(--surface) r g b / 0.88);
 }
 
 .settings-group + .settings-group {
@@ -346,9 +359,10 @@ a {
 
 .group-note {
   max-width: 68ch;
-  margin-top: 0.25rem;
-  font-size: 0.8125rem;
-  line-height: 1.6;
+  margin-top: 0.3125rem;
+  font-family: var(--font-text);
+  font-size: 0.875rem;
+  line-height: 1.65;
   color: var(--text-muted);
 }
 
@@ -612,8 +626,8 @@ select.form-control option {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--elevated);
-  font-family: inherit;
-  font-size: 0.8125rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.4;
   text-align: center;
@@ -760,8 +774,11 @@ select.form-control option {
   padding: 0.3125rem 0.75rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -812,14 +829,18 @@ select.form-control option {
 
 .stat-label {
   display: block;
-  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
   font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: var(--text-muted);
 }
 
 .stat-value {
   display: block;
-  margin-top: 0.25rem;
+  margin-top: 0.375rem;
+  font-family: var(--font-mono);
   font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -842,11 +863,16 @@ select.form-control option {
 }
 
 .kv-key {
-  font-size: 0.8125rem;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: var(--text-muted);
 }
 
 .kv-value {
+  font-family: var(--font-mono);
   font-size: 0.8125rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -890,8 +916,8 @@ kbd {
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--elevated);
-  font-family: inherit;
-  font-size: 0.8em;
+  font-family: var(--font-mono);
+  font-size: 0.78em;
   font-weight: 600;
   color: var(--text);
   white-space: nowrap;
