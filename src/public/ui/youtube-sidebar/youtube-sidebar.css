@@ -148,12 +148,12 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: 24px 20px 20px 20px;
+  padding: 14px 0 0;
 }
 
 .yt-settings-header {
-  margin-bottom: 16px;
-  padding: 0 4px;
+  margin-bottom: 12px;
+  padding: 0 14px;
 }
 
 .yt-settings-header h2 {
@@ -166,8 +166,8 @@
 
 .yt-settings-content {
   flex: 1;
-  overflow-y: scroll; /* Always show scrollbar */
-  padding: 0 4px;
+  overflow-y: auto;
+  padding: 0 14px 16px;
 }
 
 /* Always visible scrollbar styling */
@@ -199,7 +199,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   padding: 0 14px;
 }
 
@@ -254,6 +254,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   position: relative;
+  padding: 3px 0 10px;
   border-top: 1px solid var(--helios-border);
 }
 
@@ -338,10 +339,15 @@
   display: flex;
   align-items: baseline;
   gap: 12px;
-  padding: 9px 14px 9px 12px;
-  border-bottom: 1px solid var(--helios-border);
+  padding: 13px 15px;
+  margin: 5px 10px;
+  background: rgba(255, 255, 255, 0.022);
+  border: 1px solid transparent;
+  border-radius: var(--helios-radius);
   cursor: pointer;
-  transition: background-color 0.15s var(--helios-ease);
+  transition:
+    background-color 0.18s var(--helios-ease),
+    border-color 0.18s var(--helios-ease);
   max-width: 100%;
 }
 
@@ -354,38 +360,47 @@
   overflow: hidden;
 }
 
+/* The cue playing now is marked in the gutter as well as by its fill, so it
+   stays findable when the list is scrolled fast. Two pixels, no glow: the old
+   4px bar with a 12px halo was reading as an alert. */
 .yt-subtitle-item::before {
   content: '';
   position: absolute;
-  left: 0;
-  top: -1px;
-  bottom: -1px;
+  left: -1px;
+  top: 50%;
+  transform: translateY(-50%);
   width: 2px;
-  background: transparent;
+  height: 0;
+  border-radius: 0 2px 2px 0;
+  background: var(--helios-accent-primary);
+  transition: height 0.18s var(--helios-ease);
 }
 
+/* Background only. Translating and scaling a row inside a list that is also
+   auto-scrolling made the whole transcript twitch under the pointer. */
 .yt-subtitle-item:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.055);
+  border-color: var(--helios-border);
 }
 
-/* The line playing now. A tint plus a hairline in the gutter, which is enough
-   to find at a glance while scrolling and does not shout over the text. */
 .yt-subtitle-item.active {
   background: var(--helios-accent-tint);
+  border-color: rgba(255, 107, 71, 0.28);
 }
 
 .yt-subtitle-item.active::before {
-  background: var(--helios-accent-primary);
+  height: 60%;
 }
 
 /* A cue time is a number in a column: fixed width and tabular figures so the
    whole list reads as one column rather than ragged. It stops being a chip. */
 .yt-subtitle-timestamp {
   flex-shrink: 0;
-  min-width: 34px;
+  min-width: 36px;
+  padding-top: 1px;
   color: var(--helios-text-muted);
   font-family: 'Chivo Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
@@ -396,10 +411,15 @@
   color: var(--helios-accent-primary);
 }
 
+/* The line you are on is the one being read, so it gets full ink. */
+.yt-subtitle-item.active .yt-subtitle-text {
+  color: var(--helios-text-primary);
+}
+
 .yt-subtitle-text {
   color: var(--helios-text-secondary);
-  font-size: 13.5px;
-  line-height: 1.55;
+  font-size: 14.5px;
+  line-height: 1.65;
   word-break: break-word;
   font-weight: 500;
   overflow-wrap: break-word;
@@ -448,22 +468,19 @@
   color: var(--helios-accent-primary);
 }
 
-/* Word states, matched to the page.
-   A word Helios has flagged is underlined in the accent wherever you meet it —
-   on a page, in the transcript, or over the video. These used to be red for
-   unknown and purple for learning, so the same word in the same state looked
-   like a different thing depending on where it was read. Learning takes the
-   amber end of the accent ramp: related enough to read as the same system,
-   distinct enough to tell apart. */
+/* Word states. Red for a word you have not met, amber for one you are
+   working on — the same pair wherever a word is read, on a page, in the
+   transcript or over the video. Red is the user's call; amber replaces the
+   old purple, which sat outside the palette entirely. */
 .yt-subtitle-word.unknown-word {
   text-decoration: underline;
-  text-decoration-color: var(--helios-accent-primary);
+  text-decoration-color: #ff4444;
   text-decoration-thickness: 2px;
   text-underline-offset: 4px;
 }
 
 .yt-subtitle-word.unknown-word:hover {
-  background: rgba(255, 107, 71, 0.18);
+  background: rgba(255, 68, 68, 0.18);
 }
 
 .yt-subtitle-word.learning-word {
@@ -591,40 +608,54 @@ body:not(.helios-sidebar-active) ytd-watch-flexy[theater] .ytp-size-button {
    Settings Detailed Styles
    ============================================================================ */
 .yt-setting-group {
-  margin-bottom: 32px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid var(--helios-border);
+  margin-bottom: 12px;
+  padding: 14px 15px;
+  background: var(--helios-bg-secondary);
+  border: 1px solid var(--helios-border);
+  border-radius: var(--helios-radius);
 }
 
 .yt-setting-group:last-child {
-  border-bottom: none;
+  margin-bottom: 0;
 }
 
 .yt-setting-header h3 {
-  margin: 0 0 8px 0;
-  font-size: 18px;
+  margin: 0 0 3px 0;
+  font-size: 14px;
   font-weight: 600;
+  letter-spacing: -0.01em;
   color: var(--helios-text-primary);
   letter-spacing: -0.01em;
 }
 
 .yt-setting-description {
-  margin: 0 0 16px 0;
-  font-size: 13px;
+  margin: 0 0 12px 0;
+  font-size: 12px;
   color: var(--helios-text-muted);
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
+/* Rows inside a card, ruled apart. The first sits under the card's heading
+   block, so only the ones after it take a rule. */
 .yt-setting-item {
-  margin-bottom: 16px;
+  padding: 11px 0;
+  border-top: 1px solid var(--helios-border);
+}
+
+.yt-setting-item:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.yt-setting-item:last-child {
+  padding-bottom: 0;
 }
 
 .yt-setting-hint {
-  margin: 8px 0 0 0;
-  font-size: 12px;
+  margin: 5px 0 0 0;
+  font-size: 11.5px;
   color: var(--helios-text-muted);
-  line-height: 1.4;
-  opacity: 0.8;
+  line-height: 1.5;
 }
 
 /* A note, not a callout. A thick accent stripe on one side of a rounded box
@@ -648,17 +679,11 @@ body:not(.helios-sidebar-active) ytd-watch-flexy[theater] .ytp-size-button {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
   cursor: pointer;
-  padding: 12px 16px;
-  background: var(--helios-bg-secondary);
-  border: 1px solid var(--helios-border);
-  border-radius: 12px;
-  transition: all 0.2s ease;
-}
-
-.yt-toggle-label:hover {
-  background: var(--helios-bg-card);
-  border-color: rgba(255, 107, 71, 0.2);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--helios-text-primary);
 }
 
 .yt-toggle-label > span:first-child {
@@ -673,11 +698,12 @@ body:not(.helios-sidebar-active) ytd-watch-flexy[theater] .ytp-size-button {
 
 .yt-toggle-switch {
   position: relative;
-  width: 44px;
+  flex: none;
+  width: 42px;
   height: 24px;
   background: rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: var(--helios-radius-pill);
+  transition: background 0.2s var(--helios-ease);
 }
 
 .yt-toggle-switch::before {
@@ -838,7 +864,7 @@ body:not(.helios-sidebar-active) ytd-watch-flexy[theater] .ytp-size-button {
 }
 
 .yt-label {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--helios-text-primary);
   margin: 0;
@@ -846,32 +872,32 @@ body:not(.helios-sidebar-active) ytd-watch-flexy[theater] .ytp-size-button {
 }
 
 .yt-label > span {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--helios-text-secondary);
 }
 
-/* Simplified Info Card for Position Control */
+/* A tip, set as a note rather than as a second card. */
 .yt-position-info {
   margin-top: 12px;
 }
 
 .yt-info-card-simple {
-  padding: 12px 16px;
-  background: var(--helios-bg-secondary);
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--helios-border);
-  border-radius: 8px;
+  border-radius: var(--helios-radius);
 }
 
 .yt-info-card-simple h4 {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--helios-text-primary);
   margin: 0 0 4px 0;
 }
 
 .yt-info-card-simple p {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--helios-text-secondary);
   margin: 0;
   line-height: 1.5;

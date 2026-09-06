@@ -134,16 +134,13 @@
   opacity: 1;
 }
 
-/* Word states, matched to the page.
-   A word Helios has flagged is underlined in the accent wherever you meet it —
-   on a page, in the transcript, or over the video. These used to be red for
-   unknown and purple for learning, so the same word in the same state looked
-   like a different thing depending on where it was read. Learning takes the
-   amber end of the accent ramp: related enough to read as the same system,
-   distinct enough to tell apart. */
+/* Word states. Red for a word you have not met, amber for one you are
+   working on — the same pair wherever a word is read, on a page, in the
+   transcript or over the video. Red is the user's call; amber replaces the
+   old purple, which sat outside the palette entirely. */
 .helios-subtitle-word.unknown-word {
   text-decoration: underline;
-  text-decoration-color: #ff6b47;
+  text-decoration-color: #ff4444;
   text-decoration-thickness: 2px;
   text-underline-offset: 5px;
 }
