@@ -244,6 +244,122 @@ a {
   height: 22px;
 }
 
+/* --- Search --------------------------------------------------------------- */
+
+.settings-search {
+  position: relative;
+  flex: 1 1 auto;
+  max-width: 320px;
+  margin-inline: auto;
+}
+
+.settings-search-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 15px;
+  height: 15px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+#settings-search {
+  width: 100%;
+  padding: 0.4375rem 0.875rem 0.4375rem 2.125rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.03);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  color: var(--text);
+  transition:
+    border-color var(--duration) var(--ease-out),
+    background-color var(--duration) var(--ease-out);
+}
+
+#settings-search::placeholder {
+  color: var(--text-muted);
+}
+
+#settings-search:hover {
+  border-color: var(--border-strong);
+}
+
+#settings-search:focus-visible {
+  border-color: var(--primary);
+  background: rgba(255, 255, 255, 0.05);
+  outline-offset: 0;
+}
+
+#settings-search::-webkit-search-cancel-button {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M6 6l12 12M18 6L6 18'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+
+/* What the query found. Replaces the section name, since in search mode the
+   page is no longer showing one section. */
+.search-summary {
+  margin: -0.75rem 0 1.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.search-summary:empty {
+  display: none;
+}
+
+/* --- Search mode ----------------------------------------------------------
+   Every section is on screen at once, so each one has to name itself; outside
+   search the sidebar and the page title already do that job. */
+
+[data-searching] .panel-title,
+[data-searching] .running-section,
+[data-searching] .nav-item.active {
+  display: none;
+}
+
+[data-searching] .tab-content {
+  display: block;
+}
+
+[data-searching] .tab-content[hidden],
+[data-searching] .settings-group[hidden],
+[data-searching] .setting[hidden] {
+  display: none;
+}
+
+[data-searching] .tab-content + .tab-content {
+  margin-top: 1.25rem;
+}
+
+[data-searching] .tab-content::before {
+  content: attr(data-section-name);
+  display: block;
+  margin-bottom: 0.625rem;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+/* The sidebar keeps working as navigation during a search; nothing is
+   "current" while every section is showing. */
+[data-searching] .nav-item {
+  color: var(--text-muted);
+  background: none;
+}
+
 /* --- Sidebar -------------------------------------------------------------- */
 
 .settings-index {
@@ -383,6 +499,20 @@ a {
 
 .settings-group + .settings-group {
   margin-top: 1.25rem;
+}
+
+/* The one control on a section whose consequences reach past this page. It
+   gets the raised surface and a slightly larger control so it does not read as
+   one preference among several. */
+.settings-group--lead {
+  border-color: var(--border-strong);
+  background: rgb(from var(--elevated) r g b / 0.9);
+}
+
+.form-control--lead {
+  min-width: 210px;
+  padding-block: 0.625rem;
+  font-size: 0.9375rem;
 }
 
 .group-title {
@@ -655,11 +785,16 @@ select.form-control option {
 
 .shortcut-input,
 .hotkey-input {
-  min-width: 132px;
-  padding: 0.5rem 0.875rem;
+  min-width: 148px;
+  /* Symmetric so the key stays optically centred despite the trailing mark. */
+  padding: 0.5rem 1.75rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 20h9'/%3E%3Cpath d='M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.625rem center;
+  /* Longhand: a `background` shorthand here would reset the mark above it. */
+  background-color: var(--elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--elevated);
   font-family: var(--font-mono);
   font-size: 0.75rem;
   font-weight: 600;
@@ -675,6 +810,7 @@ select.form-control option {
 .shortcut-input[readonly]:hover,
 .hotkey-input[readonly]:hover {
   border-color: var(--border-strong);
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
 /* Recording. The state is the absence of `readonly`, which settings-ui.ts
@@ -684,7 +820,14 @@ select.form-control option {
 .shortcut-input:not([readonly]),
 .hotkey-input:not([readonly]) {
   border-color: var(--primary);
+  background-image: none;
   color: var(--primary);
+}
+
+.shortcut-input:not([readonly])::placeholder,
+.hotkey-input:not([readonly])::placeholder {
+  color: var(--primary);
+  opacity: 0.85;
 }
 
 .shortcut-input.error {
@@ -798,6 +941,56 @@ select.form-control option {
 /* ==========================================================================
    Readouts
    ========================================================================== */
+
+/* --- Anki's ordering ------------------------------------------------------
+   Deck, note type and field mapping do nothing until AnkiConnect answers.
+   A flat list of rows cannot say that, so while the section is disconnected
+   the cards that depend on the connection step back: they dim, their controls
+   stop taking input, and each says what it is waiting for. Nothing is hidden —
+   the user can still see what they will get once Anki is open. */
+
+[data-connection="disconnected"] .settings-group[data-requires-connection],
+[data-connection="checking"] .settings-group[data-requires-connection] {
+  opacity: 0.55;
+}
+
+.settings-group[data-requires-connection] .awaiting-connection {
+  display: none;
+}
+
+[data-connection="disconnected"]
+  .settings-group[data-requires-connection]
+  .awaiting-connection,
+[data-connection="checking"]
+  .settings-group[data-requires-connection]
+  .awaiting-connection {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  margin-top: 0.625rem;
+  padding: 0.25rem 0.625rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+[data-connection="disconnected"]
+  .settings-group[data-requires-connection]
+  .awaiting-connection::before,
+[data-connection="checking"]
+  .settings-group[data-requires-connection]
+  .awaiting-connection::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
 
 /* --- Connection status ---------------------------------------------------- */
 

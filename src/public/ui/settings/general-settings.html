@@ -1,5 +1,35 @@
 <!-- General settings. Fetched at runtime into #general by helios-settings.ts;
      every control id here is read back by settings-storage.ts. -->
+
+<!-- Target language leads the section and stands alone. It is the one control
+     here whose consequences reach past this page: it swaps the dictionary and
+     changes which word lists every count on the Vocabulary section refers to.
+     Set among the on/off rows it read as one preference among four. -->
+<section class="settings-group settings-group--lead">
+  <h2 class="group-title">What you are learning</h2>
+
+  <div class="settings-rows">
+    <div class="setting">
+      <div class="setting-line">
+        <label class="form-label" for="target-language">Target language</label>
+        <div class="setting-control">
+          <select class="form-control form-control--lead" id="target-language">
+            <option value="zh">Chinese &mdash; 中文</option>
+            <option value="en">English</option>
+            <option value="es">Spanish &mdash; Español</option>
+            <option value="fr">French &mdash; Français</option>
+          </select>
+        </div>
+      </div>
+      <p class="help-text">
+        Loads that language's dictionary. Your known, learning and ignored
+        lists are kept separately per language, so switching shows you a
+        different set of counts &mdash; nothing is lost.
+      </p>
+    </div>
+  </div>
+</section>
+
 <section class="settings-group">
   <h2 class="group-title">Extension</h2>
   <p class="group-note">
@@ -38,24 +68,6 @@
       </div>
       <p class="help-text">
         Hold this key and hover a word to open its entry. Shift is the default.
-      </p>
-    </div>
-
-    <div class="setting">
-      <div class="setting-line">
-        <label class="form-label" for="target-language">Target language</label>
-        <div class="setting-control">
-          <select class="form-control" id="target-language">
-            <option value="zh">Chinese &mdash; 中文</option>
-            <option value="en">English</option>
-            <option value="es">Spanish &mdash; Español</option>
-            <option value="fr">French &mdash; Français</option>
-          </select>
-        </div>
-      </div>
-      <p class="help-text">
-        The language you are learning. Changing it loads that dictionary; your
-        word lists are kept per language.
       </p>
     </div>
 

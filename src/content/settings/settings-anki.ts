@@ -171,6 +171,7 @@ export class HeliosSettingsAnki {
     try {
       statusElement.className = "status-indicator status-checking";
       statusElement.innerHTML = "<span>●</span><span>Checking...</span>";
+      this.setConnectionState("checking");
 
       const response = await this.sendMessage("ANKI_TEST_CONNECTION");
       this.isConnected = response.success;
@@ -178,10 +179,12 @@ export class HeliosSettingsAnki {
       if (this.isConnected) {
         statusElement.className = "status-indicator status-connected";
         statusElement.innerHTML = "<span>●</span><span>Connected</span>";
+        this.setConnectionState("connected");
         this.clearConnectionError();
       } else {
         statusElement.className = "status-indicator status-disconnected";
         statusElement.innerHTML = "<span>●</span><span>Disconnected</span>";
+        this.setConnectionState("disconnected");
       }
 
       return this.isConnected;
@@ -193,6 +196,7 @@ export class HeliosSettingsAnki {
         statusElement.className = "status-indicator status-error";
         statusElement.innerHTML = "<span>●</span><span>Error</span>";
       }
+      this.setConnectionState("disconnected");
 
       return false;
     }
@@ -792,6 +796,29 @@ export class HeliosSettingsAnki {
   }
 
   /**
+   * Publish the connection state onto the section element. The dependent cards
+   * key their dimmed state off this, and the controls inside them stop taking
+   * input, so a user cannot pick a deck from a list that is empty because Anki
+   * never answered.
+   */
+  private setConnectionState(state: "checking" | "connected" | "disconnected"): void {
+    const section = document.getElementById("anki");
+    if (!section) return;
+    section.dataset.connection = state;
+
+    const ready = state === "connected";
+    for (const card of section.querySelectorAll<HTMLElement>(
+      ".settings-group[data-requires-connection]",
+    )) {
+      for (const control of card.querySelectorAll<
+        HTMLSelectElement | HTMLInputElement
+      >("select, input")) {
+        control.disabled = !ready;
+      }
+    }
+  }
+
+  /**
    * The note under the connection row. Every section's fragment is loaded into
    * the same document, so a bare `.help-text` query returns the *first* one on
    * the page — the note under "Extension enabled" on the General section — and
@@ -813,6 +840,7 @@ export class HeliosSettingsAnki {
       statusElement.className = "status-indicator status-disconnected";
       statusElement.innerHTML = "<span>●</span><span>Disconnected</span>";
     }
+    this.setConnectionState("disconnected");
 
     // Show help text
     const helpText = this.getConnectionHelpText();

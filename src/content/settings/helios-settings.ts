@@ -9,6 +9,7 @@ import { HeliosSettingsAnki } from '@/content/settings/settings-anki';
 import { HeliosSettingsStorage } from '@/content/settings/settings-storage';
 import { HeliosSettingsUI } from '@/content/settings/settings-ui';
 import { HeliosSettingsVocabulary } from '@/content/settings/settings-vocabulary';
+import { SettingsSearch } from '@/content/settings/settings-search';
 
 export class HeliosSettingsManager {
   settings: Record<string, any>;
@@ -193,6 +194,13 @@ export class HeliosSettingsManager {
           tab.classList.remove('active');
         }
       });
+
+      // Search spans every section, so it needs a way to pull in the ones the
+      // user has not opened yet.
+      new SettingsSearch({
+        loadTab: (tab) => this.loadTabContent(tab),
+        isLoaded: (tab) => this.loadedTabs.has(tab),
+      }).attach();
 
       console.log("🔍 DEBUG: Helios Settings Manager initialized successfully");
 

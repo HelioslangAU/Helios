@@ -25,6 +25,16 @@
           <img class="running-mark" src="/icons/icon128.png" alt="" width="22" height="22" />
           Helios Settings<span class="running-section" aria-hidden="true"></span>
         </h1>
+        <!-- Spans every section, not just the open one: the question a
+             settings search answers is "which section is this in". -->
+        <div class="settings-search">
+          <svg class="settings-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7"></circle>
+            <path d="M20 20l-3.5-3.5"></path>
+          </svg>
+          <input type="search" id="settings-search" placeholder="Search settings" aria-label="Search settings" autocomplete="off" spellcheck="false" />
+        </div>
+
         <p class="running-note" id="save-state" data-state="idle" role="status">Changes save automatically</p>
       </header>
 
@@ -110,32 +120,33 @@
                whichever panel carries .active, like the breadcrumb, so there
                is no second source of truth in script. -->
           <h2 class="panel-title"></h2>
+          <p class="search-summary" id="search-summary" role="status" aria-live="polite"></p>
 
-          <div class="tab-content active" id="general">
+          <div class="tab-content active" id="general" data-section-name="General">
             <p class="loading-indicator">Loading general</p>
           </div>
 
-          <div class="tab-content" id="popup">
+          <div class="tab-content" id="popup" data-section-name="Popup &amp; display">
             <p class="loading-indicator">Loading popup &amp; display</p>
           </div>
 
-          <div class="tab-content" id="shortcuts">
+          <div class="tab-content" id="shortcuts" data-section-name="Keyboard shortcuts">
             <p class="loading-indicator">Loading keyboard shortcuts</p>
           </div>
 
-          <div class="tab-content" id="video-player">
+          <div class="tab-content" id="video-player" data-section-name="Video player">
             <p class="loading-indicator">Loading video player</p>
           </div>
 
-          <div class="tab-content" id="anki">
+          <div class="tab-content" id="anki" data-section-name="Anki integration" data-connection="checking">
             <p class="loading-indicator">Loading Anki integration</p>
           </div>
 
-          <div class="tab-content" id="vocabulary">
+          <div class="tab-content" id="vocabulary" data-section-name="Vocabulary">
             <p class="loading-indicator">Loading vocabulary</p>
           </div>
 
-          <div class="tab-content" id="advanced">
+          <div class="tab-content" id="advanced" data-section-name="Advanced">
             <p class="loading-indicator">Loading advanced</p>
           </div>
         </div>
