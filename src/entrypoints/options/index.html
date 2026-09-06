@@ -98,32 +98,39 @@
       <!-- The panel. Each section is fetched from /ui/settings/<tab>-settings.html
            on first visit and dropped into its container. -->
       <main class="settings-panel">
-        <div class="tab-content active" id="general">
-          <p class="loading-indicator">Loading general</p>
-        </div>
+        <div class="panel-inner">
+          <!-- Names the open section at full size. Written by CSS from
+               whichever panel carries .active, like the breadcrumb, so there
+               is no second source of truth in script. -->
+          <h2 class="panel-title"></h2>
 
-        <div class="tab-content" id="popup">
-          <p class="loading-indicator">Loading popup &amp; display</p>
-        </div>
+          <div class="tab-content active" id="general">
+            <p class="loading-indicator">Loading general</p>
+          </div>
 
-        <div class="tab-content" id="shortcuts">
-          <p class="loading-indicator">Loading keyboard shortcuts</p>
-        </div>
+          <div class="tab-content" id="popup">
+            <p class="loading-indicator">Loading popup &amp; display</p>
+          </div>
 
-        <div class="tab-content" id="video-player">
-          <p class="loading-indicator">Loading video player</p>
-        </div>
+          <div class="tab-content" id="shortcuts">
+            <p class="loading-indicator">Loading keyboard shortcuts</p>
+          </div>
 
-        <div class="tab-content" id="anki">
-          <p class="loading-indicator">Loading Anki integration</p>
-        </div>
+          <div class="tab-content" id="video-player">
+            <p class="loading-indicator">Loading video player</p>
+          </div>
 
-        <div class="tab-content" id="vocabulary">
-          <p class="loading-indicator">Loading vocabulary</p>
-        </div>
+          <div class="tab-content" id="anki">
+            <p class="loading-indicator">Loading Anki integration</p>
+          </div>
 
-        <div class="tab-content" id="advanced">
-          <p class="loading-indicator">Loading advanced</p>
+          <div class="tab-content" id="vocabulary">
+            <p class="loading-indicator">Loading vocabulary</p>
+          </div>
+
+          <div class="tab-content" id="advanced">
+            <p class="loading-indicator">Loading advanced</p>
+          </div>
         </div>
       </main>
     </div>

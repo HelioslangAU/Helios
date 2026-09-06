@@ -1,23 +1,17 @@
-/**
- * Helios settings — Reverse-Printed Dictionary, back matter
+/*
+ * Helios settings.
  *
- * The same printed reference as the onboarding, opened at its index. A running
- * head across the top, the seven sections as a ruled index down the left
- * column, and the open section set as one column of settings entries: label and
- * control on a line, the explanation beneath it in the text face, every entry
- * closed with a hairline.
+ * Built from the marketing site's design language (see `@/styles/theme.css`,
+ * which this file consumes and never redeclares): near-black ground, Inter
+ * throughout, cards on a raised surface with fully-rounded pill controls, and
+ * the orange gradient reserved for primary actions and the open section.
  *
- * Rules of this world (inherited from the onboarding, not chosen again):
- *   · Flat ink. No gradient on any surface, no glass, no glow, no cards, and
- *     never a card inside a card. Structure is carried by hairline rules and
- *     column edges.
- *   · Orange is functional only. It marks the open section, the focused
- *     control, and the on-state of a switch. Nothing else.
- *   · Green and red are report colours, not accents: they say what a connection
- *     is doing and what an action will destroy.
- *
- * Tokens, faces and easing come from `src/styles/tokens.css`, imported ahead of
- * this file by `main.ts`. Nothing here redeclares one.
+ * The organising idea is that a settings page is scanned, not read. Every
+ * entry therefore puts its label and its control on one line with the control
+ * flush right, and demotes the explanation to a smaller muted line beneath the
+ * label — never across the full width, where it separates a control from the
+ * thing it belongs to. Related entries are grouped into a card so the eye can
+ * chunk the page instead of parsing an undifferentiated column of prose.
  *
  * The dictionary popup (`public/ui/popup/popup.css`) is not this file's
  * business and is not touched.
@@ -40,11 +34,11 @@ html {
 }
 
 body {
-  font-family: var(--font-display);
-  font-size: 1rem;
-  line-height: 1.6;
-  background: var(--ground);
-  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.55;
+  background: var(--bg);
+  color: var(--text);
   min-height: 100vh;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
@@ -52,225 +46,210 @@ body {
 }
 
 /* --- Legacy custom properties --------------------------------------------
-   The Anki module writes two of these into inline styles on markup it builds
-   at runtime (the empty field-mapping row, the connection-failure note). They
-   are aliases onto this world's ink, kept so that generated markup lands in
-   the palette instead of falling back to an inherited colour. */
+   The Anki module writes these into inline styles on markup it builds at
+   runtime. They are aliases onto this world's ink, kept so generated markup
+   lands in the palette instead of falling back to an inherited colour. */
 
 :root {
-  --helios-text-muted: var(--ink-3);
-  --helios-error: var(--signal-error);
+  --helios-text-muted: var(--text-muted);
+  --helios-error: var(--danger);
 }
 
-/* --- Browser surfaces ----------------------------------------------------
-   The parts nobody draws still belong to the design: selection, the caret,
-   the focus ring, the scrollbar and the numerals in every count. */
+/* --- Browser surfaces ----------------------------------------------------- */
 
 ::selection {
-  background: var(--selection-bg);
-  color: var(--selection-ink);
+  background: var(--primary-tint-strong);
+  color: var(--text);
 }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 a {
-  color: var(--accent);
-  text-decoration-thickness: 1px;
-  text-underline-offset: 0.22em;
+  color: var(--primary);
+  text-underline-offset: 0.2em;
 }
 
 ::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--ground);
-  border-left: 1px solid var(--rule);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--rule-strong);
-  border: 3px solid var(--ground);
-  border-radius: 0;
+  background: rgba(255, 107, 71, 0.2);
+  border-radius: var(--radius-pill);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--ink-3);
-}
-
-::-webkit-scrollbar-corner {
-  background: var(--ground);
+  background: rgba(255, 107, 71, 0.4);
 }
 
 /* ==========================================================================
-   The spread: running head, index, panel
+   Frame: header bar, sidebar, panel
+
+   The header and sidebar are fixed and only the panel scrolls. A long section
+   (Anki runs about twice the viewport) must not carry the navigation off the
+   top of the window, and `position: sticky` cannot hold it: in a grid whose
+   items align to `start` the sidebar's grid area is exactly its own height, so
+   there is no travel to stick through.
    ========================================================================== */
 
-/* The head and the index are the fixed frame; only the panel scrolls. A long
-   section — Anki runs about twice the viewport — must never carry the index
-   off the top of the window with it, and `position: sticky` cannot hold it
-   there: in a grid whose items are aligned to `start`, the index's own grid
-   area is exactly its own height, so there is no travel for it to stick
-   through. Bounding the page and scrolling the panel is the honest fix. */
 .settings {
-  width: min(1180px, 100%);
   height: 100vh;
-  margin: 0 auto;
-  padding: clamp(1.125rem, 2.6vh, 2.75rem) clamp(1.5rem, 5vw, 4rem) 0;
   display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
+  grid-template-columns: 248px minmax(0, 1fr);
   grid-template-rows: max-content minmax(0, 1fr);
-  column-gap: clamp(2rem, 5vw, 4.5rem);
-  align-items: start;
-  /* Rows sit under the head; the leftover height at the bottom of a short
-     section is not free space to distribute between them. */
-  align-content: start;
 }
 
-/* --- Running head -------------------------------------------------------- */
+/* --- Header bar ----------------------------------------------------------- */
 
 .running-head {
   grid-column: 1 / -1;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0.5rem 1.5rem;
-  padding-bottom: 0.875rem;
-  border-bottom: 1px solid var(--rule);
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  font-weight: 500;
-  line-height: 1;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--ink-3);
+  gap: 1rem;
+  height: 64px;
+  padding: 0 1.75rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--glass);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
 }
 
-/* An h1 set as a running head, which is what a running head is. */
 .running-title {
-  font: inherit;
-  color: var(--ink-2);
-}
-
-.running-note {
-  font: inherit;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
 }
 
 /* The open section, written from whichever panel carries `.active`, so the
-   head cannot drift from the panel it names. */
-.running-section::after {
-  content: "";
-  color: var(--ink-3);
+   breadcrumb cannot drift from the panel it names. */
+.running-section {
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.running-section::before {
+  content: "/";
+  margin-right: 0.5rem;
+  color: var(--border-strong);
 }
 
 .settings:has(#general.tab-content.active) .running-section::after {
-  content: " · general";
+  content: "General";
 }
 
 .settings:has(#popup.tab-content.active) .running-section::after {
-  content: " · popup & display";
+  content: "Popup & display";
 }
 
 .settings:has(#shortcuts.tab-content.active) .running-section::after {
-  content: " · keyboard shortcuts";
+  content: "Keyboard shortcuts";
 }
 
 .settings:has(#video-player.tab-content.active) .running-section::after {
-  content: " · video player";
+  content: "Video player";
 }
 
 .settings:has(#anki.tab-content.active) .running-section::after {
-  content: " · anki integration";
+  content: "Anki integration";
 }
 
 .settings:has(#vocabulary.tab-content.active) .running-section::after {
-  content: " · vocabulary";
+  content: "Vocabulary";
 }
 
 .settings:has(#advanced.tab-content.active) .running-section::after {
-  content: " · advanced";
+  content: "Advanced";
 }
 
-/* --- The index ----------------------------------------------------------- */
+/* The site's pill badge, reused to say the thing people most want to know
+   about a settings page: whether they have to press anything to keep a
+   change. */
+.running-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: none;
+  padding: 0.375rem 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.02);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.running-note::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+}
+
+/* --- Sidebar -------------------------------------------------------------- */
 
 .settings-index {
   display: flex;
   flex-direction: column;
-  min-width: 9.5rem;
-  margin-top: 1.75rem;
+  gap: 2px;
+  padding: 1rem 0.75rem;
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
 }
 
 .nav-item {
-  position: relative;
   display: flex;
   align-items: center;
   gap: 0.75rem;
   width: 100%;
-  padding: 0.8125rem 0.5rem 0.8125rem 1.125rem;
-  background: none;
+  padding: 0.625rem 0.75rem;
   border: 0;
-  border-top: 1px solid var(--rule);
-  border-radius: 0;
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
+  border-radius: var(--radius);
+  background: none;
+  font-family: inherit;
+  font-size: 0.875rem;
   font-weight: 500;
-  line-height: 1;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  line-height: 1.2;
   text-align: left;
-  color: var(--ink-3);
+  color: var(--text-muted);
   cursor: pointer;
-  transition: color 200ms var(--ease-out);
-}
-
-.nav-item:last-child {
-  border-bottom: 1px solid var(--rule);
+  transition:
+    background-color var(--duration) var(--ease-out),
+    color var(--duration) var(--ease-out);
 }
 
 .nav-item:hover {
-  color: var(--ink-2);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
 }
 
-.nav-item:focus-visible {
-  z-index: 1;
-  outline-offset: -1px;
-}
-
-/* The open-section mark: a hairline in the gutter, one pixel wide, the same
-   mark the onboarding gives the active choice. */
-.nav-item::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: -1px;
-  width: 1px;
-  background: transparent;
-  transition: background-color 160ms var(--ease-out);
-}
-
-.nav-item:hover::before {
-  background: var(--rule-strong);
-}
-
+/* The open section is the one place besides a primary button that earns the
+   accent — as a tint, so the label stays readable on top of it. */
 .nav-item.active {
-  color: var(--accent);
-}
-
-.nav-item.active::before {
-  background: var(--accent);
+  background: var(--primary-tint);
+  color: var(--primary);
 }
 
 .nav-icon {
   flex: none;
   display: block;
-  width: 1.0625rem;
-  height: 1.0625rem;
+  width: 18px;
+  height: 18px;
 }
 
 .nav-icon svg {
@@ -279,16 +258,60 @@ a {
   height: 100%;
 }
 
-/* --- The panel ----------------------------------------------------------- */
+/* --- Panel ---------------------------------------------------------------- */
 
 .settings-panel {
   min-width: 0;
-  height: 100%;
-  padding: 1.75rem 0 clamp(3rem, 8vh, 5rem);
+  padding: 2rem 2rem 4rem;
   overflow-y: auto;
-  /* Reserved whether or not this section overflows, so switching tabs never
+  /* Reserved whether or not a section overflows, so switching tabs never
      shifts the column by a scrollbar's width. */
   scrollbar-gutter: stable;
+}
+
+/* Everything in the panel measures against one column so a card does not run
+   to 1600px on a wide monitor, where a label and its control end up too far
+   apart to read as a pair. */
+.panel-inner {
+  width: min(760px, 100%);
+  margin: 0 auto;
+}
+
+/* The section name at full size. Same source as the breadcrumb. */
+.panel-title {
+  margin-bottom: 1.5rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--text);
+}
+
+.settings:has(#general.tab-content.active) .panel-title::after {
+  content: "General";
+}
+
+.settings:has(#popup.tab-content.active) .panel-title::after {
+  content: "Popup & display";
+}
+
+.settings:has(#shortcuts.tab-content.active) .panel-title::after {
+  content: "Keyboard shortcuts";
+}
+
+.settings:has(#video-player.tab-content.active) .panel-title::after {
+  content: "Video player";
+}
+
+.settings:has(#anki.tab-content.active) .panel-title::after {
+  content: "Anki integration";
+}
+
+.settings:has(#vocabulary.tab-content.active) .panel-title::after {
+  content: "Vocabulary";
+}
+
+.settings:has(#advanced.tab-content.active) .panel-title::after {
+  content: "Advanced";
 }
 
 .tab-content {
@@ -300,231 +323,220 @@ a {
 }
 
 /* ==========================================================================
-   Entries: a group heading, then one column of settings rows
+   Cards
    ========================================================================== */
 
 .settings-group {
-  max-width: 46rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
 }
 
 .settings-group + .settings-group {
-  margin-top: clamp(2.25rem, 5vh, 3.25rem);
+  margin-top: 1.25rem;
 }
 
 .group-title {
-  font-family: var(--font-display);
-  font-size: 1.125rem;
+  font-size: 1rem;
   font-weight: 600;
-  letter-spacing: -0.015em;
-  line-height: 1.3;
-  color: var(--ink);
+  letter-spacing: -0.01em;
+  color: var(--text);
 }
 
 .group-note {
-  max-width: 62ch;
-  margin-top: 0.5rem;
-  font-family: var(--font-text);
-  font-size: 0.9375rem;
-  line-height: 1.7;
-  color: var(--ink-3);
+  max-width: 68ch;
+  margin-top: 0.25rem;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: var(--text-muted);
 }
 
+/* The heading block is separated from the entries by the first row's rule, so
+   a card with no note does not collapse onto its first control. */
 .settings-rows {
-  margin-top: 1.25rem;
-  border-top: 1px solid var(--rule);
+  margin-top: 1rem;
+  border-top: 1px solid var(--border);
 }
+
+/* ==========================================================================
+   Entries
+
+   `.setting-line` is `display: contents` so the label and the control become
+   items of `.setting`'s own grid. That puts the label and its explanation in
+   one column and the control in the next, with the control centred against
+   both — which is what makes a row read as a single unit rather than as a
+   sentence with a widget stranded to its right.
+   ========================================================================== */
 
 .setting {
-  padding: 0.9375rem 0;
-  border-bottom: 1px solid var(--rule);
+  padding: 0.875rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.setting:first-child {
+  border-top: 0;
+}
+
+.setting:last-child {
+  padding-bottom: 0;
+}
+
+.setting:has(> .setting-line) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  column-gap: 2rem;
+  align-items: center;
 }
 
 .setting-line {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1.5rem;
+  display: contents;
 }
 
 .form-label {
-  font-family: var(--font-display);
+  grid-column: 1;
+  grid-row: 1;
   font-size: 0.9375rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-weight: 500;
   line-height: 1.4;
-  color: var(--ink);
+  color: var(--text);
 }
 
 .setting-control {
-  flex: none;
+  grid-column: 2;
+  grid-row: 1 / span 2;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 0.375rem;
-  width: min(17rem, 46%);
+  justify-self: end;
 }
 
-.setting-control > .form-control,
-.setting-control > .shortcut-error {
-  width: 100%;
-}
-
-/* A key box never needs the width a deck name does; it keeps the same right
-   edge as every other control and gives the rest back to the explanation. */
-.setting-control:has(> .shortcut-input),
-.setting-control:has(> .hotkey-input) {
-  width: min(11rem, 40%);
-}
-
-/* A unit sitting beside its control. The field is sized to the quantity it
-   holds rather than stretched to the column. */
-.setting-control .control-line {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.625rem;
-  width: 100%;
-}
-
-.control-line > .form-control {
-  flex: none;
-  width: 5.5rem;
-}
-
-.unit {
-  flex: none;
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
-
-/* An entry whose control is wider than the line it would share — a textarea,
-   or a row of actions. Label, control and explanation stack. */
-.setting-block .form-label {
-  display: block;
-}
-
-.setting-block .bulk-textarea {
-  margin-top: 0.75rem;
-}
-
-.setting > .btn + .help-text,
-.setting > .btn-row + .help-text {
-  margin-top: 0.75rem;
-}
-
-.setting > .btn-row:first-child {
-  margin-top: 0;
-}
-
-/* Explanations run in the text face, under the line they explain. */
 .help-text {
-  max-width: 64ch;
-  margin-top: 0.4375rem;
-  font-family: var(--font-text);
-  font-size: 0.875rem;
-  line-height: 1.65;
-  color: var(--ink-3);
+  grid-column: 1;
+  grid-row: 2;
+  max-width: 62ch;
+  margin-top: 0.1875rem;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--text-muted);
 }
 
-.help-text strong {
-  font-weight: 600;
-  color: var(--ink-2);
+/* A `.setting` with no `.setting-line` holds an action or a text area rather
+   than a labelled control; it stays in normal flow. */
+.setting:not(:has(> .setting-line)) > .help-text {
+  margin-top: 0.625rem;
+}
+
+.setting-block > .help-text {
+  margin-top: 0.625rem;
 }
 
 /* ==========================================================================
-   Controls — the product on this surface
+   Controls
    ========================================================================== */
 
+/* --- Select and text input ------------------------------------------------ */
+
 .form-control {
-  width: 100%;
-  padding: 0.5625rem 0.75rem;
-  background: none;
-  border: 1px solid var(--rule);
-  border-radius: 2px;
-  font-family: var(--font-display);
-  font-size: 0.9375rem;
+  min-width: 168px;
+  max-width: 100%;
+  padding: 0.5rem 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--elevated);
+  font-family: inherit;
+  font-size: 0.875rem;
   font-weight: 500;
   line-height: 1.4;
-  color: var(--ink);
-  caret-color: var(--accent);
-  transition: border-color 160ms var(--ease-out),
-    box-shadow 160ms var(--ease-out), color 160ms var(--ease-out);
+  color: var(--text);
+  transition:
+    border-color var(--duration) var(--ease-out),
+    background-color var(--duration) var(--ease-out);
 }
 
-.form-control:hover:not(:disabled):not(:focus) {
-  border-color: var(--rule-strong);
+.form-control:hover:not(:disabled) {
+  border-color: var(--border-strong);
 }
 
-.form-control:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: inset 0 0 0 1px var(--accent);
-}
-
-.form-control::placeholder {
-  color: var(--ink-3);
+.form-control:focus-visible {
+  border-color: var(--primary);
+  outline-offset: 0;
 }
 
 .form-control:disabled {
-  color: var(--ink-3);
-  border-color: var(--rule);
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
-/* Refused input reports itself on the control and again in words beneath it. */
-.form-control:out-of-range,
-.form-control:user-invalid,
-.form-control.error {
-  border-color: var(--signal-error);
-  box-shadow: inset 0 0 0 1px var(--signal-error);
-}
-
-/* --- Select --------------------------------------------------------------
-   The chevron is drawn rather than left to the platform. Its colour is baked
-   into the mark because a `background-image` cannot read a custom property;
-   the two values are `--ink-3` at rest and `--accent` on focus. Selects that
-   the Anki field-mapping table builds at runtime get the same treatment,
-   which is why this keys off the element and not off a wrapper. */
-
+/* A native select draws its own arrow in the platform colour, which does not
+   belong to this palette; ours is a background image so it matches the ink. */
 select.form-control {
   appearance: none;
   padding-right: 2.25rem;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b8780' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 10 5 5 5-5'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%2394a3b8' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 0.625rem center;
-  background-size: 1.0625rem 1.0625rem;
+  background-position: right 0.875rem center;
   cursor: pointer;
 }
 
-select.form-control:focus {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ff6b47' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 10 5 5 5-5'/%3E%3C/svg%3E");
-}
-
-select.form-control:disabled {
-  cursor: not-allowed;
-}
-
 select.form-control option {
-  background: var(--ground);
-  color: var(--ink);
+  background: var(--elevated);
+  color: var(--text);
 }
 
-/* --- Number ---------------------------------------------------------------
-   A quantity is data, so it is set in the mono face with tabular figures and
-   never reflows as it counts. */
+/* Numbers are quantities, not prose: the field is sized to what it holds and
+   its unit sits beside it rather than being buried in the explanation. */
+.control-line {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
 
-input[type="number"].form-control {
-  font-family: var(--font-mono);
+.control-line > .form-control {
+  min-width: 0;
+  width: 88px;
+}
+
+.unit {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.bulk-textarea {
+  display: block;
+  width: 100%;
+  min-height: 120px;
+  margin-top: 0.75rem;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--elevated);
+  font-family: inherit;
   font-size: 0.875rem;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
+  line-height: 1.6;
+  color: var(--text);
+  resize: vertical;
+  transition: border-color var(--duration) var(--ease-out);
 }
 
-/* --- Switch --------------------------------------------------------------- */
+.bulk-textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.bulk-textarea:hover {
+  border-color: var(--border-strong);
+}
+
+.bulk-textarea:focus-visible {
+  border-color: var(--primary);
+  outline-offset: 0;
+}
+
+/* --- Toggle ---------------------------------------------------------------
+   A filled, fully-rounded track. The earlier sharp-cornered outline with a
+   square knob read as a validation error at this size rather than a switch. */
 
 .toggle-switch {
   position: relative;
@@ -547,12 +559,10 @@ input[type="number"].form-control {
 .toggle-slider {
   position: absolute;
   inset: 0;
-  border: 1px solid var(--rule-strong);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.1);
   pointer-events: none;
-  transition: border-color 160ms var(--ease-out),
-    background-color 160ms var(--ease-out);
+  transition: background var(--duration) var(--ease-out);
 }
 
 .toggle-slider::before {
@@ -560,42 +570,29 @@ input[type="number"].form-control {
   position: absolute;
   top: 3px;
   left: 3px;
-  width: 16px;
-  height: 16px;
-  border-radius: 999px;
-  background: var(--ink-3);
-  transition: transform 220ms var(--ease-out),
-    background-color 160ms var(--ease-out);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  transition: transform var(--duration) var(--ease-out);
 }
 
 .toggle-switch input:hover:not(:disabled) + .toggle-slider {
-  border-color: var(--ink-3);
+  background: rgba(255, 255, 255, 0.16);
 }
 
 .toggle-switch input:checked + .toggle-slider {
-  border-color: var(--accent);
-  background: var(--accent);
+  background: var(--gradient-primary);
 }
 
 .toggle-switch input:checked + .toggle-slider::before {
   transform: translateX(18px);
-  background: var(--ground);
-}
-
-.toggle-switch input:checked:hover:not(:disabled) + .toggle-slider {
-  border-color: var(--accent-bright);
-  background: var(--accent-bright);
-}
-
-/* The input is transparent but still draws an outline, which would sit over
-   the track; the ring goes on the track instead. */
-.toggle-switch input:focus-visible {
-  outline: none;
 }
 
 .toggle-switch input:focus-visible + .toggle-slider {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .toggle-switch input:disabled {
@@ -603,447 +600,281 @@ input[type="number"].form-control {
 }
 
 .toggle-switch input:disabled + .toggle-slider {
-  border-color: var(--rule);
+  opacity: 0.45;
 }
 
-.toggle-switch input:disabled + .toggle-slider::before {
-  background: var(--rule);
-}
-
-/* --- Hotkey recorder ------------------------------------------------------
-   Readonly at rest and recording while focused: the script drops the readonly
-   attribute for exactly as long as it is listening, so `:not([readonly])` is
-   the true recording state rather than a class that could be left behind. */
+/* --- Key recorder --------------------------------------------------------- */
 
 .shortcut-input,
 .hotkey-input {
-  font-family: var(--font-mono);
+  min-width: 132px;
+  padding: 0.5rem 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--elevated);
+  font-family: inherit;
   font-size: 0.8125rem;
-  font-weight: 500;
-  letter-spacing: 0.04em;
+  font-weight: 600;
+  line-height: 1.4;
   text-align: center;
+  color: var(--text);
   cursor: pointer;
-  user-select: none;
+  transition:
+    border-color var(--duration) var(--ease-out),
+    color var(--duration) var(--ease-out);
 }
 
 .shortcut-input[readonly]:hover,
 .hotkey-input[readonly]:hover {
-  border-color: var(--rule-strong);
+  border-color: var(--border-strong);
 }
 
+/* Recording. The state is the absence of `readonly`, which settings-ui.ts
+   removes while it waits for a key and restores on blur — not the static
+   `.shortcut-record-input` class, which every recorder in the markup carries
+   whether or not it is listening. */
 .shortcut-input:not([readonly]),
 .hotkey-input:not([readonly]) {
-  border-color: var(--accent);
-  box-shadow: inset 0 0 0 1px var(--accent);
-  color: var(--accent);
-  cursor: text;
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
-.shortcut-input:not([readonly])::placeholder,
-.hotkey-input:not([readonly])::placeholder {
-  color: var(--accent);
-  opacity: 0.75;
+.shortcut-input.error {
+  border-color: var(--danger);
+  color: var(--danger);
 }
 
-.shortcut-input.error,
-.hotkey-input.error {
-  border-color: var(--signal-error);
-  box-shadow: inset 0 0 0 1px var(--signal-error);
-  color: var(--signal-error);
-}
-
-/* Hidden until the script fills it in; it then sets display inline. */
 .shortcut-error {
-  display: none;
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 500;
-  line-height: 1.5;
-  letter-spacing: 0.02em;
+  color: var(--danger);
   text-align: right;
-  color: var(--signal-error);
 }
 
-/* --- Textarea ------------------------------------------------------------- */
-
-.bulk-textarea {
-  display: block;
-  width: 100%;
-  min-height: clamp(6rem, 14vh, 9rem);
-  padding: 0.875rem 1rem;
-  background: none;
-  border: 1px solid var(--rule);
-  border-radius: 2px;
-  color: var(--ink);
-  caret-color: var(--accent);
-  font-family: var(--font-display), var(--font-cjk);
-  font-size: 0.9375rem;
-  line-height: 1.75;
-  resize: vertical;
-  transition: border-color 160ms var(--ease-out),
-    box-shadow 160ms var(--ease-out);
-}
-
-.bulk-textarea:hover:not(:focus) {
-  border-color: var(--rule-strong);
-}
-
-.bulk-textarea:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: inset 0 0 0 1px var(--accent);
-}
-
-.bulk-textarea::placeholder {
-  color: var(--ink-3);
-}
-
-/* --- Buttons -------------------------------------------------------------- */
+/* --- Buttons --------------------------------------------------------------
+   Pills, as on the site. The gradient fill and its glow are reserved for the
+   primary action; everything else is the site's translucent secondary. */
 
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.75rem 1.25rem;
-  background: none;
+  padding: 0.5625rem 1.125rem;
   border: 1px solid transparent;
-  border-radius: 6px;
-  font-family: var(--font-display);
+  border-radius: var(--radius-pill);
+  background: var(--gradient-primary);
+  font-family: inherit;
   font-size: 0.875rem;
   font-weight: 600;
-  letter-spacing: -0.005em;
-  line-height: 1;
-  color: var(--ink);
-  cursor: pointer;
+  line-height: 1.2;
+  color: #fff;
   white-space: nowrap;
-  transition: background-color 160ms var(--ease-out),
-    border-color 160ms var(--ease-out), color 160ms var(--ease-out);
+  cursor: pointer;
+  box-shadow: var(--glow-primary);
+  transition:
+    transform var(--duration) var(--ease-out),
+    box-shadow var(--duration) var(--ease-out),
+    background-color var(--duration) var(--ease-out),
+    border-color var(--duration) var(--ease-out);
 }
 
-/* The Anki modules rewrite these buttons' innerHTML on every state change,
-   emitting an emoji in a bare span. The span is suppressed here and the icon
-   is drawn from CSS below, keyed on the id, which survives the rewrite. */
-.btn span {
-  display: none;
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(255, 107, 71, 0.36);
 }
 
-/* Set on the `<svg>` itself, not on a wrapper: a wrapping span would be caught
-   by the emoji rule above. */
-.btn-icon {
-  flex: none;
-  display: block;
-  width: 1.0625rem;
-  height: 1.0625rem;
+.btn:active:not(:disabled) {
+  transform: translateY(0);
 }
 
-/* Kept for the single action on a blocking error screen. Routine settings
-   actions are outlines: on this page the orange belongs to the open section,
-   the focused control and a switch that is on. */
-.btn-primary {
-  background: var(--accent);
-  color: var(--ground);
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: var(--accent-bright);
-}
-
-.btn-primary:active:not(:disabled) {
-  background: var(--accent-deep);
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .btn-secondary,
 .btn-anki {
-  border-color: var(--rule);
-  color: var(--ink);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--border);
+  color: var(--text);
+  box-shadow: none;
 }
 
 .btn-secondary:hover:not(:disabled),
 .btn-anki:hover:not(:disabled) {
-  border-color: var(--ink-3);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--border-strong);
+  box-shadow: none;
 }
 
 .btn-danger {
-  border-color: var(--rule);
-  color: var(--signal-error);
+  background: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.3);
+  color: var(--danger);
+  box-shadow: none;
 }
 
 .btn-danger:hover:not(:disabled) {
-  border-color: var(--signal-error);
+  background: rgba(248, 113, 113, 0.16);
+  border-color: rgba(248, 113, 113, 0.45);
+  box-shadow: none;
 }
 
-.btn-success {
-  border-color: var(--signal-ok);
-  color: var(--signal-ok);
+.btn-icon {
+  flex: none;
+  display: inline-block;
+  width: 16px;
+  height: 16px;
 }
 
-/* Disabled reads as "not available yet", never as a dimmed colour. */
-.btn:disabled {
-  background: none;
-  border-color: var(--rule);
-  color: var(--ink-3);
-  cursor: not-allowed;
+.btn-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .btn-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.625rem;
+  margin-top: 1rem;
+}
+
+/* The first control in a card that opens with an action rather than a row. */
+.settings-group > .btn-row:first-of-type {
   margin-top: 1.25rem;
 }
 
-/* Icons for the five buttons whose labels the Anki modules rewrite. */
-:root {
-  --icon-anki-test: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10.6 13.4a3.6 3.6 0 0 0 5.1 0l2.5-2.5a3.6 3.6 0 0 0-5.1-5.1l-1.4 1.5'/%3E%3Cpath d='M13.4 10.6a3.6 3.6 0 0 0-5.1 0l-2.5 2.5a3.6 3.6 0 0 0 5.1 5.1l1.4-1.5'/%3E%3C/svg%3E");
-  --icon-anki-import: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3.75v10'/%3E%3Cpath d='M7.75 9.75 12 14l4.25-4.25'/%3E%3Cpath d='M4.5 19.25h15'/%3E%3C/svg%3E");
-  --icon-anki-sync: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M19.25 12a7.25 7.25 0 0 1-12.6 4.9'/%3E%3Cpath d='M4.75 12a7.25 7.25 0 0 1 12.6-4.9'/%3E%3Cpath d='M17.9 3.6v3.5h-3.5'/%3E%3Cpath d='M6.1 20.4v-3.5h3.5'/%3E%3C/svg%3E");
-}
-
-#test-anki-connection::before,
-#anki-import-known-words::before,
-#anki-sync-learning-words::before,
-#vocab-anki-import-known-words::before,
-#vocab-anki-sync-learning-words::before {
-  content: "";
-  flex: none;
-  width: 1.0625rem;
-  height: 1.0625rem;
-  background-color: currentColor;
-  -webkit-mask: center / contain no-repeat;
-  mask: center / contain no-repeat;
-}
-
-#test-anki-connection::before {
-  -webkit-mask-image: var(--icon-anki-test);
-  mask-image: var(--icon-anki-test);
-}
-
-#anki-import-known-words::before,
-#vocab-anki-import-known-words::before {
-  -webkit-mask-image: var(--icon-anki-import);
-  mask-image: var(--icon-anki-import);
-}
-
-#anki-sync-learning-words::before,
-#vocab-anki-sync-learning-words::before {
-  -webkit-mask-image: var(--icon-anki-sync);
-  mask-image: var(--icon-anki-sync);
-}
-
-/* --- A key you actually press --------------------------------------------- */
-
-.key,
-kbd {
-  display: inline-block;
-  padding: 0.1em 0.4em;
-  border: 1px solid var(--rule-strong);
-  border-bottom-width: 2px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.04);
-  font-family: var(--font-mono);
-  font-size: 0.78em;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  line-height: 1.4;
-  color: var(--ink);
-  white-space: nowrap;
-}
-
 /* ==========================================================================
-   Reported state
+   Readouts
    ========================================================================== */
+
+/* --- Connection status ---------------------------------------------------- */
 
 .status-indicator {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  font-weight: 500;
-  line-height: 1;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--ink-2);
+  padding: 0.3125rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
-/* The module writes its own dot as a bullet glyph; it is zeroed out and drawn
-   here instead, so the mark is a shape rather than a character. */
 .status-indicator > span:first-child {
-  flex: none;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  font-size: 0;
-  line-height: 0;
-  color: transparent;
-  background: var(--rule-strong);
-}
-
-.status-connected > span:first-child {
-  background: var(--signal-ok);
-}
-
-.status-disconnected > span:first-child,
-.status-error > span:first-child {
-  background: var(--signal-error);
+  font-size: 0.5rem;
+  line-height: 1;
 }
 
 .status-checking {
-  color: var(--ink-3);
+  color: var(--text-muted);
 }
 
-.status-checking > span:first-child {
-  background: var(--ink-3);
-  animation: dotBlink 1.6s var(--ease-out) infinite;
+.status-connected {
+  border-color: rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--success);
 }
 
-@keyframes dotBlink {
-  0%,
-  100% {
-    opacity: 0.35;
-  }
-  50% {
-    opacity: 1;
-  }
+.status-disconnected,
+.status-error {
+  border-color: rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.1);
+  color: var(--danger);
 }
 
-/* Shown while a section's markup is being fetched. */
-.loading-indicator {
-  position: relative;
-  padding: 2.75rem 0;
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  font-weight: 500;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
+/* --- Counts ---------------------------------------------------------------
+   Vocabulary totals and build metadata. A number is the answer to the row, so
+   it is set at display size in the ink the label is not. */
 
-.loading-indicator::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  bottom: 2.25rem;
-  width: 6rem;
-  height: 2px;
-  background: var(--accent);
-  animation: loadingSweep 1.4s var(--ease-out) infinite;
+.stat-list,
+.kv-list {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
 }
-
-@keyframes loadingSweep {
-  0% {
-    transform: translateX(0);
-    opacity: 0.3;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateX(9rem);
-    opacity: 0.3;
-  }
-}
-
-/* ==========================================================================
-   Statistics — a ruled list of counts, not a wall of metric cards
-   ========================================================================== */
 
 .stat-list {
-  margin-top: 1.25rem;
-  border-top: 1px solid var(--rule);
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
 
 .stat-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1.5rem;
-  padding: 0.8125rem 0;
-  border-bottom: 1px solid var(--rule);
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--elevated);
 }
 
 .stat-label {
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
+  display: block;
+  font-size: 0.75rem;
   font-weight: 500;
-  line-height: 1;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--text-muted);
 }
 
 .stat-value {
-  font-family: var(--font-mono);
-  font-size: 1.25rem;
-  font-weight: 500;
-  line-height: 1;
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.01em;
-  color: var(--ink);
-}
-
-/* ==========================================================================
-   Key / value rows (version, dates)
-   ========================================================================== */
-
-.kv-list {
-  margin-top: 1.25rem;
-  border-top: 1px solid var(--rule);
+  color: var(--text);
 }
 
 .kv-row {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 1.5rem;
-  padding: 0.8125rem 0;
-  border-bottom: 1px solid var(--rule);
+  gap: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.kv-row:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
 }
 
 .kv-key {
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  font-weight: 500;
-  line-height: 1;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--ink-3);
+  font-size: 0.8125rem;
+  color: var(--text-muted);
 }
 
 .kv-value {
-  font-family: var(--font-mono);
   font-size: 0.8125rem;
-  font-weight: 500;
-  line-height: 1;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
-  color: var(--ink);
+  color: var(--text);
 }
 
-/* ==========================================================================
-   Notes and cross-references
-   ========================================================================== */
+/* --- Notes and rules ------------------------------------------------------ */
 
 .note {
   display: flex;
   align-items: flex-start;
-  gap: 0.75rem;
-  max-width: 64ch;
-  margin-top: 1.375rem;
-  font-family: var(--font-text);
-  font-size: 0.9375rem;
-  line-height: 1.7;
-  color: var(--ink-2);
+  gap: 0.625rem;
+  margin-top: 1rem;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(59, 130, 246, 0.06);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
 }
 
 .note-icon {
   flex: none;
-  display: block;
-  width: 1.0625rem;
-  height: 1.0625rem;
-  margin-top: 0.28rem;
-  color: var(--ink-3);
+  width: 16px;
+  height: 16px;
+  margin-top: 0.125rem;
+  color: var(--info);
 }
 
 .note-icon svg {
@@ -1052,156 +883,74 @@ kbd {
   height: 100%;
 }
 
-.note strong {
-  font-family: var(--font-display);
+/* A key you actually press. */
+kbd {
+  display: inline-block;
+  padding: 0.1em 0.4em;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--elevated);
+  font-family: inherit;
+  font-size: 0.8em;
   font-weight: 600;
-  color: var(--ink);
+  color: var(--text);
+  white-space: nowrap;
 }
 
-/* A short ruled list — the tips beneath the shortcut recorders. */
 .rule-list {
-  list-style: none;
-  margin-top: 1.25rem;
-  border-top: 1px solid var(--rule);
+  margin-top: 0.75rem;
+  padding-left: 1.125rem;
+  font-size: 0.8125rem;
+  line-height: 1.7;
+  color: var(--text-muted);
 }
 
-.rule-list li {
-  padding: 0.6875rem 0;
-  border-bottom: 1px solid var(--rule);
-  font-family: var(--font-text);
-  font-size: 0.9375rem;
-  line-height: 1.6;
-  color: var(--ink-2);
+.rule-list li + li {
+  margin-top: 0.25rem;
 }
 
-/* ==========================================================================
-   Anki field mapping
-   ========================================================================== */
+/* --- Anki field mapping --------------------------------------------------- */
 
-/* Its own scroll container: a wide table must never scroll the page sideways. */
 .field-mapping {
-  margin-top: 1.25rem;
-  overflow-x: auto;
+  margin-top: 1rem;
 }
 
 .mapping-table {
-  width: 100%;
-  min-width: 34rem;
-  border-collapse: collapse;
-  border-top: 1px solid var(--rule);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.5rem 1rem;
+  font-size: 0.8125rem;
 }
 
-.mapping-table th {
-  padding: 0.6875rem 1rem 0.6875rem 0;
-  border-bottom: 1px solid var(--rule);
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  font-weight: 500;
-  line-height: 1;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  text-align: left;
-  color: var(--ink-3);
+.mapping-table > * {
+  min-width: 0;
 }
 
-.mapping-table td {
-  padding: 0.75rem 1rem 0.75rem 0;
-  border-bottom: 1px solid var(--rule);
-  vertical-align: middle;
-}
-
-.mapping-table th:last-child,
-.mapping-table td:last-child {
-  padding-right: 0;
-}
-
-.mapping-table .anki-field {
-  font-family: var(--font-display);
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: var(--ink);
-}
-
-/* The module prefixes each field name with an emoji in this span. */
-.mapping-table .field-icon {
-  display: none;
-}
-
-.mapping-table .mapping-empty {
-  padding: 2.25rem 0;
+.mapping-empty {
+  padding: 1.25rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  font-size: 0.8125rem;
   text-align: center;
-  font-family: var(--font-text);
-  font-size: 0.875rem;
-  color: var(--ink-3);
+  color: var(--text-muted);
 }
 
-.mapping-table .preview-data {
-  font-family: var(--font-text);
+/* --- Loading -------------------------------------------------------------- */
+
+.loading-indicator {
+  padding: 2rem 0;
   font-size: 0.875rem;
-  font-style: italic;
-  line-height: 1.5;
-  color: var(--ink-3);
+  color: var(--text-muted);
 }
 
 /* ==========================================================================
-   Runtime error block
-   The manager builds this markup itself when a section fails to load, using
-   the old card class names. It gets the same flat treatment as everything
-   else so a failure still looks like this product.
+   Motion
    ========================================================================== */
 
-.section-card {
-  max-width: 46rem;
-}
-
-.section-title {
-  font-family: var(--font-display);
-  font-size: 1.125rem;
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  color: var(--ink);
-}
-
-/* The emoji the manager puts in front of that heading. */
-.section-title span {
-  display: none;
-}
-
-.section-description {
-  max-width: 62ch;
-  margin-top: 0.5rem;
-  font-family: var(--font-text);
-  font-size: 0.9375rem;
-  line-height: 1.7;
-  color: var(--ink-2);
-}
-
-.section-card .help-text {
-  margin-top: 0.75rem;
-}
-
-.section-card .btn {
-  margin-top: 1.25rem;
-}
-
-/* ==========================================================================
-   Motion — one authored moment: the head rule wipes in and the open section
-   settles under it. Everything else on the page holds still.
-   ========================================================================== */
-
-@keyframes ruleWipe {
-  from {
-    clip-path: inset(0 100% 0 0);
-  }
-  to {
-    clip-path: inset(0 0 0 0);
-  }
-}
-
-@keyframes entrySettle {
+@keyframes panelIn {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -1209,19 +958,18 @@ kbd {
   }
 }
 
-.running-head {
-  animation: ruleWipe 560ms var(--ease-out) both;
-}
-
 .tab-content.active {
-  animation: entrySettle 460ms var(--ease-out) both;
+  animation: panelIn 260ms var(--ease-out) both;
 }
 
 /* ==========================================================================
    Responsive
+
+   Below the two-column breakpoint the sidebar becomes a scrolling row of pills
+   above the panel, so the frame no longer applies and the page scrolls itself.
    ========================================================================== */
 
-@media (max-width: 940px) {
+@media (max-width: 860px) {
   body {
     overflow: visible;
   }
@@ -1229,64 +977,64 @@ kbd {
   .settings {
     height: auto;
     min-height: 100vh;
-    padding-bottom: clamp(3rem, 8vh, 5rem);
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: none;
   }
 
+  .running-head {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+
   .settings-index {
-    position: static;
     flex-direction: row;
-    flex-wrap: wrap;
-    min-width: 0;
-    gap: 0 1.5rem;
+    gap: 0.375rem;
+    padding: 0.75rem 1rem;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
   }
 
   .nav-item {
     width: auto;
-    padding: 0 0 0.625rem;
-    border-top: 0;
-    border-bottom: 1px solid var(--rule);
-  }
-
-  .nav-item:last-child {
-    border-bottom: 1px solid var(--rule);
-  }
-
-  .nav-item::before {
-    top: auto;
-    bottom: -1px;
-    left: 0;
-    right: 0;
-    width: auto;
-    height: 1px;
+    white-space: nowrap;
   }
 
   .settings-panel {
     height: auto;
-    padding: 2rem 0 0;
+    padding: 1.5rem 1rem 3rem;
     overflow-y: visible;
   }
 }
 
-@media (max-width: 620px) {
-  .setting-line {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.6875rem;
+@media (max-width: 560px) {
+  .setting:has(> .setting-line) {
+    grid-template-columns: minmax(0, 1fr);
   }
 
+  /* Stacked, the control follows the text it belongs to instead of spanning
+     rows beside it. */
   .setting-control {
-    width: 100%;
+    grid-column: 1;
+    grid-row: 3;
     align-items: stretch;
+    margin-top: 0.625rem;
+    justify-self: stretch;
+  }
+
+  .form-control,
+  .shortcut-input,
+  .hotkey-input {
+    width: 100%;
+  }
+
+  .toggle-switch {
+    align-self: flex-start;
   }
 
   .shortcut-error {
     text-align: left;
-  }
-
-  .btn {
-    flex: 1 1 auto;
   }
 }
 

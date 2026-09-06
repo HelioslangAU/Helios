@@ -11,6 +11,12 @@
         ],
         "createdAt": "2026-09-06T11:28:45.682Z",
         "reason": "Claude: the flagged pair is .key, a <kbd> keycap set inline in prose at 0.78em, not a card. The heavier edge is neutral (var(--rule-strong)), not an accent, and it draws the key's front face; the 4px radius is a keycap corner. Removing either, as the rule advises, makes it read as a code span."
+      },
+      {
+        "rule": "overused-font",
+        "value": "font-family: \"inter",
+        "createdAt": "2026-09-06T11:47:50.620Z",
+        "reason": "User directed: 'combine this style with that style' pointing at helios-web-new, whose tailwind.config.ts sets Inter as the sans and display face. The extension self-hosts the same file so the settings page and the site are one product; picking a more distinctive face here would defeat the instruction."
       }
     ]
   }
