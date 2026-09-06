@@ -178,6 +178,7 @@ export class HeliosSettingsAnki {
       if (this.isConnected) {
         statusElement.className = "status-indicator status-connected";
         statusElement.innerHTML = "<span>●</span><span>Connected</span>";
+        this.clearConnectionError();
       } else {
         statusElement.className = "status-indicator status-disconnected";
         statusElement.innerHTML = "<span>●</span><span>Disconnected</span>";
@@ -790,6 +791,21 @@ export class HeliosSettingsAnki {
     }
   }
 
+  /**
+   * The note under the connection row. Every section's fragment is loaded into
+   * the same document, so a bare `.help-text` query returns the *first* one on
+   * the page — the note under "Extension enabled" on the General section — and
+   * the failure would be written there instead of here. Scope to the row that
+   * owns the status indicator.
+   */
+  private getConnectionHelpText(): HTMLElement | null {
+    const statusElement = document.getElementById("anki-connection-status");
+    return statusElement?.closest(".setting")?.querySelector<HTMLElement>(".help-text") ?? null;
+  }
+
+  /** The note's own copy, kept so a later success can put it back. */
+  private connectionHelpHtml: string | null = null;
+
   // Show connection error
   showConnectionError(message: string = "Could not connect to Anki"): void {
     const statusElement = document.getElementById("anki-connection-status");
@@ -799,13 +815,32 @@ export class HeliosSettingsAnki {
     }
 
     // Show help text
-    const helpText = document.querySelector<HTMLElement>(".help-text");
+    const helpText = this.getConnectionHelpText();
     if (helpText) {
+      // Captured before the first overwrite only, so repeated failures do not
+      // save the error message as the copy to restore.
+      if (this.connectionHelpHtml === null) {
+        this.connectionHelpHtml = helpText.innerHTML;
+      }
       helpText.innerHTML = `
         <strong>Connection Failed:</strong> ${message}<br>
         Make sure Anki is running with the AnkiConnect add-on installed (code: 2055492159)
       `;
       helpText.style.color = "var(--helios-error)";
+    }
+  }
+
+  /**
+   * Undo `showConnectionError`. Without this a connection that fails once and
+   * then succeeds leaves the red failure note sitting under a row that reads
+   * "Connected", until the page is reloaded.
+   */
+  clearConnectionError(): void {
+    const helpText = this.getConnectionHelpText();
+    if (helpText && this.connectionHelpHtml !== null) {
+      helpText.innerHTML = this.connectionHelpHtml;
+      helpText.style.removeProperty("color");
+      this.connectionHelpHtml = null;
     }
   }
 
