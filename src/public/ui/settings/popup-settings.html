@@ -1,67 +1,109 @@
-<!-- Popup & Display Settings Tab Content -->
-<div class="section-card">
-  <h2 class="section-title">
-    <span>💬</span>
-    Popup Behavior
-  </h2>
-  <p class="section-description">
-    Customize popup appearance and interaction behavior.
+<!-- Popup & display settings. Fetched at runtime into #popup. -->
+<section class="settings-group">
+  <h2 class="group-title">The entry card</h2>
+  <p class="group-note">
+    How the dictionary entry looks when it opens over the page you are reading.
   </p>
 
-  <div class="form-row">
-    <div class="form-group">
-      <label class="form-label">Popup Theme</label>
-      <select class="form-control" id="popup-theme">
-        <option value="dark" selected>Dark (Default)</option>
-        <option value="light">Light</option>
-        <option value="auto">Auto (System)</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Card Size</label>
-      <select class="form-control" id="popup-font-size">
-        <option value="small">Small</option>
-        <option value="medium" selected>Medium (Default)</option>
-        <option value="large">Large</option>
-        <option value="extra-large">Extra Large</option>
-      </select>
-    </div>
-  </div>
-
-  <div class="form-row">
-    <div class="form-group full-width">
-      <label class="form-label">Show Frequency</label>
-      <label class="toggle-switch">
-        <input type="checkbox" id="show-frequency" checked />
-        <span class="toggle-slider"></span>
-      </label>
-      <div class="help-text">Display word frequency ranking in popup</div>
-    </div>
-  </div>
-
-  <div class="form-row">
-    <div class="form-group">
-      <label class="form-label">Persistent Popup</label>
-      <label class="toggle-switch">
-        <input type="checkbox" id="persistent-popup" checked />
-        <span class="toggle-slider"></span>
-      </label>
-      <div class="help-text">
-        Keep popup open after releasing activation key
+  <div class="settings-rows">
+    <div class="setting">
+      <div class="setting-line">
+        <label class="form-label" for="popup-theme">Theme</label>
+        <div class="setting-control">
+          <select class="form-control" id="popup-theme">
+            <option value="dark" selected>Dark</option>
+            <option value="light">Light</option>
+            <option value="auto">Match the system</option>
+          </select>
+        </div>
       </div>
+      <p class="help-text">
+        Dark reads better over most pages; auto follows whatever your operating
+        system is set to.
+      </p>
     </div>
-    <div class="form-group">
-      <label class="form-label">Auto-close Delay (s)</label>
-      <input
-        type="number"
-        class="form-control"
-        id="auto-close-delay"
-        value="0"
-        min="0"
-        max="30"
-      />
-      <div class="help-text">Auto-close popup after delay (0 = disabled)</div>
+
+    <div class="setting">
+      <div class="setting-line">
+        <label class="form-label" for="popup-font-size">Card size</label>
+        <div class="setting-control">
+          <select class="form-control" id="popup-font-size">
+            <option value="small">Small</option>
+            <option value="medium" selected>Medium</option>
+            <option value="large">Large</option>
+            <option value="extra-large">Extra large</option>
+          </select>
+        </div>
+      </div>
+      <p class="help-text">
+        Sets the type size inside the card, and the card grows with it.
+      </p>
+    </div>
+
+    <div class="setting">
+      <div class="setting-line">
+        <label class="form-label" for="show-frequency">Show frequency rank</label>
+        <div class="setting-control">
+          <span class="toggle-switch">
+            <input type="checkbox" id="show-frequency" checked />
+            <span class="toggle-slider"></span>
+          </span>
+        </div>
+      </div>
+      <p class="help-text">
+        Prints how common the word is in the entry, so you can judge whether it
+        is worth learning now.
+      </p>
     </div>
   </div>
-</div>
+</section>
 
+<section class="settings-group">
+  <h2 class="group-title">Staying open</h2>
+  <p class="group-note">
+    Whether the card waits for you after you let go of the activation key.
+  </p>
+
+  <div class="settings-rows">
+    <div class="setting">
+      <div class="setting-line">
+        <label class="form-label" for="persistent-popup">Keep the card open</label>
+        <div class="setting-control">
+          <span class="toggle-switch">
+            <input type="checkbox" id="persistent-popup" checked />
+            <span class="toggle-slider"></span>
+          </span>
+        </div>
+      </div>
+      <p class="help-text">
+        The card stays up after you release the activation key, so you can
+        click into it. Off, it closes the moment you let go.
+      </p>
+    </div>
+
+    <div class="setting">
+      <div class="setting-line">
+        <label class="form-label" for="auto-close-delay">Close it after</label>
+        <div class="setting-control">
+          <div class="control-line">
+            <input
+              type="number"
+              class="form-control"
+              id="auto-close-delay"
+              value="0"
+              min="0"
+              max="30"
+              step="1"
+              inputmode="numeric"
+            />
+            <span class="unit">sec</span>
+          </div>
+        </div>
+      </div>
+      <p class="help-text">
+        Closes the card on its own after this many seconds. Zero leaves it open
+        until you move away. Anything above 30 is refused.
+      </p>
+    </div>
+  </div>
+</section>

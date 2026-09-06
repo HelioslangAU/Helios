@@ -1,5 +1,61 @@
-<!-- Advanced Settings Tab Content -->
-<div class="help-text">
-  <strong>Extension Version:</strong> <span id="extension-version">-</span><br />
-  <strong>Last Updated:</strong> <span id="last-updated">-</span>
-</div>
+<!-- Advanced. Fetched at runtime into #advanced.
+     The three buttons here are bound by settings-ui.ts to the operations in
+     settings-advanced.ts; the two values are filled in by updateAdvancedUI. -->
+<section class="settings-group">
+  <h2 class="group-title">Maintenance</h2>
+  <p class="group-note">
+    Three operations for when something looks wrong. None of them touches your
+    word lists.
+  </p>
+
+  <div class="settings-rows">
+    <div class="setting">
+      <div class="btn-row">
+        <button class="btn btn-secondary" id="clear-cache">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 4.25 4.25 8 12 11.75 19.75 8z"></path>
+            <path d="m4.25 12 7.75 3.75L19.75 12"></path>
+            <path d="m4.25 16 7.75 3.75L19.75 16"></path>
+          </svg>
+          Clear the cache
+        </button>
+        <button class="btn btn-secondary" id="export-logs">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M13.25 3.75H7a1.5 1.5 0 0 0-1.5 1.5v13.5a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5V9z"></path>
+            <path d="M13.25 3.75V9h5.25"></path>
+            <path d="M8.75 13h6.5"></path>
+            <path d="M8.75 16.25h4.5"></path>
+          </svg>
+          Export a debug log
+        </button>
+        <button class="btn btn-secondary" id="run-diagnostics">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3.75 12h3.4l2.3-5.75 3.6 11.5 2.3-5.75h4.9"></path>
+          </svg>
+          Run diagnostics
+        </button>
+      </div>
+      <p class="help-text">
+        Clearing the cache drops the stored dictionary and rebuilds it on the
+        next lookup; your settings, known words and Anki configuration survive.
+        The debug log is a text file you can attach to a bug report, and
+        diagnostics prints a full report to the browser console.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="settings-group">
+  <h2 class="group-title">This build</h2>
+
+  <dl class="kv-list">
+    <div class="kv-row">
+      <dt class="kv-key">Version</dt>
+      <dd class="kv-value" id="extension-version">&mdash;</dd>
+    </div>
+    <div class="kv-row">
+      <dt class="kv-key">Updated</dt>
+      <dd class="kv-value" id="last-updated">&mdash;</dd>
+    </div>
+  </dl>
+</section>

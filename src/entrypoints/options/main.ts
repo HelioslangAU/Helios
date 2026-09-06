@@ -1,3 +1,6 @@
+// Shared first: the palette, faces and easing every Helios surface is built
+// from. `style.css` extends them and must not redeclare them.
+import '@/styles/tokens.css';
 import './style.css';
 import '@/config/paths';
 import '@/content/languages/base-language-adapter';

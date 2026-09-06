@@ -1,118 +1,131 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Helios Settings</title>
     <meta name="manifest.open_in_tab" content="true" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
-      rel="stylesheet"
-    />
+    <!-- Faces are self-hosted under /fonts and declared in the shared token
+         sheet, which main.ts imports ahead of style.css. No remote stylesheet:
+         the page has to render identically offline and under MV3's CSP. -->
   </head>
   <body>
-    <!-- Beautiful gradient header matching extension tab -->
-    <div class="header">
-      <div class="header-content">
-        <div class="brand">
-          <h1>Helios</h1>
-          <div class="subtitle">Extension Settings</div>
-        </div>
-      </div>
-    </div>
+    <div class="settings">
+      <!-- Running head: the product, then the open section. The section name is
+           written by CSS from whichever .tab-content carries .active, so it
+           stays correct without a second source of truth in script. -->
+      <header class="running-head">
+        <h1 class="running-title">
+          Helios settings<span class="running-section" aria-hidden="true"></span>
+        </h1>
+        <p class="running-note">Changes save automatically</p>
+      </header>
 
-    <div class="container">
-      <!-- Sidebar Navigation -->
-      <div class="sidebar">
-        <nav class="nav-menu">
-          <div class="nav-item active" data-tab="general">
-            <span class="icon">⚙️</span>
-            <span>General</span>
-          </div>
-          <div class="nav-item" data-tab="popup">
-            <span class="icon">💬</span>
-            <span>Popup & Display</span>
-          </div>
-          <div class="nav-item" data-tab="shortcuts">
-            <span class="icon">⌨️</span>
-            <span>Keyboard Shortcuts</span>
-          </div>
-          <div class="nav-item" data-tab="video-player">
-            <span class="icon">🎬</span>
-            <span>Video Player</span>
-          </div>
-          <div class="nav-item" data-tab="anki">
-            <span class="icon">📚</span>
-            <span>Anki Integration</span>
-          </div>
-          <div class="nav-item" data-tab="vocabulary">
-            <span class="icon">📝</span>
-            <span>Vocabulary</span>
-          </div>
-          <div class="nav-item" data-tab="advanced">
-            <span class="icon">🔧</span>
-            <span>Advanced</span>
-          </div>
-        </nav>
-      </div>
+      <!-- The index. Buttons, not divs: the tab handler listens for click, and
+           a button fires click on Enter and Space, so the index is reachable
+           from the keyboard with no extra script. -->
+      <nav class="settings-index" aria-label="Settings sections">
+        <button type="button" class="nav-item active" data-tab="general">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3.75 8h4.5"></path>
+              <path d="M13.25 8h7"></path>
+              <path d="M3.75 16h7.5"></path>
+              <path d="M16.25 16h4"></path>
+              <circle cx="10.75" cy="8" r="2.5"></circle>
+              <circle cx="13.75" cy="16" r="2.5"></circle>
+            </svg>
+          </span>
+          <span class="nav-label">General</span>
+        </button>
+        <button type="button" class="nav-item" data-tab="popup">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4.25 5.75h15.5v10h-8.4l-4.35 3.2v-3.2H4.25z"></path>
+              <path d="M8.25 10.75h7.5"></path>
+            </svg>
+          </span>
+          <span class="nav-label">Popup</span>
+        </button>
+        <button type="button" class="nav-item" data-tab="shortcuts">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3.25" y="6.25" width="17.5" height="11.5" rx="1.5"></rect>
+              <path d="M7 10h.01M10.5 10h.01M14 10h.01M17.5 10h.01"></path>
+              <path d="M8.25 14h7.5"></path>
+            </svg>
+          </span>
+          <span class="nav-label">Shortcuts</span>
+        </button>
+        <button type="button" class="nav-item" data-tab="video-player">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3.25" y="5.25" width="17.5" height="13.5" rx="1.5"></rect>
+              <path d="M10.25 9.75 14.75 12l-4.5 2.25z"></path>
+            </svg>
+          </span>
+          <span class="nav-label">Video</span>
+        </button>
+        <button type="button" class="nav-item" data-tab="anki">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="7.25" y="3.75" width="13" height="13" rx="1.5"></rect>
+              <path d="M16.75 20.25H5.25a1.5 1.5 0 0 1-1.5-1.5V7.25"></path>
+            </svg>
+          </span>
+          <span class="nav-label">Anki</span>
+        </button>
+        <button type="button" class="nav-item" data-tab="vocabulary">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5.25 4.75h13.5v15.5l-6.75-3.9-6.75 3.9z"></path>
+              <path d="M9 9.25h6"></path>
+            </svg>
+          </span>
+          <span class="nav-label">Vocabulary</span>
+        </button>
+        <button type="button" class="nav-item" data-tab="advanced">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m4.75 19.25 8-8"></path>
+              <path d="M14.4 4.9a4.25 4.25 0 0 0 4.7 6.9l-6.9-6.9a4.25 4.25 0 0 0 2.2 0z"></path>
+            </svg>
+          </span>
+          <span class="nav-label">Advanced</span>
+        </button>
+      </nav>
 
-      <!-- Main Content -->
-      <div class="main-content">
-        <!-- General Settings -->
+      <!-- The panel. Each section is fetched from /ui/settings/<tab>-settings.html
+           on first visit and dropped into its container. -->
+      <main class="settings-panel">
         <div class="tab-content active" id="general">
-          <div class="loading-indicator">
-            <div class="loading-spinner"></div>
-            Loading General Settings...
-          </div>
+          <p class="loading-indicator">Loading general</p>
         </div>
 
-        <!-- Popup & Display Settings -->
         <div class="tab-content" id="popup">
-          <div class="loading-indicator">
-            <div class="loading-spinner"></div>
-            Loading Popup Settings...
-          </div>
+          <p class="loading-indicator">Loading popup &amp; display</p>
         </div>
 
-        <!-- Keyboard Shortcuts -->
         <div class="tab-content" id="shortcuts">
-          <div class="loading-indicator">
-            <div class="loading-spinner"></div>
-            Loading Keyboard Shortcuts...
-          </div>
+          <p class="loading-indicator">Loading keyboard shortcuts</p>
         </div>
 
-        <!-- Video Player Settings -->
         <div class="tab-content" id="video-player">
-          <div class="loading-indicator">
-            <div class="loading-spinner"></div>
-            Loading Video Player Settings...
-          </div>
+          <p class="loading-indicator">Loading video player</p>
         </div>
 
-        <!-- Anki Integration -->
         <div class="tab-content" id="anki">
-          <div class="loading-indicator">
-            <div class="loading-spinner"></div>
-            Loading Anki Settings...
-          </div>
+          <p class="loading-indicator">Loading Anki integration</p>
         </div>
 
-        <!-- Vocabulary Management -->
         <div class="tab-content" id="vocabulary">
-          <div class="loading-indicator">
-            <div class="loading-spinner"></div>
-            Loading Vocabulary Settings...
-          </div>
+          <p class="loading-indicator">Loading vocabulary</p>
         </div>
 
-        <!-- Advanced Settings -->
         <div class="tab-content" id="advanced">
-          <div class="loading-indicator">
-            <div class="loading-spinner"></div>
-            Loading Advanced Settings...
-          </div>
+          <p class="loading-indicator">Loading advanced</p>
         </div>
-      </div>
+      </main>
     </div>
 
     <script type="module" src="./main.ts"></script>

@@ -1,54 +1,78 @@
-<!-- General Settings Tab Content -->
-<div class="section-card">
-  <h2 class="section-title">
-    <span>⚙️</span>
-    Extension Control
-  </h2>
-  <p class="section-description">
-    Configure basic extension behavior and activation settings.
+<!-- General settings. Fetched at runtime into #general by helios-settings.ts;
+     every control id here is read back by settings-storage.ts. -->
+<section class="settings-group">
+  <h2 class="group-title">Extension</h2>
+  <p class="group-note">
+    Whether Helios reads the pages you visit, and the key you hold to look a
+    word up.
   </p>
 
-  <div class="form-row">
-    <div class="form-group">
-      <label class="form-label">Extension Enabled</label>
-      <label class="toggle-switch">
-        <input type="checkbox" id="extension-enabled" checked />
-        <span class="toggle-slider"></span>
-      </label>
-      <div class="help-text">Enable or disable the entire extension</div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Activation Key</label>
-      <select class="form-control" id="activation-key">
-        <option value="Shift">Shift (Default)</option>
-        <option value="Alt">Alt</option>
-        <option value="Control">Ctrl</option>
-        <option value="Meta">Cmd/Meta</option>
-      </select>
-      <div class="help-text">Key to hold for dictionary lookups</div>
-    </div>
-  </div>
-
-  <div class="form-row">
-    <div class="form-group">
-      <label class="form-label">Target Language</label>
-      <select class="form-control" id="target-language">
-        <option value="zh">Chinese (中文)</option>
-        <option value="en">English</option>
-        <option value="es">Spanish (Español)</option>
-        <option value="fr">French (Français)</option>
-      </select>
-      <div class="help-text">Select the language you want to learn</div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Auto-highlight Unknown Words</label>
-      <label class="toggle-switch">
-        <input type="checkbox" id="auto-highlight" checked />
-        <span class="toggle-slider"></span>
-      </label>
-      <div class="help-text">
-        Automatically underline unknown words on page load
+  <div class="settings-rows">
+    <div class="setting">
+      <div class="setting-line">
+        <label class="form-label" for="extension-enabled">Extension enabled</label>
+        <div class="setting-control">
+          <span class="toggle-switch">
+            <input type="checkbox" id="extension-enabled" checked />
+            <span class="toggle-slider"></span>
+          </span>
+        </div>
       </div>
+      <p class="help-text">
+        Turns every Helios feature off at once. Nothing is deleted while it is
+        off.
+      </p>
+    </div>
+
+    <div class="setting">
+      <div class="setting-line">
+        <label class="form-label" for="activation-key">Activation key</label>
+        <div class="setting-control">
+          <select class="form-control" id="activation-key">
+            <option value="Shift">Shift</option>
+            <option value="Alt">Alt</option>
+            <option value="Control">Ctrl</option>
+            <option value="Meta">Cmd</option>
+          </select>
+        </div>
+      </div>
+      <p class="help-text">
+        Hold this key and hover a word to open its entry. Shift is the default.
+      </p>
+    </div>
+
+    <div class="setting">
+      <div class="setting-line">
+        <label class="form-label" for="target-language">Target language</label>
+        <div class="setting-control">
+          <select class="form-control" id="target-language">
+            <option value="zh">Chinese &mdash; 中文</option>
+            <option value="en">English</option>
+            <option value="es">Spanish &mdash; Español</option>
+            <option value="fr">French &mdash; Français</option>
+          </select>
+        </div>
+      </div>
+      <p class="help-text">
+        The language you are learning. Changing it loads that dictionary; your
+        word lists are kept per language.
+      </p>
+    </div>
+
+    <div class="setting">
+      <div class="setting-line">
+        <label class="form-label" for="auto-highlight">Flag unknown words</label>
+        <div class="setting-control">
+          <span class="toggle-switch">
+            <input type="checkbox" id="auto-highlight" checked />
+            <span class="toggle-slider"></span>
+          </span>
+        </div>
+      </div>
+      <p class="help-text">
+        Underlines every word you have not marked known as soon as a page
+        loads, so you can see what it will cost you before you read it.
+      </p>
     </div>
   </div>
-</div>
+</section>

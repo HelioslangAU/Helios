@@ -1,127 +1,153 @@
-<!-- Vocabulary Management Settings Tab Content -->
-<div class="section-card">
-  <h2 class="section-title">
-    <span>📊</span>
-    Learning Statistics
-  </h2>
-  <p class="section-description">
-    Track your Chinese learning progress and vocabulary growth.
+<!-- Vocabulary. Fetched at runtime into #vocabulary.
+     The two Anki buttons have their labels rewritten by settings-vocabulary.ts,
+     so their icons come from CSS keyed on the id; the rest carry theirs inline. -->
+<section class="settings-group">
+  <h2 class="group-title">Where you are</h2>
+  <p class="group-note">
+    Counted for the language you are learning now. Switching target language
+    switches these lists too.
   </p>
 
-  <div class="stats-grid">
-    <div class="stat-card">
-      <div class="stat-value" id="stat-known-words">-</div>
-      <div class="stat-label">Known Words</div>
+  <dl class="stat-list">
+    <div class="stat-row">
+      <dt class="stat-label">Known</dt>
+      <dd class="stat-value" id="stat-known-words">&mdash;</dd>
     </div>
-    <div class="stat-card">
-      <div class="stat-value" id="stat-learning-words">-</div>
-      <div class="stat-label">Learning Words</div>
+    <div class="stat-row">
+      <dt class="stat-label">Learning</dt>
+      <dd class="stat-value" id="stat-learning-words">&mdash;</dd>
     </div>
-    <div class="stat-card">
-      <div class="stat-value" id="stat-ignored-words">-</div>
-      <div class="stat-label">Ignored Words</div>
+    <div class="stat-row">
+      <dt class="stat-label">Ignored</dt>
+      <dd class="stat-value" id="stat-ignored-words">&mdash;</dd>
     </div>
-  </div>
-</div>
+  </dl>
+</section>
 
-<div class="section-card">
-  <h2 class="section-title">
-    <span>📝</span>
-    Bulk Word Management
-  </h2>
-  <p class="section-description">
-    Import or export your known words list for backup or sharing.
+<section class="settings-group">
+  <h2 class="group-title">Known words</h2>
+  <p class="group-note">
+    Paste in a list you already have, or take yours out to keep a copy.
   </p>
 
-  <div class="form-group">
-    <label class="form-label">Import Known Words</label>
-    <textarea
-      class="bulk-textarea"
-      id="bulk-import-textarea"
-      placeholder="Paste known words here, separated by space, comma, or new line&#10;对 错 好 不好 中国 学习 汉语"
-    ></textarea>
-    <div class="help-text">
-      Paste words separated by spaces, commas, or line breaks. Invalid words
-      will be ignored.
+  <div class="settings-rows">
+    <div class="setting setting-block">
+      <label class="form-label" for="bulk-import-textarea">Words to add</label>
+      <textarea
+        class="bulk-textarea"
+        id="bulk-import-textarea"
+        placeholder="对 错 好 不好 中国 学习 汉语"
+      ></textarea>
+      <p class="help-text">
+        Separate words with spaces, commas or line breaks. Anything that is not
+        a word in your target language is skipped.
+      </p>
+      <div class="btn-row">
+        <button class="btn btn-secondary" id="import-known-words">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3.75v10"></path>
+            <path d="m7.75 9.75 4.25 4.25 4.25-4.25"></path>
+            <path d="M4.5 19.25h15"></path>
+          </svg>
+          Add to known words
+        </button>
+      </div>
+    </div>
+
+    <div class="setting">
+      <div class="btn-row">
+        <button class="btn btn-secondary" id="export-known-words">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 14.25v-10"></path>
+            <path d="m7.75 8.5 4.25-4.25 4.25 4.25"></path>
+            <path d="M4.5 19.25h15"></path>
+          </svg>
+          Export as a file
+        </button>
+        <button class="btn btn-danger" id="clear-known-words">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4.75 6.75h14.5"></path>
+            <path d="M9.25 6.75v-2h5.5v2"></path>
+            <path d="m6.9 6.75.85 12.5h8.5l.85-12.5"></path>
+            <path d="M10.4 10.25v5.5"></path>
+            <path d="M13.6 10.25v5.5"></path>
+          </svg>
+          Empty the known list
+        </button>
+      </div>
+      <p class="help-text">
+        Emptying the list flags every word again. Your learning and ignored
+        lists are left alone.
+      </p>
     </div>
   </div>
+</section>
 
-  <div class="form-row">
-    <button class="btn btn-primary" id="import-known-words">
-      <span>📥</span>
-      Import Words
-    </button>
-    <button class="btn btn-secondary" id="export-known-words">
-      <span>📤</span>
-      Export Words
-    </button>
-    <button class="btn btn-danger" id="clear-known-words">
-      <span>🗑️</span>
-      Clear All Known Words
-    </button>
-  </div>
-</div>
-
-<div class="section-card">
-  <h2 class="section-title">
-    <span>🃏</span>
-    Import from Anki
-  </h2>
-  <p class="section-description">
-    Import expressions from your Anki deck as known words in Helios.
+<section class="settings-group">
+  <h2 class="group-title">From your Anki deck</h2>
+  <p class="group-note">
+    The same two passes offered under Anki integration, where the deck and the
+    field mapping are configured.
   </p>
 
-  <div class="form-row">
-    <div class="form-group">
+  <div class="settings-rows">
+    <div class="setting">
       <button class="btn btn-anki" id="vocab-anki-import-known-words" disabled>
-        <span>📥</span>
-        Import Known Words from Anki
+        Import known words from Anki
       </button>
-      <div class="help-text">
-        Extracts all expressions from your configured Anki deck and marks them as known words.
-        Requires Anki deck, note type, and expression field mapping to be configured in Anki settings.
-      </div>
+      <p class="help-text">
+        Reads every expression in the chosen deck and marks it known.
+      </p>
     </div>
-    <div class="form-group">
+
+    <div class="setting">
       <button class="btn btn-anki" id="vocab-anki-sync-learning-words" disabled>
-        <span>🔄</span>
-        Sync Learning Words
+        Sync learning words
       </button>
-      <div class="help-text">
-        Manually sync learning words from Anki and promote to known when interval reaches 21 days.
-        Requires Anki deck, note type, and expression field mapping to be configured in Anki settings.
-      </div>
+      <p class="help-text">
+        Promotes learning words that have reached a 21-day interval in Anki.
+      </p>
     </div>
   </div>
-</div>
+</section>
 
-<div class="section-card">
-  <h2 class="section-title">
-    <span>🔄</span>
-    Data Management
-  </h2>
-  <p class="section-description">
-    Backup, restore, or reset your extension data.
+<section class="settings-group">
+  <h2 class="group-title">All your data</h2>
+  <p class="group-note">
+    Everything Helios has stored for you: settings, word lists and counts.
   </p>
 
-  <div class="form-row">
-    <button class="btn btn-secondary" id="backup-data">
-      <span>💾</span>
-      Backup All Data
-    </button>
-    <button class="btn btn-secondary" id="restore-data">
-      <span>📂</span>
-      Restore Data
-    </button>
-    <button class="btn btn-danger" id="reset-all-data">
-      <span>⚠️</span>
-      Reset Everything
-    </button>
+  <div class="settings-rows">
+    <div class="setting">
+      <div class="btn-row">
+        <button class="btn btn-secondary" id="backup-data">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3.75" y="4.75" width="16.5" height="4.5" rx="1"></rect>
+            <path d="M5.75 9.25v8.5a1.5 1.5 0 0 0 1.5 1.5h9.5a1.5 1.5 0 0 0 1.5-1.5v-8.5"></path>
+            <path d="M10 13h4"></path>
+          </svg>
+          Download a backup
+        </button>
+        <button class="btn btn-secondary" id="restore-data">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4.9 9.6a7.25 7.25 0 1 1-.65 4.15"></path>
+            <path d="M4.25 4.75v5h5"></path>
+          </svg>
+          Restore from a backup
+        </button>
+        <button class="btn btn-danger" id="reset-all-data">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 4.75 3.9 19.25h16.2z"></path>
+            <path d="M12 10v4"></path>
+            <path d="M12 16.75h.01"></path>
+          </svg>
+          Erase everything
+        </button>
+      </div>
+      <p class="help-text">
+        A backup is one file you can restore later. Erasing returns Helios to
+        the state it shipped in and cannot be undone.
+      </p>
+    </div>
   </div>
-
-  <div class="help-text">
-    <strong>Backup:</strong> Download all your settings and vocabulary data<br />
-    <strong>Restore:</strong> Upload a backup file to restore your data<br />
-    <strong>Reset:</strong> Clear all data and return to default settings
-  </div>
-</div>
+</section>

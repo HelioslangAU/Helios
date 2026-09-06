@@ -1,182 +1,196 @@
-<!-- Keyboard Shortcuts Settings Tab Content -->
-<div class="section-card">
-  <h2 class="section-title">
-    <span>⌨️</span>
-    Keyboard Shortcuts
-  </h2>
-  <p class="section-description">
-    Customize keyboard shortcuts for marking words when the popup is visible. 
-    Click any shortcut box and press your desired key combination.
+<!-- Keyboard shortcuts. Fetched at runtime into #shortcuts.
+     Each recorder input keeps its id and its readonly attribute: settings-ui.ts
+     drops readonly for exactly as long as it is listening for a key, and writes
+     any conflict into the matching #error-… element. -->
+<section class="settings-group">
+  <h2 class="group-title">While an entry is open</h2>
+  <p class="group-note">
+    These keys act on the word in the open card. Click a key box and press the
+    combination you want; it is saved as soon as you press it.
   </p>
 
-  <div class="shortcuts-list">
-    <div class="shortcut-item">
-      <div class="shortcut-label">
-        <label class="form-label">Mark Unknown</label>
-        <div class="help-text">Mark word as unknown when popup is visible</div>
+  <div class="settings-rows">
+    <div class="setting">
+      <div class="setting-line">
+        <label class="form-label" for="hotkey-mark-unknown">Mark unknown</label>
+        <div class="setting-control">
+          <input
+            type="text"
+            class="form-control shortcut-input shortcut-record-input"
+            id="hotkey-mark-unknown"
+            readonly
+            placeholder="1"
+          />
+          <div class="shortcut-error" id="error-mark-unknown"></div>
+        </div>
       </div>
-      <div class="shortcut-input-wrapper">
-        <input
-          type="text"
-          class="form-control shortcut-input shortcut-record-input"
-          id="hotkey-mark-unknown"
-          readonly
-          placeholder="1"
-        />
-        <div class="shortcut-error" id="error-mark-unknown"></div>
-      </div>
+      <p class="help-text">Puts the word back in the flagged list.</p>
     </div>
 
-    <div class="shortcut-item">
-      <div class="shortcut-label">
-        <label class="form-label">Mark Ignore</label>
-        <div class="help-text">Mark word as ignored when popup is visible</div>
+    <div class="setting">
+      <div class="setting-line">
+        <label class="form-label" for="hotkey-mark-ignored">Mark ignored</label>
+        <div class="setting-control">
+          <input
+            type="text"
+            class="form-control shortcut-input shortcut-record-input"
+            id="hotkey-mark-ignored"
+            readonly
+            placeholder="2"
+          />
+          <div class="shortcut-error" id="error-mark-ignored"></div>
+        </div>
       </div>
-      <div class="shortcut-input-wrapper">
-        <input
-          type="text"
-          class="form-control shortcut-input shortcut-record-input"
-          id="hotkey-mark-ignored"
-          readonly
-          placeholder="2"
-        />
-        <div class="shortcut-error" id="error-mark-ignored"></div>
-      </div>
+      <p class="help-text">
+        Stops flagging the word without counting it as learned &mdash; for
+        names and words you do not intend to study.
+      </p>
     </div>
 
-    <div class="shortcut-item">
-      <div class="shortcut-label">
-        <label class="form-label">Mark Known</label>
-        <div class="help-text">Mark word as known when popup is visible</div>
+    <div class="setting">
+      <div class="setting-line">
+        <label class="form-label" for="hotkey-mark-known">Mark known</label>
+        <div class="setting-control">
+          <input
+            type="text"
+            class="form-control shortcut-input shortcut-record-input"
+            id="hotkey-mark-known"
+            readonly
+            placeholder="3"
+          />
+          <div class="shortcut-error" id="error-mark-known"></div>
+        </div>
       </div>
-      <div class="shortcut-input-wrapper">
-        <input
-          type="text"
-          class="form-control shortcut-input shortcut-record-input"
-          id="hotkey-mark-known"
-          readonly
-          placeholder="3"
-        />
-        <div class="shortcut-error" id="error-mark-known"></div>
-      </div>
+      <p class="help-text">Adds the word to your known list and unflags it everywhere.</p>
     </div>
 
-    <div class="shortcut-item">
-      <div class="shortcut-label">
-        <label class="form-label">Mark Learning</label>
-        <div class="help-text">Mark word as learning when popup is visible</div>
+    <div class="setting">
+      <div class="setting-line">
+        <label class="form-label" for="hotkey-mark-learning">Mark learning</label>
+        <div class="setting-control">
+          <input
+            type="text"
+            class="form-control shortcut-input shortcut-record-input"
+            id="hotkey-mark-learning"
+            readonly
+            placeholder="4"
+          />
+          <div class="shortcut-error" id="error-mark-learning"></div>
+        </div>
       </div>
-      <div class="shortcut-input-wrapper">
-        <input
-          type="text"
-          class="form-control shortcut-input shortcut-record-input"
-          id="hotkey-mark-learning"
-          readonly
-          placeholder="4"
-        />
-        <div class="shortcut-error" id="error-mark-learning"></div>
-      </div>
+      <p class="help-text">
+        Keeps the word flagged but records that you are working on it.
+      </p>
     </div>
 
-    <div class="shortcut-item">
-      <div class="shortcut-label">
-        <label class="form-label">Add to Anki</label>
-        <div class="help-text">Add word to Anki when popup is visible</div>
+    <div class="setting">
+      <div class="setting-line">
+        <label class="form-label" for="hotkey-anki-add">Send to Anki</label>
+        <div class="setting-control">
+          <input
+            type="text"
+            class="form-control shortcut-input shortcut-record-input"
+            id="hotkey-anki-add"
+            readonly
+            placeholder="q"
+          />
+          <div class="shortcut-error" id="error-anki-add"></div>
+        </div>
       </div>
-      <div class="shortcut-input-wrapper">
-        <input
-          type="text"
-          class="form-control shortcut-input shortcut-record-input"
-          id="hotkey-anki-add"
-          readonly
-          placeholder="q"
-        />
-        <div class="shortcut-error" id="error-anki-add"></div>
-      </div>
+      <p class="help-text">
+        Creates a card in the deck set up under Anki integration.
+      </p>
     </div>
   </div>
-</div>
+</section>
 
-<div class="section-card">
-  <h2 class="section-title">
-    <span>🎬</span>
-    Video Shortcuts
-  </h2>
-  <p class="section-description">
-    Customize keyboard shortcuts for video subtitle features. Click any shortcut box and press your desired key combination.
+<section class="settings-group">
+  <h2 class="group-title">Subtitles</h2>
+  <p class="group-note">
+    These work on any page with a video, whether or not a card is open.
   </p>
 
-  <div class="shortcuts-list">
-    <div class="shortcut-item video-shortcut">
-      <div class="shortcut-label">
-        <label class="form-label">Load Subtitle File</label>
-        <div class="help-text">Open file picker to load subtitle file</div>
+  <div class="settings-rows">
+    <div class="setting">
+      <div class="setting-line">
+        <label class="form-label" for="video-load">Load a subtitle file</label>
+        <div class="setting-control">
+          <input
+            type="text"
+            class="form-control shortcut-input shortcut-record-input"
+            id="video-load"
+            readonly
+            placeholder="Ctrl+Shift+L"
+          />
+          <div class="shortcut-error" id="error-video-load"></div>
+        </div>
       </div>
-      <div class="shortcut-input-wrapper">
-        <input
-          type="text"
-          class="form-control shortcut-input shortcut-record-input"
-          id="video-load"
-          readonly
-          placeholder="Ctrl+Shift+L"
-        />
-        <div class="shortcut-error" id="error-video-load"></div>
-      </div>
+      <p class="help-text">Opens the file picker for an .srt or .vtt file.</p>
     </div>
 
-    <div class="shortcut-item video-shortcut">
-      <div class="shortcut-label">
-        <label class="form-label">Toggle Subtitle Panel</label>
-        <div class="help-text">Show or hide the subtitle side panel</div>
+    <div class="setting">
+      <div class="setting-line">
+        <label class="form-label" for="video-panel">Toggle the subtitle panel</label>
+        <div class="setting-control">
+          <input
+            type="text"
+            class="form-control shortcut-input shortcut-record-input"
+            id="video-panel"
+            readonly
+            placeholder="Ctrl+Shift+S"
+          />
+          <div class="shortcut-error" id="error-video-panel"></div>
+        </div>
       </div>
-      <div class="shortcut-input-wrapper">
-        <input
-          type="text"
-          class="form-control shortcut-input shortcut-record-input"
-          id="video-panel"
-          readonly
-          placeholder="Ctrl+Shift+S"
-        />
-        <div class="shortcut-error" id="error-video-panel"></div>
-      </div>
+      <p class="help-text">Shows or hides the transcript beside the player.</p>
     </div>
 
-    <div class="shortcut-item video-shortcut">
-      <div class="shortcut-label">
-        <label class="form-label">Auto-load YouTube Subtitles</label>
-        <div class="help-text">Automatically load YouTube captions</div>
+    <div class="setting">
+      <div class="setting-line">
+        <label class="form-label" for="video-youtube">Load YouTube captions</label>
+        <div class="setting-control">
+          <input
+            type="text"
+            class="form-control shortcut-input shortcut-record-input"
+            id="video-youtube"
+            readonly
+            placeholder="Ctrl+Shift+Y"
+          />
+          <div class="shortcut-error" id="error-video-youtube"></div>
+        </div>
       </div>
-      <div class="shortcut-input-wrapper">
-        <input
-          type="text"
-          class="form-control shortcut-input shortcut-record-input"
-          id="video-youtube"
-          readonly
-          placeholder="Ctrl+Shift+Y"
-        />
-        <div class="shortcut-error" id="error-video-youtube"></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="help-text" style="margin-top: 15px; padding: 10px; background-color: rgba(255, 255, 255, 0.05); border-radius: 4px;">
-    💡 <strong>Looking for video navigation shortcuts?</strong> (A/S/D/W keys)<br>
-    You can configure those in the <strong>Video Player</strong> settings tab.
-  </div>
-</div>
-
-<div class="section-card">
-  <div class="shortcuts-info">
-    <div class="info-box">
-      <strong>💡 Tips:</strong>
-      <ul>
-        <li>Click any shortcut box and press your desired key combination</li>
-        <li>Shortcuts can include modifier keys (Ctrl, Shift, Alt) or be single keys</li>
-        <li>Shortcuts cannot overlap with each other</li>
-        <li>Shortcuts cannot conflict with Chrome's built-in keyboard shortcuts</li>
-        <li>Common Chrome shortcuts to avoid: Ctrl+W, Ctrl+T, Ctrl+N, F1-F12, etc.</li>
-      </ul>
+      <p class="help-text">
+        Pulls the captions YouTube already has for the video you are watching.
+      </p>
     </div>
   </div>
-</div>
 
+  <p class="note">
+    <span class="note-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4.75 12h13"></path>
+        <path d="m13.25 7.5 4.5 4.5-4.5 4.5"></path>
+      </svg>
+    </span>
+    <span>
+      The keys that step between subtitles &mdash; <kbd>A</kbd>, <kbd>S</kbd>,
+      <kbd>D</kbd> and <kbd>W</kbd> &mdash; are set under
+      <strong>Video</strong>.
+    </span>
+  </p>
+</section>
+
+<section class="settings-group">
+  <h2 class="group-title">What a key can be</h2>
+
+  <ul class="rule-list">
+    <li>A single key, or a key with Ctrl, Shift or Alt held.</li>
+    <li>Not a key already bound above; the box turns red and names the clash.</li>
+    <li>
+      Not a key Chrome has taken: <kbd>Ctrl</kbd>+<kbd>W</kbd>,
+      <kbd>Ctrl</kbd>+<kbd>T</kbd>, <kbd>Ctrl</kbd>+<kbd>N</kbd>, and
+      <kbd>F1</kbd>&ndash;<kbd>F12</kbd>.
+    </li>
+    <li>Click away from a box to leave its key as it was.</li>
+  </ul>
+</section>
