@@ -18,6 +18,12 @@ export class BannerManager {
     sideTabInstance: HeliosSideTab | null;
     lastStats: BannerStats;
     refreshTimeout?: ReturnType<typeof setTimeout> | null;
+    /**
+     * Whether the tab should be visible once it finishes loading. show/hide can
+     * both be called before the async mount completes, so the decision is
+     * latched here and applied on creation.
+     */
+    pendingVisible = false;
 
     constructor() {
         this.sideTab = null;
@@ -61,10 +67,19 @@ export class BannerManager {
         const temp = document.createElement('div');
         temp.innerHTML = html;
         this.sideTab = temp.firstElementChild;
+        // Mount hidden. This fetch races the startup enabled/disabled check, and
+        // mounting visible made the tab flash onto pages it should never appear
+        // on — or stay up, when hideBanner() arrived before the instance existed.
+        (this.sideTab as HTMLElement).style.display = 'none';
         document.body.appendChild(this.sideTab!);
 
         // Now that the side tab is in the DOM, we can instantiate the side tab logic
         this.sideTabInstance = new HeliosSideTab();
+
+        // Apply whatever visibility was decided while this was still loading.
+        if (this.pendingVisible) {
+            this.sideTabInstance.show();
+        }
 
         // Calculate and update initial stats
         const comprehension = await services.pageProcessor!.calculateComprehensionPercentage();
@@ -502,12 +517,14 @@ export class BannerManager {
     }
 
     hideBanner(): void {
+        this.pendingVisible = false;
         if (this.sideTabInstance) {
             this.sideTabInstance.hide();
         }
     }
 
     showBanner(): void {
+        this.pendingVisible = true;
         if (this.sideTabInstance) {
             this.sideTabInstance.show();
         }
