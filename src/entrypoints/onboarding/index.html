@@ -4,92 +4,151 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Welcome to Helios</title>
+  <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-  <!-- Floating Characters Background -->
+  <!-- Ambient ground: drifting language glyphs (filled by onboarding.ts) and
+       the two soft orange orbs carried over from the marketing site's hero.
+       Both sit behind every control and are never interactive. -->
   <div class="floating-bg" id="floating-bg"></div>
-
-  <!-- Ambient Glow -->
-  <div class="ambient-glow"></div>
+  <div class="ambient-glow" aria-hidden="true"></div>
 
   <div class="onboarding-container">
-    <!-- Main Content -->
     <main class="onboarding-content">
-      <!-- Step 1: Hero Welcome -->
+
+      <!-- ============================================================
+           1 · Entry
+           ============================================================ -->
       <section class="onboarding-step active" id="step-hero">
-        <div class="step-content hero-content">
-          <div class="hero-logo">
-            <img src="/icons/icon128.png" alt="Helios Logo" class="logo-large">
+        <header class="running-head">
+          <span class="guide-word">Helios &middot; entry</span>
+          <span class="folio">1 / 6</span>
+        </header>
+
+        <div class="entry">
+          <div class="headline">
+            <h1 class="headword">Helios</h1>
+            <p class="headword-meta">
+              <span class="phonetic">/&#712;hi&#720;.li.&#601;s/</span>
+              <span class="pos">n.</span>
+            </p>
           </div>
-          <h1 class="hero-title">Helios</h1>
-          <div class="gradient-divider"></div>
-          <p class="hero-subtitle">Master languages through immersion</p>
-          <p class="hero-description">
-            Transform your everyday browsing into powerful language learning.
-            Helios seamlessly integrates vocabulary, grammar, and context into
-            the content you already love.
-          </p>
-          <button class="btn btn-primary btn-hero" id="btn-start">
-            Get Started
-            <svg class="btn-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-            </svg>
-          </button>
+
+          <ol class="senses">
+            <li class="sense">
+              A bilingual dictionary that reads the page with you. Hold
+              <kbd class="key">Shift</kbd> over any word and its entry opens
+              where you are already looking.
+            </li>
+            <li class="sense">
+              Words you have marked as known stay plain. Everything else is
+              flagged, so you can see what a page will cost you before you
+              start reading it.
+            </li>
+            <li class="sense">
+              Six steps set your two languages, your level, and the one key
+              you need.
+              <span class="action-inline">
+                <button class="btn btn-primary" id="btn-start">Get started</button>
+              </span>
+            </li>
+          </ol>
         </div>
       </section>
 
-      <!-- Step 2: Language Selection -->
+      <!-- ============================================================
+           2 · Target language
+           ============================================================ -->
       <section class="onboarding-step" id="step-language">
-        <div class="step-content">
-          <h2 class="step-title">Choose Your Language</h2>
-          <p class="step-description">
-            Select the language you want to learn.
-          </p>
+        <header class="running-head">
+          <span class="guide-word">target language</span>
+          <span class="folio">2 / 6</span>
+        </header>
 
-          <div id="language-selector-container" class="language-selector-wrapper">
-            <!-- Language selector will be injected here -->
+        <div class="entry">
+          <div class="headline">
+            <h2 class="headword">Choose your language</h2>
           </div>
 
+          <ol class="senses">
+            <li class="sense">
+              Select the language you want to learn. Helios loads that
+              dictionary once and reads it from your machine afterwards.
+            </li>
+          </ol>
+
+          <div id="language-selector-container" class="language-selector-wrapper"></div>
+
           <div class="step-nav">
-            <button class="btn btn-secondary" id="btn-lang-back">← Back</button>
-            <button class="btn btn-primary" id="btn-lang-next" disabled>Next →</button>
+            <button class="btn btn-quiet" id="btn-lang-back">Back</button>
+            <button class="btn btn-primary" id="btn-lang-next" disabled>Next</button>
           </div>
         </div>
       </section>
 
-      <!-- Step 3: Native Language Selection -->
+      <!-- ============================================================
+           3 · Native language
+           ============================================================ -->
       <section class="onboarding-step" id="step-native-language">
-        <div class="step-content">
-          <h2 class="step-title">Select Your Native Language</h2>
-          <p class="step-description">
-            Choose your native language to get dictionary definitions in your language.
+        <header class="running-head">
+          <span class="guide-word">native language</span>
+          <span class="folio">3 / 6</span>
+        </header>
+
+        <div class="entry">
+          <div class="headline">
+            <h2 class="headword">Select your native language</h2>
+          </div>
+
+          <ol class="senses">
+            <li class="sense">
+              Choose your native language to get dictionary definitions in
+              your language.
+            </li>
+          </ol>
+
+          <div id="native-language-selector-container" class="language-selector-wrapper"></div>
+
+          <p class="beta-tooltip">
+            <span class="beta-tooltip-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="8.75"></circle>
+                <path d="M12 11.25v5"></path>
+                <path d="M12 7.75h.01"></path>
+              </svg>
+            </span>
+            <span class="beta-tooltip-text">Languages marked <span class="beta-tooltip-highlight">beta</span> are not fully supported and may not work as well as English.</span>
           </p>
 
-          <div id="native-language-selector-container" class="language-selector-wrapper">
-            <!-- Native language selector will be injected here -->
-          </div>
-
-          <div class="beta-tooltip">
-            <span class="beta-tooltip-icon">ℹ️</span>
-            <span class="beta-tooltip-text">Languages marked with <span class="beta-tooltip-highlight">BETA</span> are not fully supported and may not work as well as English.</span>
-          </div>
-
           <div class="step-nav">
-            <button class="btn btn-secondary" id="btn-native-lang-back">← Back</button>
-            <button class="btn btn-primary" id="btn-native-lang-next" disabled>Next →</button>
+            <button class="btn btn-quiet" id="btn-native-lang-back">Back</button>
+            <button class="btn btn-primary" id="btn-native-lang-next" disabled>Next</button>
           </div>
         </div>
       </section>
 
-      <!-- Step 4: Dictionary Loading -->
+      <!-- ============================================================
+           4a · Dictionary download (transitional; shares the lookup tab)
+           ============================================================ -->
       <section class="onboarding-step" id="step-loading">
-        <div class="step-content loading-step-content">
-          <h2 class="step-title">Loading Dictionary</h2>
-          <p class="step-description">
-            Preparing your <span id="loading-language-name"></span> dictionary...
-          </p>
+        <header class="running-head">
+          <span class="guide-word">loading</span>
+          <span class="folio">4 / 6</span>
+        </header>
 
-          <!-- Dictionary Loading Progress Bar -->
+        <div class="entry">
+          <div class="headline">
+            <h2 class="headword">Loading dictionary</h2>
+          </div>
+
+          <ol class="senses">
+            <li class="sense">
+              Preparing your <span id="loading-language-name"></span>
+              dictionary. This happens once &mdash; afterwards it is stored on
+              your machine and works offline.
+            </li>
+          </ol>
+
           <div class="dictionary-loading-container" id="dictionary-loading-container">
             <div class="dictionary-loading-label">
               <span class="loading-text">Loading dictionary...</span>
@@ -104,123 +163,164 @@
         </div>
       </section>
 
-      <!-- Step 5: Feature - Dictionary Popup Tutorial -->
+      <!-- ============================================================
+           4b · Lookup tutorial
+           ============================================================ -->
       <section class="onboarding-step" id="step-popup">
-        <div class="step-content">
+        <header class="running-head">
+          <span class="guide-word">lookup</span>
+          <span class="folio">4 / 6</span>
+        </header>
+
+        <div class="entry">
+          <div class="headline">
+            <h2 class="headword">Definitions at your fingertips</h2>
+          </div>
+
           <div class="feature-showcase">
             <div class="feature-text">
-              <div class="feature-badge">Tutorial</div>
-              <h2 class="feature-title">Definitions at your fingertips</h2>
+              <p class="feature-hint interactive">
+                <span class="hint-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M6.5 3.5v14.2l3.6-3.4 2.3 5.2 2.4-1-2.3-5.1 4.9-.3z"></path>
+                  </svg>
+                </span>
+                <span>Hold <kbd class="key">Shift</kbd> and hover a word in the sentence</span>
+              </p>
 
-              <div class="feature-hint interactive">
-                <span class="hint-icon">👉</span>
-                <span>Hold Shift and hover over the example sentence →</span>
-              </div>
               <ul class="feature-list">
                 <li>
                   <button class="pronunciation-btn" type="button" aria-label="Get audio pronunciation">
-                    <span class="icon">🔊</span>
+                    <span class="icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 9.4h3.2L11.4 6v12L7.2 14.6H4z"></path>
+                        <path d="M15 9.4a4 4 0 0 1 0 5.2"></path>
+                      </svg>
+                    </span>
                   </button>
-                  <span>Get audio pronunciation</span>
+                  <span>Hear it pronounced</span>
                 </li>
                 <li>
                   <button class="anki-btn anki-available" type="button" aria-label="Save to Anki flashcards">A</button>
-                  <span>Save to Anki flashcards</span>
+                  <span>Save it to Anki as a flashcard</span>
                 </li>
                 <li>
                   <button class="mark-known-btn" type="button" aria-label="Mark words as known to track progress">KNOWN</button>
-                  <span>Mark words as known to track progress</span>
+                  <span>Mark it known so it stops being flagged</span>
                 </li>
               </ul>
             </div>
+
             <div class="feature-visual">
-              <!-- Real Interactive Sentence -->
-              <div class="onboarding-sentence-container" id="onboarding-sentence-container">
-                <p class="onboarding-sentence" id="onboarding-sentence">
-                  <!-- Sentence will be inserted here by JavaScript -->
-                </p>
+              <div class="citation">
+                <span class="citation-label">example</span>
+                <!-- No whitespace inside the container: it is set `pre-wrap` so
+                     the runtime highlighter can rewrap a word without moving the
+                     rest of the sentence, which would render the indentation. -->
+                <div class="onboarding-sentence-container" id="onboarding-sentence-container"><p class="onboarding-sentence" id="onboarding-sentence"></p></div>
               </div>
             </div>
           </div>
+
           <div class="step-nav">
-            <button class="btn btn-secondary" id="btn-popup-back">← Back</button>
-            <button class="btn btn-primary" id="btn-popup-next">Next →</button>
+            <button class="btn btn-quiet" id="btn-popup-back">Back</button>
+            <button class="btn btn-primary" id="btn-popup-next">Next</button>
           </div>
         </div>
       </section>
 
-      <!-- Step 6: Level Selection -->
+      <!-- ============================================================
+           5 · Level
+           ============================================================ -->
       <section class="onboarding-step" id="step-level">
-        <div class="step-content">
-          <h2 class="step-title">What's Your Current Level?</h2>
-          <p class="step-description">
-            Select your proficiency level to import a starter vocabulary list (optional). 
-            This helps Helios understand which words you already know.
-          </p>
+        <header class="running-head">
+          <span class="guide-word">level</span>
+          <span class="folio">5 / 6</span>
+        </header>
 
-          <div id="level-selector-container" class="level-selector-container">
-            <!-- Level selector will be injected here -->
+        <div class="entry">
+          <div class="headline">
+            <h2 class="headword">What&rsquo;s your current level?</h2>
           </div>
 
+          <ol class="senses">
+            <li class="sense">
+              Select your proficiency level to import a starter vocabulary
+              list. This is optional, and it tells Helios which words to leave
+              unmarked for you.
+            </li>
+          </ol>
+
+          <div id="level-selector-container" class="level-selector-container"></div>
+
           <div class="bulk-import-section">
-            <h3 class="bulk-import-title">Or Import Your Own Word List (e.g. Anki)</h3>
+            <h3 class="bulk-import-title">Or import your own word list (e.g. Anki)</h3>
             <p class="bulk-import-description">
-              Paste words from your external word lists, separated by spaces, commas, or line breaks. You can also import words later in the settings.
+              Paste words from an existing list, separated by spaces, commas,
+              or line breaks. You can also import words later from settings.
             </p>
             <textarea
               class="bulk-import-textarea"
               id="bulk-import-textarea"
-              placeholder="Paste known words here, separated by space, comma, or new line&#10;Example: 对 错 好 不好 中国 学习 汉语"
+              aria-label="Known words to import"
+              placeholder="One word per line, or separated by spaces or commas&#10;&#20363;&#65306;&#23545; &#38169; &#22909; &#19981;&#22909; &#20013;&#22269; &#23398;&#20064; &#27721;&#35821;"
             ></textarea>
-            <button class="btn btn-secondary btn-bulk-import" id="btn-bulk-import">
-              <span>📥</span>
-              Import Words
-            </button>
+            <button class="btn btn-outline btn-bulk-import" id="btn-bulk-import">Import words</button>
           </div>
 
           <div class="step-nav">
-            <button class="btn btn-secondary" id="btn-level-back">← Back</button>
-            <div class="step-nav-right">
-              <button class="btn btn-secondary" id="btn-level-skip">Skip</button>
-              <button class="btn btn-primary" id="btn-level-next">Continue →</button>
-            </div>
+            <button class="btn btn-quiet" id="btn-level-back">Back</button>
+            <button class="btn btn-quiet" id="btn-level-skip">Skip</button>
+            <button class="btn btn-primary" id="btn-level-next">Continue</button>
           </div>
         </div>
       </section>
 
-      <!-- Step 7: Success -->
+      <!-- ============================================================
+           6 · Ready
+           ============================================================ -->
       <section class="onboarding-step" id="step-success">
-        <div class="step-content success-content">
-          <div class="success-icon">✨</div>
-          <h2 class="step-title">You're All Set!</h2>
-          <p class="step-description">
-            Helios is ready to help you learn <span id="selected-language-name"></span>.
-            Start browsing and watch your vocabulary grow!
-          </p>
+        <header class="running-head">
+          <span class="guide-word">ready</span>
+          <span class="folio">6 / 6</span>
+        </header>
 
-          <div class="recommended-content" id="recommended-content">
-            <!-- Recommended video link will be inserted here by JavaScript -->
+        <div class="entry">
+          <div class="headline">
+            <h2 class="headword">You&rsquo;re all set</h2>
           </div>
 
-          <button class="btn btn-primary btn-large" id="btn-start-learning">
-            Start Learning
-            <svg class="btn-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-            </svg>
-          </button>
+          <ol class="senses">
+            <li class="sense">
+              Helios is ready to help you learn
+              <span id="selected-language-name"></span>. Open any page in that
+              language and hold <kbd class="key">Shift</kbd>.
+            </li>
+            <li class="sense">
+              Everything you mark is stored locally and follows you from page
+              to page.
+              <span class="action-inline">
+                <button class="btn btn-primary" id="btn-start-learning">Start learning</button>
+              </span>
+            </li>
+          </ol>
+
+          <div class="recommended-content" id="recommended-content"></div>
         </div>
       </section>
     </main>
 
-    <!-- Progress Indicator -->
-    <div class="progress-indicator">
-      <div class="progress-dot active" data-step="0"></div>
-      <div class="progress-dot" data-step="1"></div>
-      <div class="progress-dot" data-step="2"></div>
-      <div class="progress-dot" data-step="3"></div>
-      <div class="progress-dot" data-step="4"></div>
-      <div class="progress-dot" data-step="5"></div>
-    </div>
+    <!-- Thumb index: one tab per step, down the outer edge of the spread.
+         onboarding.ts marks every reached step `.active`; the last one that
+         carries it is the live step and is cut through in orange. -->
+    <nav class="progress-indicator" aria-label="Setup progress">
+      <div class="progress-dot active" data-step="0" data-label="entry"></div>
+      <div class="progress-dot" data-step="1" data-label="target"></div>
+      <div class="progress-dot" data-step="2" data-label="native"></div>
+      <div class="progress-dot" data-step="3" data-label="lookup"></div>
+      <div class="progress-dot" data-step="4" data-label="level"></div>
+      <div class="progress-dot" data-step="5" data-label="ready"></div>
+    </nav>
   </div>
 
   <script type="module" src="./main.ts"></script>

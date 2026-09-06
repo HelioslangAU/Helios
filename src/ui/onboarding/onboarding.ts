@@ -702,7 +702,7 @@ export class OnboardingPage {
         await this.importWordsForLevel(this.selectedLanguage!.code, this.selectedLevel);
 
         if (nextBtn) {
-          nextBtn.textContent = 'Continue →';
+          nextBtn.textContent = 'Continue';
           nextBtn.disabled = false;
         }
       } catch (error) {
@@ -762,15 +762,20 @@ export class OnboardingPage {
 
     if (videoUrl) {
       recommendedContentElement.innerHTML = `
-        <h3>🎬 Recommended Content</h3>
+        <h3>Recommended content</h3>
         <p class="recommended-description">
           Start your learning journey with this recommended content:
         </p>
         <a href="${videoUrl}" target="_blank" rel="noopener noreferrer" class="recommended-link">
-          <span class="link-icon">📺</span>
-          <span class="link-text">Watch Recommended Video</span>
-          <svg class="link-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          <span class="link-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2.75" y="5.75" width="18.5" height="12.5" rx="1.5"></rect>
+              <path d="M10.25 9.75l4.5 2.25-4.5 2.25z"></path>
+            </svg>
+          </span>
+          <span class="link-text">Watch recommended video</span>
+          <svg class="link-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
           </svg>
         </a>
       `;
@@ -919,7 +924,7 @@ export class OnboardingPage {
     } finally {
       const importBtn = document.getElementById('btn-bulk-import') as HTMLButtonElement | null;
       if (importBtn) {
-        importBtn.innerHTML = '<span>📥</span> Import Words';
+        importBtn.textContent = 'Import words';
         importBtn.disabled = false;
       }
     }

@@ -1,204 +1,277 @@
 /**
- * Helios Onboarding
+ * Helios onboarding — Reverse-Printed Dictionary
  *
- * Styled to match the Helios marketing site (helios-web-new). The palette,
- * gradient, glass surface, pill buttons, animations and scrollbar below are
- * ports of that site's `tailwind.config.ts` / `globals.css` / `AnimatedButton`
- * / `GlassCard` primitives into plain CSS.
+ * The surface is set like the thing the product is: a bilingual dictionary
+ * spread, printed in reverse for someone reading at night. A running guide
+ * word and folio across the top, the step's question as a headword at display
+ * scale, numbered senses beneath it, and the six steps as thumb-index tabs
+ * down the outer edge with the live one cut through in orange.
  *
- * NOTE: the interactive demo on the "popup" step renders the *real* dictionary
- * popup, whose look is owned by `public/ui/popup/popup.css`. Nothing here may
- * restyle popup internals — the only popup-owned classes touched are the
- * icon legends inside `.feature-list`, which are onboarding-only markup and
- * are adjusted for geometry only.
+ * Rules of this world:
+ *   · Flat ink. No gradient on any surface, no glass, no glow, no cards, and
+ *     never a card inside a card. Structure is carried by hairline rules and
+ *     column edges.
+ *   · Orange is functional only. It marks the live step, the active choice,
+ *     the key you have to press, and progress. It is never decoration.
+ *   · The one soft element is the ambient ground — two blurred orange orbs and
+ *     the drifting glyphs, carried over from the marketing site's hero. They
+ *     sit behind everything and never touch a control.
+ *
+ * The interactive demo on the lookup step renders the *real* dictionary popup,
+ * whose look is owned by `public/ui/popup/popup.css`. Nothing here restyles
+ * popup internals — the only popup-owned classes touched are the three legend
+ * chips inside `.feature-list`, and those are adjusted for geometry only.
  */
 
 /* ==========================================================================
-   Design tokens — mirrors helios-web-new/tailwind.config.ts
+   Faces — self-hosted so the page renders identically offline and under MV3's
+   content security policy. Variable weight axes; latin + latin-ext, plus
+   vietnamese for Archivo because the native-language list names Tiếng Việt.
+   CJK falls through to the platform stack by design.
    ========================================================================== */
 
-:root {
-  /* Surfaces */
-  --color-bg: #0f0f12;
-  --color-surface: #1a1a1f;
-  --color-elevated: #222228;
+/* Archivo — headwords, controls, language names. */
+@font-face {
+  font-family: "Archivo";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/archivo-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
 
-  /* Brand */
-  --color-primary: #ff6b47;
-  --color-primary-light: #ff8f47;
-  --color-primary-lighter: #ffb347;
+@font-face {
+  font-family: "Archivo";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/archivo-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
 
-  /* Text */
-  --color-text: #f8fafc;
-  --color-text-secondary: #e2e8f0;
-  --color-text-muted: #94a3b8;
+@font-face {
+  font-family: "Archivo";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/archivo-vietnamese.woff2") format("woff2");
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1,
+    U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329,
+    U+1EA0-1EF9, U+20AB;
+}
 
-  /* Status */
-  --color-success: #10b981;
-  --color-info: #3b82f6;
+/* Literata — definition-register prose. */
+@font-face {
+  font-family: "Literata";
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url("/fonts/literata-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
 
-  /* Signature gradient */
-  --gradient-primary: linear-gradient(135deg, #ff6b47 0%, #ff8f47 50%, #ffb347 100%);
-  --gradient-primary-hover: linear-gradient(135deg, #ff8f47 0%, #ffa347 50%, #ffc266 100%);
+/* Chivo Mono — guide words, language codes, pronunciation, counts and
+   percentages. Data only; never a costume for "technical". latin-ext is here
+   for the IPA in the headword bracket (ˈ, ː, ə). */
+@font-face {
+  font-family: "Chivo Mono";
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url("/fonts/chivo-mono-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
 
-  /* Glass surface (the site's GlassCard) */
-  --glass-bg: rgba(255, 255, 255, 0.03);
-  --glass-bg-hover: rgba(255, 255, 255, 0.05);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-border-hover: rgba(255, 255, 255, 0.16);
-  --glass-blur: blur(60px) saturate(200%) brightness(1.15);
-
-  /* Translucent whites — the site's secondary button surface */
-  --white-05: rgba(255, 255, 255, 0.05);
-  --white-10: rgba(255, 255, 255, 0.1);
-  --white-20: rgba(255, 255, 255, 0.2);
-
-  /* Primary tints */
-  --primary-08: rgba(255, 107, 71, 0.08);
-  --primary-20: rgba(255, 107, 71, 0.2);
-  --primary-40: rgba(255, 107, 71, 0.4);
-
-  /* Radii */
-  --radius-sm: 0.5rem;
-  --radius-md: 0.75rem;
-  --radius-lg: 1rem;    /* rounded-2xl — the GlassCard radius */
-  --radius-xl: 1.5rem;
-  --radius-pill: 9999px;
-
-  /* Shadows (Tailwind lg / xl / 2xl, tuned for a dark canvas).
-     The site references a `shadow-primary-glow` class that its Tailwind config
-     never defines, so it renders as nothing — deliberately not recreated. */
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.45), 0 4px 6px -4px rgba(0, 0, 0, 0.45);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
-  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.65);
-
-  /* Motion */
-  --transition: all 300ms ease;
-  --transition-slow: all 400ms cubic-bezier(0.16, 1, 0.3, 1);
-
-  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+@font-face {
+  font-family: "Chivo Mono";
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url("/fonts/chivo-mono-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 /* ==========================================================================
-   Reset & page canvas
+   Tokens
    ========================================================================== */
 
-* {
+:root {
+  /* Ground and ink */
+  --ground: #14151a;
+  --ink: #f4f1ea;
+  --ink-2: #b3aea4; /* 8.3:1 on the ground */
+  --ink-3: #8b8780; /* 5.1:1 on the ground — the floor for body-size text */
+  --rule: #2a2c35;
+  --rule-strong: #3d404c;
+
+  /* Functional accent */
+  --accent: #ff6b47; /* 6.5:1 on the ground */
+  --accent-bright: #ff8564;
+  --accent-deep: #e85735;
+
+  --font-display: "Archivo", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-text: "Literata", Georgia, "Times New Roman", serif;
+  --font-mono: "Chivo Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-cjk: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    "Noto Sans CJK SC", "Apple SD Gothic Neo", sans-serif;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  accent-color: var(--accent);
+  color-scheme: dark;
+}
+
+/* ==========================================================================
+   Reset & page
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
-  font-family: var(--font-sans);
-  background: var(--color-bg);
-  color: var(--color-text);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  line-height: 1.6;
+  background: var(--ground);
+  color: var(--ink);
   min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2.5rem 1.25rem;
   overflow-x: hidden;
   position: relative;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Scrollbar — scoped to the page and to onboarding content so the dictionary
-   popup keeps the scrollbars popup.css gives it. */
+/* --- Browser surfaces ---------------------------------------------------- */
+
+::selection {
+  background: rgba(255, 107, 71, 0.32);
+  color: #fffaf7;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+a {
+  color: var(--accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.22em;
+}
+
+/* Scoped so the demo dictionary popup keeps the scrollbars popup.css gives it. */
 body::-webkit-scrollbar,
 .onboarding-container ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
 }
 
 body::-webkit-scrollbar-track,
 .onboarding-container ::-webkit-scrollbar-track {
-  background: var(--color-bg);
+  background: var(--ground);
+  border-left: 1px solid var(--rule);
 }
 
 body::-webkit-scrollbar-thumb,
 .onboarding-container ::-webkit-scrollbar-thumb {
-  background: var(--primary-20);
-  border-radius: var(--radius-pill);
+  background: var(--rule-strong);
+  border: 3px solid var(--ground);
+  border-radius: 0;
 }
 
 body::-webkit-scrollbar-thumb:hover,
 .onboarding-container ::-webkit-scrollbar-thumb:hover {
-  background: var(--primary-40);
+  background: var(--ink-3);
+}
+
+/* --- Element type roles -------------------------------------------------- */
+
+h1 {
+  font-family: var(--font-display);
+  font-size: 5.5rem;
+  font-weight: 700;
+}
+
+h2 {
+  font-family: var(--font-display);
+  font-size: 3.5rem;
+  font-weight: 700;
+}
+
+h3 {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 600;
 }
 
 /* ==========================================================================
-   Animations — ported from the site's tailwind keyframes
+   Ambient ground — the marketing site's hero atmosphere, pinned.
+   Two 800px orange orbs at 10%, blurred 140px, running off canvas at the
+   upper left and lower right, plus the drifting language glyphs at ~20%.
+   Both layers are fixed behind the spread and never overlap a control.
    ========================================================================== */
 
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-20px);
-  }
+.ambient-glow {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 
-@keyframes slideUp {
-  0% {
-    transform: translateY(30px);
-    opacity: 0;
-  }
-  100% {
-    transform: translateY(0);
-    opacity: 1;
-  }
+.ambient-glow::before,
+.ambient-glow::after {
+  content: "";
+  position: absolute;
+  width: 800px;
+  height: 800px;
+  border-radius: 50%;
+  background: rgba(255, 107, 71, 0.1);
+  filter: blur(140px);
+  animation: orbBreathe 10s ease-in-out infinite;
 }
 
-@keyframes fadeIn {
-  0% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 1;
-  }
+.ambient-glow::before {
+  top: -18%;
+  left: -22%;
 }
 
-/* Drifting background glyphs (the site's Hero floats them on a long loop) */
-@keyframes gentleFloat {
-  0%,
-  100% {
-    transform: translate(0, 0) rotate(0deg);
-  }
-  50% {
-    transform: translate(0, -40px) rotate(5deg);
-  }
+.ambient-glow::after {
+  bottom: -24%;
+  right: -22%;
+  animation-delay: -5s;
 }
 
-/* Slow breathing gradient orbs behind the card */
-@keyframes orbPulse {
+@keyframes orbBreathe {
   0%,
   100% {
     transform: scale(1);
-    opacity: 0.55;
+    opacity: 0.5;
   }
   50% {
     transform: scale(1.3);
     opacity: 1;
   }
 }
-
-@keyframes shimmer {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(100%);
-  }
-}
-
-/* ==========================================================================
-   Background layers
-   ========================================================================== */
 
 .floating-bg {
   position: fixed;
@@ -208,77 +281,50 @@ body::-webkit-scrollbar-thumb:hover,
   pointer-events: none;
 }
 
-/* Size / duration / delay / opacity are set inline by the page script. */
+/* Position, size, duration and delay are set inline by onboarding.ts; the
+   keyframes own opacity so every glyph settles at the pinned ~20%. */
 .floating-char {
   position: absolute;
-  font-family: var(--font-sans);
-  font-size: 2.5rem;
-  font-weight: 300;
-  color: var(--color-primary);
-  opacity: 0.14;
-  animation: gentleFloat 25s ease-in-out infinite;
+  font-family: var(--font-display), var(--font-cjk);
+  font-weight: 700;
+  color: var(--accent);
   user-select: none;
   will-change: transform;
+  /* `backwards` so the pinned ~20% holds through the per-glyph delay the page
+     script sets inline, instead of flashing that inline opacity first. */
+  animation: glyphDrift 25s ease-in-out infinite backwards;
 }
 
-.ambient-glow {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-/* Two large primary orbs, mirroring the site's blurred hero orbs. */
-.ambient-glow::before,
-.ambient-glow::after {
-  content: "";
-  position: absolute;
-  width: 800px;
-  height: 800px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 107, 71, 0.16) 0%, transparent 65%);
-  animation: orbPulse 10s ease-in-out infinite;
-}
-
-.ambient-glow::before {
-  top: -20%;
-  left: -25%;
-}
-
-.ambient-glow::after {
-  bottom: -25%;
-  right: -25%;
-  background: radial-gradient(circle, rgba(255, 179, 71, 0.14) 0%, transparent 65%);
-  animation-delay: -5s;
+@keyframes glyphDrift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+    opacity: 0.15;
+  }
+  50% {
+    transform: translate3d(0, -40px, 0) rotate(5deg);
+    opacity: 0.25;
+  }
 }
 
 /* ==========================================================================
-   Shell
+   The spread: content column + thumb index
    ========================================================================== */
 
 .onboarding-container {
-  /* The site's glass surface, at container scale. */
-  background: var(--glass-bg);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-2xl);
-  max-width: 1100px;
-  width: 100%;
-  /* `margin: auto` (rather than relying only on the body's centering) keeps a
-     tall step from having its top clipped on short viewports. */
-  margin: auto;
-  overflow: hidden;
   position: relative;
-  z-index: 10;
-  animation: fadeIn 500ms ease-out;
+  z-index: 1;
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  padding: clamp(2.25rem, 5vh, 3.75rem) clamp(1.5rem, 5vw, 4rem) 6rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  column-gap: clamp(2rem, 5vw, 4.5rem);
+  align-items: start;
 }
 
 .onboarding-content {
-  padding: 3.75rem 3rem;
-  min-height: 600px;
+  min-width: 0;
 }
 
 .onboarding-step {
@@ -287,372 +333,694 @@ body::-webkit-scrollbar-thumb:hover,
 
 .onboarding-step.active {
   display: block;
-  animation: slideUp 500ms ease-out;
 }
 
-.step-content {
-  max-width: 1000px;
-  margin: 0 auto;
+/* --- Running head -------------------------------------------------------- */
+
+.running-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding-bottom: 0.875rem;
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-3);
 }
 
-/* ==========================================================================
-   Typography
-   ========================================================================== */
-
-/* Gradient text is reserved for brand emphasis, the way the site's Hero uses
-   it: one gradient line, everything else in solid text colours. */
-.hero-title,
-#selected-language-name,
-#loading-language-name {
-  background: var(--gradient-primary);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
+.folio {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.hero-content {
-  text-align: center;
-  padding: 2.5rem 0;
+/* --- Entry --------------------------------------------------------------- */
+
+.entry {
+  padding-top: clamp(3rem, 8vh, 5.5rem);
 }
 
-.hero-logo {
-  margin-bottom: 1.75rem;
-  animation: float 6s ease-in-out infinite;
+.headline {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
 }
 
-.logo-large {
-  width: 112px;
-  height: 112px;
-  border-radius: var(--radius-xl);
-  padding: 1.125rem;
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--shadow-lg);
-}
-
-.hero-title {
-  font-size: 4.5rem;
-  font-weight: 900;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
-  padding-bottom: 0.125rem;
-  margin-bottom: 1.25rem;
-}
-
-.gradient-divider {
-  width: 80px;
-  height: 3px;
-  background: var(--gradient-primary);
-  margin: 0 auto 1.5rem;
-  border-radius: var(--radius-pill);
-}
-
-.hero-subtitle {
-  font-size: 1.75rem;
-  font-weight: 300;
-  color: var(--color-text-secondary);
-  margin-bottom: 1.25rem;
-  letter-spacing: -0.01em;
-}
-
-.hero-description {
-  font-size: 1.125rem;
-  font-weight: 300;
-  color: var(--color-text-muted);
-  line-height: 1.7;
-  max-width: 700px;
-  margin: 0 auto 3rem;
-}
-
-.step-title {
-  font-size: 2.75rem;
-  font-weight: 800;
-  color: var(--color-text);
-  letter-spacing: -0.025em;
-  line-height: 1.15;
-  margin-bottom: 1rem;
-  text-align: center;
-  text-wrap: balance;
-}
-
-.step-description {
-  font-size: 1.125rem;
-  font-weight: 300;
-  color: var(--color-text-muted);
-  line-height: 1.7;
-  text-align: center;
-  max-width: 680px;
-  margin: 0 auto 3rem;
-  text-wrap: balance;
-}
-
-#selected-language-name,
-#loading-language-name {
+.headword {
+  font-family: var(--font-display);
   font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 0.98;
+  color: var(--ink);
+  text-wrap: balance;
+  max-width: 20ch;
+}
+
+h1.headword {
+  font-size: clamp(3.25rem, 8vw, 5.5rem);
+}
+
+h2.headword {
+  font-size: clamp(2.125rem, 5.2vw, 3.5rem);
+}
+
+.headword-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: var(--ink-3);
+  transform: translateY(-0.35em);
+}
+
+.pos {
+  color: var(--ink-2);
+}
+
+/* --- Senses -------------------------------------------------------------- */
+
+.senses {
+  list-style: none;
+  counter-reset: sense;
+  margin-top: 2.25rem;
+  max-width: calc(68ch + 2.75rem);
+}
+
+.sense {
+  position: relative;
+  padding-left: 2.75rem;
+  font-family: var(--font-text);
+  font-size: 1.0625rem;
+  font-weight: 400;
+  line-height: 1.75;
+  color: var(--ink-2);
+}
+
+.sense + .sense {
+  margin-top: 1.125rem;
+}
+
+.sense::before {
+  counter-increment: sense;
+  content: counter(sense);
+  position: absolute;
+  left: 0;
+  top: 0.42em;
+  width: 1.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+
+/* Names the flow fills in mid-sentence. */
+#selected-language-name,
+#loading-language-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* A key you actually press. */
+.key {
+  display: inline-block;
+  padding: 0.1em 0.4em;
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 0.78em;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.action-inline {
+  display: block;
+  margin-top: 1.375rem;
 }
 
 /* ==========================================================================
-   Buttons — the site's AnimatedButton (full pills, scale-on-hover)
+   Controls
    ========================================================================== */
 
 .btn {
-  font-family: inherit;
-  font-size: 1rem;
-  font-weight: 600;
-  padding: 0.75rem 1.5rem;
-  border: 1px solid transparent;
-  border-radius: var(--radius-pill);
-  cursor: pointer;
-  transition: var(--transition);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  position: relative;
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  line-height: 1;
+  padding: 0.8125rem 1.5rem;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
   white-space: nowrap;
-}
-
-.btn:hover:not(:disabled) {
-  transform: scale(1.05);
-}
-
-.btn:active:not(:disabled) {
-  transform: scale(0.95);
-}
-
-.btn:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 3px;
-}
-
-.btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.btn-arrow {
-  width: 1.25rem;
-  height: 1.25rem;
-  transition: transform 300ms ease;
-}
-
-.btn:hover:not(:disabled) .btn-arrow {
-  transform: translateX(4px);
+  transition: background-color 160ms var(--ease-out),
+    border-color 160ms var(--ease-out), color 160ms var(--ease-out);
 }
 
 .btn-primary {
-  background: var(--gradient-primary);
-  color: #ffffff;
-  box-shadow: var(--shadow-lg);
+  background: var(--accent);
+  color: var(--ground);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--gradient-primary-hover);
-  box-shadow: var(--shadow-xl);
+  background: var(--accent-bright);
 }
 
-.btn-secondary {
-  background: var(--white-05);
-  border-color: var(--white-10);
-  color: var(--color-text);
+.btn-primary:active:not(:disabled) {
+  background: var(--accent-deep);
 }
 
-.btn-secondary:hover:not(:disabled) {
-  background: var(--white-10);
-  border-color: var(--white-20);
+/* Disabled reads as "not yet available", not as a dimmed orange. */
+.btn-primary:disabled {
+  background: none;
+  border-color: var(--rule);
+  color: var(--ink-3);
+  cursor: not-allowed;
 }
 
-/* lg size */
-.btn-hero,
-.btn-large {
-  padding: 1rem 2rem;
-  font-size: 1.125rem;
+.btn-outline {
+  border-color: var(--rule);
+  color: var(--ink);
 }
 
-.btn-large {
-  margin: 3rem auto 0;
+.btn-outline:hover:not(:disabled) {
+  border-color: var(--ink-3);
 }
 
-.btn-bulk-import {
-  width: 100%;
+.btn-outline:disabled {
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+
+/* Secondary moves read as cross-references, not as buttons. */
+.btn-quiet {
+  padding: 0.3125rem 0;
+  color: var(--ink-3);
+  border-bottom-color: transparent;
+  border-radius: 0;
+}
+
+.btn-quiet:hover:not(:disabled) {
+  color: var(--ink);
+  border-bottom-color: var(--rule-strong);
+}
+
+.btn-quiet:disabled {
+  cursor: not-allowed;
+  color: var(--rule-strong);
+}
+
+.step-nav {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  margin-top: 3rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--rule);
 }
 
 /* ==========================================================================
-   Feature showcase (tutorial step)
+   Thumb index
+   ========================================================================== */
+
+.progress-indicator {
+  position: sticky;
+  top: clamp(2.25rem, 5vh, 3.75rem);
+  display: flex;
+  flex-direction: column;
+  min-width: 7.5rem;
+}
+
+.progress-dot {
+  position: relative;
+  padding: 0.8125rem 0 0.8125rem 1.125rem;
+  border-top: 1px solid var(--rule);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  white-space: nowrap;
+  transition: color 240ms var(--ease-out);
+}
+
+.progress-dot::after {
+  content: attr(data-label);
+}
+
+.progress-dot:last-child {
+  border-bottom: 1px solid var(--rule);
+}
+
+/* Reached. */
+.progress-dot.active {
+  color: var(--ink-2);
+}
+
+/* Live — the last step that has been reached. Its rule is cut through in
+   orange and runs off the left edge of the tab column into the gutter. */
+.progress-dot.active:not(:has(~ .progress-dot.active)) {
+  color: var(--accent);
+}
+
+.progress-dot.active:not(:has(~ .progress-dot.active))::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: -1.75rem;
+  right: 0;
+  height: 1px;
+  background: var(--accent);
+}
+
+/* ==========================================================================
+   Language selection
+   (language-selector.css ships a light theme and loads after this file, so
+   these rules win on specificity rather than on order.)
+   ========================================================================== */
+
+.language-selector-wrapper {
+  margin-top: 2.75rem;
+}
+
+#language-selector-container .language-grid,
+#native-language-selector-container .language-grid {
+  display: grid;
+  column-gap: clamp(1.5rem, 3vw, 3rem);
+  row-gap: 0;
+  padding: 0;
+  border-top: 1px solid var(--rule);
+}
+
+/* Four target languages carry a description, so they get wide columns; the
+   eight native languages are one line each and set narrower. */
+#language-selector-container .language-grid {
+  grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+}
+
+#native-language-selector-container .language-grid {
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+}
+
+#language-selector-container .language-card,
+#native-language-selector-container .language-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-height: 0;
+  padding: 1.125rem 2.5rem 1.25rem 1.25rem;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  border-radius: 0;
+  /* The component sheet lifts and glows these on hover and selection; this
+     world has no depth system, so both are removed rather than restyled. */
+  box-shadow: none;
+  transform: none;
+  cursor: pointer;
+  transition: color 160ms var(--ease-out);
+}
+
+#language-selector-container .language-card:hover,
+#native-language-selector-container .language-card:hover,
+#language-selector-container .language-card.selected,
+#native-language-selector-container .language-card.selected {
+  background: none;
+  box-shadow: none;
+  transform: none;
+}
+
+/* The active-choice mark: a hairline in the margin, one pixel wide. */
+#language-selector-container .language-card::before,
+#native-language-selector-container .language-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: -1px;
+  width: 1px;
+  background: transparent;
+  transition: background-color 160ms var(--ease-out);
+}
+
+#language-selector-container .language-card:hover::before,
+#native-language-selector-container .language-card:hover::before {
+  background: var(--rule-strong);
+}
+
+#language-selector-container .language-card.selected::before,
+#native-language-selector-container .language-card.selected::before {
+  background: var(--accent);
+}
+
+#language-selector-container .language-card.selected,
+#native-language-selector-container .language-card.selected {
+  border-bottom-color: var(--accent);
+}
+
+/* The emoji flags are replaced by the language's code, set the way a
+   dictionary sets one. */
+#language-selector-container .language-flag,
+#native-language-selector-container .language-flag {
+  font-size: 0;
+  line-height: 1;
+  margin: 0 0 0.5rem;
+}
+
+#language-selector-container .language-flag::before,
+#native-language-selector-container .language-flag::before {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+#language-selector-container .language-card.selected .language-flag::before,
+#native-language-selector-container .language-card.selected .language-flag::before {
+  color: var(--accent);
+}
+
+#language-selector-container .language-card[data-language="zh"] .language-flag::before,
+#native-language-selector-container .language-card[data-code="zh"] .language-flag::before {
+  content: "zh";
+}
+
+#language-selector-container .language-card[data-language="en"] .language-flag::before,
+#native-language-selector-container .language-card[data-code="en"] .language-flag::before {
+  content: "en";
+}
+
+#language-selector-container .language-card[data-language="es"] .language-flag::before,
+#native-language-selector-container .language-card[data-code="es"] .language-flag::before {
+  content: "es";
+}
+
+#language-selector-container .language-card[data-language="fr"] .language-flag::before,
+#native-language-selector-container .language-card[data-code="fr"] .language-flag::before {
+  content: "fr";
+}
+
+#native-language-selector-container .language-card[data-code="vi"] .language-flag::before {
+  content: "vi";
+}
+
+#native-language-selector-container .language-card[data-code="ko"] .language-flag::before {
+  content: "ko";
+}
+
+#native-language-selector-container .language-card[data-code="ja"] .language-flag::before {
+  content: "ja";
+}
+
+#native-language-selector-container .language-card[data-code="de"] .language-flag::before {
+  content: "de";
+}
+
+#language-selector-container .language-info,
+#native-language-selector-container .language-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+#language-selector-container .language-name,
+#native-language-selector-container .language-name {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-family: var(--font-display), var(--font-cjk);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+#language-selector-container .language-card.selected .language-name,
+#native-language-selector-container .language-card.selected .language-name {
+  color: var(--accent);
+}
+
+#language-selector-container .language-native,
+#native-language-selector-container .language-native {
+  font-family: var(--font-display), var(--font-cjk);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--ink-3);
+}
+
+#language-selector-container .language-description,
+#native-language-selector-container .language-description {
+  margin-top: 0.375rem;
+  font-family: var(--font-text);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+
+#language-selector-container .language-select-indicator,
+#native-language-selector-container .language-select-indicator {
+  position: absolute;
+  top: 1.25rem;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  color: var(--rule-strong);
+  transition: color 160ms var(--ease-out);
+}
+
+#language-selector-container .language-select-indicator svg,
+#native-language-selector-container .language-select-indicator svg {
+  width: 100%;
+  height: 100%;
+}
+
+#language-selector-container .language-card.selected .language-select-indicator,
+#native-language-selector-container .language-card.selected .language-select-indicator {
+  color: var(--accent);
+}
+
+.beta-tag {
+  padding: 0.15em 0.4em;
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  line-height: 1.4;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.beta-tooltip {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  max-width: 52ch;
+  margin-top: 1.75rem;
+  font-family: var(--font-text);
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: var(--ink-3);
+}
+
+.beta-tooltip-icon {
+  flex: none;
+  display: block;
+  width: 1.0625rem;
+  height: 1.0625rem;
+  margin-top: 0.15rem;
+  color: var(--ink-3);
+}
+
+.beta-tooltip-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.beta-tooltip-highlight {
+  font-family: var(--font-mono);
+  font-size: 0.8125em;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+/* ==========================================================================
+   Lookup tutorial
    ========================================================================== */
 
 .feature-showcase {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3.5rem;
-  align-items: center;
-  margin-bottom: 3rem;
-}
-
-.feature-text {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.feature-badge {
-  display: inline-flex;
-  align-items: center;
-  width: fit-content;
-  padding: 0.5rem 1.25rem;
-  background: var(--white-05);
-  border: 1px solid var(--white-10);
-  border-radius: var(--radius-pill);
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--color-primary-lighter);
-  transition: var(--transition);
-}
-
-.feature-badge:hover {
-  border-color: rgba(255, 107, 71, 0.3);
-  transform: scale(1.05);
-}
-
-.feature-title {
-  font-size: 2.25rem;
-  font-weight: 800;
-  color: var(--color-text);
-  letter-spacing: -0.025em;
-  line-height: 1.2;
-  text-wrap: balance;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: clamp(1.75rem, 3.5vw, 3rem);
+  align-items: start;
+  margin-top: 2.75rem;
 }
 
 .feature-hint {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.625rem;
-  padding: 0.75rem 1.25rem;
-  background: var(--primary-08);
-  border: 1px solid var(--primary-20);
-  border-radius: var(--radius-pill);
-  width: fit-content;
-  margin-top: 0.25rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  font-family: var(--font-text);
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--ink-2);
 }
 
 .hint-icon {
-  font-size: 1.25rem;
-  line-height: 1;
+  flex: none;
+  display: block;
+  width: 1.0625rem;
+  height: 1.0625rem;
+  color: var(--ink-3);
+  margin-top: 0.28rem;
 }
 
-.feature-hint span:last-child {
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: var(--color-primary-lighter);
+.hint-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .feature-list {
   list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin-top: 0.5rem;
+  margin-top: 2.25rem;
+  border-top: 1px solid var(--rule);
 }
 
 .feature-list li {
   display: flex;
   align-items: center;
   gap: 1rem;
-  font-size: 1rem;
-  color: var(--color-text-secondary);
-  min-height: 32px;
-}
-
-.feature-list li > span {
-  display: inline-block;
+  padding: 0.875rem 0;
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--font-text);
+  font-size: 0.9375rem;
   line-height: 1.5;
-  white-space: normal;
+  color: var(--ink-2);
 }
 
-/* Geometry-only normalisation of the real popup buttons used as legend icons.
-   Colours stay owned by popup.css. */
+/* Geometry-only normalisation of the real popup controls used as a legend.
+   Their colours stay owned by popup.css. */
 .feature-list .pronunciation-btn {
   position: relative !important;
-  flex-shrink: 0;
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   margin: 0;
 }
 
 .feature-list .pronunciation-btn .icon {
-  font-size: 14px;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
+  width: 14px;
+  height: 14px;
+  line-height: 0;
+}
+
+.feature-list .pronunciation-btn .icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .feature-list .anki-btn {
   position: relative !important;
   top: auto !important;
   right: auto !important;
-  flex-shrink: 0;
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px !important;
-  height: 28px !important;
+  width: 26px !important;
+  height: 26px !important;
   margin: 0;
   padding: 0 !important;
-  font-size: 13px !important;
+  font-family: var(--font-display);
+  font-size: 12px !important;
   font-weight: 700;
-  font-family: inherit;
   line-height: 1;
-  text-align: center;
   box-sizing: border-box;
 }
 
 .feature-list .mark-known-btn {
   position: relative !important;
-  flex-shrink: 0;
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 28px;
+  height: 26px;
   margin: 0;
-  padding: 0 12px;
-  font-size: 10px;
+  padding: 0 10px;
+  font-family: var(--font-display);
+  font-size: 11px;
   line-height: 1;
   box-sizing: border-box;
 }
 
-.feature-visual {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* --- The citation -------------------------------------------------------- */
+
+/* The column edge only exists while there are two columns to divide. */
+@media (min-width: 1001px) {
+  .feature-visual {
+    border-left: 1px solid var(--rule);
+    padding-left: 3rem;
+  }
 }
 
-/* ==========================================================================
-   Interactive demo sentence
-   ========================================================================== */
+.citation-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
 
+/* No hover transform here, unlike everything else on the page: this surface is
+   hit-tested character by character during Shift-hover, and moving the text
+   fights the lookup. */
 .onboarding-sentence-container {
-  width: 100%;
-  max-width: 500px;
-  background: var(--glass-bg);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-lg);
-  padding: 2rem 1.5rem;
-  box-shadow: var(--shadow-lg);
-  min-height: 140px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: border-color 300ms ease;
+  margin-top: 0.875rem;
+  padding: 1.75rem 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  background: none;
+  transition: border-color 220ms var(--ease-out);
 
   /* Preserve every space so the runtime highlighter can wrap a word without
      shifting the rest of the sentence. */
@@ -663,23 +1031,21 @@ body::-webkit-scrollbar-thumb:hover,
   overflow-wrap: break-word !important;
 }
 
-/* Deliberately no hover scale here, unlike the other cards: this surface is
-   hit-tested character-by-character (Shift + hover) and text must not move
-   under the cursor. */
 .onboarding-sentence-container:hover {
-  border-color: var(--glass-border-hover);
+  border-color: var(--rule-strong);
 }
 
 .onboarding-sentence {
-  font-size: 1.375rem;
-  line-height: 2;
-  color: var(--color-text-secondary);
-  text-align: center;
-  width: 100%;
-  min-height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  font-family: var(--font-display), var(--font-cjk);
+  font-size: clamp(1.5rem, 2.6vw, 2rem);
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 1.85;
+  color: var(--ink);
+  min-height: 3.5rem;
+  /* One glyph per character: a ligature would merge two code points into one
+     box and shift what caretRangeFromPoint resolves under the cursor. */
+  font-variant-ligatures: none;
 
   white-space: pre-wrap !important;
   word-spacing: normal !important;
@@ -688,16 +1054,15 @@ body::-webkit-scrollbar-thumb:hover,
   overflow-wrap: break-word !important;
 }
 
-/* Unknown words injected by the page processor */
+/* Unknown words injected by the page processor. */
 .onboarding-sentence-container .chinese-unknown-word,
 .onboarding-sentence-container .unknown-word {
-  color: var(--color-text);
+  color: var(--ink);
   text-decoration: underline;
-  text-decoration-color: var(--color-primary);
+  text-decoration-color: var(--accent);
   text-decoration-thickness: 2px;
-  text-underline-offset: 3px;
+  text-underline-offset: 4px;
   cursor: help;
-  transition: background 200ms ease;
   display: inline;
   white-space: pre-wrap !important;
   word-spacing: normal !important;
@@ -709,14 +1074,6 @@ body::-webkit-scrollbar-thumb:hover,
   line-height: inherit !important;
 }
 
-.onboarding-sentence-container .chinese-unknown-word:hover,
-.onboarding-sentence-container .unknown-word:hover {
-  background: rgba(255, 107, 71, 0.15);
-  padding: 2px 4px;
-  margin: -2px -4px;
-  border-radius: 4px;
-}
-
 /* The lookup highlight must never change the sentence's metrics. */
 .onboarding-sentence-container .lookup-highlight {
   display: inline !important;
@@ -725,7 +1082,7 @@ body::-webkit-scrollbar-thumb:hover,
   letter-spacing: normal !important;
   padding: 0 2px !important;
   margin: 0 !important;
-  border-radius: 3px !important;
+  border-radius: 2px !important;
   box-sizing: content-box !important;
   vertical-align: baseline !important;
   line-height: 1.3 !important;
@@ -734,497 +1091,378 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 /* ==========================================================================
-   Language selector
-   (language-selector.css ships a light theme and loads after this file, so
-   these overrides need !important.)
+   Dictionary download
    ========================================================================== */
-
-.language-selector-wrapper {
-  margin: 3rem 0;
-}
-
-.language-card {
-  background: var(--glass-bg) !important;
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border) !important;
-  border-radius: var(--radius-lg) !important;
-  padding: 1.5rem !important;
-  transition: var(--transition) !important;
-}
-
-.language-card:hover {
-  background: var(--glass-bg-hover) !important;
-  border-color: var(--glass-border-hover) !important;
-  box-shadow: var(--shadow-lg) !important;
-  transform: scale(1.02) !important;
-}
-
-.language-card.selected {
-  background: var(--primary-08) !important;
-  border-color: var(--color-primary) !important;
-  box-shadow: var(--shadow-lg) !important;
-}
-
-.language-name {
-  color: var(--color-text) !important;
-  font-weight: 600 !important;
-  display: flex !important;
-  align-items: center !important;
-  flex-wrap: wrap !important;
-  gap: 4px !important;
-}
-
-.language-native,
-.language-description {
-  color: var(--color-text-muted) !important;
-}
-
-.language-select-indicator {
-  color: rgba(255, 255, 255, 0.15) !important;
-}
-
-.language-card.selected .language-select-indicator {
-  color: var(--color-primary) !important;
-}
-
-/* Beta tag */
-.beta-tag {
-  display: inline-block;
-  margin-left: 0.5rem;
-  padding: 2px 8px;
-  background: var(--primary-08);
-  border: 1px solid var(--primary-20);
-  border-radius: var(--radius-pill);
-  font-size: 0.625rem;
-  font-weight: 700;
-  color: var(--color-primary-lighter);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  vertical-align: middle;
-}
-
-.beta-tooltip {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-top: 1.5rem;
-  padding: 1rem 1.25rem;
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-lg);
-  font-size: 0.875rem;
-  color: var(--color-text-muted);
-  line-height: 1.6;
-}
-
-.beta-tooltip-icon {
-  font-size: 1.125rem;
-  flex-shrink: 0;
-}
-
-.beta-tooltip-text {
-  flex: 1;
-}
-
-.beta-tooltip-highlight {
-  color: var(--color-primary-lighter);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-/* ==========================================================================
-   Level selector & bulk import
-   ========================================================================== */
-
-.level-selector-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin: 2rem 0;
-}
-
-.level-option {
-  background: var(--glass-bg);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-lg);
-  padding: 1.5rem;
-  cursor: pointer;
-  transition: var(--transition);
-  text-align: center;
-}
-
-.level-option:hover {
-  background: var(--glass-bg-hover);
-  border-color: var(--glass-border-hover);
-  box-shadow: var(--shadow-lg);
-  transform: scale(1.02);
-}
-
-.level-option.selected {
-  background: var(--primary-08);
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-lg);
-}
-
-.level-name {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--color-text);
-  margin-bottom: 0.5rem;
-}
-
-.level-word-count {
-  font-size: 0.875rem;
-  color: var(--color-text-muted);
-  font-weight: 500;
-}
-
-.bulk-import-section {
-  margin-top: 2rem;
-  padding: 1.5rem;
-  background: var(--glass-bg);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-lg);
-}
-
-.bulk-import-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--color-text);
-  letter-spacing: -0.015em;
-  margin-bottom: 0.5rem;
-}
-
-.bulk-import-description {
-  font-size: 0.875rem;
-  color: var(--color-text-muted);
-  line-height: 1.6;
-  margin-bottom: 1rem;
-}
-
-.bulk-import-textarea {
-  width: 100%;
-  min-height: 120px;
-  padding: 1rem;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--white-10);
-  border-radius: var(--radius-md);
-  color: var(--color-text);
-  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, "Courier New", monospace;
-  font-size: 0.875rem;
-  line-height: 1.6;
-  resize: vertical;
-  transition: var(--transition);
-  margin-bottom: 1rem;
-}
-
-.bulk-import-textarea:focus {
-  outline: none;
-  border-color: var(--primary-40);
-  box-shadow: 0 0 0 3px var(--primary-08);
-  background: var(--white-05);
-}
-
-.bulk-import-textarea::placeholder {
-  color: #64748b;
-}
-
-/* ==========================================================================
-   Loading step
-   ========================================================================== */
-
-.loading-step-content {
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
-}
 
 .dictionary-loading-container {
-  background: var(--glass-bg);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-lg);
-  padding: 1.5rem;
-  margin: 2rem auto;
-  max-width: 600px;
-  width: 100%;
-  text-align: center;
-  transition: var(--transition);
+  max-width: 34rem;
+  margin-top: 2.75rem;
 }
 
 .dictionary-loading-label {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-.loading-text {
-  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-3);
 }
 
 .loading-bar-wrapper {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 1.25rem;
+  margin-top: 0.9375rem;
 }
 
 .loading-bar-background {
+  position: relative;
   flex: 1;
-  height: 8px;
-  background: var(--white-10);
-  border-radius: var(--radius-pill);
-  overflow: hidden;
-  position: relative;
+  height: 2px;
+  background: var(--rule);
 }
 
+/* Width is driven directly by onboarding.ts on a two-pixel rule; it is
+   deliberately not transitioned, so the bar never reports progress the loader
+   has not actually made. */
 .loading-bar-fill {
-  height: 100%;
+  height: 2px;
   width: 0%;
-  background: var(--gradient-primary);
-  border-radius: var(--radius-pill);
-  transition: width 300ms ease-out;
-  position: relative;
-  overflow: hidden;
-}
-
-.loading-bar-fill::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-  animation: shimmer 2s infinite;
+  background: var(--accent);
 }
 
 .loading-percentage {
-  min-width: 45px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--color-primary-light);
-  text-align: right;
+  min-width: 3.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1;
   font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--accent);
 }
 
-.dictionary-loading-container.complete {
-  border-color: rgba(16, 185, 129, 0.3);
-  background: rgba(16, 185, 129, 0.06);
-}
-
+/* Done: the bar is no longer the live thing on the page, so it gives up the
+   accent. */
 .dictionary-loading-container.complete .loading-bar-fill {
-  background: linear-gradient(90deg, var(--color-success), #34d399);
+  background: var(--ink-2);
 }
 
-.dictionary-loading-container.complete .loading-bar-fill::after {
-  animation: none;
-}
-
-.dictionary-loading-container.complete .loading-text,
-.dictionary-loading-container.complete .loading-percentage {
-  color: var(--color-success);
+.dictionary-loading-container.complete .loading-percentage,
+.dictionary-loading-container.complete .loading-text {
+  color: var(--ink-2);
 }
 
 /* ==========================================================================
-   Success step
+   Level & word list
    ========================================================================== */
 
-.success-content {
-  text-align: center;
+.level-selector-container {
+  max-width: 46rem;
+  margin-top: 2.75rem;
+  border-top: 1px solid var(--rule);
 }
 
-.success-icon {
-  font-size: 5rem;
-  line-height: 1;
-  margin-bottom: 1.5rem;
-  animation: float 6s ease-in-out infinite;
+.level-selector-container > p {
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--font-text);
+  font-size: 0.9375rem;
+  color: var(--ink-3);
 }
 
-/* Injected by onboarding.ts, but only when the chosen language has a
-   recommended video — otherwise the container is emptied, so gate the card
-   frame on the link actually being there instead of drawing an empty box. */
+.level-option {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1rem 0.25rem 1rem 1.25rem;
+  border-bottom: 1px solid var(--rule);
+  cursor: pointer;
+  transition: border-color 160ms var(--ease-out);
+}
+
+.level-option::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: -1px;
+  width: 1px;
+  background: transparent;
+  transition: background-color 160ms var(--ease-out);
+}
+
+.level-option:hover::before {
+  background: var(--rule-strong);
+}
+
+.level-option.selected::before {
+  background: var(--accent);
+}
+
+.level-option.selected {
+  border-bottom-color: var(--accent);
+}
+
+.level-name {
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  color: var(--ink);
+  transition: color 160ms var(--ease-out);
+}
+
+.level-option.selected .level-name {
+  color: var(--accent);
+}
+
+.level-word-count {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.bulk-import-section {
+  max-width: 46rem;
+  margin-top: 3.25rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--rule);
+}
+
+.bulk-import-title {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+
+.bulk-import-description {
+  max-width: 62ch;
+  margin-top: 0.5rem;
+  font-family: var(--font-text);
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  color: var(--ink-3);
+}
+
+.bulk-import-textarea {
+  display: block;
+  width: 100%;
+  min-height: 8.5rem;
+  margin-top: 1.25rem;
+  padding: 0.875rem 1rem;
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  color: var(--ink);
+  caret-color: var(--accent);
+  font-family: var(--font-display), var(--font-cjk);
+  font-size: 0.9375rem;
+  line-height: 1.75;
+  resize: vertical;
+  transition: border-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out);
+}
+
+.bulk-import-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.bulk-import-textarea::placeholder {
+  color: var(--ink-3);
+}
+
+.btn-bulk-import {
+  margin-top: 1rem;
+}
+
+/* Drawn from CSS because onboarding.ts rewrites this button's label after an
+   import, which would discard an inline icon. */
+.btn-bulk-import::before {
+  content: "";
+  flex: none;
+  width: 1.0625rem;
+  height: 1.0625rem;
+  background-color: currentColor;
+  -webkit-mask: var(--icon-import) center / contain no-repeat;
+  mask: var(--icon-import) center / contain no-repeat;
+}
+
+:root {
+  --icon-import: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3.75v10'/%3E%3Cpath d='M7.75 9.75 12 14l4.25-4.25'/%3E%3Cpath d='M4.5 19.25h15'/%3E%3C/svg%3E");
+}
+
+/* ==========================================================================
+   Ready
+   ========================================================================== */
+
 .recommended-content:has(.recommended-link) {
-  background: var(--glass-bg);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-lg);
-  padding: 2rem 1.5rem;
-  margin: 2.5rem auto 0;
-  max-width: 700px;
-  text-align: center;
-  transition: var(--transition);
+  max-width: 46rem;
+  margin-top: 3.25rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--rule);
 }
 
 .recommended-content h3 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--color-text);
-  letter-spacing: -0.02em;
-  margin-bottom: 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-3);
 }
 
 .recommended-description {
+  max-width: 62ch;
+  margin-top: 0.875rem;
+  font-family: var(--font-text);
   font-size: 1rem;
-  font-weight: 300;
-  color: var(--color-text-muted);
-  line-height: 1.6;
-  margin-bottom: 1.5rem;
+  line-height: 1.7;
+  color: var(--ink-2);
 }
 
 .recommended-link {
   display: inline-flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1.5rem;
-  background: var(--white-05);
-  border: 1px solid var(--white-10);
-  border-radius: var(--radius-pill);
-  color: var(--color-text);
-  text-decoration: none;
-  font-size: 1rem;
+  gap: 0.6875rem;
+  margin-top: 1.25rem;
+  padding-bottom: 0.375rem;
+  border-bottom: 1px solid var(--rule-strong);
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
   font-weight: 600;
-  transition: var(--transition);
+  color: var(--ink);
+  text-decoration: none;
+  transition: color 160ms var(--ease-out), border-color 160ms var(--ease-out);
 }
 
 .recommended-link:hover {
-  background: var(--white-10);
-  border-color: var(--white-20);
-  transform: scale(1.05);
+  color: var(--accent);
+  border-bottom-color: var(--accent);
 }
 
 .link-icon {
-  font-size: 1.25rem;
-  line-height: 1;
+  flex: none;
+  display: inline-flex;
+  width: 1.0625rem;
+  height: 1.0625rem;
 }
 
-.link-text {
-  font-weight: 600;
+.link-icon svg {
+  width: 100%;
+  height: 100%;
 }
 
 .link-arrow {
-  width: 1.125rem;
-  height: 1.125rem;
-  opacity: 0.7;
-  transition: var(--transition);
-}
-
-.recommended-link:hover .link-arrow {
-  opacity: 1;
-  transform: translate(3px, -3px);
+  width: 0.875rem;
+  height: 0.875rem;
+  flex: none;
 }
 
 /* ==========================================================================
-   Step navigation & progress
+   Motion — one authored moment: the guide rule wipes in from the left and the
+   entry settles under it. Everything else on the page holds still.
    ========================================================================== */
 
-.step-nav {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1.25rem;
-  margin-top: 3rem;
+@keyframes ruleWipe {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
 }
 
-.step-nav-right {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
+@keyframes entrySettle {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
-.progress-indicator {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 1.75rem;
-  background: rgba(255, 255, 255, 0.02);
-  border-top: 1px solid var(--glass-border);
+.onboarding-step.active .running-head {
+  animation: ruleWipe 560ms var(--ease-out) both;
 }
 
-.progress-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: var(--radius-pill);
-  background: var(--white-10);
-  transition: var(--transition);
-}
-
-.progress-dot.active {
-  width: 28px;
-  background: var(--gradient-primary);
+.onboarding-step.active .entry {
+  animation: entrySettle 620ms var(--ease-out) 70ms both;
 }
 
 /* ==========================================================================
    Responsive
    ========================================================================== */
 
-@media (max-width: 968px) {
-  .feature-showcase {
-    grid-template-columns: 1fr;
-    gap: 2.5rem;
+@media (max-width: 1000px) {
+  .onboarding-container {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 2rem;
   }
 
-  .onboarding-sentence-container {
-    max-width: 100%;
+  .progress-indicator {
+    position: static;
+    order: -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    min-width: 0;
+    gap: 0 1.5rem;
+  }
+
+  .progress-dot {
+    padding: 0 0 0.625rem;
+    border-top: 0;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .progress-dot:last-child {
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .progress-dot.active:not(:has(~ .progress-dot.active))::before {
+    top: auto;
+    bottom: -1px;
+    left: 0;
+  }
+
+  .feature-showcase {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 2.5rem;
   }
 }
 
-@media (max-width: 768px) {
-  body {
-    padding: 1.25rem 0.75rem;
+@media (max-width: 620px) {
+  .headword {
+    max-width: none;
   }
 
-  .onboarding-content {
-    padding: 2.5rem 1.5rem;
+  .headword-meta {
+    transform: none;
   }
 
-  .hero-title {
-    font-size: 3rem;
-  }
-
-  .hero-subtitle {
-    font-size: 1.375rem;
-  }
-
-  .hero-description,
-  .step-description {
-    font-size: 1rem;
-  }
-
-  .step-title,
-  .feature-title {
-    font-size: 2rem;
+  .sense {
+    padding-left: 2rem;
   }
 
   .step-nav {
-    flex-direction: column;
-    align-items: stretch;
+    gap: 1.25rem;
   }
 
-  .step-nav-right {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .btn {
-    width: 100%;
-  }
-
-  .btn-large {
-    width: auto;
+  .loading-bar-wrapper {
+    gap: 0.875rem;
   }
 }
 
