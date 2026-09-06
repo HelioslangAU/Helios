@@ -248,14 +248,13 @@ a {
 
 .settings-search {
   position: relative;
-  flex: 1 1 auto;
-  max-width: 320px;
-  margin-inline: auto;
+  flex: none;
+  margin-bottom: 0.75rem;
 }
 
 .settings-search-icon {
   position: absolute;
-  left: 0.75rem;
+  left: 0.6875rem;
   top: 50%;
   transform: translateY(-50%);
   width: 15px;
@@ -266,7 +265,7 @@ a {
 
 #settings-search {
   width: 100%;
-  padding: 0.4375rem 0.875rem 0.4375rem 2.125rem;
+  padding: 0.5rem 0.75rem 0.5rem 2rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
   background: rgba(255, 255, 255, 0.03);
@@ -941,6 +940,46 @@ select.form-control option {
 /* ==========================================================================
    Readouts
    ========================================================================== */
+
+/* --- Undo notice ---------------------------------------------------------- */
+
+.switch-notice {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.625rem;
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgba(255, 107, 71, 0.28);
+  border-radius: var(--radius);
+  background: var(--primary-tint);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.switch-notice[hidden] {
+  display: none;
+}
+
+/* An action set as text, because it belongs inside a sentence rather than
+   competing with the control the sentence is about. */
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 600;
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.link-button:hover {
+  color: var(--primary-lighter);
+}
 
 /* --- Anki's ordering ------------------------------------------------------
    Deck, note type and field mapping do nothing until AnkiConnect answers.

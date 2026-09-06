@@ -25,8 +25,15 @@
           <img class="running-mark" src="/icons/icon128.png" alt="" width="22" height="22" />
           Helios Settings<span class="running-section" aria-hidden="true"></span>
         </h1>
-        <!-- Spans every section, not just the open one: the question a
-             settings search answers is "which section is this in". -->
+        <p class="running-note" id="save-state" data-state="idle" role="status">Changes save automatically</p>
+      </header>
+
+      <!-- The index. Buttons, not divs: the tab handler listens for click, and
+           a button fires click on Enter and Space, so the index is reachable
+           from the keyboard with no extra script. -->
+      <nav class="settings-index" aria-label="Settings sections">
+        <!-- Search leads the sidebar because finding a setting and navigating
+             to one are the same task; the header is for identity and state. -->
         <div class="settings-search">
           <svg class="settings-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
             <circle cx="11" cy="11" r="7"></circle>
@@ -35,13 +42,6 @@
           <input type="search" id="settings-search" placeholder="Search settings" aria-label="Search settings" autocomplete="off" spellcheck="false" />
         </div>
 
-        <p class="running-note" id="save-state" data-state="idle" role="status">Changes save automatically</p>
-      </header>
-
-      <!-- The index. Buttons, not divs: the tab handler listens for click, and
-           a button fires click on Enter and Space, so the index is reachable
-           from the keyboard with no extra script. -->
-      <nav class="settings-index" aria-label="Settings sections">
         <button type="button" class="nav-item active" data-tab="general">
           <span class="nav-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">

@@ -6,6 +6,7 @@ import { browser } from 'wxt/browser';
 import { items, storage } from '@/config/storage';
 import type { HeliosSettingsManager } from '@/content/settings/helios-settings';
 import { ShortcutHelper } from '@/content/utils/shortcut-helper';
+import { showLanguageSwitchNotice, hideLanguageSwitchNotice } from "@/content/settings/language-switch-notice";
 
 interface HotkeyConfig {
   key: string;
@@ -115,22 +116,27 @@ export class HeliosSettingsUI {
     }
 
     // Target language change
-    const targetLanguage = document.getElementById("target-language");
+    const targetLanguage = document.getElementById("target-language") as HTMLSelectElement | null;
     if (targetLanguage) {
+      // The select does not report what it was showing, and the notice has to
+      // name the language whose lists are now hidden.
+      targetLanguage.dataset.previous = targetLanguage.value;
+
       targetLanguage.addEventListener("change", (e) => {
-        console.log("Target language changed:", (e.target as HTMLSelectElement).value);
-        // Send message to content scripts to update language
-        browser.tabs.query({}, (tabs) => {
-          tabs.forEach((tab) => {
-            browser.tabs
-              .sendMessage(tab.id!, {
-                action: "updateLanguage",
-                language: (e.target as HTMLSelectElement).value,
-              })
-              .catch(() => {
-                // Tab might not have content script loaded, ignore
-              });
-          });
+        const select = e.target as HTMLSelectElement;
+        const previous = select.dataset.previous ?? "";
+        console.log("Target language changed:", select.value);
+
+        this.applyTargetLanguage(select.value);
+        select.dataset.previous = select.value;
+
+        showLanguageSwitchNotice(previous, select.value, {
+          onUndo: (restore) => {
+            select.value = restore;
+            select.dataset.previous = restore;
+            this.applyTargetLanguage(restore);
+            this.manager.storage!.saveSettings();
+          },
         });
       });
     }
@@ -267,6 +273,57 @@ export class HeliosSettingsUI {
     }
   }
 
+  /** Tell every open tab to reload against `language`. */
+  private applyTargetLanguage(language: string): void {
+    browser.tabs.query({}, (tabs) => {
+      tabs.forEach((tab) => {
+        browser.tabs
+          .sendMessage(tab.id!, { action: "updateLanguage", language })
+          .catch(() => {
+            // Tab might not have a content script loaded; ignore.
+          });
+      });
+    });
+  }
+
+  /**
+   * Put a key recorder into listening mode, remembering what it was showing.
+   *
+   * The recorder clears itself so the prompt is visible, which means clicking
+   * away without pressing anything has to put the old key back. Restoring it
+   * from stored settings — which is what the blur handlers used to do — fails
+   * whenever that lookup comes back empty, and the box is then left showing
+   * "Press any key…" as though it were still listening. Remembering the value
+   * we just cleared cannot fail that way.
+   */
+  private beginRecording(element: HTMLInputElement): void {
+    element.dataset.previousValue = element.value;
+    element.dataset.previousPlaceholder = element.placeholder;
+    element.removeAttribute("readonly");
+    element.value = "";
+    element.placeholder = "Press any key\u2026";
+  }
+
+  /**
+   * Leave listening mode. A recorder that took a key keeps it; one that was
+   * abandoned or whose key was rejected goes back to exactly what it showed.
+   */
+  private endRecording(element: HTMLInputElement, fallback?: () => string | null): void {
+    element.setAttribute("readonly", "true");
+
+    const previousPlaceholder = element.dataset.previousPlaceholder;
+    if (previousPlaceholder !== undefined) {
+      element.placeholder = previousPlaceholder;
+    }
+
+    if (!element.value) {
+      element.value = element.dataset.previousValue || fallback?.() || "";
+    }
+
+    delete element.dataset.previousValue;
+    delete element.dataset.previousPlaceholder;
+  }
+
   setupShortcutsEventListeners(): void {
     console.log("Setting up shortcuts event listeners");
 
@@ -286,9 +343,7 @@ export class HeliosSettingsUI {
 
       // On focus/click, enable recording
       element.addEventListener("focus", () => {
-        element.removeAttribute("readonly");
-        element.value = "";
-        element.placeholder = "Press any key...";
+        this.beginRecording(element);
         this.clearShortcutError(shortcutId);
       });
 
@@ -348,14 +403,10 @@ export class HeliosSettingsUI {
 
       // Handle blur - restore readonly
       element.addEventListener("blur", () => {
-        element.setAttribute("readonly", "true");
-        // Restore value if empty
-        if (!element.value) {
-          const currentShortcut = this.getCurrentPopupShortcut(shortcutId);
-          if (currentShortcut) {
-            element.value = this.formatHotkeyDisplay(currentShortcut);
-          }
-        }
+        this.endRecording(element, () => {
+          const current = this.getCurrentPopupShortcut(shortcutId);
+          return current ? this.formatHotkeyDisplay(current) : null;
+        });
       });
     });
 
@@ -373,9 +424,7 @@ export class HeliosSettingsUI {
 
       // On focus/click, enable recording
       element.addEventListener("focus", () => {
-        element.removeAttribute("readonly");
-        element.value = "";
-        element.placeholder = "Press any key...";
+        this.beginRecording(element);
         this.clearShortcutError(shortcutId);
       });
 
@@ -434,14 +483,10 @@ export class HeliosSettingsUI {
 
       // Handle blur - restore readonly
       element.addEventListener("blur", () => {
-        element.setAttribute("readonly", "true");
-        // Restore value if empty
-        if (!element.value) {
-          const currentShortcut = this.getCurrentVideoShortcut(shortcutId);
-          if (currentShortcut) {
-            element.value = this.formatHotkeyDisplay(currentShortcut);
-          }
-        }
+        this.endRecording(element, () => {
+          const current = this.getCurrentVideoShortcut(shortcutId);
+          return current ? this.formatHotkeyDisplay(current) : null;
+        });
       });
     });
   }
@@ -890,6 +935,8 @@ export class HeliosSettingsUI {
     const targetLanguage = tabElement.querySelector<HTMLSelectElement>("#target-language");
     if (targetLanguage) {
       targetLanguage.value = this.manager.settings.targetLanguage || 'zh';
+      targetLanguage.dataset.previous = targetLanguage.value;
+      hideLanguageSwitchNotice();
       console.log(
         "🔍 Set target language:",
         this.manager.settings.targetLanguage
@@ -1195,9 +1242,7 @@ export class HeliosSettingsUI {
 
       // On focus/click, enable recording
       element.addEventListener("focus", () => {
-        element.removeAttribute("readonly");
-        element.value = "";
-        element.placeholder = "Press any key...";
+        this.beginRecording(element);
         this.clearShortcutError(hotkeyId);
       });
 
@@ -1245,14 +1290,10 @@ export class HeliosSettingsUI {
 
       // Handle blur - restore readonly
       element.addEventListener("blur", () => {
-        element.setAttribute("readonly", "true");
-        // Restore value if empty
-        if (!element.value) {
-          const currentHotkey = this.getCurrentVideoPlayerHotkey(hotkeyId);
-          if (currentHotkey) {
-            element.value = this.formatHotkeyDisplay(currentHotkey);
-          }
-        }
+        this.endRecording(element, () => {
+          const current = this.getCurrentVideoPlayerHotkey(hotkeyId);
+          return current ? this.formatHotkeyDisplay(current) : null;
+        });
       });
     });
   }
