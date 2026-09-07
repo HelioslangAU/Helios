@@ -3,6 +3,7 @@
 import { browser } from 'wxt/browser';
 
 import { items, recentVocabItem, storage, type VocabEntry } from '@/config/storage';
+import { flagSvg } from '@/content/components/language-selector/flags';
 
 /** A saved vocabulary entry as stored in local storage. */
 interface VocabItem extends VocabEntry {
@@ -16,16 +17,17 @@ interface VocabItem extends VocabEntry {
 
 // Apply extension state styling
 export function applyExtensionState(isEnabled: boolean): void {
-  const body = document.body;
+  document.body.classList.toggle("extension-disabled", !isEnabled);
 
-  if (isEnabled) {
-    // Sunrise mode - extension is ON
-    body.classList.remove("extension-disabled");
-    console.log("🌅 Sunrise mode - Extension enabled");
-  } else {
-    // Sunset mode - extension is OFF
-    body.classList.add("extension-disabled");
-    console.log("🌆 Sunset mode - Extension disabled");
+  // The row says in words what the switch beside it says in position, so the
+  // state is legible without having to know which way the knob means on.
+  const title = document.getElementById("state-title");
+  const note = document.getElementById("state-note");
+  if (title) title.textContent = isEnabled ? "Helios is on" : "Helios is off";
+  if (note) {
+    note.textContent = isEnabled
+      ? "Reading the pages you visit"
+      : "Nothing is being read or changed";
   }
 }
 
@@ -104,6 +106,11 @@ export function initializeExtensionToggle(): void {
       openHeliosSettings();
     });
   }
+
+  // The language row is a way into the one setting the popup names.
+  document.getElementById("language-row")?.addEventListener("click", () => {
+    openHeliosSettings();
+  });
 }
 
 
@@ -123,84 +130,21 @@ export function languageLabel(code: string): string {
   return LANGUAGE_LABELS[code] ?? code.toUpperCase();
 }
 
-export function loadVocabularyList(): void {
-  const vocabList = document.getElementById("vocab-list");
-  const languageName = document.getElementById("current-language");
 
-  if (!vocabList) return;
+/**
+ * Fill the language row: the flag, the name, and the fact that this is what
+ * Helios is currently reading for.
+ */
+export function renderTargetLanguage(): void {
+  const name = document.getElementById('current-language');
+  const flag = document.getElementById('current-flag');
+  if (!name && !flag) return;
 
-  items.targetLanguage.getValue().then(async (targetLanguage) => {
-    const currentLanguage = targetLanguage || 'en';
-
-    // Load recent vocabulary for current language
-    const vocabItems = (await recentVocabItem(currentLanguage).getValue()) as VocabItem[];
-
-    if (languageName) {
-      languageName.textContent = languageLabel(currentLanguage);
-    }
-
-    // Clear existing items
-    vocabList.innerHTML = "";
-
-    if (vocabItems.length === 0) {
-      vocabList.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-icon">📚</div>
-          Start looking up words to build your vocabulary!
-        </div>
-      `;
-      return;
-    }
-
-    // Show recent items (limit to 10 for compact design)
-    const maxItems = document.body.offsetWidth < 400 ? 5 : 10;
-    const recentItems = vocabItems.slice(0, maxItems);
-
-    recentItems.forEach((item) => {
-      const vocabItem = document.createElement("div");
-      vocabItem.className = "vocab-item";
-
-      // Format definition
-      let definition = "No definition available";
-      if (item.definition && item.definition.english) {
-        definition = item.definition.english;
-      } else if (item.definition && typeof item.definition === 'string') {
-        definition = item.definition;
-      }
-
-      // Built with textContent, not innerHTML: words and definitions come from
-      // arbitrary page text and must never be parsed as markup.
-      const vocabContent = document.createElement("div");
-      vocabContent.className = "vocab-content";
-
-      const wordEl = document.createElement("div");
-      wordEl.className = "vocab-word";
-      wordEl.textContent = String(item.word ?? "");
-
-      const definitionEl = document.createElement("div");
-      definitionEl.className = "vocab-definition";
-      definitionEl.textContent = String(definition);
-
-      vocabContent.appendChild(wordEl);
-      vocabContent.appendChild(definitionEl);
-
-      const deleteBtn = document.createElement("button");
-      deleteBtn.className = "delete-btn";
-      deleteBtn.setAttribute("data-word", String(item.word ?? ""));
-      deleteBtn.textContent = "×";
-
-      vocabItem.appendChild(vocabContent);
-      vocabItem.appendChild(deleteBtn);
-      vocabList.appendChild(vocabItem);
-    });
-
-    // Add delete functionality
-    vocabList.querySelectorAll(".delete-btn").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        const word = (e.target as HTMLElement).getAttribute("data-word");
-        removeRecentVocabItem(word, currentLanguage);
-      });
-    });
+  items.targetLanguage.getValue().then((targetLanguage) => {
+    const code = targetLanguage || 'en';
+    if (name) name.textContent = languageLabel(code);
+    // flagSvg returns our own constant markup, never page text.
+    if (flag) flag.innerHTML = flagSvg(code);
   });
 }
 
@@ -227,10 +171,6 @@ export function addToVocabList(character: string, definition: any = null, pinyin
 
       items.chineseExtensionVocabList.setValue(vocabItems).then(() => {
         console.log(`Added ${character} to vocabulary list`);
-        // Update the UI if we're on the extension tab
-        if (document.getElementById("vocab-list")) {
-          loadVocabularyList();
-        }
       });
     }
   });
@@ -243,24 +183,11 @@ export function removeVocabItem(word: string): void {
     );
 
     items.chineseExtensionVocabList.setValue(filteredItems).then(() => {
-      loadVocabularyList();
       console.log(`Removed ${word} from vocabulary list`);
     });
   });
 }
 
-export function removeRecentVocabItem(word: string | null, language: string): void {
-  const recentVocab = recentVocabItem(language);
-
-  recentVocab.getValue().then((stored) => {
-    const filteredItems = (stored as VocabItem[]).filter((item) => item.word !== word);
-
-    recentVocab.setValue(filteredItems).then(() => {
-      loadVocabularyList();
-      console.log(`Removed ${word} from recent vocabulary`);
-    });
-  });
-}
 
 // Open Helios Settings
 export function openHeliosSettings(): void {
@@ -325,7 +252,7 @@ window.addEventListener("DOMContentLoaded", () => {
   initializeExtensionToggle();
 
   // Update core data
-  loadVocabularyList();
+  renderTargetLanguage();
 
   // Handle old UI elements if they still exist (backwards compatibility)
   const oldUpdateBtn = document.getElementById("update-known-words-btn");
@@ -389,11 +316,6 @@ window.addEventListener("DOMContentLoaded", () => {
   // per-language, so this has to scan the changed key names by prefix.
   browser.storage.onChanged.addListener((changes, areaName) => {
     if (areaName === "local") {
-      // Update vocab list for old format or any recent vocab change
-      if (changes.chineseExtensionVocabList ||
-          Object.keys(changes).some(key => key.startsWith('recentVocab_'))) {
-        loadVocabularyList();
-      }
       if (changes.extensionEnabled) {
         // Update toggle state and visual appearance if changed from elsewhere
         const toggle = document.getElementById("extension-toggle");
