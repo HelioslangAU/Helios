@@ -40,6 +40,8 @@ export class ChineseLanguageLearningExtension {
   youtubeSidebar: YouTubeSidebar | null;
   languageRegistry: LanguageRegistry | null;
   languageSwitchCoordinator: LanguageSwitchCoordinator | null;
+  /** Whether this page currently has Helios running on it. */
+  isRunning: boolean;
 
   constructor() {
     this.activation = new ActivationController();
@@ -60,8 +62,29 @@ export class ChineseLanguageLearningExtension {
     this.youtubeSidebar = null;
     this.languageRegistry = null;
     this.languageSwitchCoordinator = null;
+    this.isRunning = false;
 
-    this.init();
+    // Both directions, always. This used to live inside the disabled branch
+    // of init(), so a page that loaded while Helios was on never learned it
+    // had been switched off: the highlights, the hover lookup and the side tab
+    // all carried on until the tab was reloaded.
+    browser.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName !== 'local' || !changes.extensionEnabled) return;
+      if (changes.extensionEnabled.newValue === false) {
+        this.disable();
+      } else if (changes.extensionEnabled.newValue === true && !this.isRunning) {
+        void this.start();
+      }
+    });
+
+    void this.start();
+  }
+
+  /** Run init and keep its failure from becoming an unhandled rejection. */
+  start(): Promise<void> {
+    return this.init().catch((error) => {
+      console.error('🔍 Helios failed to initialize on this page:', error);
+    });
   }
 
   async init(): Promise<void> {
@@ -70,18 +93,10 @@ export class ChineseLanguageLearningExtension {
 
     if (!isExtensionEnabled) {
       console.log("⏸️ Extension is disabled - skipping initialization");
-
-      // Set up listener to initialize when extension gets enabled
-      browser.storage.onChanged.addListener((changes, areaName) => {
-        if (areaName === 'local' && changes.extensionEnabled && changes.extensionEnabled.newValue === true) {
-          console.log("▶️ Extension enabled - initializing now...");
-          // Re-run initialization
-          this.init();
-        }
-      });
-
       return; // EXIT EARLY - don't initialize anything
     }
+
+    this.isRunning = true;
 
     console.log("🔍 Initializing Language Learning Extension...");
 
@@ -257,6 +272,51 @@ export class ChineseLanguageLearningExtension {
     }
 
     console.log("🔍 Language Learning Extension initialized successfully");
+  }
+
+  /**
+   * Stop everything this page has running.
+   *
+   * Turning Helios off has to mean nothing is left working in the background,
+   * not merely that the popup says so: the pointer and key listeners come off,
+   * the marks come off the words, the side tab and any open card close, and
+   * the video features shut down. What survives is storage — the vocabulary is
+   * the durable asset and is never touched by a toggle.
+   */
+  disable(): void {
+    if (!this.isRunning) return;
+    this.isRunning = false;
+    console.log("⏸️ Extension disabled - shutting this page down");
+
+    // Hover lookup and the activation key.
+    this.textScanner.unregister();
+    this.activation.toggleActivationMode(false);
+
+    // Any card still open, and the lookup highlight under it.
+    this.popup?.hidePopup?.();
+    this.popup?.removeAllPopupsFromPage?.();
+    this.highlightManager?.removeLookupHighlight?.();
+
+    // Observers and timers that would keep re-processing the page.
+    this.pageProcessor?.cleanup?.();
+    this.videoFeature?.destroy?.();
+    this.youtubeSidebar?.destroy?.();
+
+    // The comprehension side tab.
+    this.bannerManager?.hideBanner?.();
+
+    // The marks themselves. These are the classes page-processor.ts actually
+    // writes; the coordinator's own clear routine still names an older set and
+    // removes nothing.
+    for (const el of document.querySelectorAll(
+      '.lang-unknown-word, .lang-learning-word, .chinese-unknown-word',
+    )) {
+      el.classList.remove(
+        'lang-unknown-word',
+        'lang-learning-word',
+        'chinese-unknown-word',
+      );
+    }
   }
 
   _registerScanner(): void {
