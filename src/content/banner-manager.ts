@@ -82,7 +82,7 @@ export class BannerManager {
         }
 
         // Calculate and update initial stats
-        const comprehension = await services.pageProcessor!.calculateComprehensionPercentage();
+        const comprehensionRaw = await services.pageProcessor!.calculateComprehensionPercentage();
         const pageWords = await this.calculatePageWordsCount();
         const knownWordsCount = services.vocabManager!.getKnownWordsCount();
         const learningWordsCount = services.vocabManager?.getLearningWordsCount
@@ -95,25 +95,32 @@ export class BannerManager {
         const uniqueStats = services.pageProcessor?.getUniqueWordStats
             ? services.pageProcessor.getUniqueWordStats()
             : { totalUnique: 0, knownUnique: 0 };
+
+        const comprehension =
+            uniqueStats.totalUnique > 0 && Number.isFinite(comprehensionRaw)
+                ? comprehensionRaw
+                : null;
         const breakdown = services.pageProcessor?.getSentenceBreakdownStats
             ? services.pageProcessor.getSentenceBreakdownStats()
             : { totalSentences: 0, t0Sentences: 0, t1Sentences: 0, t2Sentences: 0 };
 
+        // Same rule as refreshData: nothing measured means no figure. This is
+        // the initial-load path, and it carried its own copy of the defaults.
         const uniqueComprehension =
             uniqueStats.totalUnique > 0
                 ? Math.round((uniqueStats.knownUnique / uniqueStats.totalUnique) * 100)
-                : 100;
+                : null;
 
         const sentenceBreakdownPercentage =
             breakdown.totalSentences > 0
                 ? Math.round(((breakdown.t0Sentences + breakdown.t1Sentences + breakdown.t2Sentences) / breakdown.totalSentences) * 100)
-                : 100;
+                : null;
 
         this.updateStats({
             knownWords: knownWordsCount,
             learningWords: learningWordsCount,
             ignoredWords: ignoredWordsCount,
-            comprehension: comprehension,
+            comprehension,
             pageWords: pageWords,
             uniqueComprehension,
             sentenceBreakdownPercentage,
@@ -416,6 +423,7 @@ export class BannerManager {
           const uniqueStats = services.pageProcessor?.getUniqueWordStats
             ? services.pageProcessor.getUniqueWordStats()
             : { totalUnique: 0, knownUnique: 0 };
+
           const breakdown = services.pageProcessor?.getSentenceBreakdownStats
             ? services.pageProcessor.getSentenceBreakdownStats()
             : { totalSentences: 0, t0Sentences: 0, t1Sentences: 0, t2Sentences: 0 };
@@ -442,7 +450,7 @@ export class BannerManager {
             knownWords: knownWords,
             learningWords: learningWords,
             ignoredWords: ignoredWords,
-            comprehension: comprehension,
+            comprehension,
             pageWords: pageWords,
             uniqueComprehension,
             sentenceBreakdownPercentage,
