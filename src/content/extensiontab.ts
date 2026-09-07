@@ -120,6 +120,22 @@ export function updateKnownWordsCounter(): void {
     });
 }
 
+/** Short display names for the recent-lookups badge. */
+const LANGUAGE_LABELS: Record<string, string> = {
+  zh: '\u4e2d\u6587',
+  en: 'English',
+  es: 'Espa\u00f1ol',
+  fr: 'Fran\u00e7ais',
+  vi: 'Ti\u1ebfng Vi\u1ec7t',
+  ko: '\ud55c\uad6d\uc5b4',
+  ja: '\u65e5\u672c\u8a9e',
+  de: 'Deutsch',
+};
+
+export function languageLabel(code: string): string {
+  return LANGUAGE_LABELS[code] ?? code.toUpperCase();
+}
+
 export function loadVocabularyList(): void {
   const vocabList = document.getElementById("vocab-list");
   const vocabCount =
@@ -134,9 +150,9 @@ export function loadVocabularyList(): void {
     // Load recent vocabulary for current language
     const vocabItems = (await recentVocabItem(currentLanguage).getValue()) as VocabItem[];
 
-    // Update count
+    // Name the language rather than counting a capped buffer.
     if (vocabCount) {
-      vocabCount.textContent = `${vocabItems.length} total`;
+      vocabCount.textContent = languageLabel(currentLanguage);
     }
 
     // Clear existing items
