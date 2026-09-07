@@ -106,19 +106,6 @@ export function initializeExtensionToggle(): void {
   }
 }
 
-export function updateKnownWordsCounter(): void {
-  const counter = document.getElementById("vocab-count");
-  if (!counter) return;
-
-  storage
-    .getItems([items.knownWordsByLanguage, items.targetLanguage])
-    .then(([{ value: knownWordsByLanguage }, { value: targetLanguage }]) => {
-      const currentLanguage = targetLanguage || 'en';
-      const knownWords = knownWordsByLanguage[currentLanguage] || [];
-      counter.textContent = String(Array.isArray(knownWords) ? knownWords.length : 0);
-      console.log(`Known words count for ${currentLanguage}:`, knownWords.length);
-    });
-}
 
 /** Short display names for the recent-lookups badge. */
 const LANGUAGE_LABELS: Record<string, string> = {
@@ -138,9 +125,7 @@ export function languageLabel(code: string): string {
 
 export function loadVocabularyList(): void {
   const vocabList = document.getElementById("vocab-list");
-  const vocabCount =
-    document.getElementById("vocab-count-badge") ||
-    document.querySelector(".vocab-count");
+  const languageName = document.getElementById("current-language");
 
   if (!vocabList) return;
 
@@ -150,9 +135,8 @@ export function loadVocabularyList(): void {
     // Load recent vocabulary for current language
     const vocabItems = (await recentVocabItem(currentLanguage).getValue()) as VocabItem[];
 
-    // Name the language rather than counting a capped buffer.
-    if (vocabCount) {
-      vocabCount.textContent = languageLabel(currentLanguage);
+    if (languageName) {
+      languageName.textContent = languageLabel(currentLanguage);
     }
 
     // Clear existing items
@@ -341,7 +325,6 @@ window.addEventListener("DOMContentLoaded", () => {
   initializeExtensionToggle();
 
   // Update core data
-  updateKnownWordsCounter();
   loadVocabularyList();
 
   // Handle old UI elements if they still exist (backwards compatibility)
@@ -379,7 +362,6 @@ window.addEventListener("DOMContentLoaded", () => {
             `✅ Added ${newWords.length} new words! Total: ${current.size} words known.`
           );
           oldInput.value = "";
-          updateKnownWordsCounter();
         });
       });
     });
@@ -401,20 +383,12 @@ window.addEventListener("DOMContentLoaded", () => {
     ankiSettingsBtn.addEventListener("click", openHeliosSettings);
   }
 
-  // Set up periodic updates (every 30 seconds)
-  setInterval(() => {
-    updateKnownWordsCounter();
-  }, 30000);
 
   // Listen for storage changes to update UI in real-time.
   // Raw `onChanged` rather than per-item watches: the recent-vocab keys are
   // per-language, so this has to scan the changed key names by prefix.
   browser.storage.onChanged.addListener((changes, areaName) => {
     if (areaName === "local") {
-      // Update for both old and new storage formats
-      if (changes.chineseExtensionKnownWords || changes.knownWordsByLanguage) {
-        updateKnownWordsCounter();
-      }
       // Update vocab list for old format or any recent vocab change
       if (changes.chineseExtensionVocabList ||
           Object.keys(changes).some(key => key.startsWith('recentVocab_'))) {

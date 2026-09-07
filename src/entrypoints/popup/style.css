@@ -77,12 +77,16 @@ body {
   gap: 8px;
 }
 
+/* The mark is the switch's other face: lit while Helios is running, a dead
+   grey disc while it is not. */
 .brand-mark {
   flex: none;
   display: block;
   border-radius: 50%;
-  /* A sun has a corona. One shadow, at the size of the disc. */
-  box-shadow: 0 0 14px rgba(255, 143, 71, 0.5);
+  box-shadow: 0 0 16px rgba(255, 143, 71, 0.55);
+  transition:
+    box-shadow 320ms var(--ease-out),
+    filter 320ms var(--ease-out);
 }
 
 .brand h1 {
@@ -246,29 +250,31 @@ body {
   );
 }
 
-/* --- The count -----------------------------------------------------------
-   No card. The figure stands in the sky, which is the whole point of putting
-   a sky behind it; boxing it would be putting a rectangle back. */
+/* --- The subject ---------------------------------------------------------
+   What you are learning, which is the thing this panel is switched on for.
+   The count that used to stand here is already on the side tab, in more
+   detail and where you are actually reading. No card: the sky exists to put
+   this in, and boxing it would put the rectangle back. */
 
-.words-learned {
+.current-language {
   position: relative;
   z-index: 1;
-  padding: 30px 16px 30px;
+  padding: 28px 16px 30px;
   text-align: center;
 }
 
-.words-count {
-  font-size: 44px;
+.language-name {
+  font-family: var(--font-cjk), var(--font-sans);
+  font-size: 38px;
   font-weight: 700;
-  line-height: 1;
-  letter-spacing: -0.04em;
-  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
   color: #fff;
-  text-shadow: 0 2px 18px rgba(255, 140, 80, 0.28);
+  text-shadow: 0 2px 18px rgba(255, 140, 80, 0.3);
 }
 
-.words-label {
-  margin-top: 8px;
+.language-label {
+  margin-top: 9px;
   font-family: var(--font-mono);
   font-size: 9.5px;
   font-weight: 500;
@@ -308,17 +314,6 @@ body {
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--text-muted);
-}
-
-/* Names the language this list belongs to, since it is stored per language. */
-.vocab-count {
-  flex: none;
-  padding: 2px 9px;
-  border-radius: var(--radius-pill);
-  background: rgba(255, 255, 255, 0.06);
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text-secondary);
 }
 
 .vocab-list {
@@ -443,4 +438,52 @@ body {
   *::after {
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ==========================================================================
+   Off
+
+   `body.extension-disabled` is set by extensiontab.ts. Off is not a dimmer
+   setting: the sun goes out. Colour drains from the whole surface, the sky
+   loses its warmth, and the mark stops glowing — so a glance tells you the
+   extension is doing nothing, without reading a word.
+
+   The switch itself is deliberately exempt. It is the one control that must
+   stay legible and obviously live, since it is how you get back.
+   ========================================================================== */
+
+body.extension-disabled .brand-mark {
+  box-shadow: none;
+  filter: grayscale(1) brightness(0.7);
+}
+
+body.extension-disabled .sky {
+  opacity: 0.22;
+  filter: grayscale(0.9);
+}
+
+body.extension-disabled .language-name,
+body.extension-disabled .brand h1 {
+  color: var(--text-muted);
+  text-shadow: none;
+}
+
+body.extension-disabled .language-label {
+  color: rgba(148, 163, 184, 0.5);
+}
+
+body.extension-disabled .vocab-section {
+  opacity: 0.5;
+  filter: grayscale(1);
+}
+
+body.extension-disabled .vocab-section,
+body.extension-disabled .sky,
+body.extension-disabled .language-name,
+body.extension-disabled .language-label,
+body.extension-disabled .brand h1 {
+  transition:
+    opacity 320ms var(--ease-out),
+    filter 320ms var(--ease-out),
+    color 320ms var(--ease-out);
 }
