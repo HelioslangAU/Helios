@@ -154,6 +154,43 @@ export function languageEnglishName(code: string): string {
  * Fill the language row: the flag, the name, and the fact that this is what
  * Helios is currently reading for.
  */
+/**
+ * Your vocabulary in the language the popup is showing.
+ *
+ * All three lists are stored per language, so these only mean anything beside
+ * the language they belong to; they are read and rendered together with it.
+ */
+export function renderVocabularyCounts(): void {
+  const slots = {
+    known: document.getElementById('count-known'),
+    learning: document.getElementById('count-learning'),
+    ignored: document.getElementById('count-ignored'),
+  };
+  if (!slots.known && !slots.learning && !slots.ignored) return;
+
+  storage
+    .getItems([
+      items.targetLanguage,
+      items.knownWordsByLanguage,
+      items.learningWordsByLanguage,
+      items.ignoredWordsByLanguage,
+    ])
+    .then(([{ value: targetLanguage }, { value: known }, { value: learning }, { value: ignored }]) => {
+      const code = targetLanguage || 'en';
+      const count = (byLanguage: Record<string, string[]> | undefined) => {
+        const list = byLanguage?.[code];
+        return Array.isArray(list) ? list.length : 0;
+      };
+
+      if (slots.known) slots.known.textContent = count(known).toLocaleString();
+      if (slots.learning) slots.learning.textContent = count(learning).toLocaleString();
+      if (slots.ignored) slots.ignored.textContent = count(ignored).toLocaleString();
+    })
+    .catch((error) => {
+      console.error('Could not read vocabulary counts:', error);
+    });
+}
+
 export function renderTargetLanguage(): void {
   const name = document.getElementById('current-language');
   const english = document.getElementById('current-language-note');
@@ -277,6 +314,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   // Update core data
   renderTargetLanguage();
+  renderVocabularyCounts();
 
   // Handle old UI elements if they still exist (backwards compatibility)
   const oldUpdateBtn = document.getElementById("update-known-words-btn");
@@ -336,10 +374,21 @@ window.addEventListener("DOMContentLoaded", () => {
 
 
   // Listen for storage changes to update UI in real-time.
-  // Raw `onChanged` rather than per-item watches: the recent-vocab keys are
-  // per-language, so this has to scan the changed key names by prefix.
+  // Raw `onChanged` rather than per-item watches, so one listener covers the
+  // vocabulary lists, the target language and the enabled flag together.
   browser.storage.onChanged.addListener((changes, areaName) => {
     if (areaName === "local") {
+      if (
+        changes.knownWordsByLanguage ||
+        changes.learningWordsByLanguage ||
+        changes.ignoredWordsByLanguage ||
+        changes.targetLanguage
+      ) {
+        renderVocabularyCounts();
+      }
+      if (changes.targetLanguage) {
+        renderTargetLanguage();
+      }
       if (changes.extensionEnabled) {
         // Update toggle state and visual appearance if changed from elsewhere
         const toggle = document.getElementById("extension-toggle");
