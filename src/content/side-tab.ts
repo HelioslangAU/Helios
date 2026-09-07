@@ -19,10 +19,10 @@ export interface SideTabStats {
   knownWords?: number;
   learningWords?: number;
   ignoredWords?: number;
-  comprehension?: number;
+  comprehension?: number | null;
   pageWords?: number;
-  uniqueComprehension?: number;
-  sentenceBreakdownPercentage?: number;
+  uniqueComprehension?: number | null;
+  sentenceBreakdownPercentage?: number | null;
   sentenceBreakdown?: SentenceBreakdown;
 }
 
@@ -432,7 +432,7 @@ export class HeliosSideTab {
         }
 
         if (stats.comprehension !== undefined) {
-            this.comprehensionPercentage = stats.comprehension;
+            this.comprehensionPercentage = stats.comprehension as number;
             this.updateComprehension(stats.comprehension);
         }
 
@@ -489,8 +489,22 @@ export class HeliosSideTab {
      * Update comprehension display
      * @param percentage
      */
-    updateComprehension(percentage: number): void {
-        const formatted = `${Math.round(percentage)}%`;
+    /**
+     * A percentage, or an em dash when there was nothing to measure.
+     *
+     * A page with no target-language words on it has no comprehension figure.
+     * Reporting 100% there claims you understood a page you were never tested
+     * on, and 0% claims the opposite; both were being shown at once, because
+     * the three cards defaulted differently.
+     */
+    formatPercentage(percentage: number | null | undefined): string {
+        return typeof percentage === 'number' && Number.isFinite(percentage)
+            ? `${Math.round(percentage)}%`
+            : '\u2014';
+    }
+
+    updateComprehension(percentage: number | null): void {
+        const formatted = this.formatPercentage(percentage);
 
         if (this.partialComprehension) {
             this.partialComprehension.textContent = formatted;
@@ -504,7 +518,8 @@ export class HeliosSideTab {
         }
 
         if (this.comprehensionProgress) {
-            this.comprehensionProgress.style.width = `${percentage}%`;
+            const measured = typeof percentage === 'number' && Number.isFinite(percentage);
+            this.comprehensionProgress.style.width = measured ? `${percentage}%` : '0%';
         }
     }
 
@@ -577,9 +592,9 @@ export class HeliosSideTab {
      * Update unique-word comprehension display
      * @param percentage
      */
-    updateUniqueComprehension(percentage: number): void {
-        this.uniqueComprehensionPercentage = percentage;
-        const formatted = `${Math.round(percentage)}%`;
+    updateUniqueComprehension(percentage: number | null): void {
+        this.uniqueComprehensionPercentage = percentage as number;
+        const formatted = this.formatPercentage(percentage);
 
         if (this.partialUniqueComprehension) {
             this.partialUniqueComprehension.textContent = formatted;
@@ -680,9 +695,9 @@ export class HeliosSideTab {
      * Update sentence breakdown overall percentage (compact panel and main full value).
      * @param percentage
      */
-    updateSentenceBreakdownCoverage(percentage: number): void {
-        this.sentenceBreakdownPercentage = percentage;
-        const formatted = `${Math.round(percentage)}%`;
+    updateSentenceBreakdownCoverage(percentage: number | null): void {
+        this.sentenceBreakdownPercentage = percentage as number;
+        const formatted = this.formatPercentage(percentage);
 
         if (this.partialSentenceBreakdown) {
             this.partialSentenceBreakdown.textContent = formatted;

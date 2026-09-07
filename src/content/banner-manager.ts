@@ -6,10 +6,10 @@ interface BannerStats {
     knownWords: number;
     learningWords: number;
     ignoredWords: number;
-    comprehension: number;
+    comprehension: number | null;
     pageWords: number;
-    uniqueComprehension: number;
-    sentenceBreakdownPercentage: number;
+    uniqueComprehension: number | null;
+    sentenceBreakdownPercentage: number | null;
     sentenceBreakdown: SentenceBreakdown;
 }
 
@@ -407,7 +407,6 @@ export class BannerManager {
             ? services.vocabManager.getIgnoredWordsCount()
             : NaN;
 
-          const comprehension = Number.isFinite(comprehensionRaw) ? comprehensionRaw : this.lastStats.comprehension;
           const pageWords = Number.isFinite(pageWordsRaw) ? pageWordsRaw : this.lastStats.pageWords;
           const knownWords = Number.isFinite(knownWordsRaw) ? knownWordsRaw : this.lastStats.knownWords;
           const learningWords = Number.isFinite(learningWordsRaw) ? learningWordsRaw : this.lastStats.learningWords;
@@ -421,15 +420,22 @@ export class BannerManager {
             ? services.pageProcessor.getSentenceBreakdownStats()
             : { totalSentences: 0, t0Sentences: 0, t1Sentences: 0, t2Sentences: 0 };
 
+          // No words measured means no figure, not the previous page's figure.
+          const comprehension = Number.isFinite(comprehensionRaw)
+            ? comprehensionRaw
+            : uniqueStats.totalUnique > 0
+              ? this.lastStats.comprehension
+              : null;
+
           const uniqueComprehension =
             uniqueStats.totalUnique > 0
               ? Math.round((uniqueStats.knownUnique / uniqueStats.totalUnique) * 100)
-              : 100;
+              : null;
 
           const sentenceBreakdownPercentage =
             breakdown.totalSentences > 0
               ? Math.round(((breakdown.t0Sentences + breakdown.t1Sentences + breakdown.t2Sentences) / breakdown.totalSentences) * 100)
-              : 100;
+              : null;
 
           // Update all stats
           this.updateStats({
