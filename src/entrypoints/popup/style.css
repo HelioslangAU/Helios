@@ -56,7 +56,7 @@
   --accent-mid: #ff8f47;
   --accent-high: #ffb347;
   --sky: rgba(255, 143, 71, 0.16);
-  --mark-glow: 0 0 18px rgba(255, 143, 71, 0.55);
+  --mark-glow: drop-shadow(0 0 9px rgba(255, 143, 71, 0.55));
   --mark-filter: none;
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -73,7 +73,7 @@ body.extension-disabled {
   --accent-mid: #5a5a5a;
   --accent-high: #4a4a4a;
   --sky: rgba(255, 255, 255, 0.02);
-  --mark-glow: none;
+  --mark-glow: drop-shadow(0 0 0 transparent);
   --mark-filter: grayscale(1) brightness(0.62);
 }
 
@@ -88,7 +88,7 @@ body.extension-disabled {
 body {
   position: relative;
   width: 320px;
-  padding: 18px 16px 16px;
+  padding: 18px 16px 18px;
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 14px;
   line-height: 1.5;
@@ -135,7 +135,7 @@ body::before {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .brand {
@@ -144,17 +144,11 @@ body::before {
   gap: 12px;
 }
 
-/* The mark is a disc that fills its box, so a rounded box-shadow is its
-   corona; the filter drains it at sunset. */
 .brand-mark {
   flex: none;
   display: block;
-  border-radius: 50%;
-  filter: var(--mark-filter);
-  box-shadow: var(--mark-glow);
-  transition:
-    filter 0.8s var(--ease),
-    box-shadow 0.8s var(--ease);
+  filter: var(--mark-filter) var(--mark-glow);
+  transition: filter 0.8s var(--ease);
 }
 
 .brand-name {
@@ -301,19 +295,23 @@ body::before {
    Way out
    ========================================================================== */
 
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .settings-btn {
   display: flex;
   align-items: center;
-  gap: 9px;
-  width: 100%;
-  margin-top: 6px;
-  padding: 9px 12px;
+  justify-content: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   border: 0;
-  border-radius: 12px;
+  border-radius: 9px;
   background: none;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 500;
   color: var(--ink-muted);
   cursor: pointer;
   transition:
@@ -322,9 +320,8 @@ body::before {
 }
 
 .settings-btn svg {
-  flex: none;
-  width: 16px;
-  height: 16px;
+  width: 17px;
+  height: 17px;
 }
 
 .settings-btn:hover {
