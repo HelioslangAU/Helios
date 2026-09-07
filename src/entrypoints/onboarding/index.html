@@ -4,6 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Welcome to Helios</title>
+  <!-- Inline, because it has to apply before the linked stylesheets arrive:
+       this is the first thing a new user sees, and it must not open on a white
+       canvas and then go dark. -->
+  <style>
+    html {
+      background: #14151a;
+    }
+  </style>
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>

@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Helios Settings</title>
     <meta name="manifest.open_in_tab" content="true" />
+    <!-- Inline, because it has to apply before the linked stylesheets arrive:
+         a settings page opening on a white canvas and then going dark reads as
+         a fault. Kept to the one declaration the first paint needs. -->
+    <style>
+      html {
+        background: #0f0f12;
+      }
+    </style>
     <!-- Faces are self-hosted under /fonts and declared in the shared token
          sheet, which main.ts imports ahead of style.css. No remote stylesheet:
          the page has to render identically offline and under MV3's CSP. -->
@@ -22,7 +30,16 @@
            stays correct without a second source of truth in script. -->
       <header class="running-head">
         <h1 class="running-title">
-          <img class="running-mark" src="/icons/icon128.png" alt="" width="22" height="22" />
+          <svg class="running-mark" viewBox="0 0 22 22" width="22" height="22" aria-hidden="true">
+            <defs>
+              <linearGradient id="helios-sun-mark" x1="0.15" y1="0" x2="0.6" y2="1">
+                <stop offset="0%" stop-color="#ff6b47" />
+                <stop offset="52%" stop-color="#ff9440" />
+                <stop offset="100%" stop-color="#ffc03c" />
+              </linearGradient>
+            </defs>
+            <circle cx="11" cy="11" r="10.5" fill="url(#helios-sun-mark)" />
+          </svg>
           Helios Settings<span class="running-section" aria-hidden="true"></span>
         </h1>
         <p class="running-note" id="save-state" data-state="idle" role="status">Changes save automatically</p>
