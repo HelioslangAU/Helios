@@ -49,20 +49,17 @@
     </button>
 
     <!-- Your vocabulary in the language above, which is the only sense in
-         which these three numbers mean anything: they are stored per
-         language and change when it does. -->
+         which these mean anything: both lists are stored per language and
+         change when it does. Ignored words are a housekeeping state rather
+         than progress, so they are counted in settings and not here. -->
     <dl class="counts">
       <div class="count">
+        <dt class="count-label">Known</dt>
         <dd class="count-value" id="count-known"></dd>
-        <dt class="count-label"><span class="count-dot count-dot--known" aria-hidden="true"></span>Known</dt>
       </div>
       <div class="count">
+        <dt class="count-label">Learning</dt>
         <dd class="count-value" id="count-learning"></dd>
-        <dt class="count-label"><span class="count-dot count-dot--learning" aria-hidden="true"></span>Learning</dt>
-      </div>
-      <div class="count">
-        <dd class="count-value" id="count-ignored"></dd>
-        <dt class="count-label"><span class="count-dot count-dot--ignored" aria-hidden="true"></span>Ignored</dt>
       </div>
     </dl>
 

@@ -157,25 +157,25 @@ export function languageEnglishName(code: string): string {
 /**
  * Your vocabulary in the language the popup is showing.
  *
- * All three lists are stored per language, so these only mean anything beside
- * the language they belong to; they are read and rendered together with it.
+ * Both lists are stored per language, so these only mean anything beside the
+ * language they belong to; they are read and rendered together with it.
+ * Ignored words are housekeeping rather than progress and are counted in
+ * settings instead.
  */
 export function renderVocabularyCounts(): void {
   const slots = {
     known: document.getElementById('count-known'),
     learning: document.getElementById('count-learning'),
-    ignored: document.getElementById('count-ignored'),
   };
-  if (!slots.known && !slots.learning && !slots.ignored) return;
+  if (!slots.known && !slots.learning) return;
 
   storage
     .getItems([
       items.targetLanguage,
       items.knownWordsByLanguage,
       items.learningWordsByLanguage,
-      items.ignoredWordsByLanguage,
     ])
-    .then(([{ value: targetLanguage }, { value: known }, { value: learning }, { value: ignored }]) => {
+    .then(([{ value: targetLanguage }, { value: known }, { value: learning }]) => {
       const code = targetLanguage || 'en';
       const count = (byLanguage: Record<string, string[]> | undefined) => {
         const list = byLanguage?.[code];
@@ -184,7 +184,6 @@ export function renderVocabularyCounts(): void {
 
       if (slots.known) slots.known.textContent = count(known).toLocaleString();
       if (slots.learning) slots.learning.textContent = count(learning).toLocaleString();
-      if (slots.ignored) slots.ignored.textContent = count(ignored).toLocaleString();
     })
     .catch((error) => {
       console.error('Could not read vocabulary counts:', error);
@@ -380,7 +379,6 @@ window.addEventListener("DOMContentLoaded", () => {
       if (
         changes.knownWordsByLanguage ||
         changes.learningWordsByLanguage ||
-        changes.ignoredWordsByLanguage ||
         changes.targetLanguage
       ) {
         renderVocabularyCounts();
