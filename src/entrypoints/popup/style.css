@@ -206,7 +206,6 @@ body::before {
 
 .language {
   position: relative;
-  isolation: isolate;
   display: flex;
   align-items: center;
   gap: 13px;
@@ -222,20 +221,6 @@ body::before {
   transition:
     background-color 0.4s var(--ease),
     border-color 0.4s var(--ease);
-}
-
-.language::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: 14px 14px 0 0;
-  background: linear-gradient(
-    to bottom,
-    var(--sky),
-    transparent 70%
-  );
-  transition: background 0.8s var(--ease);
 }
 
 .language:hover {

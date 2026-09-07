@@ -200,10 +200,9 @@ export function renderTargetLanguage(): void {
   items.targetLanguage.getValue().then((targetLanguage) => {
     const code = targetLanguage || 'en';
     if (name) name.textContent = languageLabel(code);
-    if (english) {
-      const gloss = languageEnglishName(code);
-      english.textContent = gloss ? `Learning ${gloss}` : 'Learning';
-    }
+    // Just the English name. "Learning Chinese" here collided with the
+    // "Learning" count directly below it, which means words in progress.
+    if (english) english.textContent = languageEnglishName(code);
     // flagSvg returns our own constant markup, never page text.
     if (flag) flag.innerHTML = flagSvg(code);
   });
