@@ -114,7 +114,7 @@ export function initializeExtensionToggle(): void {
 }
 
 
-/** Short display names for the recent-lookups badge. */
+/** How each language names itself. */
 const LANGUAGE_LABELS: Record<string, string> = {
   zh: '\u4e2d\u6587',
   en: 'English',
@@ -126,8 +126,27 @@ const LANGUAGE_LABELS: Record<string, string> = {
   de: 'Deutsch',
 };
 
+/** And its English name, for a script the reader cannot read yet. */
+const LANGUAGE_ENGLISH: Record<string, string> = {
+  zh: 'Chinese',
+  en: 'English',
+  es: 'Spanish',
+  fr: 'French',
+  vi: 'Vietnamese',
+  ko: 'Korean',
+  ja: 'Japanese',
+  de: 'German',
+};
+
 export function languageLabel(code: string): string {
   return LANGUAGE_LABELS[code] ?? code.toUpperCase();
+}
+
+/** Empty when the two names would be the same word. */
+export function languageEnglishName(code: string): string {
+  const english = LANGUAGE_ENGLISH[code];
+  if (!english || english === languageLabel(code)) return '';
+  return english;
 }
 
 
@@ -137,12 +156,14 @@ export function languageLabel(code: string): string {
  */
 export function renderTargetLanguage(): void {
   const name = document.getElementById('current-language');
+  const english = document.getElementById('current-language-english');
   const flag = document.getElementById('current-flag');
   if (!name && !flag) return;
 
   items.targetLanguage.getValue().then((targetLanguage) => {
     const code = targetLanguage || 'en';
     if (name) name.textContent = languageLabel(code);
+    if (english) english.textContent = languageEnglishName(code);
     // flagSvg returns our own constant markup, never page text.
     if (flag) flag.innerHTML = flagSvg(code);
   });

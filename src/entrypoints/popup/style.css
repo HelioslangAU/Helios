@@ -4,14 +4,10 @@
  * Built from `@/styles/theme.css`, which this file consumes and never
  * redeclares.
  *
- * It answers two questions and stops: is Helios running, and what is it
- * running for. The word count that used to live here is on the side tab, in
- * more detail and where you are actually reading; the recent-lookups list was
- * a second copy of the vocabulary section in settings. A popup that opens for
- * a second should not make you read.
- *
- * The warmth is a low light along the top edge rather than a drawn sun. Helios
- * is the light, not the disc.
+ * A horizon divides the panel. Above it stands what Helios is running for;
+ * below it is decided whether Helios is running at all. Turning it off drops
+ * the light out of the sky — the state is the composition rather than a widget
+ * you have to find and read inside one.
  */
 
 *,
@@ -23,11 +19,11 @@
 }
 
 body {
-  width: 300px;
+  width: 320px;
   font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.5;
-  /* Warm-shifted rather than neutral: this is the ground the light falls on. */
+  /* Warm-shifted rather than neutral: this is ground under a low sun. */
   background: #0c0a0b;
   color: var(--text);
   -webkit-font-smoothing: antialiased;
@@ -41,32 +37,8 @@ body {
 
 :focus-visible {
   outline: 2px solid var(--primary);
-  outline-offset: 2px;
+  outline-offset: -2px;
   border-radius: var(--radius-sm);
-}
-
-.container {
-  position: relative;
-  padding: 12px;
-}
-
-/* Dawn: a wide, shallow wash across the top. No shape and no edge — at this
-   height and alpha it reads as light in the panel rather than as an object
-   drawn in it. */
-.dawn {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 118px;
-  pointer-events: none;
-  background: radial-gradient(
-    ellipse 120% 100% at 50% 0,
-    rgba(255, 152, 84, 0.16),
-    rgba(255, 116, 71, 0.05) 55%,
-    transparent 78%
-  );
-  transition: opacity 320ms var(--ease-out);
 }
 
 /* ==========================================================================
@@ -75,11 +47,13 @@ body {
 
 .header {
   position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 2px 2px 12px;
+  height: 44px;
+  padding: 0 10px 0 14px;
 }
 
 .brand {
@@ -88,23 +62,18 @@ body {
   gap: 8px;
 }
 
-/* The mark is the switch's other face: lit while Helios is running, a dead
-   grey disc while it is not. */
 .brand-mark {
   flex: none;
   display: block;
   border-radius: 50%;
-  box-shadow: 0 0 14px rgba(255, 143, 71, 0.55);
-  transition:
-    box-shadow 320ms var(--ease-out),
-    filter 320ms var(--ease-out);
+  transition: filter 400ms var(--ease-out);
 }
 
 .brand h1 {
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
   letter-spacing: -0.01em;
-  color: var(--text);
+  color: var(--text-secondary);
 }
 
 .settings-btn {
@@ -136,89 +105,72 @@ body {
 }
 
 /* ==========================================================================
-   The two rows
+   Sky — what Helios is running for
 
-   The same arrangement as a settings entry: label and explanation on the left,
-   the control flush right, a hairline between.
+   The horizon is this element's own bottom edge: a lit hairline that fades out
+   to both margins, so the division has no corners and the panel never reads as
+   stacked boxes.
    ========================================================================== */
 
-.panel {
+.sky {
   position: relative;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.026);
-  overflow: hidden;
-}
-
-.row {
-  display: flex;
-  align-items: center;
-  gap: 11px;
+  display: block;
   width: 100%;
-  padding: 12px 13px;
-  text-align: left;
-}
-
-.row + .row {
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.row-text {
-  flex: 1;
-  min-width: 0;
-}
-
-.row-title {
-  display: block;
-  font-size: 13.5px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  line-height: 1.35;
-  color: var(--text);
-}
-
-.row-note {
-  display: block;
-  margin-top: 1px;
-  font-size: 11.5px;
-  line-height: 1.4;
-  color: var(--text-muted);
-}
-
-/* The language row opens settings, so it behaves like the button it is. */
-.row-action {
+  padding: 26px 20px 30px;
   border: 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
   background: none;
   font-family: inherit;
+  text-align: center;
   cursor: pointer;
-  transition:
-    background-color var(--duration) var(--ease-out),
-    opacity 320ms var(--ease-out),
-    filter 320ms var(--ease-out);
 }
 
-.row-action:hover {
-  background: rgba(255, 255, 255, 0.045);
+.sky::after {
+  content: "";
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(255, 178, 112, 0.3) 18%,
+    rgba(255, 206, 158, 0.62),
+    rgba(255, 178, 112, 0.3) 82%,
+    transparent
+  );
+  transition: background 400ms var(--ease-out);
 }
 
-.row-chevron {
-  flex: none;
-  width: 15px;
-  height: 15px;
-  color: var(--text-muted);
+/* The light itself: low, wide and edgeless, gathered along the horizon and
+   thinning upward. Behind the content, never over it. */
+.sky-light {
+  position: absolute;
+  inset: -44px 0 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 78% 62% at 50% 100%,
+    rgba(255, 150, 84, 0.24),
+    rgba(255, 116, 71, 0.08) 46%,
+    transparent 74%
+  );
+  transition: opacity 400ms var(--ease-out);
 }
 
-/* Drawn flags, not regional-indicator emoji: those render as bare letters
-   ("CN", "GB") on Windows and much of Linux. Shared with the onboarding. */
+.sky:hover .sky-light {
+  opacity: 0.82;
+}
+
 .flag {
-  flex: none;
+  position: relative;
   display: block;
-  width: 24px;
-  height: 16px;
+  width: 27px;
+  height: 18px;
+  margin: 0 auto 13px;
   border-radius: 3px;
   overflow: hidden;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  transition: filter 400ms var(--ease-out);
 }
 
 .flag:empty {
@@ -231,9 +183,66 @@ body {
   height: 100%;
 }
 
-/* --- The switch ----------------------------------------------------------
-   The same object as the one on the settings page, down to the geometry. */
+/* The language in its own script, at the size the panel's subject deserves. */
+.language-name {
+  position: relative;
+  display: block;
+  font-family: var(--font-cjk), var(--font-sans);
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  color: #fff;
+  transition: color 400ms var(--ease-out);
+}
 
+/* Its English name, for a script the reader cannot yet read. */
+.language-english {
+  position: relative;
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgba(255, 209, 178, 0.72);
+  transition: color 400ms var(--ease-out);
+}
+
+.language-english:empty {
+  display: none;
+}
+
+/* ==========================================================================
+   Ground — whether Helios is running
+   ========================================================================== */
+
+.ground {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 15px 16px 17px;
+}
+
+.ground-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.state-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+  color: var(--text);
+}
+
+.state-note {
+  margin-top: 1px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+/* The same switch as the settings page, down to the geometry. */
 .toggle-switch {
   position: relative;
   flex: none;
@@ -271,28 +280,40 @@ body {
 }
 
 /* ==========================================================================
-   Off
+   Off — the sun goes down
 
-   `body.extension-disabled` is set by extensiontab.ts. Off is not a dimmer
-   setting: the light goes out and the mark stops glowing, so a glance tells
-   you Helios is doing nothing without reading a word.
-
-   The switch is deliberately exempt. It is the one control that has to stay
-   obviously live, since it is how you get back.
+   `body.extension-disabled` is set by extensiontab.ts. One authored moment:
+   the light leaves the sky, the horizon cools to a plain rule, and the colour
+   drains out of the flag and the language. The switch is exempt, since it is
+   how you get back.
    ========================================================================== */
 
-body.extension-disabled .dawn {
+body.extension-disabled .sky-light {
   opacity: 0;
 }
 
-body.extension-disabled .brand-mark {
-  box-shadow: none;
-  filter: grayscale(1) brightness(0.7);
+body.extension-disabled .sky::after {
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(255, 255, 255, 0.05) 18%,
+    rgba(255, 255, 255, 0.12),
+    rgba(255, 255, 255, 0.05) 82%,
+    transparent
+  );
 }
 
-body.extension-disabled .row-action {
-  opacity: 0.55;
-  filter: grayscale(1);
+body.extension-disabled .brand-mark,
+body.extension-disabled .flag {
+  filter: grayscale(1) brightness(0.62);
+}
+
+body.extension-disabled .language-name {
+  color: var(--text-muted);
+}
+
+body.extension-disabled .language-english {
+  color: rgba(148, 163, 184, 0.55);
 }
 
 @media (prefers-reduced-motion: reduce) {

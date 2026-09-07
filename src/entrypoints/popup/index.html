@@ -8,49 +8,38 @@
          a colour or a font of its own. -->
   </head>
   <body>
-    <div class="container">
-      <!-- A low warm light along the top edge. The sun this product is named
-           for, without drawing a sun. -->
-      <div class="dawn" aria-hidden="true"></div>
+    <header class="header">
+      <div class="brand">
+        <img class="brand-mark" src="/icons/icon128.png" alt="" width="18" height="18" />
+        <h1>Helios</h1>
+      </div>
+      <button class="settings-btn" id="settings-btn" title="Open settings" aria-label="Open settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      </button>
+    </header>
 
-      <header class="header">
-        <div class="brand">
-          <img class="brand-mark" src="/icons/icon128.png" alt="" width="18" height="18" />
-          <h1>Helios</h1>
-        </div>
-        <button class="settings-btn" id="settings-btn" title="Open settings" aria-label="Open settings">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-        </button>
-      </header>
+    <!-- Above the horizon: what Helios is running for. Opens settings, since
+         changing the language is the only reason to look at it. -->
+    <button class="sky" id="language-row" title="Change your target language in settings">
+      <span class="sky-light" aria-hidden="true"></span>
+      <span class="flag" id="current-flag" aria-hidden="true"></span>
+      <span class="language-name" id="current-language">&mdash;</span>
+      <span class="language-english" id="current-language-english"></span>
+    </button>
 
-      <div class="panel">
-        <!-- The switch and what it is switched on for: the only two things
-             this surface has to say. -->
-        <div class="row">
-          <div class="row-text">
-            <div class="row-title" id="state-title">Helios is on</div>
-            <div class="row-note" id="state-note">Reading the pages you visit</div>
-          </div>
-          <!-- Kept as a div with .active toggled by extensiontab.ts rather than
-               a checkbox; the script owns this element's state. -->
-          <div class="toggle-switch active" id="extension-toggle" role="switch" aria-checked="true" tabindex="0" title="Turn Helios on or off">
-            <div class="toggle-slider"></div>
-          </div>
-        </div>
-
-        <button class="row row-action" id="language-row" title="Change your target language in settings">
-          <span class="flag" id="current-flag" aria-hidden="true"></span>
-          <span class="row-text">
-            <span class="row-title" id="current-language">&mdash;</span>
-            <span class="row-note">Currently learning</span>
-          </span>
-          <svg class="row-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
-        </button>
+    <!-- Below it: whether Helios is running at all. -->
+    <div class="ground">
+      <div class="ground-text">
+        <div class="state-title" id="state-title">Helios is on</div>
+        <div class="state-note" id="state-note">Reading the pages you visit</div>
+      </div>
+      <!-- Kept as a div with .active toggled by extensiontab.ts rather than a
+           checkbox; the script owns this element's state. -->
+      <div class="toggle-switch active" id="extension-toggle" role="switch" aria-checked="true" tabindex="0" title="Turn Helios on or off">
+        <div class="toggle-slider"></div>
       </div>
     </div>
 
