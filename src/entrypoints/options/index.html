@@ -7,10 +7,13 @@
     <meta name="manifest.open_in_tab" content="true" />
     <!-- Inline, because it has to apply before the linked stylesheets arrive:
          a settings page opening on a white canvas and then going dark reads as
-         a fault. Kept to the one declaration the first paint needs. -->
+         a fault. The colour comes with it: a dark ground without one would
+         leave text at its black default if the stylesheet ever failed to
+         load, which is worse than the white it replaces. -->
     <style>
       html {
         background: #0f0f12;
+        color: #f8fafc;
       }
     </style>
     <!-- Faces are self-hosted under /fonts and declared in the shared token

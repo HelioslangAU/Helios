@@ -6,10 +6,12 @@
   <title>Welcome to Helios</title>
   <!-- Inline, because it has to apply before the linked stylesheets arrive:
        this is the first thing a new user sees, and it must not open on a white
-       canvas and then go dark. -->
+       canvas and then go dark. The colour comes with it, so a stylesheet that
+       fails to load leaves readable text rather than black on near-black. -->
   <style>
     html {
       background: #14151a;
+      color: #f4f1ea;
     }
   </style>
   <link rel="stylesheet" href="./style.css">
