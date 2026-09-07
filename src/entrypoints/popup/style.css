@@ -88,7 +88,7 @@ body.extension-disabled {
 body {
   position: relative;
   width: 292px;
-  padding: 18px 16px 18px;
+  padding: 18px 16px 16px;
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 14px;
   line-height: 1.5;
@@ -206,6 +206,7 @@ body::before {
 
 .language {
   position: relative;
+  isolation: isolate;
   display: flex;
   align-items: center;
   gap: 13px;
@@ -221,6 +222,20 @@ body::before {
   transition:
     background-color 0.4s var(--ease),
     border-color 0.4s var(--ease);
+}
+
+.language::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 14px 14px 0 0;
+  background: linear-gradient(
+    to bottom,
+    var(--sky),
+    transparent 70%
+  );
+  transition: background 0.8s var(--ease);
 }
 
 .language:hover {
@@ -239,7 +254,9 @@ body::before {
   height: 21px;
   border-radius: 4px;
   overflow: hidden;
-  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.14),
+    0 2px 6px rgba(0, 0, 0, 0.45);
   filter: var(--mark-filter);
   transition: filter 0.8s var(--ease);
 }
@@ -277,7 +294,7 @@ body::before {
 
 .language-note {
   display: block;
-  margin-top: 1px;
+  margin-top: 2px;
   font-size: 12px;
   line-height: 1.35;
   color: var(--ink-muted);
@@ -300,14 +317,25 @@ body::before {
    ========================================================================== */
 
 .counts {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   margin: 0;
-  padding: 11px 14px 12px;
+  padding: 12px 14px 13px;
   border: 1px solid var(--edge);
   border-top: 0;
   border-radius: 0 0 14px 14px;
   background: var(--raised);
+}
+
+.counts::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 14px;
+  right: 14px;
+  height: 1px;
+  background: var(--edge);
 }
 
 .count {
@@ -332,12 +360,36 @@ body::before {
 }
 
 .count-label {
-  display: block;
-  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-top: 3px;
   font-size: 11.5px;
   font-weight: 500;
   color: var(--ink-muted);
   transition: color 0.8s var(--ease);
+}
+
+.count-dot {
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  filter: var(--mark-filter);
+  transition: filter 0.8s var(--ease);
+}
+
+.count-dot--known {
+  background: #10b981;
+}
+
+.count-dot--learning {
+  background: #ffb347;
+}
+
+.count-dot--ignored {
+  background: #94a3b8;
 }
 
 /* ==========================================================================
