@@ -490,7 +490,7 @@ export class HeliosSideTab {
      * @param percentage
      */
     /**
-     * A percentage, or an em dash when there was nothing to measure.
+     * A percentage, or "n/a" when there was nothing to measure.
      *
      * A page with no target-language words on it has no comprehension figure.
      * Reporting 100% there claims you understood a page you were never tested
@@ -500,7 +500,7 @@ export class HeliosSideTab {
     formatPercentage(percentage: number | null | undefined): string {
         return typeof percentage === 'number' && Number.isFinite(percentage)
             ? `${Math.round(percentage)}%`
-            : '\u2014';
+            : 'n/a';
     }
 
     updateComprehension(percentage: number | null): void {

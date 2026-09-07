@@ -21,13 +21,13 @@ describe('reporting a percentage that may not exist', () => {
   });
 
   it('says nothing rather than guessing when there was nothing to measure', () => {
-    expect(fmt(null)).toBe('—');
-    expect(fmt(undefined)).toBe('—');
+    expect(fmt(null)).toBe('n/a');
+    expect(fmt(undefined)).toBe('n/a');
   });
 
   it('does not print NaN or Infinity at the user', () => {
-    expect(fmt(NaN)).toBe('—');
-    expect(fmt(Infinity)).toBe('—');
-    expect(fmt(-Infinity)).toBe('—');
+    expect(fmt(NaN)).toBe('n/a');
+    expect(fmt(Infinity)).toBe('n/a');
+    expect(fmt(-Infinity)).toBe('n/a');
   });
 });

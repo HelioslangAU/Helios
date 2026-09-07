@@ -485,7 +485,7 @@ export class HeliosSettingsAnki {
 
     const previewsByLanguage: Record<string, Record<string, string>> = {
       zh: {
-        "": "—",
+        "": "(empty)",
         expression: "对",
         expressionRubyTxt: "对[dui4;]",
         reading: "dui4",
@@ -499,7 +499,7 @@ export class HeliosSettingsAnki {
         sentenceAudio: "[audio.webm]",
       },
       fr: {
-        "": "—",
+        "": "(empty)",
         expression: "précis",
         reading: "/pʁesi/",
         meaning: "accurate; exact",
@@ -509,7 +509,7 @@ export class HeliosSettingsAnki {
         sentenceAudio: "[audio.webm]",
       },
       es: {
-        "": "—",
+        "": "(empty)",
         expression: "preciso",
         reading: "/pɾeˈθiso/",
         meaning: "precise; accurate",
@@ -519,7 +519,7 @@ export class HeliosSettingsAnki {
         sentenceAudio: "[audio.webm]",
       },
       en: {
-        "": "—",
+        "": "(empty)",
         expression: "precise",
         reading: "/prɪˈsaɪs/",
         meaning: "exact; accurate",
@@ -531,7 +531,7 @@ export class HeliosSettingsAnki {
     };
 
     const previews = previewsByLanguage[language] || previewsByLanguage['zh'];
-    return previews[dataType] || "—";
+    return previews[dataType] || "(empty)";
   }
 
   // Setup field mapping event listeners
