@@ -156,14 +156,17 @@ export function languageEnglishName(code: string): string {
  */
 export function renderTargetLanguage(): void {
   const name = document.getElementById('current-language');
-  const english = document.getElementById('current-language-english');
+  const english = document.getElementById('current-language-note');
   const flag = document.getElementById('current-flag');
   if (!name && !flag) return;
 
   items.targetLanguage.getValue().then((targetLanguage) => {
     const code = targetLanguage || 'en';
     if (name) name.textContent = languageLabel(code);
-    if (english) english.textContent = languageEnglishName(code);
+    if (english) {
+      const gloss = languageEnglishName(code);
+      english.textContent = gloss ? `Learning ${gloss}` : 'Learning';
+    }
     // flagSvg returns our own constant markup, never page text.
     if (flag) flag.innerHTML = flagSvg(code);
   });
