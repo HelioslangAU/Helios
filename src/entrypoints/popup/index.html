@@ -32,6 +32,13 @@
       </header>
 
       <div class="content">
+        <!-- The sky: a sun cresting a horizon, drawn behind the count. Two
+             elements, because the light above the horizon and the disc itself
+             behave differently — the glow spreads, the rim does not. -->
+        <div class="sky" aria-hidden="true">
+          <div class="sun"></div>
+        </div>
+
         <div class="words-learned">
           <div class="words-count" id="vocab-count">0</div>
           <div class="words-label">Words learned</div>
@@ -39,7 +46,7 @@
 
         <section class="vocab-section">
           <div class="vocab-header">
-            <h2 class="vocab-title">Recent vocabulary</h2>
+            <h2 class="vocab-title">Recent</h2>
             <span class="vocab-count" id="vocab-count-badge">0 total</span>
           </div>
           <!-- Rows are built by extensiontab.ts; the classes it writes are
