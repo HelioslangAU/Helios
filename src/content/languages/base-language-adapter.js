@@ -447,6 +447,26 @@ class BaseLanguageAdapter {
   }
 
   /**
+   * Get onboarding vocabulary sources (e.g. HSK vs a textbook list).
+   * Each source is {id, name, description, levels} where levels match getLevelDefinitions().
+   * Override in language adapters that offer more than one list.
+   * @returns {Array<Object>}
+   */
+  getVocabSources() {
+    const levels = this.getLevelDefinitions();
+    if (!levels || levels.length === 0) {
+      return [];
+    }
+
+    return [{
+      id: 'default',
+      name: null,
+      description: null,
+      levels
+    }];
+  }
+
+  /**
    * Get the vocabulary file path for onboarding word lists
    * @param {string} level - Proficiency level (e.g., 'A1', 'HSK1')
    * @returns {string|null} - Path to vocabulary file or null if not available
