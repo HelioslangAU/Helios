@@ -1219,6 +1219,7 @@ class PageProcessor {
   _getOcrGlyphSpansForRange(run, rangeStart, rangeEnd) {
     if (!run?.length || rangeEnd <= rangeStart) return [];
     const spans = [];
+    let coveredLength = 0;
     let offset = 0;
     for (const box of run) {
       const start = offset;
@@ -1226,8 +1227,14 @@ class PageProcessor {
       offset = end;
       if (end > rangeStart && start < rangeEnd) {
         spans.push(box.el.querySelector('span[data-word]') || box.el);
+        coveredLength += box.text.length;
       }
     }
+    // Word sits inside a single box holding more characters than the word
+    // (e.g. inline 贵姓 boxed as one span, word resolved to 贵): highlighting
+    // the whole box would not match the popup, so fall back to wrap-mode
+    // text-range highlighting by returning no glyph spans.
+    if (spans.length === 1 && coveredLength > rangeEnd - rangeStart) return [];
     return spans;
   }
 
@@ -1745,11 +1752,13 @@ class PageProcessor {
       const ocrWords = await adapter.extractWords(ocrContext.lineText, this.dictionaryManager.dictionary);
       for (const wordData of ocrWords) {
         if (ocrContext.offsetInLine >= wordData.start && ocrContext.offsetInLine < wordData.end) {
+          // Node-relative start of the word (hover may be mid-word)
+          const nodeStart = Math.max(0, offset - (ocrContext.offsetInLine - wordData.start));
           return {
             word: wordData.word,
             textNode,
-            start: offset,
-            end: Math.min(textNode.textContent.length, offset + wordData.word.length),
+            start: nodeStart,
+            end: Math.min(textNode.textContent.length, nodeStart + wordData.word.length),
             ocrGlyphSpans: this._getOcrGlyphSpansForRange(
               ocrContext.run,
               wordData.start,
