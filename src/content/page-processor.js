@@ -1033,6 +1033,16 @@ class PageProcessor {
         this.extractPotentialWords(run.map((b) => b.text).join(''), adapter)
           .forEach((w) => potential.add(w));
       }
+      if (adapter.getScanResolution?.() === 'char') {
+        const peek = this._getOcrWrapPeekLength(adapter);
+        for (let i = 0; i < runs.length; i++) {
+          const nextRun = this._findOcrWrapNeighbor(runs, i, 'next');
+          if (!nextRun) continue;
+          const wrapWindow =
+            this._ocrRunText(runs[i]).slice(-peek) + this._ocrRunText(nextRun).slice(0, peek);
+          this.extractPotentialWords(wrapWindow, adapter).forEach((w) => potential.add(w));
+        }
+      }
       if (potential.size > 0) {
         await this.dictionaryManager.preloadWords([...potential]);
       }
@@ -1040,6 +1050,17 @@ class PageProcessor {
 
     for (const run of runs) {
       await this._processOcrRun(run, adapter);
+    }
+
+    // A CJK word can wrap: last char(s) of one line + first char(s) of the next.
+    // Per-line segmentation misses those compounds, so stamp them in a second pass.
+    if (adapter.getScanResolution?.() === 'char') {
+      for (let i = 0; i < runs.length; i++) {
+        const nextRun = this._findOcrWrapNeighbor(runs, i, 'next');
+        if (nextRun) {
+          await this._stampOcrWrappedWords(runs[i], nextRun, adapter);
+        }
+      }
     }
   }
 
@@ -1115,8 +1136,173 @@ class PageProcessor {
     return runs;
   }
 
+  _ocrRunText(run) {
+    return (run || []).map((b) => b.text).join('');
+  }
+
+  _ocrRunMin(run, key) {
+    return Math.min(...run.map((b) => b[key]));
+  }
+
+  _ocrRunMax(run, key) {
+    return Math.max(...run.map((b) => b[key]));
+  }
+
+  _getOcrWrapPeekLength(adapter) {
+    const maxWord = adapter?.getConfig?.()?.maxWordLength || 5;
+    return Math.max(1, maxWord - 1);
+  }
+
+  /**
+   * True when runB is the next wrapped line of runA in the same column
+   * (not another gap-separated run on the same line).
+   */
+  _isOcrWrappingPair(runA, runB) {
+    if (!runA?.length || !runB?.length) return false;
+
+    const aTop = this._ocrRunMin(runA, 'top');
+    const bTop = this._ocrRunMin(runB, 'top');
+    const aLeft = this._ocrRunMin(runA, 'left');
+    const bLeft = this._ocrRunMin(runB, 'left');
+    const aHeight = Math.max(this._ocrRunMax(runA, 'height'), 20);
+    const sameLineTol = Math.max(8, aHeight * 0.4);
+
+    if (Math.abs(bTop - aTop) <= sameLineTol) return false;
+
+    const gap = bTop - aTop;
+    if (gap <= 0 || gap > aHeight * 2.8) return false;
+
+    const colTol = Math.max(40, Math.max(...runA.map((b) => b.width || 0), 12) * 2);
+    if (Math.abs(bLeft - aLeft) > colTol) return false;
+
+    const prevText = this._ocrRunText(runA);
+    if (/[。！？；]$/.test(prevText.trim())) return false;
+
+    // A wrap continues a full line onto the next; a much shorter current line
+    // is usually the end of a paragraph or a heading.
+    const prevRight = Math.max(...runA.map((b) => b.left + (b.width || 0)));
+    const nextRight = Math.max(...runB.map((b) => b.left + (b.width || 0)));
+    const prevWidth = prevRight - aLeft;
+    const nextWidth = nextRight - bLeft;
+    if (nextWidth > 0 && prevWidth < nextWidth * 0.65) return false;
+
+    return true;
+  }
+
+  _findOcrWrapNeighbor(runs, index, direction) {
+    const run = runs[index];
+    if (!run) return null;
+    const runTop = this._ocrRunMin(run, 'top');
+    const runHeight = Math.max(this._ocrRunMax(run, 'height'), 20);
+    const maxGap = runHeight * 2.8;
+
+    if (direction === 'next') {
+      for (let i = index + 1; i < runs.length; i++) {
+        const nextTop = this._ocrRunMin(runs[i], 'top');
+        if (nextTop - runTop > maxGap) break;
+        if (this._isOcrWrappingPair(run, runs[i])) return runs[i];
+      }
+    } else {
+      for (let i = index - 1; i >= 0; i--) {
+        const prevTop = this._ocrRunMin(runs[i], 'top');
+        if (runTop - prevTop > maxGap) break;
+        if (this._isOcrWrappingPair(runs[i], run)) return runs[i];
+      }
+    }
+    return null;
+  }
+
+  _sliceRunBoxesByChars(run, startChar, endChar) {
+    if (!run?.length || endChar <= startChar) return [];
+    const boxes = [];
+    let offset = 0;
+    for (const box of run) {
+      const start = offset;
+      const end = offset + box.text.length;
+      offset = end;
+      if (end > startChar && start < endChar) boxes.push(box);
+    }
+    return boxes;
+  }
+
+  _isOcrGlyphRun(run) {
+    return run.length > 1 && run.every((b) => [...b.text].length <= 2);
+  }
+
+  _stampOcrCharRange(run, start, end, word, dictionaryForm) {
+    if (!run?.length || end <= start) return;
+    const isGlyphRun = this._isOcrGlyphRun(run);
+    let offset = 0;
+
+    for (const box of run) {
+      const bStart = offset;
+      const bEnd = offset + box.text.length;
+      offset = bEnd;
+      if (bEnd <= start || bStart >= end) continue;
+
+      if (isGlyphRun) {
+        this._stampOcrBoxWord(box.el, word, dictionaryForm);
+        continue;
+      }
+
+      let innerOffset = bStart;
+      const walker = document.createTreeWalker(box.el, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
+        acceptNode: (node) => {
+          if (node.nodeType === Node.TEXT_NODE) {
+            if (node.parentElement?.tagName === 'RT') return NodeFilter.FILTER_REJECT;
+            if (node.parentElement?.closest?.('span[data-word]') &&
+                node.parentElement.closest('span[data-word]') !== box.el) {
+              return NodeFilter.FILTER_REJECT;
+            }
+            return NodeFilter.FILTER_ACCEPT;
+          }
+          if (node.matches?.('span[data-word]')) return NodeFilter.FILTER_ACCEPT;
+          return NodeFilter.FILTER_SKIP;
+        }
+      });
+
+      let node;
+      while ((node = walker.nextNode())) {
+        if (node.nodeType === Node.ELEMENT_NODE && node.matches?.('span[data-word]')) {
+          const len = this.getBaseText(node).length;
+          const sStart = innerOffset;
+          const sEnd = innerOffset + len;
+          innerOffset = sEnd;
+          if (sEnd > start && sStart < end) {
+            this._applyWordSpanState(node, word, dictionaryForm);
+          }
+        } else if (node.nodeType === Node.TEXT_NODE) {
+          innerOffset += node.textContent.length;
+        }
+      }
+    }
+  }
+
+  async _stampOcrWrappedWords(run, nextRun, adapter) {
+    const prevText = this._ocrRunText(run);
+    const nextText = this._ocrRunText(nextRun);
+    if (!prevText || !nextText) return;
+
+    const words = await adapter.extractWords(
+      prevText + nextText,
+      this.dictionaryManager.dictionary
+    );
+    for (const { word, start, end, dictionaryForm, isTargetLang } of words) {
+      if (isTargetLang === false) continue;
+      if (!(start < prevText.length && end > prevText.length)) continue;
+      this._stampOcrCharRange(run, start, Math.min(end, prevText.length), word, dictionaryForm);
+      this._stampOcrCharRange(
+        nextRun,
+        Math.max(0, start - prevText.length),
+        end - prevText.length,
+        word,
+        dictionaryForm
+      );
+    }
+  }
+
   async _processOcrRun(run, adapter) {
-    const isGlyphRun = run.length > 1 && run.every((b) => [...b.text].length <= 2);
+    const isGlyphRun = this._isOcrGlyphRun(run);
     if (!isGlyphRun) {
       for (const box of run) {
         for (const node of this.getTextNodes(box.el)) {
@@ -1200,8 +1386,9 @@ class PageProcessor {
     const boxEl = this._getOcrPositionedBox(textNode.parentElement);
     if (!boxEl) return null;
     const runs = this._groupOcrBoxesIntoRuns(this._getOcrLayerBoxes(boxEl.parentElement));
-    const run = runs.find((r) => r.some((b) => b.el === boxEl));
-    if (!run || run.length < 2) return null;
+    const runIndex = runs.findIndex((r) => r.some((b) => b.el === boxEl));
+    if (runIndex < 0) return null;
+    const run = runs[runIndex];
 
     let lineText = '';
     let offsetInLine = 0;
@@ -1213,7 +1400,34 @@ class PageProcessor {
       }
       lineText += box.text;
     }
-    return found ? { lineText, offsetInLine, run } : null;
+    if (!found) return null;
+
+    const adapter = this.languageRegistry.getAdapter();
+    const canWrap = adapter?.getScanResolution?.() === 'char';
+    const peek = this._getOcrWrapPeekLength(adapter);
+    const prevRun = canWrap ? this._findOcrWrapNeighbor(runs, runIndex, 'prev') : null;
+    const nextRun = canWrap ? this._findOcrWrapNeighbor(runs, runIndex, 'next') : null;
+    const prevText = prevRun ? this._ocrRunText(prevRun) : '';
+    const nextText = nextRun ? this._ocrRunText(nextRun) : '';
+    const prevSuffix = prevText.slice(-peek);
+    const nextPrefix = nextText.slice(0, peek);
+
+    const highlightBoxes = [
+      ...(prevRun ? this._sliceRunBoxesByChars(prevRun, prevText.length - prevSuffix.length, prevText.length) : []),
+      ...run,
+      ...(nextRun ? this._sliceRunBoxesByChars(nextRun, 0, nextPrefix.length) : [])
+    ];
+
+    return {
+      lineText,
+      offsetInLine,
+      run,
+      prevSuffix,
+      nextPrefix,
+      extendedText: prevSuffix + lineText + nextPrefix,
+      offsetInExtended: prevSuffix.length + offsetInLine,
+      highlightBoxes
+    };
   }
 
   _getOcrGlyphSpansForRange(run, rangeStart, rangeEnd) {
@@ -1230,11 +1444,11 @@ class PageProcessor {
         coveredLength += box.text.length;
       }
     }
-    // Word sits inside a single box holding more characters than the word
-    // (e.g. inline 贵姓 boxed as one span, word resolved to 贵): highlighting
-    // the whole box would not match the popup, so fall back to wrap-mode
-    // text-range highlighting by returning no glyph spans.
-    if (spans.length === 1 && coveredLength > rangeEnd - rangeStart) return [];
+    // Word sits inside a box holding more characters than the word
+    // (e.g. inline 贵姓 boxed as one span, word resolved to 贵, or a wrap
+    // spanning two full line boxes): highlighting the whole box would not
+    // match the popup, so fall back to wrap-mode text-range highlighting.
+    if (coveredLength > rangeEnd - rangeStart) return [];
     return spans;
   }
 
@@ -1619,34 +1833,50 @@ class PageProcessor {
 
     // For character-based languages, find words starting from the position
     if (isCharacterBased) {
-      // Extract the remaining text from the hovered position
-      const remainingText = text.substring(startOffset);
+      // Remaining text from the hover, plus the next OCR line's prefix so a
+      // compound that wrapped (地 at EOL + 铁 at SOL) still segments as one word.
+      const remainingText = ocrContext
+        ? text.substring(startOffset) + (ocrContext.nextPrefix || '')
+        : text.substring(startOffset);
       if (remainingText.length === 0) return null;
-      
-      // Use jieba to segment the remaining text to find words starting from this position
+
       const words = await adapter.extractWords(remainingText, this.dictionaryManager.dictionary);
-      
-      // Return the first word found (jieba segments in order, so first is the word starting at position)
-      if (words.length > 0) {
-        const word = words[0].word;
-        const result = {
-          word,
-          textNode,
-          start: localStart,
-          end: Math.min(textNode.textContent.length, localStart + word.length)
-        };
-        if (ocrContext) {
-          result.ocrGlyphSpans = this._getOcrGlyphSpansForRange(
-            ocrContext.run,
-            startOffset,
-            startOffset + word.length
-          );
+      let word = words[0]?.word || null;
+      let wordStartExtended = ocrContext ? ocrContext.offsetInExtended : startOffset;
+      let wordEndExtended = wordStartExtended + (word?.length || 0);
+
+      // Hovering the continuation on the next line: look back across the wrap.
+      if (ocrContext?.prevSuffix && startOffset < this._getOcrWrapPeekLength(adapter)) {
+        const wrapWords = await adapter.extractWords(
+          ocrContext.extendedText,
+          this.dictionaryManager.dictionary
+        );
+        const hover = ocrContext.offsetInExtended;
+        const containing = wrapWords.find((w) => hover >= w.start && hover < w.end);
+        if (containing && containing.start < ocrContext.prevSuffix.length &&
+            (!word || containing.word.length >= word.length)) {
+          word = containing.word;
+          wordStartExtended = containing.start;
+          wordEndExtended = containing.end;
         }
-        return result;
       }
-      
-      // No word found starting from this position
-      return null;
+
+      if (!word) return null;
+
+      const result = {
+        word,
+        textNode,
+        start: localStart,
+        end: Math.min(textNode.textContent.length, localStart + word.length)
+      };
+      if (ocrContext) {
+        result.ocrGlyphSpans = this._getOcrGlyphSpansForRange(
+          ocrContext.highlightBoxes,
+          wordStartExtended,
+          wordEndExtended
+        );
+      }
+      return result;
     } else {
       // For non-character-based languages (space-separated), find the word containing the position
       // This preserves the original behavior for languages with spaces
@@ -1749,18 +1979,22 @@ class PageProcessor {
 
     const ocrContext = ocrContextEarly || this._getOcrLineContext(textNode, offset);
     if (ocrContext) {
-      const ocrWords = await adapter.extractWords(ocrContext.lineText, this.dictionaryManager.dictionary);
+      const lookupText = ocrContext.extendedText || ocrContext.lineText;
+      const hoverOffset = Number.isInteger(ocrContext.offsetInExtended)
+        ? ocrContext.offsetInExtended
+        : ocrContext.offsetInLine;
+      const ocrWords = await adapter.extractWords(lookupText, this.dictionaryManager.dictionary);
       for (const wordData of ocrWords) {
-        if (ocrContext.offsetInLine >= wordData.start && ocrContext.offsetInLine < wordData.end) {
-          // Node-relative start of the word (hover may be mid-word)
-          const nodeStart = Math.max(0, offset - (ocrContext.offsetInLine - wordData.start));
+        if (hoverOffset >= wordData.start && hoverOffset < wordData.end) {
+          const wordStartInLine = wordData.start - (ocrContext.prevSuffix?.length || 0);
+          const nodeStart = Math.max(0, offset - (ocrContext.offsetInLine - wordStartInLine));
           return {
             word: wordData.word,
             textNode,
             start: nodeStart,
             end: Math.min(textNode.textContent.length, nodeStart + wordData.word.length),
             ocrGlyphSpans: this._getOcrGlyphSpansForRange(
-              ocrContext.run,
+              ocrContext.highlightBoxes || ocrContext.run,
               wordData.start,
               wordData.end
             )
