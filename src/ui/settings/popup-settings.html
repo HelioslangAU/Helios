@@ -1,67 +1,71 @@
-<!-- Popup & Display Settings Tab Content -->
+<!-- Lookup popup settings -->
 <div class="section-card">
-  <h2 class="section-title">
-    <span>💬</span>
-    Popup Behavior
-  </h2>
-  <p class="section-description">
-    Customize popup appearance and interaction behavior.
-  </p>
-
-  <div class="form-row">
-    <div class="form-group">
-      <label class="form-label">Popup Theme</label>
+  <div class="field">
+    <div class="field__text">
+      <label class="field__label" for="popup-theme">Theme</label>
+      <p class="field__help">Auto follows the theme of the site you are reading.</p>
+    </div>
+    <div class="field__control">
       <select class="form-control" id="popup-theme">
-        <option value="dark" selected>Dark (Default)</option>
+        <option value="dark">Dark</option>
         <option value="light">Light</option>
-        <option value="auto">Auto (System)</option>
+        <option value="auto">Auto</option>
       </select>
     </div>
-    <div class="form-group">
-      <label class="form-label">Card Size</label>
+  </div>
+
+  <div class="field">
+    <div class="field__text">
+      <label class="field__label" for="popup-font-size">Card size</label>
+      <p class="field__help">Larger cards are easier to read over video; smaller ones cover less of the page.</p>
+    </div>
+    <div class="field__control">
       <select class="form-control" id="popup-font-size">
         <option value="small">Small</option>
-        <option value="medium" selected>Medium (Default)</option>
+        <option value="medium">Medium</option>
         <option value="large">Large</option>
-        <option value="extra-large">Extra Large</option>
+        <option value="extra-large">Extra large</option>
       </select>
     </div>
   </div>
 
-  <div class="form-row">
-    <div class="form-group full-width">
-      <label class="form-label">Show Frequency</label>
-      <label class="toggle-switch">
+  <div class="field">
+    <div class="field__text">
+      <label class="field__label" for="show-frequency">Show frequency rank</label>
+      <p class="field__help">
+        Display how common a word is, so you can judge whether it is worth a card.
+      </p>
+    </div>
+    <div class="field__control">
+      <span class="switch">
         <input type="checkbox" id="show-frequency" checked />
-        <span class="toggle-slider"></span>
-      </label>
-      <div class="help-text">Display word frequency ranking in popup</div>
+        <span class="switch__track"><span class="switch__thumb"></span></span>
+      </span>
     </div>
   </div>
 
-  <div class="form-row">
-    <div class="form-group">
-      <label class="form-label">Persistent Popup</label>
-      <label class="toggle-switch">
-        <input type="checkbox" id="persistent-popup" checked />
-        <span class="toggle-slider"></span>
-      </label>
-      <div class="help-text">
-        Keep popup open after releasing activation key
-      </div>
+  <div class="field">
+    <div class="field__text">
+      <label class="field__label" for="persistent-popup">Keep the popup open</label>
+      <p class="field__help">
+        Stay open after you release the lookup key, so you can click into the card.
+      </p>
     </div>
-    <div class="form-group">
-      <label class="form-label">Auto-close Delay (s)</label>
-      <input
-        type="number"
-        class="form-control"
-        id="auto-close-delay"
-        value="0"
-        min="0"
-        max="30"
-      />
-      <div class="help-text">Auto-close popup after delay (0 = disabled)</div>
+    <div class="field__control">
+      <span class="switch">
+        <input type="checkbox" id="persistent-popup" checked />
+        <span class="switch__track"><span class="switch__thumb"></span></span>
+      </span>
+    </div>
+  </div>
+
+  <div class="field">
+    <div class="field__text">
+      <label class="field__label" for="auto-close-delay">Close after</label>
+      <p class="field__help">Seconds before the popup dismisses itself. Set 0 to keep it until you move away.</p>
+    </div>
+    <div class="field__control">
+      <input type="number" class="form-control" id="auto-close-delay" value="0" min="0" max="30" />
     </div>
   </div>
 </div>
-

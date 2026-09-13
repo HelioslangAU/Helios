@@ -69,7 +69,7 @@ class HeliosSettingsAdvanced {
           loadedTabs: Array.from(this.manager.loadedTabs),
         },
         anki: {
-          connectionStatus: this.manager.anki.ankiConnection,
+          connectionStatus: this.manager.anki.isConnected,
           availableDecks: this.manager.anki.availableDecks.length,
           availableNoteTypes: this.manager.anki.availableNoteTypes.length,
           currentNoteTypeFields: this.manager.anki.currentNoteTypeFields.length,

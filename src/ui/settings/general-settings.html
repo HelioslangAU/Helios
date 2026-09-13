@@ -1,54 +1,67 @@
-<!-- General Settings Tab Content -->
+<!-- General settings -->
 <div class="section-card">
-  <h2 class="section-title">
-    <span>⚙️</span>
-    Extension Control
-  </h2>
-  <p class="section-description">
-    Configure basic extension behavior and activation settings.
-  </p>
-
-  <div class="form-row">
-    <div class="form-group">
-      <label class="form-label">Extension Enabled</label>
-      <label class="toggle-switch">
-        <input type="checkbox" id="extension-enabled" checked />
-        <span class="toggle-slider"></span>
-      </label>
-      <div class="help-text">Enable or disable the entire extension</div>
+  <div class="field">
+    <div class="field__text">
+      <label class="field__label" for="extension-enabled">Extension enabled</label>
+      <p class="field__help">
+        Turn Helios off on every page without uninstalling it. Your words and settings are kept.
+      </p>
     </div>
-    <div class="form-group">
-      <label class="form-label">Activation Key</label>
-      <select class="form-control" id="activation-key">
-        <option value="Shift">Shift (Default)</option>
-        <option value="Alt">Alt</option>
-        <option value="Control">Ctrl</option>
-        <option value="Meta">Cmd/Meta</option>
-      </select>
-      <div class="help-text">Key to hold for dictionary lookups</div>
+    <div class="field__control">
+      <span class="switch">
+        <input type="checkbox" id="extension-enabled" checked />
+        <span class="switch__track"><span class="switch__thumb"></span></span>
+      </span>
     </div>
   </div>
 
-  <div class="form-row">
-    <div class="form-group">
-      <label class="form-label">Target Language</label>
+  <div class="field">
+    <div class="field__text">
+      <label class="field__label" for="target-language">Language you are learning</label>
+      <p class="field__help">
+        Sets the dictionary, word segmentation, and which known-words list Helios tracks.
+      </p>
+    </div>
+    <div class="field__control">
       <select class="form-control" id="target-language">
+        <option value="">Not chosen yet</option>
         <option value="zh">Chinese (中文)</option>
         <option value="en">English</option>
         <option value="es">Spanish (Español)</option>
         <option value="fr">French (Français)</option>
       </select>
-      <div class="help-text">Select the language you want to learn</div>
     </div>
-    <div class="form-group">
-      <label class="form-label">Auto-highlight Unknown Words</label>
-      <label class="toggle-switch">
+  </div>
+
+  <div class="field">
+    <div class="field__text">
+      <label class="field__label" for="activation-key">Hold this key to look up</label>
+      <p class="field__help">
+        Hold the key and hover a word to open its definition. Release to dismiss.
+      </p>
+    </div>
+    <div class="field__control">
+      <select class="form-control" id="activation-key">
+        <option value="Shift">Shift</option>
+        <option value="Alt">Alt</option>
+        <option value="Control">Ctrl</option>
+        <option value="Meta">Cmd / Meta</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="field">
+    <div class="field__text">
+      <label class="field__label" for="auto-highlight">Underline unknown words</label>
+      <p class="field__help">
+        Mark words you have not learned yet as soon as a page loads, so you can see what to mine.
+      </p>
+    </div>
+    <div class="field__control">
+      <span class="switch">
         <input type="checkbox" id="auto-highlight" checked />
-        <span class="toggle-slider"></span>
-      </label>
-      <div class="help-text">
-        Automatically underline unknown words on page load
-      </div>
+        <span class="switch__track"><span class="switch__thumb"></span></span>
+      </span>
     </div>
   </div>
 </div>

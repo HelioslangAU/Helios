@@ -56,6 +56,7 @@ class HeliosSettingsStorage {
   async saveSettings() {
     try {
       console.log("🔍 Saving settings...");
+      this.manager.showSaveState?.("saving");
 
       // Collect all form values from all loaded tabs
       const formData = this.collectFormData();
@@ -63,14 +64,18 @@ class HeliosSettingsStorage {
 
       // Merge with existing settings
       this.manager.settings = { ...this.manager.settings, ...formData };
-      console.log("🔍 Final settings to save:", this.manager.settings);
 
       if (chrome.storage && chrome.storage.local) {
-        await chrome.storage.local.set(this.manager.settings);
-        console.log("🔍 Settings saved successfully to Chrome storage");
+        // Write only what this form owns. Writing the whole settings object
+        // would push our page-load copy of knownWords back over any words
+        // mined in another tab since this page opened.
+        await chrome.storage.local.set(formData);
+        console.log("🔍 Saved keys:", Object.keys(formData).join(", "));
 
         // Notify other parts of the extension about settings changes
         this.broadcastSettingsChange(formData);
+        this.manager.showSaveState?.("saved");
+        this.manager.readiness?.render();
       } else {
         console.log("🔍 Chrome storage not available, settings not persisted");
       }
@@ -152,8 +157,10 @@ class HeliosSettingsStorage {
    * Collect shortcuts data in unified structure
    */
   collectShortcutsData(tabElement, formData) {
-    // Initialize shortcuts structure
+    // Every section is collected in one pass, so keep any branch (such as
+    // videoNavigation) that another section already contributed.
     formData.shortcuts = {
+      ...(formData.shortcuts || this.manager.settings.shortcuts || {}),
       popup: {},
       video: {}
     };
@@ -262,7 +269,10 @@ class HeliosSettingsStorage {
 
     // Sync video player hotkeys to shortcuts.videoNavigation for consistency
     // Preserve existing shortcuts, only update videoNavigation
-    const existingShortcuts = this.manager.settings.shortcuts || this.manager.defaultSettings.shortcuts;
+    const existingShortcuts =
+      formData.shortcuts ||
+      this.manager.settings.shortcuts ||
+      this.manager.defaultSettings.shortcuts;
     formData.shortcuts = {
       ...existingShortcuts,
       videoNavigation: { ...formData.videoPlayer.hotkeys }
