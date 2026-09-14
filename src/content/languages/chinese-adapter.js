@@ -391,14 +391,40 @@ class ChineseLanguageAdapter extends BaseLanguageAdapter {
   }
 
   /**
+   * Chinese onboarding can import either HSK or Integrated Chinese vocab.
+   * Integrated Chinese Book 2 is cumulative and includes Book 1.
+   * @returns {Array<Object>}
+   */
+  getVocabSources() {
+    return [
+      {
+        id: 'hsk',
+        name: 'HSK',
+        description: 'Official HSK proficiency vocabulary',
+        levels: this.getLevelDefinitions()
+      },
+      {
+        id: 'integrated-chinese',
+        name: 'Integrated Chinese',
+        description: 'Textbook vocabulary from Books 1 and 2. Book 2 includes Book 1.',
+        levels: [
+          { level: 'IC1', name: 'Book 1', wordCount: 492 },
+          { level: 'IC2', name: 'Book 2', wordCount: 868 }
+        ]
+      }
+    ];
+  }
+
+  /**
    * Get the vocabulary file path for onboarding word lists
-   * @param {string} level - Proficiency level (e.g., 'HSK1', 'HSK2')
+   * @param {string} level - Proficiency level (e.g., 'HSK1', 'IC1')
    * @returns {string|null} - Path to vocabulary file or null if not available
    */
   getOnboardingVocabPath(level) {
-    // For Chinese, we might have separate files per HSK level
-    // For now, return a general path - can be customized later
-    return `OnboardingVocab/zh5k.csv`;
+    if (level === 'IC1' || level === 'IC2') {
+      return 'OnboardingVocab/IC1-2.csv';
+    }
+    return 'OnboardingVocab/zh5k.csv';
   }
 
   /**

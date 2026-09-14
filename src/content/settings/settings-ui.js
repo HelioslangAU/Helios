@@ -503,7 +503,14 @@ class HeliosSettingsUI {
    * @returns {string} - Formatted display string
    */
   formatHotkeyDisplay(hotkey) {
-    if (!hotkey || !hotkey.key) return "";
+    if (!hotkey) return "";
+
+    // Popup shortcuts were originally stored as a bare key string.
+    if (typeof hotkey === "string") {
+      return hotkey.charAt(0).toUpperCase() + hotkey.slice(1);
+    }
+
+    if (!hotkey.key) return "";
     
     const parts = [];
     if (hotkey.ctrl) parts.push("Ctrl");
@@ -886,7 +893,9 @@ class HeliosSettingsUI {
     // Target language dropdown
     const targetLanguage = tabElement.querySelector("#target-language");
     if (targetLanguage) {
-      targetLanguage.value = this.manager.settings.targetLanguage || 'zh';
+      // Stays blank until onboarding picks one, so the control cannot claim a
+      // language the rest of the extension is not using.
+      targetLanguage.value = this.manager.settings.targetLanguage || "";
       console.log(
         "🔍 Set target language:",
         this.manager.settings.targetLanguage

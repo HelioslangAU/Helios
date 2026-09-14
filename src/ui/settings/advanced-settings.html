@@ -1,5 +1,69 @@
-<!-- Advanced Settings Tab Content -->
-<div class="help-text">
-  <strong>Extension Version:</strong> <span id="extension-version">-</span><br />
-  <strong>Last Updated:</strong> <span id="last-updated">-</span>
+<!-- Maintenance settings -->
+<div class="section-card">
+  <div class="field">
+    <div class="field__text">
+      <span class="field__label">Version</span>
+      <p class="field__help">Include this when you report a problem.</p>
+    </div>
+    <div class="field__control">
+      <p class="meta-readout">
+        Helios <span id="extension-version">&mdash;</span>
+        <span class="meta-readout__sep" aria-hidden="true">·</span>
+        updated <span id="last-updated">&mdash;</span>
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="section-card">
+  <h3 class="section-title">When something looks wrong</h3>
+  <p class="section-description">
+    None of these touch your known words, learning list, or Anki field mapping.
+  </p>
+
+  <div class="field">
+    <div class="field__text">
+      <span class="field__label">Cached dictionary lookups</span>
+      <p class="field__help">
+        Clear them if definitions look stale or a page stops highlighting. They rebuild as you read.
+      </p>
+    </div>
+    <div class="field__control">
+      <button class="btn btn-secondary" id="clear-cache" type="button">
+        <svg class="btn__icon" aria-hidden="true"><use href="#i-broom" /></svg>
+        Clear cache
+      </button>
+    </div>
+  </div>
+
+  <div class="field">
+    <div class="field__text">
+      <span class="field__label">Diagnostics</span>
+      <p class="field__help">
+        Checks storage, the background worker, your Anki connection, and word counts, then shows a
+        summary.
+      </p>
+    </div>
+    <div class="field__control">
+      <button class="btn btn-secondary" id="run-diagnostics" type="button">
+        <svg class="btn__icon" aria-hidden="true"><use href="#i-diagnostics" /></svg>
+        Run diagnostics
+      </button>
+    </div>
+  </div>
+
+  <div class="field">
+    <div class="field__text">
+      <span class="field__label">Debug log</span>
+      <p class="field__help">
+        Downloads a text file of your settings and browser details to attach to a bug report.
+      </p>
+    </div>
+    <div class="field__control">
+      <button class="btn btn-secondary" id="export-logs" type="button">
+        <svg class="btn__icon" aria-hidden="true"><use href="#i-logs" /></svg>
+        Export debug log
+      </button>
+    </div>
+  </div>
 </div>

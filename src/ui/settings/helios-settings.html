@@ -1,130 +1,344 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Helios Settings</title>
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="helios-settings.css" />
   </head>
   <body>
-    <!-- Beautiful gradient header matching extension tab -->
-    <div class="header">
-      <div class="header-content">
-        <div class="brand">
-          <h1>Helios</h1>
-          <div class="subtitle">Extension Settings</div>
+    <!--
+      THESIS: Settings open on whether the study loop works, not on a brand banner; this refuses
+      the seven-tab drawer that hid a broken Anki field mapping behind a click.
+      OWN-WORLD: Near-black ground, #151518 panels, one sunrise-orange accent reserved for
+      selection, focus and attention; Inter on a fixed 11-20px scale; 1px hairlines, 6/10px radii,
+      drawn 1.5px SVG icons, no gradients, no emoji.
+      STORY: A learner sees which link of look up - mine - watch is broken, fixes it in place, and
+      keeps every other control one scroll away.
+      FIRST VIEWPORT: App bar carrying save state; left rail of section links; a readiness board of
+      live rows (dot, name, current value, Fix) filling the top of the main column; the first
+      settings panel breaking the fold. Signature interaction: Fix scrolls to the exact control,
+      focuses it, and pulses its row once at 150ms.
+      FORM: Readiness Board, index 4 of 7 grounded structures, seed 51bc7aac.
+      FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review,
+      the verdict, DESIGN.md, and every shipping raster carrying its provenance.
+    -->
+
+    <svg class="icon-sprite" aria-hidden="true" focusable="false">
+      <symbol id="i-general" viewBox="0 0 24 24">
+        <path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h8M16 18h4" />
+        <circle cx="16" cy="6" r="2" />
+        <circle cx="8" cy="12" r="2" />
+        <circle cx="14" cy="18" r="2" />
+      </symbol>
+      <symbol id="i-popup" viewBox="0 0 24 24">
+        <path d="M4 5h16v10H9l-4 4v-4H4z" />
+        <path d="M8 9h8M8 12h5" />
+      </symbol>
+      <symbol id="i-shortcuts" viewBox="0 0 24 24">
+        <rect x="2" y="6" width="20" height="12" rx="2" />
+        <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8" />
+      </symbol>
+      <symbol id="i-video" viewBox="0 0 24 24">
+        <rect x="3" y="4" width="18" height="13" rx="2" />
+        <path d="M10 8.5l4 2.5-4 2.5z" />
+        <path d="M8 21h8" />
+      </symbol>
+      <symbol id="i-anki" viewBox="0 0 24 24">
+        <rect x="3" y="7" width="13" height="13" rx="2" />
+        <path d="M7.5 4h11a2 2 0 0 1 2 2v11" />
+        <path d="M7 13h5M7 16.5h3" />
+      </symbol>
+      <symbol id="i-vocabulary" viewBox="0 0 24 24">
+        <path d="M4 5.5h9M4 12h9M4 18.5h9" />
+        <path d="M16.5 5l1.75 1.75L21.5 3.5" />
+        <path d="M16.5 11.5l1.75 1.75L21.5 10" />
+        <path d="M16.5 18l1.75 1.75L21.5 15" />
+      </symbol>
+      <symbol id="i-advanced" viewBox="0 0 24 24">
+        <path
+          d="M15.5 3.5a5 5 0 0 0-6.2 6.2L3.8 15.2a2 2 0 0 0 2.8 2.8l5.5-5.5a5 5 0 0 0 6.2-6.2l-2.9 2.9-2.4-.6-.6-2.4z"
+        />
+      </symbol>
+      <symbol id="i-check" viewBox="0 0 24 24">
+        <path d="M4.5 12.5l5 5 10-11" />
+      </symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24">
+        <path d="M12 8v5" />
+        <path d="M12 16.5h.01" />
+        <circle cx="12" cy="12" r="9" />
+      </symbol>
+      <symbol id="i-off" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M8 12h8" />
+      </symbol>
+      <symbol id="i-pending" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7.5V12l3 2" />
+      </symbol>
+      <symbol id="i-caret" viewBox="0 0 24 24">
+        <path d="M6.5 9.5l5.5 5.5 5.5-5.5" />
+      </symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24">
+        <path d="M5 12h13M13 6.5l5.5 5.5-5.5 5.5" />
+      </symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24">
+        <path d="M20 5.5v5h-5" />
+        <path d="M4 18.5v-5h5" />
+        <path d="M19.2 10.5a7.5 7.5 0 0 0-13-3.2L4 10.5" />
+        <path d="M4.8 13.5a7.5 7.5 0 0 0 13 3.2l2.2-3.2" />
+      </symbol>
+      <symbol id="i-import" viewBox="0 0 24 24">
+        <path d="M12 3.5v11" />
+        <path d="M7.5 10l4.5 4.5 4.5-4.5" />
+        <path d="M4 19h16" />
+      </symbol>
+      <symbol id="i-export" viewBox="0 0 24 24">
+        <path d="M12 15V4" />
+        <path d="M7.5 8.5L12 4l4.5 4.5" />
+        <path d="M4 19h16" />
+      </symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24">
+        <path d="M4 7h16" />
+        <path d="M9.5 7V4.5h5V7" />
+        <path d="M6.5 7l1 12.5h9L17.5 7" />
+        <path d="M10.5 10.5v6M13.5 10.5v6" />
+      </symbol>
+      <symbol id="i-save" viewBox="0 0 24 24">
+        <path d="M5 4h11l3 3v13H5z" />
+        <path d="M8.5 4v5h7V4" />
+        <path d="M8 13h8v7H8z" />
+      </symbol>
+      <symbol id="i-restore" viewBox="0 0 24 24">
+        <path d="M3.5 7.5h6l2 2.5h9V19a1.5 1.5 0 0 1-1.5 1.5h-14A1.5 1.5 0 0 1 3.5 19z" />
+        <path d="M12 17v-5" />
+        <path d="M9.5 14.5L12 12l2.5 2.5" />
+      </symbol>
+      <symbol id="i-plug" viewBox="0 0 24 24">
+        <path d="M9 3.5v5M15 3.5v5" />
+        <path d="M6.5 8.5h11v3a5.5 5.5 0 0 1-11 0z" />
+        <path d="M12 17v3.5" />
+      </symbol>
+      <symbol id="i-diagnostics" viewBox="0 0 24 24">
+        <path d="M3.5 12.5h4l2.5-6 4 12 2.5-6h4" />
+      </symbol>
+      <symbol id="i-logs" viewBox="0 0 24 24">
+        <path d="M6 3.5h8l4 4v13H6z" />
+        <path d="M13.5 3.5V8H18" />
+        <path d="M9 12h6M9 15.5h6" />
+      </symbol>
+      <symbol id="i-broom" viewBox="0 0 24 24">
+        <path d="M14.5 3.5l6 6" />
+        <path d="M17.5 6.5l-7 7" />
+        <path d="M10.5 13.5l-6 6h9l3-3z" />
+      </symbol>
+    </svg>
+
+    <a class="skip-link" href="#settings-main">Skip to settings</a>
+
+    <header class="app-bar">
+      <div class="app-bar__inner">
+        <div class="app-bar__brand">
+          <img src="../../../icons/icon48.png" alt="" width="24" height="24" />
+          <span class="app-bar__title">Helios Settings</span>
         </div>
+        <p class="save-state" id="save-state" role="status" aria-live="polite">
+          <span class="save-state__dot" aria-hidden="true"></span>
+          <span class="save-state__text">Changes save automatically</span>
+        </p>
       </div>
+    </header>
+
+    <div class="workspace">
+      <nav class="rail" id="section-rail" aria-label="Settings sections">
+        <ul class="rail__list">
+          <li>
+            <a class="rail__item" href="#section-readiness" data-target="section-readiness">
+              <svg class="rail__icon" aria-hidden="true"><use href="#i-check" /></svg>
+              <span>Study loop</span>
+              <span class="rail__badge" id="rail-attention-count" hidden></span>
+            </a>
+          </li>
+          <li>
+            <a class="rail__item" href="#section-general" data-target="section-general">
+              <svg class="rail__icon" aria-hidden="true"><use href="#i-general" /></svg>
+              <span>General</span>
+            </a>
+          </li>
+          <li>
+            <a class="rail__item" href="#section-popup" data-target="section-popup">
+              <svg class="rail__icon" aria-hidden="true"><use href="#i-popup" /></svg>
+              <span>Lookup popup</span>
+            </a>
+          </li>
+          <li>
+            <a class="rail__item" href="#section-shortcuts" data-target="section-shortcuts">
+              <svg class="rail__icon" aria-hidden="true"><use href="#i-shortcuts" /></svg>
+              <span>Shortcuts</span>
+            </a>
+          </li>
+          <li>
+            <a class="rail__item" href="#section-video-player" data-target="section-video-player">
+              <svg class="rail__icon" aria-hidden="true"><use href="#i-video" /></svg>
+              <span>Video</span>
+            </a>
+          </li>
+          <li>
+            <a class="rail__item" href="#section-anki" data-target="section-anki">
+              <svg class="rail__icon" aria-hidden="true"><use href="#i-anki" /></svg>
+              <span>Anki</span>
+            </a>
+          </li>
+          <li>
+            <a class="rail__item" href="#section-vocabulary" data-target="section-vocabulary">
+              <svg class="rail__icon" aria-hidden="true"><use href="#i-vocabulary" /></svg>
+              <span>Words &amp; data</span>
+            </a>
+          </li>
+          <li>
+            <a class="rail__item" href="#section-advanced" data-target="section-advanced">
+              <svg class="rail__icon" aria-hidden="true"><use href="#i-advanced" /></svg>
+              <span>Maintenance</span>
+            </a>
+          </li>
+        </ul>
+      </nav>
+
+      <main class="main" id="settings-main">
+        <section
+          class="board"
+          id="section-readiness"
+          aria-labelledby="readiness-heading"
+          tabindex="-1"
+        >
+          <div class="board__head">
+            <div>
+              <h1 class="board__title" id="readiness-heading">Your study loop</h1>
+              <p class="board__summary" id="readiness-summary">Checking each step&hellip;</p>
+            </div>
+            <button class="btn btn-secondary btn--compact" id="readiness-recheck" type="button">
+              <svg class="btn__icon" aria-hidden="true"><use href="#i-refresh" /></svg>
+              Re-check
+            </button>
+          </div>
+          <ul class="board__rows" id="readiness-rows">
+            <li class="board__row board__row--skeleton" aria-hidden="true"></li>
+            <li class="board__row board__row--skeleton" aria-hidden="true"></li>
+            <li class="board__row board__row--skeleton" aria-hidden="true"></li>
+            <li class="board__row board__row--skeleton" aria-hidden="true"></li>
+            <li class="board__row board__row--skeleton" aria-hidden="true"></li>
+            <li class="board__row board__row--skeleton" aria-hidden="true"></li>
+            <li class="board__row board__row--skeleton" aria-hidden="true"></li>
+          </ul>
+          <button
+            class="board__toggle"
+            id="readiness-toggle"
+            type="button"
+            aria-controls="readiness-rows"
+            aria-expanded="false"
+            hidden
+          >
+            Show all steps
+          </button>
+        </section>
+
+        <section class="panel" id="section-general" aria-labelledby="h-general" tabindex="-1">
+          <header class="panel__head">
+            <h2 class="panel__title" id="h-general">
+              <svg class="panel__icon" aria-hidden="true"><use href="#i-general" /></svg>
+              General
+            </h2>
+            <p class="panel__note">What Helios does on every page you open.</p>
+          </header>
+          <div class="tab-content" id="general"></div>
+        </section>
+
+        <section class="panel" id="section-popup" aria-labelledby="h-popup" tabindex="-1">
+          <header class="panel__head">
+            <h2 class="panel__title" id="h-popup">
+              <svg class="panel__icon" aria-hidden="true"><use href="#i-popup" /></svg>
+              Lookup popup
+            </h2>
+            <p class="panel__note">How definitions appear when you look a word up.</p>
+          </header>
+          <div class="tab-content" id="popup"></div>
+        </section>
+
+        <section class="panel" id="section-shortcuts" aria-labelledby="h-shortcuts" tabindex="-1">
+          <header class="panel__head">
+            <h2 class="panel__title" id="h-shortcuts">
+              <svg class="panel__icon" aria-hidden="true"><use href="#i-shortcuts" /></svg>
+              Shortcuts
+            </h2>
+            <p class="panel__note">
+              Keys for marking words and loading subtitles. Video playback keys live in Video.
+            </p>
+          </header>
+          <div class="tab-content" id="shortcuts"></div>
+        </section>
+
+        <section
+          class="panel"
+          id="section-video-player"
+          aria-labelledby="h-video-player"
+          tabindex="-1"
+        >
+          <header class="panel__head">
+            <h2 class="panel__title" id="h-video-player">
+              <svg class="panel__icon" aria-hidden="true"><use href="#i-video" /></svg>
+              Video
+            </h2>
+            <p class="panel__note">Subtitle navigation and playback on YouTube, Netflix, and files.</p>
+          </header>
+          <div class="tab-content" id="video-player"></div>
+        </section>
+
+        <section class="panel" id="section-anki" aria-labelledby="h-anki" tabindex="-1">
+          <header class="panel__head">
+            <h2 class="panel__title" id="h-anki">
+              <svg class="panel__icon" aria-hidden="true"><use href="#i-anki" /></svg>
+              Anki
+            </h2>
+            <p class="panel__note">The connection, deck, and field mapping used when you mine a card.</p>
+          </header>
+          <div class="tab-content" id="anki"></div>
+        </section>
+
+        <section class="panel" id="section-vocabulary" aria-labelledby="h-vocabulary" tabindex="-1">
+          <header class="panel__head">
+            <h2 class="panel__title" id="h-vocabulary">
+              <svg class="panel__icon" aria-hidden="true"><use href="#i-vocabulary" /></svg>
+              Words &amp; data
+            </h2>
+            <p class="panel__note">What Helios knows you know, and how to move it in or out.</p>
+          </header>
+          <div class="tab-content" id="vocabulary"></div>
+        </section>
+
+        <section class="panel" id="section-advanced" aria-labelledby="h-advanced" tabindex="-1">
+          <header class="panel__head">
+            <h2 class="panel__title" id="h-advanced">
+              <svg class="panel__icon" aria-hidden="true"><use href="#i-advanced" /></svg>
+              Maintenance
+            </h2>
+            <p class="panel__note">Version, cache, and the reports to attach to a bug report.</p>
+          </header>
+          <div class="tab-content" id="advanced"></div>
+        </section>
+      </main>
     </div>
 
-    <div class="container">
-      <!-- Sidebar Navigation -->
-      <div class="sidebar">
-        <nav class="nav-menu">
-          <div class="nav-item active" data-tab="general">
-            <span class="icon">⚙️</span>
-            <span>General</span>
-          </div>
-          <div class="nav-item" data-tab="popup">
-            <span class="icon">💬</span>
-            <span>Popup & Display</span>
-          </div>
-          <div class="nav-item" data-tab="shortcuts">
-            <span class="icon">⌨️</span>
-            <span>Keyboard Shortcuts</span>
-          </div>
-          <div class="nav-item" data-tab="video-player">
-            <span class="icon">🎬</span>
-            <span>Video Player</span>
-          </div>
-          <div class="nav-item" data-tab="anki">
-            <span class="icon">📚</span>
-            <span>Anki Integration</span>
-          </div>
-          <div class="nav-item" data-tab="vocabulary">
-            <span class="icon">📝</span>
-            <span>Vocabulary</span>
-          </div>
-          <div class="nav-item" data-tab="advanced">
-            <span class="icon">🔧</span>
-            <span>Advanced</span>
-          </div>
-        </nav>
-      </div>
-
-      <!-- Main Content -->
-      <div class="main-content">
-        <!-- General Settings -->
-        <div class="tab-content active" id="general">
-          <div class="loading-indicator">
-            <div class="loading-spinner"></div>
-            Loading General Settings...
-          </div>
-        </div>
-
-        <!-- Popup & Display Settings -->
-        <div class="tab-content" id="popup">
-          <div class="loading-indicator">
-            <div class="loading-spinner"></div>
-            Loading Popup Settings...
-          </div>
-        </div>
-
-        <!-- Keyboard Shortcuts -->
-        <div class="tab-content" id="shortcuts">
-          <div class="loading-indicator">
-            <div class="loading-spinner"></div>
-            Loading Keyboard Shortcuts...
-          </div>
-        </div>
-
-        <!-- Video Player Settings -->
-        <div class="tab-content" id="video-player">
-          <div class="loading-indicator">
-            <div class="loading-spinner"></div>
-            Loading Video Player Settings...
-          </div>
-        </div>
-
-        <!-- Anki Integration -->
-        <div class="tab-content" id="anki">
-          <div class="loading-indicator">
-            <div class="loading-spinner"></div>
-            Loading Anki Settings...
-          </div>
-        </div>
-
-        <!-- Vocabulary Management -->
-        <div class="tab-content" id="vocabulary">
-          <div class="loading-indicator">
-            <div class="loading-spinner"></div>
-            Loading Vocabulary Settings...
-          </div>
-        </div>
-
-        <!-- Advanced Settings -->
-        <div class="tab-content" id="advanced">
-          <div class="loading-indicator">
-            <div class="loading-spinner"></div>
-            Loading Advanced Settings...
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Load paths configuration first (correct relative path from src/ui/settings/) -->
     <script src="../../config/paths.js"></script>
 
-    <!-- Load language adapters (required for vocabulary validation) -->
     <script src="../../content/languages/base-language-adapter.js"></script>
     <script src="../../content/languages/chinese-adapter.js"></script>
     <script src="../../content/languages/space-separated-adapter.js"></script>
     <script src="../../content/languages/language-registry.js"></script>
 
-    <!-- Load all settings modules as external scripts (MV3 CSP-safe) -->
     <script src="../../content/settings/settings-storage.js"></script>
     <script src="../../content/settings/settings-ui.js"></script>
     <script src="../../content/anki-manager.js"></script>
@@ -133,8 +347,8 @@
     <script src="../../content/vocab-manager.js"></script>
     <script src="../../content/settings/settings-vocabulary.js"></script>
     <script src="../../content/settings/settings-advanced.js"></script>
+    <script src="../../content/settings/settings-readiness.js"></script>
 
-    <!-- Main settings manager last -->
     <script src="../../content/settings/helios-settings.js"></script>
   </body>
 </html>

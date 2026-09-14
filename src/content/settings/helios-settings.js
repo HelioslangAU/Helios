@@ -144,40 +144,34 @@ class HeliosSettingsManager {
       // Set up main navigation
       this.setupEventListeners();
 
-      console.log("🔍 DEBUG: Event listeners set up, loading initial tab...");
+      console.log("🔍 DEBUG: Event listeners set up, loading sections...");
 
-      // Check localStorage for last active tab, otherwise default to 'general'
-      let initialTab = 'general';
-      try {
-        const savedTab = localStorage.getItem('helios-active-settings-tab');
-        if (savedTab && ['general', 'popup', 'shortcuts', 'video-player', 'anki', 'vocabulary', 'advanced'].includes(savedTab)) {
-          initialTab = savedTab;
-          console.log("🔍 DEBUG: Restoring saved tab:", initialTab);
-        }
-      } catch (e) {
-        console.warn('Could not read saved tab from localStorage:', e);
+      // Every section shares one scroll, so all of them load before the board reports state.
+      await this.loadAllSections();
+
+      // The board paints from local settings straight away. Anki is a network
+      // probe that can take ten seconds to fail, and the learner who most needs
+      // this page is the one whose Anki is not running.
+      if (typeof HeliosReadinessBoard !== "undefined") {
+        this.readiness = new HeliosReadinessBoard(this);
+        this.readiness.render();
       }
 
-      // Load the initial tab
-      await this.loadTabContent(initialTab);
+      this.setupScrollSpy();
+      this.goToHashSection();
 
-      // Update nav item to show the correct active tab
-      document.querySelectorAll('.nav-item').forEach((nav) => {
-        if (nav.getAttribute('data-tab') === initialTab) {
-          nav.classList.add('active');
-        } else {
-          nav.classList.remove('active');
-        }
-      });
+      if (this.anki) {
+        this.anki
+          .initializeAnki()
+          .catch((error) => console.error("🃏 Anki init failed:", error))
+          .finally(() => this.readiness?.render());
+      }
 
-      // Show the correct tab content
-      document.querySelectorAll('.tab-content').forEach((tab) => {
-        if (tab.id === initialTab) {
-          tab.classList.add('active');
-        } else {
-          tab.classList.remove('active');
-        }
-      });
+      if (this.vocabulary) {
+        this.vocabulary
+          .loadStatistics()
+          .catch((error) => console.error("🔍 Stats failed:", error));
+      }
 
       console.log("🔍 DEBUG: Helios Settings Manager initialized successfully");
 
@@ -192,6 +186,7 @@ class HeliosSettingsManager {
                 this.ui.updateTabUI(tabName);
               }
             });
+            this.readiness?.render();
           });
         }
       });
@@ -251,77 +246,155 @@ class HeliosSettingsManager {
     if (generalTab) {
       generalTab.innerHTML = `
         <div class="section-card">
-          <h2 class="section-title">
-            <span>⚠️</span>
-            Settings Initialization Error
-          </h2>
+          <h3 class="section-title">Settings could not start</h3>
           <p class="section-description">
-            Failed to initialize settings modules: ${error.message}
+            A settings module failed to load: ${error.message}
           </p>
-          <div class="help-text">
-            Please check the browser console for more details and try refreshing the page.
+          <div class="btn-row">
+            <button class="btn btn-primary" type="button" onclick="location.reload()">
+              Reload settings
+            </button>
           </div>
-          <button class="btn btn-primary" onclick="location.reload()">
-            Refresh Page
-          </button>
         </div>
       `;
     }
   }
 
+  get sectionNames() {
+    return [
+      "general",
+      "popup",
+      "shortcuts",
+      "video-player",
+      "anki",
+      "vocabulary",
+      "advanced",
+    ];
+  }
+
+  async loadAllSections() {
+    await Promise.all(
+      this.sectionNames.map((name) => this.loadTabContent(name))
+    );
+  }
+
   setupEventListeners() {
-    console.log("🔍 DEBUG: Setting up event listeners...");
-
-    // Tab Navigation
-    const navItems = document.querySelectorAll(".nav-item");
-    console.log("🔍 DEBUG: Found", navItems.length, "nav items");
-
-    navItems.forEach((item) => {
-      item.addEventListener("click", (e) => {
-        console.log(
-          "🔍 DEBUG: Tab clicked:",
-          e.currentTarget.getAttribute("data-tab")
-        );
-        this.switchTab(e);
+    document.querySelectorAll(".rail__item").forEach((item) => {
+      item.addEventListener("click", (event) => {
+        event.preventDefault();
+        this.goToSection(item.dataset.target);
       });
+    });
+
+    document
+      .getElementById("readiness-recheck")
+      ?.addEventListener("click", () => this.recheckReadiness());
+  }
+
+  /**
+   * Scroll a section into view and move focus there, so the rail works for
+   * keyboard and pointer alike.
+   * @param {string} sectionId - DOM id of the <section> wrapper
+   */
+  goToSection(sectionId) {
+    const section = document.getElementById(sectionId);
+    if (!section) return;
+
+    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    section.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
+    section.focus({ preventScroll: true });
+    history.replaceState(null, "", `#${sectionId}`);
+    this.markCurrentSection(sectionId);
+  }
+
+  goToHashSection() {
+    const target = window.location.hash.slice(1);
+    if (target && document.getElementById(target)) {
+      this.goToSection(target);
+    }
+  }
+
+  markCurrentSection(sectionId) {
+    document.querySelectorAll(".rail__item").forEach((item) => {
+      item.classList.toggle("is-current", item.dataset.target === sectionId);
     });
   }
 
-  async switchTab(event) {
-    const targetTab = event.currentTarget.getAttribute("data-tab");
-    console.log("🔍 DEBUG: Switching to tab:", targetTab);
+  setupScrollSpy() {
+    const sections = Array.from(document.querySelectorAll(".main > [id]"));
+    if (!sections.length) return;
 
-    // Save the active tab to localStorage
+    let ticking = false;
+
+    const sync = () => {
+      ticking = false;
+      // The section that owns the reading line just under the app bar is current.
+      const line = 140;
+      let current = sections[0];
+
+      for (const section of sections) {
+        if (section.getBoundingClientRect().top <= line) {
+          current = section;
+        }
+      }
+
+      const atBottom =
+        window.innerHeight + window.scrollY >= document.body.scrollHeight - 4;
+      if (atBottom) {
+        current = sections[sections.length - 1];
+      }
+
+      this.markCurrentSection(current.id);
+    };
+
+    window.addEventListener(
+      "scroll",
+      () => {
+        if (ticking) return;
+        ticking = true;
+        requestAnimationFrame(sync);
+      },
+      { passive: true }
+    );
+
+    sync();
+  }
+
+  async recheckReadiness() {
+    const button = document.getElementById("readiness-recheck");
+    if (button) button.disabled = true;
+
     try {
-      localStorage.setItem('helios-active-settings-tab', targetTab);
-    } catch (e) {
-      console.warn('Could not save active tab to localStorage:', e);
+      await this.storage.loadAllSettings();
+      if (this.anki) await this.anki.checkConnection();
+      if (this.vocabulary) await this.vocabulary.loadStatistics();
+      this.readiness?.render();
+    } finally {
+      if (button) button.disabled = false;
+    }
+  }
+
+  /**
+   * Reflect save activity in the app bar. Settings save on change, so the only
+   * honest states are "will save" and "saved".
+   * @param {"saving"|"saved"} state
+   */
+  showSaveState(state) {
+    const indicator = document.getElementById("save-state");
+    if (!indicator) return;
+
+    const text = indicator.querySelector(".save-state__text");
+    indicator.dataset.state = state;
+    if (text) {
+      text.textContent = state === "saving" ? "Saving…" : "All changes saved";
     }
 
-    // Update active nav item
-    document
-      .querySelectorAll(".nav-item")
-      .forEach((nav) => nav.classList.remove("active"));
-    event.currentTarget.classList.add("active");
-
-    // Update active tab content
-    document
-      .querySelectorAll(".tab-content")
-      .forEach((tab) => tab.classList.remove("active"));
-    document.getElementById(targetTab).classList.add("active");
-
-    // Load tab content if not already loaded
-    if (!this.loadedTabs.has(targetTab)) {
-      await this.loadTabContent(targetTab);
-    }
-
-    // Special handling for specific tabs
-    if (targetTab === "anki" && this.anki && !this.anki.ankiConnection) {
-      await this.anki.initializeAnki();
-    }
-
-    if (targetTab === "vocabulary" && this.vocabulary) {
-      await this.vocabulary.loadStatistics();
+    clearTimeout(this.saveStateTimer);
+    if (state === "saved") {
+      this.saveStateTimer = setTimeout(() => {
+        delete indicator.dataset.state;
+        if (text) text.textContent = "Changes save automatically";
+      }, 2400);
     }
   }
 
@@ -335,11 +408,9 @@ class HeliosSettingsManager {
     }
 
     try {
-      // Show loading indicator
-      tabElement.innerHTML =
-        '<div class="loading-indicator">Loading ' +
-        this.getTabDisplayName(tabName) +
-        "...</div>";
+      tabElement.innerHTML = `<div class="loading-indicator" role="status" aria-label="Loading ${this.getTabDisplayName(
+        tabName
+      )}"></div>`;
 
       console.log("🔍 DEBUG: Fetching HTML for:", tabName);
 
@@ -380,16 +451,15 @@ class HeliosSettingsManager {
       console.error(`🔍 DEBUG: Error loading ${tabName} tab:`, error);
       tabElement.innerHTML = `
         <div class="section-card">
-          <h2 class="section-title">
-            <span>⚠️</span>
-            Error Loading ${this.getTabDisplayName(tabName)}
-          </h2>
-          <p class="section-description">
-            Failed to load settings content: ${error.message}
-          </p>
-          <button class="btn btn-secondary" onclick="location.reload()">
-            Refresh Page
-          </button>
+          <h3 class="section-title">${this.getTabDisplayName(
+            tabName
+          )} could not load</h3>
+          <p class="section-description">${error.message}</p>
+          <div class="btn-row">
+            <button class="btn btn-secondary" type="button" onclick="location.reload()">
+              Reload settings
+            </button>
+          </div>
         </div>
       `;
     }
@@ -397,13 +467,13 @@ class HeliosSettingsManager {
 
   getTabDisplayName(tabName) {
     const displayNames = {
-      general: "General Settings",
-      popup: "Popup & Display Settings",
-      shortcuts: "Keyboard Shortcuts",
-      "video-player": "Video Player Settings",
-      anki: "Anki Integration",
-      vocabulary: "Vocabulary Management",
-      advanced: "Advanced Settings",
+      general: "General",
+      popup: "Lookup popup",
+      shortcuts: "Shortcuts",
+      "video-player": "Video",
+      anki: "Anki",
+      vocabulary: "Words & data",
+      advanced: "Maintenance",
     };
     return displayNames[tabName] || tabName;
   }

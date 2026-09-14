@@ -409,7 +409,7 @@ class HeliosSettingsVocabulary {
       // Button is ready - use normal styling
       importButton.innerHTML = "<span>📥</span>Import Known Words from Anki";
       importButton.title = "Import known words from Anki deck";
-      importButton.className = "btn btn-anki";
+      importButton.className = "btn btn-secondary";
     } else {
       // Button not ready - use red/danger styling
       importButton.innerHTML = "<span>⚠️</span>Anki not set up";
@@ -441,7 +441,7 @@ class HeliosSettingsVocabulary {
       // Button is ready - use normal styling
       syncButton.innerHTML = "<span>🔄</span>Sync Learning Words";
       syncButton.title = "Sync learning words from Anki and promote to known when interval >= 21 days";
-      syncButton.className = "btn btn-anki";
+      syncButton.className = "btn btn-secondary";
     } else {
       // Button not ready - use red/danger styling
       syncButton.innerHTML = "<span>⚠️</span>Anki not set up";

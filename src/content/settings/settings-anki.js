@@ -152,28 +152,34 @@ class HeliosSettingsAnki {
     if (!statusElement) return;
 
     try {
+      this.connectionChecked = false;
       statusElement.className = "status-indicator status-checking";
-      statusElement.innerHTML = "<span>●</span><span>Checking...</span>";
+      statusElement.innerHTML = "<span class='status-indicator__dot' aria-hidden='true'></span><span>Checking...</span>";
 
       const response = await this.sendMessage("ANKI_TEST_CONNECTION");
       this.isConnected = response.success;
+      this.connectionChecked = true;
 
       if (this.isConnected) {
         statusElement.className = "status-indicator status-connected";
-        statusElement.innerHTML = "<span>●</span><span>Connected</span>";
+        statusElement.innerHTML = "<span class='status-indicator__dot' aria-hidden='true'></span><span>Connected</span>";
+
+        const helpText = document.getElementById("anki-connection-help");
+        if (helpText) helpText.style.removeProperty("color");
       } else {
         statusElement.className = "status-indicator status-disconnected";
-        statusElement.innerHTML = "<span>●</span><span>Disconnected</span>";
+        statusElement.innerHTML = "<span class='status-indicator__dot' aria-hidden='true'></span><span>Disconnected</span>";
       }
 
       return this.isConnected;
     } catch (error) {
       console.error("🃏 Connection check failed:", error);
       this.isConnected = false;
+      this.connectionChecked = true;
 
       if (statusElement) {
         statusElement.className = "status-indicator status-error";
-        statusElement.innerHTML = "<span>●</span><span>Error</span>";
+        statusElement.innerHTML = "<span class='status-indicator__dot' aria-hidden='true'></span><span>Error</span>";
       }
 
       return false;
@@ -417,10 +423,7 @@ class HeliosSettingsAnki {
 
       row.innerHTML = `
         <td class="anki-field">
-          <div class="field-name">
-            <span class="field-icon">📝</span>
-            ${field}
-          </div>
+          <div class="field-name">${field}</div>
         </td>
         <td>
           <select class="form-control mapping-select" data-field="${field}">
@@ -736,14 +739,14 @@ class HeliosSettingsAnki {
     if (!button) return;
 
     const originalText = button.innerHTML;
-    button.innerHTML = "<span>🔄</span>Testing...";
+    button.textContent = "Testing…";
     button.disabled = true;
 
     try {
       const connected = await this.checkConnection();
 
       if (connected) {
-        button.innerHTML = "<span>✅</span>Connected!";
+        button.textContent = "Connected";
         button.className = "btn btn-success";
 
         // Reload decks and note types
@@ -751,22 +754,24 @@ class HeliosSettingsAnki {
         await this.loadNoteTypes();
         this.populateDropdowns();
       } else {
-        button.innerHTML = "<span>❌</span>Failed";
+        button.textContent = "Not reachable";
         button.className = "btn btn-danger";
       }
 
+      this.manager.readiness?.render();
+
       setTimeout(() => {
         button.innerHTML = originalText;
-        button.className = "btn btn-anki";
+        button.className = "btn btn-secondary";
         button.disabled = false;
       }, 2000);
     } catch (error) {
-      button.innerHTML = "<span>❌</span>Error";
+      button.textContent = "Not reachable";
       button.className = "btn btn-danger";
 
       setTimeout(() => {
         button.innerHTML = originalText;
-        button.className = "btn btn-anki";
+        button.className = "btn btn-secondary";
         button.disabled = false;
       }, 2000);
     }
@@ -777,17 +782,17 @@ class HeliosSettingsAnki {
     const statusElement = document.getElementById("anki-connection-status");
     if (statusElement) {
       statusElement.className = "status-indicator status-disconnected";
-      statusElement.innerHTML = "<span>●</span><span>Disconnected</span>";
+      statusElement.innerHTML = "<span class='status-indicator__dot' aria-hidden='true'></span><span>Disconnected</span>";
     }
 
-    // Show help text
-    const helpText = document.querySelector(".help-text");
+    // Scoped to the Anki section: every section shares one page now.
+    const helpText = document.getElementById("anki-connection-help");
     if (helpText) {
       helpText.innerHTML = `
-        <strong>Connection Failed:</strong> ${message}<br>
-        Make sure Anki is running with the AnkiConnect add-on installed (code: 2055492159)
+        ${message}. Open Anki and make sure the AnkiConnect add-on is installed
+        (code 2055492159), then test the connection again.
       `;
-      helpText.style.color = "var(--helios-error)";
+      helpText.style.color = "var(--helios-danger)";
     }
   }
 
@@ -966,18 +971,12 @@ class HeliosSettingsAnki {
     const canImport = deck && noteType && hasExpressionMapping;
     importButton.disabled = !canImport;
 
-    if (canImport) {
-      // Button is ready - use normal styling
-      importButton.innerHTML = "<span>📥</span>Import Known Words";
-      importButton.title = "Import known words from Anki deck";
-      importButton.className = "btn btn-anki";
-    } else {
-      // Button not ready - use red/danger styling
-      importButton.innerHTML = "<span>⚠️</span>Anki not set up";
-      importButton.title =
-        "Select deck, note type, and map expression field to enable import";
-      importButton.className = "btn btn-danger";
-    }
+    importButton.innerHTML =
+      '<svg class="btn__icon" aria-hidden="true"><use href="#i-import" /></svg>Import known words';
+    importButton.className = "btn btn-secondary";
+    importButton.title = canImport
+      ? "Read your deck and mark those words as known"
+      : "Choose a deck and note type, then map a field to Expression";
   }
 
   // Update sync button state based on prerequisites
@@ -998,18 +997,12 @@ class HeliosSettingsAnki {
     const canSync = deck && noteType && hasExpressionMapping;
     syncButton.disabled = !canSync;
 
-    if (canSync) {
-      // Button is ready - use normal styling
-      syncButton.innerHTML = "<span>🔄</span>Sync Learning Words";
-      syncButton.title = "Sync learning words from Anki and promote to known when interval >= 21 days";
-      syncButton.className = "btn btn-anki";
-    } else {
-      // Button not ready - use red/danger styling
-      syncButton.innerHTML = "<span>⚠️</span>Anki not set up";
-      syncButton.title =
-        "Select deck, note type, and map expression field to enable sync";
-      syncButton.className = "btn btn-danger";
-    }
+    syncButton.innerHTML =
+      '<svg class="btn__icon" aria-hidden="true"><use href="#i-refresh" /></svg>Sync learning words';
+    syncButton.className = "btn btn-secondary";
+    syncButton.title = canSync
+      ? "Promote learning words to known once their interval reaches 21 days"
+      : "Choose a deck and note type, then map a field to Expression";
   }
 
   // Import known words from Anki deck

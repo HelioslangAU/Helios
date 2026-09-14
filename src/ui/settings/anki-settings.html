@@ -1,174 +1,146 @@
-<!-- Anki Integration Settings Tab Content -->
+<!-- Anki settings -->
 <div class="section-card">
-  <h2 class="section-title">
-    <span>🔗</span>
-    Connection Status
-  </h2>
-  <p class="section-description">
-    Monitor and test your AnkiConnect connection.
-  </p>
-
-  <div class="form-row">
-    <div class="form-group">
-      <label class="form-label">Current Status</label>
-      <div class="status-indicator status-checking" id="anki-connection-status">
-        <span>●</span>
-        <span>Checking...</span>
-      </div>
+  <div class="field">
+    <div class="field__text">
+      <span class="field__label">AnkiConnect</span>
+      <p class="field__help" id="anki-connection-help">
+        Helios talks to Anki on localhost:8765. Anki must be running with the AnkiConnect add-on
+        installed (code 2055492159).
+      </p>
     </div>
-    <div class="form-group">
-      <button class="btn btn-anki" id="test-anki-connection">
-        <span>🔄</span>
-        Test Connection
+    <div class="field__control">
+      <span class="status-indicator status-checking" id="anki-connection-status" role="status">
+        <span class="status-indicator__dot" aria-hidden="true"></span><span>Checking&hellip;</span>
+      </span>
+      <button class="btn btn-secondary" id="test-anki-connection" type="button">
+        <svg class="btn__icon" aria-hidden="true"><use href="#i-plug" /></svg>
+        Test connection
       </button>
     </div>
   </div>
 
-  <div class="help-text">
-    Make sure Anki is running with the AnkiConnect add-on installed (code:
-    2055492159)
-  </div>
-</div>
-
-<div class="section-card">
-  <h2 class="section-title">
-    <span>📚</span>
-    Deck Configuration
-  </h2>
-  <p class="section-description">
-    Choose your target deck and note type for new cards.
-  </p>
-
-  <div class="form-row">
-    <div class="form-group">
-      <label class="form-label" for="anki-deck-select">Target Deck</label>
+  <div class="field">
+    <div class="field__text">
+      <label class="field__label" for="anki-deck-select">Deck for new cards</label>
+      <p class="field__help">Every card you mine is added here.</p>
+    </div>
+    <div class="field__control">
       <select class="form-control" id="anki-deck-select">
-        <option value="">Select a deck...</option>
+        <option value="">Connect to Anki to choose</option>
       </select>
-      <div class="help-text">
-        Choose the Anki deck where new cards will be added
-      </div>
     </div>
-    <div class="form-group">
-      <label class="form-label" for="anki-note-type-select">Note Type</label>
+  </div>
+
+  <div class="field">
+    <div class="field__text">
+      <label class="field__label" for="anki-note-type-select">Note type</label>
+      <p class="field__help">Decides which fields Helios can fill in below.</p>
+    </div>
+    <div class="field__control">
       <select class="form-control" id="anki-note-type-select">
-        <option value="">Select a note type...</option>
+        <option value="">Connect to Anki to choose</option>
       </select>
-      <div class="help-text">Choose the note type/model for your cards</div>
     </div>
   </div>
 
-  <div class="form-row">
-    <div class="form-group">
-      <label class="form-label">Check for Duplicates</label>
-      <label class="toggle-switch">
+  <div class="field">
+    <div class="field__text">
+      <label class="field__label" for="anki-check-duplicates">Skip words already in the deck</label>
+      <p class="field__help">Check for a duplicate before adding, so mining twice is harmless.</p>
+    </div>
+    <div class="field__control">
+      <span class="switch">
         <input type="checkbox" id="anki-check-duplicates" checked />
-        <span class="toggle-slider"></span>
-      </label>
-      <div class="help-text">Prevent creating duplicate cards</div>
+        <span class="switch__track"><span class="switch__thumb"></span></span>
+      </span>
     </div>
-    <div class="form-group">
-      <label class="form-label">Include Sentence Context</label>
-      <label class="toggle-switch">
+  </div>
+
+  <div class="field">
+    <div class="field__text">
+      <label class="field__label" for="anki-include-sentence">Include the sentence</label>
+      <p class="field__help">Send the line the word appeared in along with the card.</p>
+    </div>
+    <div class="field__control">
+      <span class="switch">
         <input type="checkbox" id="anki-include-sentence" checked />
-        <span class="toggle-slider"></span>
-      </label>
-      <div class="help-text">Add sentence context to new cards</div>
-    </div>
-  </div>
-
-  <div class="form-row">
-    <div class="form-group">
-      <label class="form-label">Import Young Words as Learning</label>
-      <label class="toggle-switch">
-        <input type="checkbox" id="anki-import-young-as-learning" checked />
-        <span class="toggle-slider"></span>
-      </label>
-      <div class="help-text">
-        Cards with interval &lt; 21 days will be imported as learning words instead of known words
-      </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Update Learning Words from Anki</label>
-      <label class="toggle-switch">
-        <input type="checkbox" id="anki-auto-sync-learning-words" checked />
-        <span class="toggle-slider"></span>
-      </label>
-      <div class="help-text">
-        Automatically sync learning words on startup and promote to known when interval reaches 21 days
-      </div>
+        <span class="switch__track"><span class="switch__thumb"></span></span>
+      </span>
     </div>
   </div>
 </div>
 
 <div class="section-card">
-  <h2 class="section-title">
-    <span>📥</span>
-    Import Known Words
-  </h2>
+  <h3 class="section-title">Field mapping</h3>
   <p class="section-description">
-    Import expressions from your Anki deck as known words in Helios.
+    Tell Helios what to put in each field of your note type. Mapping something to
+    <strong>Expression</strong> is what makes importing and mining work.
   </p>
-
-  <div class="form-row">
-    <div class="form-group">
-      <button class="btn btn-anki" id="anki-import-known-words" disabled>
-        <span>📥</span>
-        Import Known Words
-      </button>
-      <div class="help-text">
-        Extracts all expressions from your selected deck and marks them as known words.
-        Requires deck, note type, and expression field mapping to be configured.
-      </div>
-    </div>
-    <div class="form-group">
-      <button class="btn btn-anki" id="anki-sync-learning-words" disabled>
-        <span>🔄</span>
-        Sync Learning Words
-      </button>
-      <div class="help-text">
-        Manually sync learning words from Anki and promote to known when interval reaches 21 days.
-        Requires deck, note type, and expression field mapping to be configured.
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="section-card">
-  <h2 class="section-title">
-    <span>🎯</span>
-    Field Mapping
-  </h2>
-  <p class="section-description">Map Helios data to your Anki note fields.</p>
 
   <div class="field-mapping">
     <table class="mapping-table">
       <thead>
         <tr>
-          <th>Anki Field</th>
-          <th>Helios Data</th>
-          <th>Preview</th>
+          <th scope="col">Field in Anki</th>
+          <th scope="col">Helios sends</th>
+          <th scope="col">Example</th>
         </tr>
       </thead>
       <tbody id="anki-field-mapping-body">
         <tr>
-          <td
-            colspan="3"
-            style="
-              text-align: center;
-              padding: 40px;
-              color: var(--helios-text-muted);
-            "
-          >
-            <div>Select a note type to configure field mappings</div>
+          <td class="mapping-empty" colspan="3">
+            Choose a note type to map its fields.
           </td>
         </tr>
       </tbody>
     </table>
   </div>
+</div>
 
-  <div class="help-text">
-    Choose what Helios data should be placed in each of your Anki note fields.
-    Unmapped fields will be left empty.
+<div class="section-card">
+  <h3 class="section-title">Bringing words back from Anki</h3>
+  <p class="section-description">
+    Read your deck to work out which words you already know, so Helios stops highlighting them.
+  </p>
+
+  <div class="field">
+    <div class="field__text">
+      <label class="field__label" for="anki-import-young-as-learning">Treat young cards as learning</label>
+      <p class="field__help">
+        Cards with an interval under 21 days import as learning rather than known.
+      </p>
+    </div>
+    <div class="field__control">
+      <span class="switch">
+        <input type="checkbox" id="anki-import-young-as-learning" checked />
+        <span class="switch__track"><span class="switch__thumb"></span></span>
+      </span>
+    </div>
+  </div>
+
+  <div class="field">
+    <div class="field__text">
+      <label class="field__label" for="anki-auto-sync-learning-words">Sync learning words daily</label>
+      <p class="field__help">
+        Promote learning words to known automatically once their interval reaches 21 days.
+      </p>
+    </div>
+    <div class="field__control">
+      <span class="switch">
+        <input type="checkbox" id="anki-auto-sync-learning-words" />
+        <span class="switch__track"><span class="switch__thumb"></span></span>
+      </span>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-secondary" id="anki-import-known-words" type="button" disabled>
+      <svg class="btn__icon" aria-hidden="true"><use href="#i-import" /></svg>
+      Import known words
+    </button>
+    <button class="btn btn-secondary" id="anki-sync-learning-words" type="button" disabled>
+      <svg class="btn__icon" aria-hidden="true"><use href="#i-refresh" /></svg>
+      Sync learning words
+    </button>
   </div>
 </div>

@@ -209,6 +209,11 @@ class PronunciationManager {
           return NodeFilter.FILTER_REJECT;
         }
 
+        // Skip OCR/PDF searchable-scan overlays — ruby wrappers break absolute positioning
+        if (isInsideOcrPdfTextLayer(parent)) {
+          return NodeFilter.FILTER_REJECT;
+        }
+
         // Only accept if contains target language characters
         const text = node.textContent.trim();
         return this.containsTargetLanguage(text)
@@ -226,6 +231,8 @@ class PronunciationManager {
   }
 
   processTextNodeForPronunciation(textNode) {
+    if (isInsideOcrPdfTextLayer(textNode.parentElement)) return;
+
     const text = textNode.textContent;
     if (!text || this.processedElements.has(textNode)) return;
 

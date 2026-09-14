@@ -1,19 +1,15 @@
-<!-- Keyboard Shortcuts Settings Tab Content -->
+<!-- Shortcut settings -->
 <div class="section-card">
-  <h2 class="section-title">
-    <span>⌨️</span>
-    Keyboard Shortcuts
-  </h2>
+  <h3 class="section-title">Marking a word</h3>
   <p class="section-description">
-    Customize keyboard shortcuts for marking words when the popup is visible. 
-    Click any shortcut box and press your desired key combination.
+    Available while a definition popup is open. Click a key box, then press the key you want.
   </p>
 
   <div class="shortcuts-list">
     <div class="shortcut-item">
       <div class="shortcut-label">
-        <label class="form-label">Mark Unknown</label>
-        <div class="help-text">Mark word as unknown when popup is visible</div>
+        <label class="form-label" for="hotkey-mark-unknown">Mark unknown</label>
+        <p class="help-text">Keep the word underlined and due for study.</p>
       </div>
       <div class="shortcut-input-wrapper">
         <input
@@ -23,14 +19,14 @@
           readonly
           placeholder="1"
         />
-        <div class="shortcut-error" id="error-mark-unknown"></div>
+        <div class="shortcut-error" id="error-mark-unknown" role="alert"></div>
       </div>
     </div>
 
     <div class="shortcut-item">
       <div class="shortcut-label">
-        <label class="form-label">Mark Ignore</label>
-        <div class="help-text">Mark word as ignored when popup is visible</div>
+        <label class="form-label" for="hotkey-mark-ignored">Ignore</label>
+        <p class="help-text">Stop underlining this word without counting it as known.</p>
       </div>
       <div class="shortcut-input-wrapper">
         <input
@@ -40,14 +36,14 @@
           readonly
           placeholder="2"
         />
-        <div class="shortcut-error" id="error-mark-ignored"></div>
+        <div class="shortcut-error" id="error-mark-ignored" role="alert"></div>
       </div>
     </div>
 
     <div class="shortcut-item">
       <div class="shortcut-label">
-        <label class="form-label">Mark Known</label>
-        <div class="help-text">Mark word as known when popup is visible</div>
+        <label class="form-label" for="hotkey-mark-known">Mark known</label>
+        <p class="help-text">Add to your known words so it stops being highlighted.</p>
       </div>
       <div class="shortcut-input-wrapper">
         <input
@@ -57,14 +53,14 @@
           readonly
           placeholder="3"
         />
-        <div class="shortcut-error" id="error-mark-known"></div>
+        <div class="shortcut-error" id="error-mark-known" role="alert"></div>
       </div>
     </div>
 
     <div class="shortcut-item">
       <div class="shortcut-label">
-        <label class="form-label">Mark Learning</label>
-        <div class="help-text">Mark word as learning when popup is visible</div>
+        <label class="form-label" for="hotkey-mark-learning">Mark learning</label>
+        <p class="help-text">Track it as in progress; Anki can promote it once the interval reaches 21 days.</p>
       </div>
       <div class="shortcut-input-wrapper">
         <input
@@ -74,14 +70,14 @@
           readonly
           placeholder="4"
         />
-        <div class="shortcut-error" id="error-mark-learning"></div>
+        <div class="shortcut-error" id="error-mark-learning" role="alert"></div>
       </div>
     </div>
 
     <div class="shortcut-item">
       <div class="shortcut-label">
-        <label class="form-label">Add to Anki</label>
-        <div class="help-text">Add word to Anki when popup is visible</div>
+        <label class="form-label" for="hotkey-anki-add">Send to Anki</label>
+        <p class="help-text">Mine the word into a card with its sentence, audio, and screenshot.</p>
       </div>
       <div class="shortcut-input-wrapper">
         <input
@@ -91,26 +87,23 @@
           readonly
           placeholder="q"
         />
-        <div class="shortcut-error" id="error-anki-add"></div>
+        <div class="shortcut-error" id="error-anki-add" role="alert"></div>
       </div>
     </div>
   </div>
 </div>
 
 <div class="section-card">
-  <h2 class="section-title">
-    <span>🎬</span>
-    Video Shortcuts
-  </h2>
+  <h3 class="section-title">Loading subtitles</h3>
   <p class="section-description">
-    Customize keyboard shortcuts for video subtitle features. Click any shortcut box and press your desired key combination.
+    Available on any page with a video. Keys for moving through subtitles are in the Video section.
   </p>
 
   <div class="shortcuts-list">
-    <div class="shortcut-item video-shortcut">
+    <div class="shortcut-item">
       <div class="shortcut-label">
-        <label class="form-label">Load Subtitle File</label>
-        <div class="help-text">Open file picker to load subtitle file</div>
+        <label class="form-label" for="video-load">Load a subtitle file</label>
+        <p class="help-text">Open the file picker for an SRT or VTT file.</p>
       </div>
       <div class="shortcut-input-wrapper">
         <input
@@ -120,14 +113,14 @@
           readonly
           placeholder="Ctrl+Shift+L"
         />
-        <div class="shortcut-error" id="error-video-load"></div>
+        <div class="shortcut-error" id="error-video-load" role="alert"></div>
       </div>
     </div>
 
-    <div class="shortcut-item video-shortcut">
+    <div class="shortcut-item">
       <div class="shortcut-label">
-        <label class="form-label">Toggle Subtitle Panel</label>
-        <div class="help-text">Show or hide the subtitle side panel</div>
+        <label class="form-label" for="video-panel">Toggle the subtitle panel</label>
+        <p class="help-text">Show or hide the side panel listing every line.</p>
       </div>
       <div class="shortcut-input-wrapper">
         <input
@@ -137,14 +130,14 @@
           readonly
           placeholder="Ctrl+Shift+S"
         />
-        <div class="shortcut-error" id="error-video-panel"></div>
+        <div class="shortcut-error" id="error-video-panel" role="alert"></div>
       </div>
     </div>
 
-    <div class="shortcut-item video-shortcut">
+    <div class="shortcut-item">
       <div class="shortcut-label">
-        <label class="form-label">Auto-load YouTube Subtitles</label>
-        <div class="help-text">Automatically load YouTube captions</div>
+        <label class="form-label" for="video-youtube">Load YouTube captions</label>
+        <p class="help-text">Pull the captions from the video you are watching.</p>
       </div>
       <div class="shortcut-input-wrapper">
         <input
@@ -154,29 +147,18 @@
           readonly
           placeholder="Ctrl+Shift+Y"
         />
-        <div class="shortcut-error" id="error-video-youtube"></div>
+        <div class="shortcut-error" id="error-video-youtube" role="alert"></div>
       </div>
     </div>
   </div>
 
-  <div class="help-text" style="margin-top: 15px; padding: 10px; background-color: rgba(255, 255, 255, 0.05); border-radius: 4px;">
-    💡 <strong>Looking for video navigation shortcuts?</strong> (A/S/D/W keys)<br>
-    You can configure those in the <strong>Video Player</strong> settings tab.
+  <div class="info-box">
+    <strong>Choosing keys that work</strong>
+    <ul>
+      <li>Single keys are fine for marking, since they only apply while a popup is open.</li>
+      <li>Add <kbd>Ctrl</kbd>, <kbd>Shift</kbd>, or <kbd>Alt</kbd> for anything that fires page-wide.</li>
+      <li>Two Helios shortcuts cannot share a combination.</li>
+      <li>Chrome keeps <kbd>Ctrl+W</kbd>, <kbd>Ctrl+T</kbd>, <kbd>Ctrl+N</kbd>, and <kbd>F1</kbd>–<kbd>F12</kbd> for itself.</li>
+    </ul>
   </div>
 </div>
-
-<div class="section-card">
-  <div class="shortcuts-info">
-    <div class="info-box">
-      <strong>💡 Tips:</strong>
-      <ul>
-        <li>Click any shortcut box and press your desired key combination</li>
-        <li>Shortcuts can include modifier keys (Ctrl, Shift, Alt) or be single keys</li>
-        <li>Shortcuts cannot overlap with each other</li>
-        <li>Shortcuts cannot conflict with Chrome's built-in keyboard shortcuts</li>
-        <li>Common Chrome shortcuts to avoid: Ctrl+W, Ctrl+T, Ctrl+N, F1-F12, etc.</li>
-      </ul>
-    </div>
-  </div>
-</div>
-

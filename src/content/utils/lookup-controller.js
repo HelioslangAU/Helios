@@ -49,7 +49,7 @@ class LookupController {
 
       // Skip if already showing this exact word (prevent unnecessary re-renders)
       if (this.currentWord === characterInfo.word &&
-          this.highlightManager.currentHighlight?.textContent === characterInfo.word) {
+          this.highlightManager.getHighlightText?.() === characterInfo.word) {
         return;
       }
 
@@ -87,12 +87,14 @@ class LookupController {
       this.highlightManager.highlightLookupText(
         newCharacterInfo.textNode,
         newCharacterInfo.start,
-        newCharacterInfo.end
+        newCharacterInfo.end,
+        newCharacterInfo.ocrGlyphSpans
       );
 
       // Show popup only if highlight was successfully created
       if (this.highlightManager.currentHighlight) {
-        const rect = this.highlightManager.currentHighlight.getBoundingClientRect();
+        const rect = this.highlightManager.getHighlightRect?.()
+          || this.highlightManager.currentHighlight.getBoundingClientRect();
         await this.popup.showDictionaryPopup(rect.left, rect.bottom, newCharacterInfo.word, sentence);
         // Set subtitle word flag AFTER showing popup (showDictionaryPopup resets it)
         this.popup.isSubtitleWordPopup = isSubtitleWord;

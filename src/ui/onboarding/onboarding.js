@@ -12,6 +12,8 @@ class OnboardingPage {
     this.selectedLanguage = null;
     this.selectedNativeLanguage = null;
     this.selectedLevel = null;
+    this.selectedVocabSourceId = null;
+    this.vocabSources = [];
     this.shouldImportWords = true;
     this.vocabManager = null;
     
@@ -550,41 +552,118 @@ class OnboardingPage {
       return;
     }
 
-    const levels = adapter.getLevelDefinitions();
-    if (!levels || levels.length === 0) {
+    const sources = typeof adapter.getVocabSources === 'function'
+      ? adapter.getVocabSources()
+      : [{ id: 'default', name: null, description: null, levels: adapter.getLevelDefinitions() }];
+
+    const hasLevels = sources.some(source => source.levels && source.levels.length > 0);
+    if (!sources || sources.length === 0 || !hasLevels) {
       container.innerHTML = '<p>No proficiency levels defined for this language.</p>';
       return;
     }
 
-    // Create level selector UI
+    this.vocabSources = sources;
+    const sourceStillValid = sources.some(source => source.id === this.selectedVocabSourceId);
+    if (!sourceStillValid) {
+      this.selectedVocabSourceId = sources[0].id;
+      this.selectedLevel = null;
+    }
+
+    const stepDescription = document.querySelector('#step-level .step-description');
+    if (stepDescription) {
+      if (sources.length > 1) {
+        stepDescription.textContent = 'Choose HSK or Integrated Chinese, then select your level to import words you already know (optional).';
+      } else {
+        stepDescription.textContent = 'Select your proficiency level to import a starter vocabulary list (optional). This helps Helios understand which words you already know.';
+      }
+    }
+
+    this.renderLevelSelector();
+
+    // Set up bulk import button
+    const bulkImportBtn = document.getElementById('btn-bulk-import');
+    if (bulkImportBtn && !bulkImportBtn.dataset.bound) {
+      bulkImportBtn.dataset.bound = 'true';
+      bulkImportBtn.addEventListener('click', () => {
+        this.handleBulkImport();
+      });
+    }
+  }
+
+  renderLevelSelector() {
+    const container = document.getElementById('level-selector-container');
+    if (!container) {
+      return;
+    }
+
+    const sources = this.vocabSources || [];
+    const activeSource = sources.find(source => source.id === this.selectedVocabSourceId) || sources[0];
+    if (!activeSource || !activeSource.levels) {
+      container.innerHTML = '<p>No proficiency levels defined for this language.</p>';
+      return;
+    }
+
     container.innerHTML = '';
-    levels.forEach(level => {
+
+    if (sources.length > 1) {
+      const toggle = document.createElement('div');
+      toggle.className = 'vocab-source-toggle';
+      toggle.setAttribute('role', 'tablist');
+      toggle.setAttribute('aria-label', 'Vocabulary list');
+
+      sources.forEach(source => {
+        const isSelected = source.id === activeSource.id;
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `vocab-source-option${isSelected ? ' selected' : ''}`;
+        button.textContent = source.name;
+        button.setAttribute('role', 'tab');
+        button.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+        button.addEventListener('click', () => {
+          if (this.selectedVocabSourceId === source.id) {
+            return;
+          }
+          this.selectedVocabSourceId = source.id;
+          this.selectedLevel = null;
+          this.renderLevelSelector();
+        });
+        toggle.appendChild(button);
+      });
+      container.appendChild(toggle);
+
+      if (activeSource.description) {
+        const description = document.createElement('p');
+        description.className = 'vocab-source-description';
+        description.textContent = activeSource.description;
+        container.appendChild(description);
+      }
+    }
+
+    const grid = document.createElement('div');
+    grid.className = 'level-options-grid';
+
+    activeSource.levels.forEach(level => {
       const levelOption = document.createElement('div');
       levelOption.className = 'level-option';
       levelOption.dataset.level = level.level;
+      if (this.selectedLevel && this.selectedLevel.level === level.level) {
+        levelOption.className += ' selected';
+      }
       levelOption.innerHTML = `
         <div class="level-name">${level.name}</div>
         <div class="level-word-count">${level.wordCount.toLocaleString()} words</div>
       `;
       levelOption.addEventListener('click', () => {
-        // Remove selected class from all options
-        container.querySelectorAll('.level-option').forEach(opt => {
+        grid.querySelectorAll('.level-option').forEach(opt => {
           opt.classList.remove('selected');
         });
-        // Add selected class to clicked option
         levelOption.classList.add('selected');
         this.selectedLevel = level;
       });
-      container.appendChild(levelOption);
+      grid.appendChild(levelOption);
     });
 
-    // Set up bulk import button
-    const bulkImportBtn = document.getElementById('btn-bulk-import');
-    if (bulkImportBtn) {
-      bulkImportBtn.addEventListener('click', () => {
-        this.handleBulkImport();
-      });
-    }
+    container.appendChild(grid);
   }
 
   async getLanguageAdapter(languageCode) {
